@@ -403,6 +403,32 @@ w `EventDetailClient.tsx` chowają po gwizdku zaproszenia, tworzenie składu i p
 Linki do profilu w `StatystykiGrupy.tsx`. Testy: `poMeczuCard.test.tsx`,
 `statystykiGrupy.test.tsx`, `eventFeatures.test.ts`.
 
+### 2026-09-13 — Odmowa lokalizacji mówi, gdzie ją naprawdę odblokować
+
+PROBLEM: przycisk „Użyj mojej lokalizacji GPS" w Bojo (okno alertu o nowych meczach, oba
+arkusze filtrów, sortowanie „Najbliżej mnie") na każdą odmowę odpowiadał jednym zdaniem:
+„Zezwól w ustawieniach przeglądarki (ikona kłódki przy adresie)". Tymczasem przeglądarka
+zgłasza ten sam kod błędu w trzech różnych sytuacjach, a tylko w jednej z nich ta rada
+prowadzi do celu. Gdy lokalizację blokuje telefon (uprawnienie aplikacji przeglądarki),
+ustawienia strony pokazują „zezwól" i człowiek, który CHCIAŁ udostępnić lokalizację, krąży
+między ekranami, na których wszystko jest już włączone. Gdy pytanie zostało zamknięte bez
+odpowiedzi, blokady nie ma wcale i wystarczyłoby nacisnąć drugi raz — ale komunikat kazał
+szukać ustawień.
+
+ROZWIĄZANIE BOJO: Bojo rozpoznaje, KTO odmówił, i podaje instrukcję pasującą do tej
+przyczyny. Blokada zapamiętana przez przeglądarkę odsyła do ustawień strony. Blokada na
+poziomie telefonu odsyła do ustawień systemu i wprost mówi, że przeglądarka nie jest tu
+winna (Android: Ustawienia → Aplikacje → przeglądarka → Uprawnienia; iPhone: Ustawienia →
+Prywatność → Usługi lokalizacji). Zamknięte pytanie namawia na ponowne naciśnięcie
+przycisku. Gdy przeglądarka nie pozwala tego ustalić, komunikat wymienia oba miejsca
+zamiast zgadywać jedno. Każdy wariant nadal przypomina o drodze ręcznej: wpisaniu miasta.
+
+MECHANIKA: `rodzajOdmowy()` w `frontend/src/lib/geo.ts` pyta Permissions API PO błędzie
+`PERMISSION_DENIED` i zestawia stan uprawnienia dla strony z faktem nieotrzymania pozycji:
+`denied` → `denied`, `granted` → `denied-system` (blokuje system), `prompt` →
+`denied-dismissed`, brak API lub wyjątek → `denied-nieznane`. Rozpoznanie siedzi
+w helperze, więc obejmuje wszystkie wywołania `getCurrentLocation()` naraz.
+`__tests__/odmowaLokalizacji.test.ts` pilnuje rozpoznania i treści komunikatów.
 
 ### 2026-09-12 — Każde powiadomienie ma ikonę i da się je wyciszyć
 
@@ -670,29 +696,3 @@ i `140` (`profiles.mail_wylaczone`, `wyslij_mail_do_konta()`, wyzwalacz
 `app/wydarzenia/[id]/edytuj/page.tsx`, `supabase/functions/powiadom-goscia`.
 Testy: `supabase/test/powiadomienia-o-zmianie.sql`, `supabase/test/poczta-do-kont.sql`,
 `src/__tests__/zmianyMeczu.test.ts`.
-
-### 2026-09-08 — Lista rezerwowa dotrzymuje tego, co obiecuje
-
-PROBLEM: Bojo mówiło rezerwowemu, że po odpuszczeniu miejsca dostanie kolejną ofertę, gdy
-zwolni się następne — i tego nie robiło. To samo dotyczyło osoby, która po prostu nie
-zdążyła odpowiedzieć w wyznaczonym czasie: znikała z kolejki na zawsze, bez żadnej
-wiadomości. Organizator tracił przez to rezerwowego po jednym nieodebranym powiadomieniu
-i nie miał jak się o tym dowiedzieć. Gość bez konta stojący na rezerwie nie dostawał oferty
-NIGDY, choć wiadomość po zapisie obiecywała mu ją wprost. Gracz, który sam wycofał prośbę
-o dołączenie, dostawał komunikat „Organizator nie przyjął Twojej prośby".
-
-ROZWIĄZANIE BOJO: odpuszczenie i brak odpowiedzi to teraz dwie różne rzeczy. Kto klika
-„Odpuszczam", wypada z kolejki i wie o tym z góry. Kto nie zdążył, wraca na koniec kolejki
-i dostaje o tym wiadomość — czyli zostaje w grze. Gość bez konta, który podał adres,
-dostaje ofertę mailem i może ją przyjąć albo odpuścić na stronie swojego zapisu. Gość bez
-adresu jest oznaczony w składzie, żeby organizator wiedział, kogo kolejka pominie. Liczba
-„N. w kolejce" liczy się jedną regułą, tą samą co w bazie, i uwzględnia osobne kolejki dla
-bramkarzy i dla gry w polu.
-
-MECHANIKA: migracja `135` (kolumna `oferta_wygasla_at`, kolejność kolejki
-`ORDER BY (oferta_wygasla_at IS NOT NULL), oferta_wygasla_at, zapisano_at`, powiadomienie
-`oferta_wygasla`, warunek `auth.uid()` w `powiadom_o_odrzuceniu_prosby()`), migracja `137`
-(`sync_reserve_claim()` przyjmuje gościa z adresem, powód poczty `oferta`,
-`przyjmij_oferte_goscia()` / `odpusc_oferte_goscia()`, kolumna pochodna `ma_guest_email`),
-`lib/kolejkaRezerwy.ts` jako lustro reguły w przeglądarce. Asercje w `supabase/test/rls.sql`
-i `supabase/test/poczta-goscia.sql`.

@@ -953,13 +953,16 @@ Wejścia z listy, mapy czy linku zachowują zwykłe „wstecz".
 ## Podsumowanie przed publikacją
 
 „Sprawdź i opublikuj →" na kroku 3 **nie publikuje** — otwiera okno
-**„Tak zobaczą to gracze"** (`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika
-w `lib/eventSummary.ts`) z dwoma przyciskami: „Popraw" i „Opublikuj mecz" — dopiero ten
+**„Sprawdź mecz przed publikacją"** z kartą podsumowania „Tak zobaczą to gracze"
+w środku (`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika w `lib/eventSummary.ts`)
+i dwoma przyciskami: „Wróć do edycji" i „Opublikuj mecz" — dopiero ten
 drugi naprawdę publikuje. Powód: data, miejsce, skład i cena są ustawiane na krokach 1–2
 i w chwili publikacji nie są widoczne, a mecz jest widoczny natychmiast po utworzeniu
 i od razu idzie linkiem do ekipy — pomyłka w godzinie rozchodzi się szybciej, niż da się
 ją poprawić. Nazwa przycisku na kroku 3 zmieniła się 2026-08-29: „Opublikuj mecz →" mylił,
-bo klik nie publikował — otwierał to okno.
+bo klik nie publikował — otwierał to okno. Nagłówek samego okna i lewy przycisk zmieniły
+się 2026-09-13: nagłówek powtarzał co do znaku tytuł karty stojącej pod nim, a „Popraw"
+nie mówiło, dokąd wraca.
 
 Do 2026-08-23 to samo podsumowanie stało jako karta NA kroku 3, nad przyciskiem. Karta
 zniknęła razem z wejściem okna: dwie kopie tej samej treści na jednej ścieżce znaczą,
@@ -969,7 +972,7 @@ zamykają okno, żeby komunikat nie renderował się pod nim; kręciołek na „
 zostaje widoczny na czas zapisu.
 
 Karta ze stopką przycisków to od 2026-08-29 kolumna flex (`overflow-hidden` na całości,
-`overflow-y-auto` tylko na treści podsumowania) — stopka z „Popraw"/„Opublikuj mecz" stoi
+`overflow-y-auto` tylko na treści podsumowania) — stopka z „Wróć do edycji"/„Opublikuj mecz" stoi
 poza scrollowanym blokiem, więc jest widoczna od razu. Wcześniej cała karta (nagłówek,
 podsumowanie, przyciski) była jednym scrollującym blokiem: przy dłuższym podsumowaniu
 przycisk publikacji chował się pod dołem ekranu, dopóki ktoś nie przewinął w dół —
@@ -1965,6 +1968,35 @@ bez uprzedniej odmowy zgody i odgrzebywania jej potem w ustawieniach.
 
 Osobno i bez zmian zostaje `pozycjaBezPytania()` (`lib/geo.ts`): pozycja BEZ pytania, przy
 zgodzie już udzielonej — używa jej okno alertu i kropka „nowe w pobliżu" na dolnej nawigacji.
+
+### Odmowa lokalizacji ma trzy przyczyny i trzy różne wyjścia — od 2026-09-13
+
+`PERMISSION_DENIED` z `getCurrentPosition()` jest jednym kodem błędu na trzy zupełnie różne
+sytuacje. Do 2026-09-13 wszystkie trzy dostawały ten sam komunikat: „Zezwól w ustawieniach
+przeglądarki (ikona kłódki przy adresie)". Zgłoszone z telefonu: człowiek **chce**
+udostępnić lokalizację, naciska „Użyj mojej lokalizacji GPS" i dostaje instrukcję
+prowadzącą w miejsce, w którym albo nic takiego nie ma, albo wszystko jest już ustawione
+na „tak" — czyli pętlę bez wyjścia.
+
+`rodzajOdmowy()` w `lib/geo.ts` pyta Permissions API **po** odmowie i zestawia stan
+uprawnienia dla strony z faktem, że pozycja nie przyszła:
+
+| Stan uprawnienia po odmowie | `GeoErrorKind` | Co mówi komunikat |
+|---|---|---|
+| `denied` | `denied` | blokada zapamiętana przez przeglądarkę → ustawienia strony |
+| `granted` | `denied-system` | strona MA zgodę, więc blokuje telefon → uprawnienie aplikacji przeglądarki w ustawieniach systemu |
+| `prompt` | `denied-dismissed` | pytanie zamknięto bez odpowiedzi, blokady nie ma → **wystarczy nacisnąć drugi raz** |
+| brak API / wyjątek | `denied-nieznane` | wymienia oba miejsca, zamiast zgadywać jedno |
+
+Przypadek `denied-system` jest tym z oryginalnego zgłoszenia i jedynym, którego stara rada
+nie mogła naprawić: w ustawieniach strony wszystko jest na „zezwól", a blokada siedzi
+piętro niżej (Android: Ustawienia → Aplikacje → przeglądarka → Uprawnienia; iPhone:
+Ustawienia → Prywatność → Usługi lokalizacji).
+
+Pilnuje tego `__tests__/odmowaLokalizacji.test.ts`: każdy rodzaj ma własny komunikat, każdy
+zostawia drogę ręczną („wpisz miasto"), a komunikat systemowy **nie** odsyła do kłódki.
+Rozpoznanie dotyczy wszystkich wywołań `getCurrentLocation()` naraz — okna alertu, obu
+arkuszy filtrów i sortowania „Najbliżej mnie" — bo siedzi w helperze, nie w komponencie.
 
 ### Sport na `/mapa`: ikony w trybie gier, lista przy obiektach — od 2026-09-13
 

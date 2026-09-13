@@ -1034,7 +1034,7 @@ function NewEventForm() {
 
                 <OpcjaMeczu
                   tytul="Mecz płatny"
-                  podpis="Podasz koszt i sposób zapłaty — Bojo policzy, ile wychodzi od osoby."
+                  podpis="Podziel koszt między graczy."
                   wlaczona={platny}
                   // `platny` jest NIEZALEŻNYM przełącznikiem (`useState`),
                   // nie pochodną `costPln > 0` — da się go włączyć i zostawić
@@ -1129,7 +1129,10 @@ function NewEventForm() {
                 {GK_SPORTS.includes(sport) && (
                   <OpcjaMeczu
                     tytul="Bramkarze osobno"
-                    podpis="Skład rozbije się na bramkarzy i zawodników z pola."
+                    // Podpis nie może obiecywać „osobnego limitu": w środku są
+                    // DWA tryby (wspólna pula i rezerwacja miejsc), a osobny
+                    // limit ma tylko drugi z nich.
+                    podpis="Gracze wybierają rolę: bramkarz albo w polu."
                     wlaczona={goalkeepersEnabled === true}
                     naZmiane={(v) => setGoalkeepersEnabled(v)}
                   >
@@ -1151,7 +1154,7 @@ function NewEventForm() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-slate-900">Biorę udział</p>
-                    <p className="text-xs text-slate-500">Zapisz mnie jako uczestnika tej gry</p>
+                    <p className="text-xs text-slate-500">Dodaj mnie do składu</p>
                   </div>
                   <button
                     type="button"
@@ -1206,7 +1209,7 @@ function NewEventForm() {
                   </p>
                 )}
                 <p className="text-xs text-slate-500 mb-2">
-                  Kliknij boisko na mapie, wyszukaj adres lub kliknij dowolne miejsce.
+                  Wyszukaj adres lub boisko, albo wskaż miejsce na mapie.
                 </p>
 
                 {/* Ostatnio używane boisko — jedno dotknięcie zamiast szukania
@@ -1323,7 +1326,7 @@ function NewEventForm() {
                   samo pole, więc oba źródła się nie biją. */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Mecz w ramach grupy <span className="font-normal text-slate-400">— opcjonalnie</span>
+                  Dodaj do grupy <span className="font-normal text-slate-400">(opcjonalnie)</span>
                 </label>
                 {grupaId ? (
                   <div className="flex items-center gap-2 rounded-xl border border-primary-500 bg-primary-50 px-3 py-2.5">
@@ -1358,9 +1361,9 @@ function NewEventForm() {
                     <span className="shrink-0 text-slate-400" aria-hidden="true">›</span>
                   </button>
                 )}
-                <p className="mt-1.5 text-xs text-slate-500">
-                  Mecz trafi do historii grupy i zobaczą go wszyscy jej członkowie.
-                </p>
+                {/* Bez zdania „kto to zobaczy" — mówi je już `EventVisibilityFields`
+                    kilkadziesiąt pikseli wyżej, dokładniej (z nazwą ekipy
+                    i liczbą członków) i dla obu ustawień widoczności. */}
               </div>
 
               {/* Title + description */}
@@ -1465,9 +1468,9 @@ function NewEventForm() {
                 dołem ekranu, dopóki ktoś nie przewinął w dół. */}
             <div className="flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-slate-800">
               <div className="overflow-y-auto p-5">
-                <h2 className="font-display text-lg font-bold text-ink">Tak zobaczą to gracze</h2>
+                <h2 className="font-display text-lg font-bold text-ink">Sprawdź mecz przed publikacją</h2>
                 <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                  Sprawdź termin i widoczność — po opublikowaniu mecz od razu jest widoczny.
+                  Po opublikowaniu mecz od razu jest widoczny.
                 </p>
 
                 <div className="mt-4">
@@ -1512,7 +1515,7 @@ function NewEventForm() {
                   className="flex-1"
                   onClick={() => setPodgladOtwarty(false)}
                 >
-                  Popraw
+                  Wróć do edycji
                 </Button>
                 <Button
                   type="button"

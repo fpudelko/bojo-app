@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import PrzyciskMojaLokalizacja from '@/components/ui/PrzyciskMojaLokalizacja';
-import { getCurrentLocation } from '@/lib/geo';
+import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 
 vi.mock('@/lib/geo', async (importOryginalu) => ({
   ...(await importOryginalu<typeof import('@/lib/geo')>()),
@@ -36,8 +36,20 @@ describe('PrzyciskMojaLokalizacja', () => {
 
     fireEvent.click(screen.getByRole('button'));
 
-    expect(await screen.findByText(/Brak zgody na lokalizację/)).toBeTruthy();
+    expect(await screen.findByText(geoErrorMessage('denied'))).toBeTruthy();
     expect(naPozycje).not.toHaveBeenCalled();
+  });
+
+  // Rodzaj odmowy niesie RÓŻNĄ instrukcję (patrz `odmowaLokalizacji.test.ts`),
+  // więc przycisk musi pokazać tę właściwą, a nie jedną na wszystko.
+  it('blokada poza przeglądarką dostaje własną instrukcję, nie tę o stronie', async () => {
+    geo.mockResolvedValue({ ok: false, kind: 'denied-system' });
+    render(<PrzyciskMojaLokalizacja onPozycja={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(await screen.findByText(geoErrorMessage('denied-system'))).toBeTruthy();
+    expect(screen.queryByText(geoErrorMessage('denied'))).toBeNull();
   });
 
   it('własna etykieta — na mapie przycisk mówi o miejscowości, nie o promieniu', () => {

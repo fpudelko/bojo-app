@@ -45,7 +45,7 @@ export function opisWidocznosciWGrupie(
   if (visibility === 'private') {
     return `Prywatny — na liście ekipy „${grupaNazwa}". Zobaczą go ${czlonkowie} ekipy i każdy, kto dostanie link.`;
   }
-  return `Publiczny — widoczny dla wszystkich, a dodatkowo na liście ekipy „${grupaNazwa}".`;
+  return `Publiczny — także na liście ekipy „${grupaNazwa}".`;
 }
 
 // ---------------------------------------------------------------------------

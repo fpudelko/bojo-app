@@ -564,7 +564,7 @@ export default function EditEventPage() {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Lokalizacja</label>
             <p className="text-xs text-slate-500 mb-2">
-              Kliknij boisko na mapie, wyszukaj adres lub kliknij dowolne miejsce.
+              Wyszukaj adres lub boisko, albo wskaż miejsce na mapie.
             </p>
             <div className="h-64 sm:h-80 rounded-xl overflow-hidden border border-slate-200">
               <UnifiedLocationPicker sport={sport} value={location} onChange={setLocation} />
