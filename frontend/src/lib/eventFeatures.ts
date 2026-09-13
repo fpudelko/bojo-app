@@ -21,16 +21,27 @@ import type {
  * ekipy (`getMyGroupEvents()`, `lib/events.ts`), tylko dotąd nikt tego nie mówił
  * wprost. Bez tego zdania „Prywatne" wygląda jak obietnica bez pokrycia: każdy
  * członek grupy i tak zobaczy ten mecz na liście `/grupy/[id]`.
+ *
+ * `krotko` — wariant do nagłówka strony meczu (od 2026-09-13), GDZIE pigułki
+ * „Prywatne"/„Publiczne" i nazwa ekipy stoją tuż nad tym zdaniem i już
+ * niosą stan; pełna wersja (domyślna) zostaje w kreatorze, gdzie żadnych
+ * pigułek jeszcze nie ma i zdanie musi wytłumaczyć wszystko samo.
  */
 export function opisWidocznosciWGrupie(
   visibility: 'public' | 'private',
   grupaNazwa: string | undefined,
   liczbaCzlonkow: number | undefined,
+  krotko = false,
 ): string | null {
   if (!grupaNazwa) return null;
   const czlonkowie = liczbaCzlonkow != null
     ? withCount(liczbaCzlonkow, 'członek', 'członkowie', 'członków')
     : 'członkowie';
+  if (krotko) {
+    return visibility === 'private'
+      ? `Zobaczą go ${czlonkowie} ekipy i każdy, kto dostanie link.`
+      : `Widoczny dla wszystkich, także na liście ekipy.`;
+  }
   if (visibility === 'private') {
     return `Prywatny — na liście ekipy „${grupaNazwa}". Zobaczą go ${czlonkowie} ekipy i każdy, kto dostanie link.`;
   }

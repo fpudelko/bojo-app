@@ -1452,18 +1452,18 @@ długość), zmiana końca nigdy nie rusza startu — dokładnie ten sam wzorzec
 
 **Trzy wejścia do `repeatEvent()`, jedna gwarancja na poziomie typów.** Poza tym oknem
 i skróconą wersją w karcie „Po meczu", trzecie wejście żyje na `NajblizszyMeczGrupy.tsx`
-(„Powtórz na {dzień} {data}") i czwarte na `/moje-gry → Historia`
-(`PowtorzZHistorii.tsx`, opisane w sekcji „Układ `/moje-gry`"). Wszystkie cztery wołają
-tę samą funkcję, która do 2026-09-12 gubiła po cichu `requireApproval`, `reserveEnabled`
-i `goalkeeperSlotsReserved` — mecz z wymaganą akceptacją zapisów wracał po powtórce jako
-OTWARTY (audyt, ustalenie `S-2`; wcześniej z tego samego powodu ginęły `groupId`,
-`minPlayers`, `endTime`, `recurringEventId` — każde naprawiane osobno). Typ
+(„Powtórz na {dzień} {data}"). Czwarte wejście istniało na `/moje-gry → Historia`
+(`PowtorzZHistorii.tsx`) — usunięte 2026-09-13 (zgłoszone wprost: link pod KAŻDĄ kartą
+w historii się powtarzał, a te same dwie akcje żyją już na stronie meczu). Pozostałe
+trzy wołają tę samą funkcję, która do 2026-09-12 gubiła po cichu `requireApproval`,
+`reserveEnabled` i `goalkeeperSlotsReserved` — mecz z wymaganą akceptacją zapisów wracał
+po powtórce jako OTWARTY (audyt, ustalenie `S-2`; wcześniej z tego samego powodu ginęły
+`groupId`, `minPlayers`, `endTime`, `recurringEventId` — każde naprawiane osobno). Typ
 `ZrodloPowtorki` w `lib/events.ts` wymusza dziś wymienienie KAŻDEGO pola `EventCreate`
 w ciele `repeatEvent()` — pominięcie nowo dodanej kolumny przestaje się kompilować,
-zamiast po cichu zostawiać domyślną wartość. Wszystkie cztery wejścia trafiają też do
-`?utworzono=1` (panel „Mecz gotowy — wyślij link"), nie tylko `PowtorzZHistorii` jak
-dotąd (ustalenie `S-6`) — nowy mecz bez wysłanego linku jest nowym meczem bez składu,
-niezależnie skąd organizator go powtórzył.
+zamiast po cichu zostawiać domyślną wartość. Wszystkie trzy wejścia trafiają też do
+`?utworzono=1` (panel „Mecz gotowy — wyślij link"), niezależnie skąd organizator go
+powtórzył (ustalenie `S-6`).
 
 ---
 
@@ -3398,22 +3398,14 @@ Sprawdzenie: `SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'bo
 Testy: `supabase/test/przypomnienia.sql` (kto dostaje, z jaką treścią, idempotencja) —
 funkcji nie widzi ani `tsc`, ani Vitest, ani Playwright, bo nie ma dla niej interfejsu.
 
-## „Powtórz ten mecz" na `/moje-gry → Historia`
+## „Powtórz ten mecz" na `/moje-gry → Historia` — usunięte
 
-Gry cykliczne są świadomie wyłączone (`SHOW_RECURRING`), więc „Powtórz mecz" jest ich jedynym
-zamiennikiem — a żyło wyłącznie na stronie meczu i przy najbliższym meczu ekipy. Organizator
-wracający w poniedziałek, żeby wrzucić czwartek, miał przed sobą cztery kroki: Moje gry →
-Historia → otwórz mecz → przewiń do panelu „Zarządzaj wydarzeniem" → Powtórz.
-
-`components/events/PowtorzZHistorii.tsx` — przycisk pod kartą meczu, wyłącznie przy meczach,
-które ta osoba organizowała (`relation.isOrganizer`). Data wypełniona z góry
-(`domyslnyTerminPowtorki()` — najbliższy przyszły ten sam dzień tygodnia), długość meczu
-zachowana. Po utworzeniu przenosi na `/wydarzenia/<nowy>?utworzono=1`, czyli od razu
-do panelu „Mecz gotowy — wyślij link".
-
-Świadomie NOWY komponent, nie wspólny z oknem na stronie meczu: tamto siedzi
-w `EventDetailClient.tsx`, który audyt oznacza jako regresyjny hot spot. Scalenie obu wejść
-w jedno zostaje jako osobne zadanie.
+Krótko istniał tu przycisk pod KAŻDĄ kartą w Historii (`PowtorzZHistorii.tsx`, ustalenie
+`O-40`). Usunięty 2026-09-13, zgłoszone wprost: link powtarzał się na każdej karcie
+listy, a te same dwie akcje już istnieją na stronie meczu — „Powtórz mecz (skopiuj)"
+w zakładce Ustawienia (`EventDetailClient.tsx`) i przycisk „Powtórz" w karcie „Po meczu"
+(`PoMeczuCard.tsx`). Kto chce powtórzyć mecz, otwiera go i używa jednej z tych dwóch —
+nie potrzeba trzeciego wejścia rozsianego po liście.
 
 ## Awaria wczytania meczu to nie jest brak meczu
 

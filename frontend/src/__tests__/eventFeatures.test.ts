@@ -26,4 +26,25 @@ describe('opisWidocznosciWGrupie', () => {
     const opis = opisWidocznosciWGrupie('private', 'Czwartkowa Gierka', undefined);
     expect(opis).toContain('członkowie ekipy');
   });
+
+  // Wariant "krotko" (strona meczu, obok pigułek "Prywatne"/nazwa ekipy) nie
+  // powtarza tego, co pigułki już mówią — bez "Prywatny —" i bez nazwy grupy.
+  describe('krotko', () => {
+    it('drops the visibility word and group name for a private match', () => {
+      const opis = opisWidocznosciWGrupie('private', 'Czwartkowa Gierka', 14, true);
+      expect(opis).not.toContain('Czwartkowa Gierka');
+      expect(opis).not.toMatch(/^Prywatny/);
+      expect(opis).toMatch(/14 członków/);
+    });
+
+    it('stays a single short line for a public match', () => {
+      const opis = opisWidocznosciWGrupie('public', 'Czwartkowa Gierka', 14, true);
+      expect(opis).not.toContain('Czwartkowa Gierka');
+      expect(opis).not.toMatch(/^Publiczny/);
+    });
+
+    it('still returns null without a group, same as the long form', () => {
+      expect(opisWidocznosciWGrupie('private', undefined, undefined, true)).toBeNull();
+    });
+  });
 });

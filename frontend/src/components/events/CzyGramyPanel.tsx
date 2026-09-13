@@ -83,8 +83,10 @@ export default function CzyGramyPanel({ event, participants, canManage, busy, on
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
             Brakuje {freeSpots} — otwórz dla okolicy
           </Button>
-          <p className="mt-1 text-center text-xs text-slate-400">Mecz pojawi się na publicznej liście, żeby dołączyli ludzie z sąsiedztwa.</p>
-          <p className="mt-0.5 text-center text-xs text-slate-400">Wczesny etap: graczy z okolicy dopiero przybywa — najpewniej zbierzesz skład, wysyłając link ekipie.</p>
+          {/* Jedno krótkie zdanie zamiast dwóch akapitów — zgłoszone wprost,
+              styl skrócony do tego samego rejestru co licznik miejsc wyżej
+              na stronie ("Zostało N wolnych miejsc"). */}
+          <p className="mt-1 text-center text-xs text-slate-400">Pojawi się na publicznej liście gier w okolicy.</p>
         </div>
       )}
     </div>
