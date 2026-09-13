@@ -2407,6 +2407,14 @@ mechanika unika. Jedno wyrażenie
 (`calc(<widoczne okno> - var(--bottom-nav-h))`) obsługuje przez to oba stany, a kontenery
 rozmów nie mają już własnych wcięć na pasek gestów: niesie je pasek nawigacji.
 
+**Guzik „Wyślij" nie zabiera skupienia polu** (`bezZabieraniaSkupienia` w `lib/czat.ts`,
+`preventDefault()` na `mousedown`, wszystkie trzy composery). Bez tego dotknięcie guzika
+blurowało pole: klawiatura się chowała, ekran czatu natychmiast rósł do pełnej wysokości
+i guzik uciekał spod palca, ZANIM zdążył dojść `click` — z zewnątrz wyglądało to tak, że
+pierwsze dotknięcie tylko chowa klawiaturę, a wysłać da się dopiero za drugim razem
+(zgłoszone wprost). Przy okazji klawiatura zostaje otwarta po wysłaniu, jak w każdym
+komunikatorze. Pilnuje tego `guzikWyslij.test.ts`.
+
 Otwarcie klawiatury dociąga też listę na dół
 (`RozmowaWydarzenia`/`RozmowaGrupy`/`DmRozmowaClient`, prop `klawiatura`) — lista
 kurczy się od dołu przy niezmienionym `scrollTop`, więc najnowsza wiadomość uciekała pod

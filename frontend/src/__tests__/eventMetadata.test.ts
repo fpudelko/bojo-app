@@ -5,11 +5,22 @@ import { metadataDlaMeczu, type EventMeta } from '@/app/wydarzenia/[id]/eventMet
 // JSON-LD był chroniony progiem widoczności od początku, a <title>, description
 // i og: NIE — i to przeszło niezauważone, bo nic tego nie sprawdzało.
 
+/** Data ZA TRZY DNI, liczona od dnia uruchomienia testu — nie wpisana na
+ *  sztywno. Sztywna data „nadchodzącego" meczu przestaje być nadchodząca
+ *  następnego dnia rano i wywraca asercje o `robots`, mimo że nikt niczego nie
+ *  zepsuł (ta sama pułapka, przed którą AGENTS.md ostrzega przy seedach —
+ *  „stałe ODSTĘPY od dnia uruchomienia"). Wywróciła je 2026-09-13. */
+function zaTrzyDni(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 3);
+  return d.toISOString().slice(0, 10);
+}
+
 function mecz(overrides: Partial<EventMeta> = {}): EventMeta {
   return {
     title: 'Gierka na Ratajach',
     sport: 'piłka nożna',
-    date: '2026-09-12',
+    date: zaTrzyDni(),
     time: '18:00',
     field_name: 'Orlik Rataje',
     custom_address: 'ul. Kwiatowa 3, Poznań',
@@ -87,7 +98,7 @@ describe('metadataDlaMeczu — polityka cyklu życia strony meczu (roadmapa poz.
   });
 
   it('nadchodzący publiczny mecz zostaje indeksowalny (robots nieustawione)', () => {
-    const meta = metadataDlaMeczu('abc', mecz({ date: '2026-09-12', time: '18:00' }));
+    const meta = metadataDlaMeczu('abc', mecz({ date: zaTrzyDni(), time: '18:00' }));
     expect(meta.robots).toBeUndefined();
   });
 
