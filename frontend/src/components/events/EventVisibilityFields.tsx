@@ -9,6 +9,15 @@ import type { Visibility } from '@/types';
  * Karty Publiczne/Prywatne + „Wymagaj akceptacji”. Wspólne dla kreatora
  * (`wydarzenia/nowe`) i edycji wydarzenia (dawniej edycja miała Prywatne
  * jako pierwszą kartę — ujednolicone z kolejnością kreatora).
+ *
+ * PODPISY SKRÓCONE 2026-09-13, ale NIE do „tylko dla zaproszonych" —
+ * o taki skrót padła prośba i byłby nieprawdą. Do prywatnego meczu wchodzi
+ * też każdy, kto dostanie link (`/d/<kod>`), a link jest w Bojo GŁÓWNYM
+ * sposobem zapraszania: panel „Zaproś" na stronie meczu zaczyna się od
+ * „Udostępnij" i „Kopiuj". Podpis, który przemilcza link, obiecuje
+ * szczelność, której nie ma — a to jedyne miejsce, gdzie organizator tę
+ * decyzję podejmuje. Ekipa siedzi w osobnym zdaniu pod kartami
+ * (`opisWidocznosciWGrupie()`), więc tu jej nie wymieniamy drugi raz.
  */
 export default function EventVisibilityFields({
   visibility, setVisibility, requireApproval, setRequireApproval, grupaNazwa, liczbaCzlonkowGrupy,
@@ -35,7 +44,7 @@ export default function EventVisibilityFields({
           <Globe className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
           <span>
             <span className="block text-sm font-medium text-slate-900">Publiczne</span>
-            <span className="block text-xs text-slate-500">Widoczne dla wszystkich, każdy może dołączyć</span>
+            <span className="block text-xs text-slate-500">Widoczne dla wszystkich — dołączy każdy chętny</span>
           </span>
         </button>
         <button
@@ -45,7 +54,7 @@ export default function EventVisibilityFields({
           <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
           <span>
             <span className="block text-sm font-medium text-slate-900">Prywatne</span>
-            <span className="block text-xs text-slate-500">Nie pojawia się na liście. Wchodzą tylko zaproszeni, grupa i osoby z linkiem</span>
+            <span className="block text-xs text-slate-500">Nie pojawia się na liście — wejdzie tylko ktoś z zaproszeniem lub linkiem</span>
           </span>
         </button>
       </div>

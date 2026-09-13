@@ -27,7 +27,6 @@ import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
 import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
 import GuestInviteNudge from '@/components/events/GuestInviteNudge';
 import CzyGramyPanel from '@/components/events/CzyGramyPanel';
-import NieGramButton from '@/components/events/NieGramButton';
 import {
   getSeriesEvents, setSeriesTime, setSeriesTemplateTime,
   terminyWZakresie, type ZakresEdycji,
@@ -2923,7 +2922,7 @@ export default function EventDetailClient() {
 
             {/* Jedno zdanie zamiast dawnych dwóch (widoczność + przypomnienie)
                 — zgłoszone wprost: ta karta, "Zaproś z grupy" przy liczniku
-                miejsc i sekcja "Zaproś znajomych" niżej mówiły to samo trzy
+                miejsc i sekcja „Zaproś" niżej mówiły to samo trzy
                 razy. "Kopiuj link" i "Zaproś z grupy" zostają wyłącznie w tych
                 dwóch stałych miejscach, nie powtarzają się tutaj. */}
             <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
@@ -2941,219 +2940,26 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── HEADER: meta ──
-            „Udostępnij" i „Kopiuj" BYŁY tutaj, na samej górze. Zostały zdjęte:
-            ta sama para przycisków stoi niżej, w karcie „Wyślij link znajomym",
-            gdzie ma nagłówek i zdanie tłumaczące, po co to klikać — czyli jest
-            czytelniejsza. Dwa wejścia do tej samej akcji na jednym ekranie
-            kosztowały pół ekranu nad najważniejszą informacją, czyli licznikiem
-            miejsc.
+        {/* ── DAWNY „HEADER: meta" — BLOK ZNIKNĄŁ, 2026-09-13 ──
+            Stały tu kolejno: „Udostępnij"/„Kopiuj", opis meczu i rząd pigułek.
+            Wszystkie trzy zeszły niżej, każde z własnego powodu, i nic tu po
+            nich nie zostało — stąd brak pustego kontenera.
 
-            OD TERAZ TYLKO W ZAKŁADCE „SKŁAD". Wcześniej ten blok renderował się
-            na każdej zakładce poza Rozmową, więc wchodząc w Taktykę albo
-            Rozliczenia trzeba było przewinąć opis meczu, datę, miejsce i pigułki,
-            zanim zobaczyło się to, po co się tam weszło. Zgłoszone wprost.
-            Zasada: szczegóły meczu mieszkają w „Składzie", zakładki pokazują
-            swoją treść. */}
-        {tab === 'sklad' && (
-        <div className="px-4">
-          {/* OPIS MECZU ZSZEDŁ STĄD POD LICZNIK SKŁADU — 2026-09-13.
-              Stał tu jako pierwsza rzecz w zakładce, nad pigułkami, kartą
-              „Kiedy i gdzie" i licznikiem miejsc, a ma do tysiąca znaków
-              (`LIMIT_OPISU` w `EventTitleDescriptionField.tsx`). Organizator,
-              który opisał zasady akapitem, spychał termin, adres i „ile
-              zostało miejsc" pod zgięcie ekranu — czyli dokładnie te trzy
-              fakty, po które wchodzi się na tę stronę. Ten sam argument zdjął
-              stąd wcześniej „Udostępnij"/„Kopiuj" (komentarz niżej: „pół
-              ekranu nad najważniejszą informacją, czyli licznikiem miejsc") —
-              opis kosztował więcej i został.
+            1. „Udostępnij"/„Kopiuj" → karta „Wyślij link znajomym", gdzie mają
+            nagłówek i zdanie tłumaczące, po co to klikać. Dwa wejścia do tej
+            samej akcji kosztowały pół ekranu nad licznikiem miejsc.
 
-              Nowe miejsce: pod składem i pod blokami stanu (wypisanie się,
-              rezerwa, oferta miejsca). Dla niezapisanego te bloki nie
-              renderują nic, więc opis wypada tuż pod licznikiem; zapisany
-              dostaje najpierw swoje wyjścia, a opis czyta się raz, przed
-              dołączeniem. */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {/* My relation to this match — the two axes (ownership × participation)
-                shown up front, so nobody has to expand the roster to learn
-                whether they're actually in. */}
-            {isOwner && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-700 px-3 py-1.5 text-xs font-bold text-white">
-                <Star className="h-3.5 w-3.5" strokeWidth={2.25} /> Organizujesz
-              </span>
-            )}
-            {/* Pigułki „Grasz" tu NIE MA — zdjęta 2026-09-13, zgłoszone wprost.
-                Dolny pasek stanu mówi to samo i mówi więcej: „Jesteś w składzie",
-                podtytuł „Masz miejsce w składzie", rola („· bramkarz") i wyjście
-                („Wypisz się") — a stoi na ekranie przez cały czas, bo jest
-                `fixed`. Pigułka powtarzała status dwa razy na jednym widoku.
-                Pozostałe pigułki w tym rzędzie zostają: niosą cechy MECZU
-                (za darmo, publiczny, ekipa), których nigdzie indziej nie widać,
-                a nie mój stan względem niego. */}
-            {myConfirmed?.isReserve && (
-              // Szary, nie bursztyn: bursztyn znaczy w tej apce „uwaga, coś się
-              // dzieje" (obserwowanie, ostrzeżenia), a niebieski — „wymaga
-              // akceptacji". Rezerwa to stan bierny: masz miejsce w kolejce,
-              // nie w składzie. Jeden kolor dla wszystkich komunikatów o rezerwie
-              // sprawia, że po kilku meczach sam kolor niesie informację.
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700">
-                <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
-                Rezerwa{myReservePosition ? ` · ${myReservePosition}.` : ''}
-                {myConfirmed.isGoalkeeper ? ' · bramkarz' : ''}
-              </span>
-            )}
-            {myMaybe && (
-              // Bursztyn — tak jak baner „Obserwujesz ten mecz" i przycisk
-              // w dolnym pasku. Szary zwolnił się dla rezerwy, a obserwowanie
-              // miało już swój kolor w dwóch innych miejscach tej samej strony.
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
-                <Eye className="h-3.5 w-3.5" strokeWidth={2.25} /> Obserwujesz
-              </span>
-            )}
-            {/* price — po starcie meczu ustępuje miejsca statusowi rozliczenia:
-                cena "ile trzeba zapłacić" traci sens, gdy już się zapłaciło albo nie */}
-            {!eventStarted ? (
-              event.costGrosze > 0 ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-                  <Tag className="h-3.5 w-3.5" strokeWidth={2.25} />
-                  {(event.costGrosze / 100).toFixed(0)} zł / os.
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-                  <Tag className="h-3.5 w-3.5" strokeWidth={2.25} /> Za darmo
-                </span>
-              )
-            ) : event.costGrosze > 0 ? (
-              (isOwner || canManagePayments) ? (() => {
-                const unpaid = regulars.filter((p) => !p.hasPaid).length;
-                return unpaid === 0 ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-                    <Check className="h-3.5 w-3.5" strokeWidth={2.25} /> Rozliczono
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-                    <Banknote className="h-3.5 w-3.5" strokeWidth={2.25} /> {withCount(unpaid, 'osoba nie zapłaciła', 'osoby nie zapłaciły', 'osób nie zapłaciło')}
-                  </span>
-                );
-              })() : myConfirmed && !myConfirmed.isReserve ? (
-                myConfirmed.hasPaid ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-                    <Check className="h-3.5 w-3.5" strokeWidth={2.25} /> Zapłacono
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-                    <Clock className="h-3.5 w-3.5" strokeWidth={2.25} /> Zapłać
-                  </span>
-                )
-              ) : null
-            ) : null}
-            {/* visibility — one tap toggles it for the organizer */}
-            {(isOrganizer || canEditDelegate) ? (
-              <button
-                type="button"
-                onClick={() => setVisOpen(true)}
-                disabled={busy}
-                className={[
-                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
-                  event.visibility === 'public'
-                    ? 'bg-primary-50 text-primary-700 hover:bg-primary-100'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                ].join(' ')}
-              >
-                {event.visibility === 'public'
-                  ? <><Globe className="h-3.5 w-3.5" strokeWidth={2.25} /> Publiczne</>
-                  : <><Lock className="h-3.5 w-3.5" strokeWidth={2.25} /> Prywatne</>}
-                <Pencil className="h-3 w-3 opacity-60" strokeWidth={2.25} />
-              </button>
-            ) : (
-              <span className={[
-                'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium',
-                event.visibility === 'public' ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-600',
-              ].join(' ')}>
-                {event.visibility === 'public'
-                  ? <><Globe className="h-3.5 w-3.5" strokeWidth={2.25} /> Publiczne</>
-                  : <><Lock className="h-3.5 w-3.5" strokeWidth={2.25} /> Prywatne</>}
-              </span>
-            )}
-            {/* wymaga akceptacji — niebieski wyłącznie dla tego znaczenia w całej
-                apce (patrz AGENTS.md, Konwencje): bursztyn jest już zajęty przez
-                rezerwę i obserwowanie, więc to jedyny kolor, który tu nic innego
-                nie znaczy */}
-            {!eventStarted && event.requireApproval && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
-                <UserPlus className="h-3.5 w-3.5" strokeWidth={2.25} /> Wymaga akceptacji
-              </span>
-            )}
-            {/* stała gierka — jedyne przejście z meczu do panelu serii. Bez tego
-                organizator, który wszedł na termin z listy, nie ma jak trafić
-                do ustawień powtarzania. Tylko dla organizatora: `/cykliczne/[id]`
-                i tak wpuszcza wyłącznie właściciela szablonu. */}
-            {event.recurringEventId && isOwner && (
-              <Link
-                href={`/cykliczne/${event.recurringEventId}`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-              >
-                <Repeat className="h-3.5 w-3.5" strokeWidth={2.25} /> Stała gierka
-              </Link>
-            )}
-            {/* group — edytowalne wyłącznie dla organizatora (dawniej schowane
-                w "Zarządzaj wydarzeniem", teraz badge na widoku, otwiera
-                WybierzGrupeDialog; patrz sekcja 6a planu). Dla pozostałych:
-                widoczne tylko gdy grupa jest przypisana, sam link do niej. */}
-            {canManageEvent ? (
-              <button
-                type="button"
-                onClick={() => setGroupPickerOpen(true)}
-                disabled={busy}
-                className={[
-                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
-                  groupInfo ? 'bg-primary-50 text-primary-700 hover:bg-primary-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                ].join(' ')}
-              >
-                <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo ? groupInfo.name : 'Dodaj do grupy'}
-                <Pencil className="h-3 w-3 opacity-60" strokeWidth={2.25} />
-              </button>
-            ) : (
-              groupInfo && (
-                <Link
-                  href={`/grupy/${groupInfo.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 transition hover:bg-primary-100"
-                >
-                  <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo.name}
-                </Link>
-              )
-            )}
-          </div>
+            2. Opis meczu → karta „O meczu" pod składem. Ma do tysiąca znaków
+            (`LIMIT_OPISU`), więc organizator, który opisał zasady akapitem,
+            spychał termin, adres i „ile zostało miejsc" pod zgięcie ekranu.
 
-          {/* Data, czas trwania i miejsce nie powtarzają się już tutaj —
-              mieszkają wyłącznie w karcie „Kiedy i gdzie" niżej (pełna data,
-              adres bez ucinania, „Nawiguj"). Ten wiersz miał kiedyś skróconą
-              wersję tej samej informacji nad nim — dwa miejsca z tym samym
-              faktem czytały się jak literówka, nie jak dwa źródła prawdy.
-              Zgłoszone wprost. Edycja terminu przez organizatora (dawny
-              `openEditWhen()` przy dacie) przeniosła się do karty „Kiedy
-              i gdzie" razem z resztą. */}
-          {/* NAD LICZNIKIEM NIE MA JUŻ DWÓCH SZARYCH AKAPITÓW — zdjęte
-              2026-09-13, zgłoszone wprost („za dużo tekstów i opisów").
+            3. Pigułki → blok „CECHY MECZU" pod kartą „Kiedy i gdzie" (niżej).
+            Rząd pigułek nad kartą wchodził na ekran przed terminem i adresem,
+            czyli przed odpowiedzią na dwa pierwsze pytania zadawane przy meczu.
 
-              1. Zdanie „Prywatny — na liście ekipy X. Zobaczą go N członków…"
-              powtarzało własnymi słowami to, co niosą pigułki tuż nad nim
-              („Prywatne" + nazwa ekipy). `opisWidocznosciWGrupie()` zostaje
-              w `lib/eventFeatures.ts` dla KREATORA — tam stoi pod kartą
-              widoczności w chwili, gdy decyzja dopiero zapada i nie ma jeszcze
-              żadnej pigułki, która by ją pokazała.
-
-              2. Wiersz „Gotówka · Karty sportowe: …" PRZENIÓSŁ SIĘ do zakładki
-              Rozliczenia, do karty „Twoja płatność" (wiersze „Przyjmowane"
-              i „Karty sportowe") — tam stoi obok kwoty do zapłaty i sposobu,
-              który gracz sam wybrał. Nie dało się go po prostu skasować: okno
-              zapisu wymienia akceptowane karty tylko PRZED dołączeniem, więc
-              zapisany gracz nie miałby już gdzie sprawdzić, czy przejdzie jego
-              Multisport. Reguła dostępu do numeru BLIK (`canSeeBlikPhone`)
-              siedzi nietknięta tam, gdzie była. Cenę i tak niesie pigułka
-              „7 zł / os." w rzędzie wyżej. */}
-        </div>
-        )}
+            Zasada wspólna dla całej trójki i dla warunku `tab === 'sklad'`
+            w blokach niżej: szczegóły meczu mieszkają w „Składzie", a nad
+            licznikiem miejsc stoi tylko to, po co się na tę stronę wchodzi. */}
 
         {tab === 'sklad' && (<>
 
@@ -3356,6 +3162,184 @@ export default function EventDetailClient() {
           </div>
         </div>
 
+        {/* ── CECHY MECZU (pigułki) ── cena, widoczność, ekipa, akceptacja.
+            STOJĄ PONIŻEJ KARTY „Kiedy i gdzie", nie nad nią (2026-09-13,
+            zgłoszone wprost). Rząd pigułek nad kartą wchodził na ekran
+            przed terminem i adresem, czyli przed odpowiedzią na dwa
+            pierwsze pytania, jakie się zadaje przy meczu. Cena zostaje
+            nad licznikiem miejsc, żeby „ile to kosztuje" nie schodziło
+            pod zgięcie ekranu. */}
+          {/* NAD LICZNIKIEM NIE MA JUŻ DWÓCH SZARYCH AKAPITÓW — zdjęte
+              2026-09-13, zgłoszone wprost („za dużo tekstów i opisów").
+
+              1. Zdanie „Prywatny — na liście ekipy X. Zobaczą go N członków…"
+              powtarzało własnymi słowami to, co niosą pigułki w tym rzędzie
+              („Prywatne" + nazwa ekipy). `opisWidocznosciWGrupie()` zostaje
+              w `lib/eventFeatures.ts` dla KREATORA — tam stoi pod kartą
+              widoczności w chwili, gdy decyzja dopiero zapada i nie ma jeszcze
+              żadnej pigułki, która by ją pokazała.
+
+              2. Wiersz „Gotówka · Karty sportowe: …" PRZENIÓSŁ SIĘ do zakładki
+              Rozliczenia, do karty „Jak zapłacić". Nie dało się go po prostu
+              skasować: okno zapisu wymienia akceptowane karty tylko PRZED
+              dołączeniem, więc zapisany gracz nie miałby już gdzie sprawdzić,
+              czy przejdzie jego Multisport. Reguła dostępu do numeru BLIK
+              (`canSeeBlikPhone`) siedzi nietknięta tam, gdzie była. Cenę i tak
+              niesie pigułka „7 zł / os." w rzędzie pigułek. */}
+        <div className="px-4">
+          <div className="mt-4 flex flex-wrap gap-2">
+            {/* My relation to this match — the two axes (ownership × participation)
+                shown up front, so nobody has to expand the roster to learn
+                whether they're actually in. */}
+            {isOwner && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-700 px-3 py-1.5 text-xs font-bold text-white">
+                <Star className="h-3.5 w-3.5" strokeWidth={2.25} /> Organizujesz
+              </span>
+            )}
+            {/* Pigułki „Grasz" tu NIE MA — zdjęta 2026-09-13, zgłoszone wprost.
+                Dolny pasek stanu mówi to samo i mówi więcej: „Jesteś w składzie",
+                rola („· bramkarz") i wyjście
+                („Wypisz się") — a stoi na ekranie przez cały czas, bo jest
+                `fixed`. Pigułka powtarzała status dwa razy na jednym widoku.
+                Pozostałe pigułki w tym rzędzie zostają: niosą cechy MECZU
+                (za darmo, publiczny, ekipa), których nigdzie indziej nie widać,
+                a nie mój stan względem niego. */}
+            {myConfirmed?.isReserve && (
+              // Szary, nie bursztyn: bursztyn znaczy w tej apce „uwaga, coś się
+              // dzieje" (obserwowanie, ostrzeżenia), a niebieski — „wymaga
+              // akceptacji". Rezerwa to stan bierny: masz miejsce w kolejce,
+              // nie w składzie. Jeden kolor dla wszystkich komunikatów o rezerwie
+              // sprawia, że po kilku meczach sam kolor niesie informację.
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700">
+                <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
+                Rezerwa{myReservePosition ? ` · ${myReservePosition}.` : ''}
+                {myConfirmed.isGoalkeeper ? ' · bramkarz' : ''}
+              </span>
+            )}
+            {myMaybe && (
+              // Bursztyn — tak jak baner „Obserwujesz ten mecz" i przycisk
+              // w dolnym pasku. Szary zwolnił się dla rezerwy, a obserwowanie
+              // miało już swój kolor w dwóch innych miejscach tej samej strony.
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
+                <Eye className="h-3.5 w-3.5" strokeWidth={2.25} /> Obserwujesz
+              </span>
+            )}
+            {/* price — po starcie meczu ustępuje miejsca statusowi rozliczenia:
+                cena "ile trzeba zapłacić" traci sens, gdy już się zapłaciło albo nie */}
+            {!eventStarted ? (
+              event.costGrosze > 0 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                  <Tag className="h-3.5 w-3.5" strokeWidth={2.25} />
+                  {(event.costGrosze / 100).toFixed(0)} zł / os.
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                  <Tag className="h-3.5 w-3.5" strokeWidth={2.25} /> Za darmo
+                </span>
+              )
+            ) : event.costGrosze > 0 ? (
+              (isOwner || canManagePayments) ? (() => {
+                const unpaid = regulars.filter((p) => !p.hasPaid).length;
+                return unpaid === 0 ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                    <Check className="h-3.5 w-3.5" strokeWidth={2.25} /> Rozliczono
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                    <Banknote className="h-3.5 w-3.5" strokeWidth={2.25} /> {withCount(unpaid, 'osoba nie zapłaciła', 'osoby nie zapłaciły', 'osób nie zapłaciło')}
+                  </span>
+                );
+              })() : myConfirmed && !myConfirmed.isReserve ? (
+                myConfirmed.hasPaid ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                    <Check className="h-3.5 w-3.5" strokeWidth={2.25} /> Zapłacono
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                    <Clock className="h-3.5 w-3.5" strokeWidth={2.25} /> Zapłać
+                  </span>
+                )
+              ) : null
+            ) : null}
+            {/* visibility — one tap toggles it for the organizer */}
+            {(isOrganizer || canEditDelegate) ? (
+              <button
+                type="button"
+                onClick={() => setVisOpen(true)}
+                disabled={busy}
+                className={[
+                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
+                  event.visibility === 'public'
+                    ? 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                ].join(' ')}
+              >
+                {event.visibility === 'public'
+                  ? <><Globe className="h-3.5 w-3.5" strokeWidth={2.25} /> Publiczne</>
+                  : <><Lock className="h-3.5 w-3.5" strokeWidth={2.25} /> Prywatne</>}
+                <Pencil className="h-3 w-3 opacity-60" strokeWidth={2.25} />
+              </button>
+            ) : (
+              <span className={[
+                'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium',
+                event.visibility === 'public' ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-600',
+              ].join(' ')}>
+                {event.visibility === 'public'
+                  ? <><Globe className="h-3.5 w-3.5" strokeWidth={2.25} /> Publiczne</>
+                  : <><Lock className="h-3.5 w-3.5" strokeWidth={2.25} /> Prywatne</>}
+              </span>
+            )}
+            {/* wymaga akceptacji — niebieski wyłącznie dla tego znaczenia w całej
+                apce (patrz AGENTS.md, Konwencje): bursztyn jest już zajęty przez
+                rezerwę i obserwowanie, więc to jedyny kolor, który tu nic innego
+                nie znaczy */}
+            {!eventStarted && event.requireApproval && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
+                <UserPlus className="h-3.5 w-3.5" strokeWidth={2.25} /> Wymaga akceptacji
+              </span>
+            )}
+            {/* stała gierka — jedyne przejście z meczu do panelu serii. Bez tego
+                organizator, który wszedł na termin z listy, nie ma jak trafić
+                do ustawień powtarzania. Tylko dla organizatora: `/cykliczne/[id]`
+                i tak wpuszcza wyłącznie właściciela szablonu. */}
+            {event.recurringEventId && isOwner && (
+              <Link
+                href={`/cykliczne/${event.recurringEventId}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+              >
+                <Repeat className="h-3.5 w-3.5" strokeWidth={2.25} /> Stała gierka
+              </Link>
+            )}
+            {/* group — edytowalne wyłącznie dla organizatora (dawniej schowane
+                w "Zarządzaj wydarzeniem", teraz badge na widoku, otwiera
+                WybierzGrupeDialog; patrz sekcja 6a planu). Dla pozostałych:
+                widoczne tylko gdy grupa jest przypisana, sam link do niej. */}
+            {canManageEvent ? (
+              <button
+                type="button"
+                onClick={() => setGroupPickerOpen(true)}
+                disabled={busy}
+                className={[
+                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
+                  groupInfo ? 'bg-primary-50 text-primary-700 hover:bg-primary-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                ].join(' ')}
+              >
+                <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo ? groupInfo.name : 'Dodaj do grupy'}
+                <Pencil className="h-3 w-3 opacity-60" strokeWidth={2.25} />
+              </button>
+            ) : (
+              groupInfo && (
+                <Link
+                  href={`/grupy/${groupInfo.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 transition hover:bg-primary-100"
+                >
+                  <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo.name}
+                </Link>
+              )
+            )}
+          </div>
+        </div>
+
         {/* ── CZY GRAMY? ── odpowiada na to, co ekipy dziś liczą ręcznie na
             czacie: próg minimum, otwarcie dla okolicy gdy brakuje ludzi.
             Renderuje się tylko organizatorowi/delegatowi i tylko wtedy, gdy
@@ -3456,7 +3440,7 @@ export default function EventDetailClient() {
             {/* „Zaproś z grupy" żył tu jako osobny, stały przycisk — usunięty
                 2026-09-13 (zgłoszone wprost: to samo zaproszenie powtarzało
                 się na tej stronie w trzech miejscach z osobnym opisem
-                każdym razem). Jedyne miejsce dziś: sekcja „Zaproś znajomych"
+                każdym razem). Jedyne miejsce dziś: sekcja „Zaproś"
                 niżej (`ZaprosZnajomychPanel`, `onZaprosZGrupy`), razem
                 z „Udostępnij"/„Kopiuj". */}
 
@@ -3988,14 +3972,16 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── NIE GRAM — jawna odmowa dla członka ekipy, który jeszcze nie
-            odpowiedział. Cisza w Bojo znaczyła dotąd naraz "nie widziałem"
-            i "odpadam"; to jest osobna, widoczna odpowiedź (097). ── */}
-        {user && event.groupId && !amIInvolved && !eventStarted && (
-          <div className="px-4">
-            <NieGramButton eventId={event.id} userId={user.id} />
-          </div>
-        )}
+        {/* KARTY „Twoja ekipa tu gra. Nie dasz rady? / Nie zagram" TU NIE MA —
+            zdjęta 2026-09-13, zgłoszone wprost. Powód mocniejszy niż sam
+            nadmiar kontrolek: odpowiedzi NIKT NIE OGLĄDAŁ. `odmow()` pisała do
+            `event_declines` (migracja `097`), a `getDeclines()` czytał
+            wyłącznie ten przycisk, żeby wiedzieć, czy sam już kliknął — żaden
+            widok organizatora tej tabeli nie pokazuje. Pytaliśmy więc gracza
+            o deklarację i chowaliśmy ją przed jedyną osobą, której była
+            potrzebna. Tabela, RLS i `lib/eventDeclines.ts` zostają nietknięte:
+            gdy powstanie widok „kto odpadł", wejście wraca razem z nim
+            (BACKLOG.md). */}
 
         {/* ── O MECZU ── opis od organizatora. Przyjechał tu z samej góry
             zakładki (patrz komentarz przy rzędzie pigułek): to jedyny blok
@@ -4084,13 +4070,19 @@ export default function EventDetailClient() {
                       : 'Jesteś w składzie'}
                   {!myPendingRequest && myConfirmed?.isGoalkeeper ? ' · bramkarz' : ''}
                 </span>
-                <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                  {myPendingRequest
-                    ? 'Organizator jeszcze nie potwierdził'
-                    : amIReserve
-                      ? 'Wejdziesz, gdy ktoś się wypisze'
-                      : 'Masz miejsce w składzie'}
-                </span>
+                {/* Podpis WYŁĄCZNIE tam, gdzie dokłada fakt, którego nie ma
+                    w wierszu nad nim. Dla składu stało tu „Masz miejsce
+                    w składzie" — czyli „Jesteś w składzie" jeszcze raz, innymi
+                    słowami; do tego „miejsce" czyta się w tej apce także jako
+                    boisko („Miejsce: Szkoła Podstawowa nr 61"), więc podpis
+                    nie tylko powtarzał, ale i mylił. Zgłoszone wprost. */}
+                {(myPendingRequest || amIReserve) && (
+                  <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                    {myPendingRequest
+                      ? 'Organizator jeszcze nie potwierdził'
+                      : 'Wejdziesz, gdy ktoś się wypisze'}
+                  </span>
+                )}
               </p>
               {myParticipation && (
                 <button
@@ -4493,7 +4485,7 @@ export default function EventDetailClient() {
 
         {tab === 'sklad' && (<>
 
-        {/* ── Zaproś znajomych — tylko dla uczestników ──
+        {/* ── Zaproś — tylko dla uczestników ──
             Warunek nie zależy już od `event.joinCode`: link jest kanoniczny,
             więc panel ma sens także przy meczach sprzed migracji 041.
 
@@ -4540,7 +4532,7 @@ export default function EventDetailClient() {
         </>)}
 
         {/* Dialogi — uniwersalne, poza zakładkami: wyzwalane z przycisku
-            "Zaproś z grupy" w sekcji "Zaproś znajomych" wyżej, więc same nie
+            "Zaproś z grupy" w sekcji „Zaproś" wyżej, więc same nie
             mogą być zamknięte razem z jedną konkretną zakładką. */}
         {inviteOpen && user && (
           <InviteFromGroupDialog

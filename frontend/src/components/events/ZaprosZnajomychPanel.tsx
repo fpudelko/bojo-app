@@ -89,7 +89,11 @@ export default function ZaprosZnajomychPanel(
     >
       <div className="flex items-center gap-2">
         <Share2 className="h-4 w-4 shrink-0 text-slate-400" />
-        <p className="flex-1 text-sm font-semibold text-slate-800 dark:text-slate-100">Zaproś znajomych</p>
+        {/* „Zaproś", nie „Zaproś znajomych" — zgłoszone wprost 2026-09-13.
+            Słowo zawężało do kumpli, a z tej karty wychodzą dziś cztery różne
+            drogi: link, kopiowanie, zaproszenie z ekipy i otwarcie meczu dla
+            okolicy — czyli głównie dla ludzi, których organizator nie zna. */}
+        <p className="flex-1 text-sm font-semibold text-slate-800 dark:text-slate-100">Zaproś</p>
       </div>
       {/* `flex-wrap`, nie sztywny rząd — trzeci przycisk (`onZaprosZGrupy`)
           na 360 px nie mieści się już obok dwóch pozostałych w jednej linii. */}

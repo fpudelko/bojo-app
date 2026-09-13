@@ -6,6 +6,28 @@ import { track } from './analytics';
 import { zaktualizujJedenWiersz } from './zapytania';
 import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus, PaymentMethod, SportsCardProvider } from '@/types';
 
+/**
+ * Ile czasu ma rezerwowy na odebranie zwolnionego miejsca — wartość, z jaką
+ * zakłada się NOWY mecz. Było 180 (3 h), jest 60 (1 h) — decyzja właściciela
+ * 2026-09-13.
+ *
+ * Koszt tej zmiany jest realny i świadomy: AWANSU AUTOMATYCZNEGO Z REZERWY
+ * NIE MA (patrz AGENTS.md), więc oferta wysłana wieczorem przy oknie
+ * godzinnym wygasa, zanim ktokolwiek spojrzy w telefon, i miejsce zostaje
+ * puste do rana. Przy trzech godzinach nocna oferta dożywała poranka.
+ * W zamian: mecz nazajutrz w południe nie trzyma miejsca zablokowanego przez
+ * pół dnia u kogoś, kto już nie odpowie. Okno jest polem w kreatorze
+ * (`PRESETY_REZERWY` od 30 min do doby), więc organizator, któremu to nie
+ * pasuje, zmienia je w jednym kliknięciu.
+ *
+ * Dotyczy WYŁĄCZNIE nowo zakładanych meczów. Istniejące trzymają swoją
+ * wartość w kolumnie, a `DEFAULT 180` w bazie (migracja `118`) zostaje
+ * nietknięty — aplikacja i tak wysyła tę kolumnę przy każdym zapisie, więc
+ * migracja tylko po to, żeby zrównać liczby, byłaby ręcznym puszczaniem SQL-a
+ * na produkcji bez żadnej zmiany zachowania.
+ */
+export const DOMYSLNE_MINUTY_REZERWY = 60;
+
 // ---------------------------------------------------------------------------
 // Row mappers
 // ---------------------------------------------------------------------------
@@ -72,6 +94,11 @@ export function toEvent(row: any): EventItem {
     maxGoalkeepers: row.max_goalkeepers ?? 2,
     goalkeeperSlotsReserved: row.goalkeeper_slots_reserved ?? true,
     goalkeepersEnabled: row.goalkeepers_enabled ?? false,
+    // CZYTANIE zostaje na 180, mimo że nowe mecze zakładają się z 60
+    // (`DOMYSLNE_MINUTY_REZERWY`): to jest zapas dla wierszy sprzed migracji
+    // `118` i dla kolumny z DEFAULT 180 w bazie. Podmiana tej liczby skróciłaby
+    // okno meczom, które ZOSTAŁY JUŻ ZAŁOŻONE z trzema godzinami — a tego nikt
+    // nie prosił i nikt by nie zauważył, dopóki komuś nie przepadłoby miejsce.
     reserveClaimMinutes: row.reserve_claim_minutes ?? 180,
     // `?? true` nie jest ostrożnością: kolumna doszła w `123` i mecze
     // sprzed migracji mają zachowywać się dokładnie jak dotąd.
@@ -234,7 +261,7 @@ export async function createEvent(
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
-      reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
+      reserve_claim_minutes: data.reserveClaimMinutes ?? DOMYSLNE_MINUTY_REZERWY,
       reserve_enabled: data.reserveEnabled ?? true,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       accepted_sports_cards: data.acceptedSportsCards ?? [],
@@ -355,7 +382,7 @@ export async function updateEvent(
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
-      reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
+      reserve_claim_minutes: data.reserveClaimMinutes ?? DOMYSLNE_MINUTY_REZERWY,
       reserve_enabled: data.reserveEnabled ?? true,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       accepted_sports_cards: data.acceptedSportsCards ?? [],

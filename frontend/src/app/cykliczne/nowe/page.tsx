@@ -253,7 +253,7 @@ function NewRecurringForm() {
                 <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                 <span>
                   <span className="block text-sm font-medium text-slate-900">Prywatne</span>
-                  <span className="block text-xs text-slate-500">Nie pojawia się na liście. Wchodzą zaproszeni, grupa i osoby z linkiem</span>
+                  <span className="block text-xs text-slate-500">Nie pojawia się na liście — wejdzie tylko ktoś z zaproszeniem lub linkiem</span>
                 </span>
               </button>
               <button
@@ -269,7 +269,7 @@ function NewRecurringForm() {
                 <Globe className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                 <span>
                   <span className="block text-sm font-medium text-slate-900">Publiczne</span>
-                  <span className="block text-xs text-slate-500">Widoczne dla wszystkich</span>
+                  <span className="block text-xs text-slate-500">Widoczne dla wszystkich — dołączy każdy chętny</span>
                 </span>
               </button>
             </div>

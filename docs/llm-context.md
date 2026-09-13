@@ -370,6 +370,51 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-13 — Strona meczu i kreator przestają powtarzać oraz pytać w próżnię
+
+PROBLEM: dolny pasek gracza w składzie mówił „Jesteś w składzie", a zaraz pod spodem
+„Masz miejsce w składzie" — ten sam komunikat dwa razy, przy czym słowo „miejsce" znaczy
+w Bojo także boisko („Miejsce: Szkoła Podstawowa nr 61"). Pigułki z cechami meczu
+(„7 zł / os.", „Prywatne", nazwa ekipy) wchodziły na ekran PRZED datą i adresem, czyli
+przed odpowiedzią na dwa pierwsze pytania, jakie zadaje się przy meczu. Karta „Twoja ekipa
+tu gra. Nie dasz rady? / Nie zagram" prosiła członka ekipy o deklarację, której NIE
+OGLĄDAŁ NIKT: odmowa szła do tabeli, nad którą nie było już żadnego widoku organizatora.
+Strona ekipy miała trzy wejścia do zapraszania na jednym ekranie. W kreatorze opis siedział
+za przełącznikiem „Dodaj opis", choć tytuł tuż nad nim jest tak samo opcjonalny i stoi
+gołe pole; sposoby zapłaty pojawiały się dopiero po wpisaniu kwoty, więc blok wskakiwał
+w trakcie pisania i przesuwał układ pod kciukiem. „Gram" w panelu powiadomień zapisywało
+na mecz natychmiast, choć panel pokazuje jedno zdanie — bez ceny, godziny i tego, czy
+wchodzi się do składu, czy na rezerwę.
+
+ROZWIĄZANIE BOJO: podpis w dolnym pasku został tylko tam, gdzie dokłada fakt — przy
+rezerwie („Wejdziesz, gdy ktoś się wypisze") i przy prośbie („Organizator jeszcze nie
+potwierdził"). Kolejność na stronie meczu to opis, karta „Kiedy i gdzie", pigułki, licznik
+miejsc, skład; cena zostaje nad licznikiem. Karta „Nie zagram" zniknęła, a razem z nią
+pytanie o odpowiedź, której nikt nie czytał. Panel zapraszania na stronie meczu nazywa się
+„Zaproś" (nie „Zaproś znajomych"), a ze strony ekipy zniknęła trzecia kopia zapraszania —
+link do meczu bierze się z samego meczu. W kreatorze opis to zwykłe pole „Opis
+(opcjonalnie)", sposoby zapłaty pokazują się razem z przełącznikiem „Mecz płatny",
+„Biorę udział" dostało tę samą ramkę co reszta opcji, a karty widoczności mówią krócej:
+„Widoczne dla wszystkich — dołączy każdy chętny" i „Nie pojawia się na liście — wejdzie
+tylko ktoś z zaproszeniem lub linkiem" (wzmianka o LINKU jest konieczna: prywatny mecz
+nie jest szczelny, link wpuszcza każdego). Nowy mecz zakłada się z oknem 60 minut na
+odebranie miejsca z rezerwy zamiast 180. „Gram" przy powiadomieniu otwiera stronę meczu
+z gotowym oknem zapisu, zamiast zapisywać od razu; „nie gram" zostaje natychmiastowe.
+
+MECHANIKA: `EventDetailClient.tsx` — rząd pigułek przeniesiony pod kartę „Kiedy i gdzie",
+podpis paska pod warunkiem `myPendingRequest || amIReserve`, `NieGramButton.tsx` usunięty
+(tabela `event_declines`, RLS i `lib/eventDeclines.ts` zostają nietknięte).
+`OdpowiedzJednymKlikiem.tsx` dostał `gramOtwieraMecz` i `naPrzejscie` — w `NotificationBell.tsx`
+kieruje na `/wydarzenia/<id>?dolacz=1` (ta sama ścieżka co powrót z logowania, sama nie
+zapisuje), w `InviteList.tsx` bez zmian. `EventTitleDescriptionField.tsx` bez `ToggleRow`,
+stan `descriptionEnabled` usunięty z kreatora, edycji i `lib/eventDraft.ts` (starsze szkice
+wczytują się bez zmian). `EventPaymentFields.tsx` przyjmuje `zawszeWidoczne` — kreator
+podaje, edycja nie (tam „0" znaczy mecz darmowy). `DOMYSLNE_MINUTY_REZERWY = 60`
+w `lib/events.ts` steruje zapisem w `createEvent`/`updateEvent` i `lib/series.ts`; odczyt
+starych wierszy i `DEFAULT` kolumny w bazie zostają na 180. `ZaprosZnajomychPanel`
+wypięty z `NajblizszyMeczGrupy.tsx`. Asercja paska w `e2e/scenariusze.spec.ts` łapie go
+po `data-pasek-dolny`.
+
 ### 2026-09-13 — Termin meczu trafia do kalendarza; opis schodzi pod skład
 
 PROBLEM: Bojo przypominało o meczu własnym kanałem (powiadomienie push, e-mail), ale
@@ -677,36 +722,3 @@ samą wysyłką (Resend, `html` + `text`). `frontend/src/app/opengraph-image.tsx
 z `NEXT_PUBLIC_SITE_URL` z tym samym fallbackiem co `layout.tsx`, `robots.ts` i `sitemap.ts`.
 Osobno, poza repo: maile logowania (reset hasła, magic link) idą od 2026-09-11 przez Resend
 jako custom SMTP w Supabase.
-### 2026-09-11 — Organizator zamyka zapisy, nie odwołując meczu
-
-PROBLEM: Organizator, który na kilka godzin przed meczem ma 10 osób na 14 miejsc i mówi
-„gramy w tym składzie", nie miał w Bojo czym tego powiedzieć. Zostawały dwie drogi i obie
-kłamały: zmniejszyć liczbę miejsc — czyli zapisać w meczu nieprawdę o boisku, nie do
-cofnięcia bez pamiętania, ile miejsc było, a przy osobnej puli dla bramkarzy rozjeżdżające
-pułapy ról; albo odwołać mecz — co wysyła całemu składowi wiadomość „mecz odwołany",
-dokładnie odwrotną do prawdy. Bez trzeciej możliwości ludzie dopisywali się do składu,
-który organizator uważał już za zamknięty, a on dowiadywał się o tym na boisku.
-
-ROZWIĄZANIE BOJO: Na stronie meczu organizator ma „Zamknij zapisy (gramy w tym składzie)".
-Od tej chwili nikt nowy nie wejdzie — ani do składu, ani na listę rezerwową — a mecz odbywa
-się normalnie: skład zostaje nietknięty, nikt nie dostaje żadnej wiadomości, strona meczu
-pokazuje szary pasek „Zapisy zamknięte" zamiast przycisku „Dołącz". Decyzja jest odwracalna
-jednym kliknięciem („Otwórz zapisy"). Zamknięcie NIE przeszkadza organizatorowi dopisać
-kogoś ręcznie i NIE odbiera miejsca osobom z kolejki rezerwowej: gdy ktoś ze składu się
-wypisze, zwolnione miejsce dalej idzie do pierwszej osoby z rezerwy, bo ona jest już
-w meczu. Gość zapisany przed zamknięciem dalej odzyskuje link do swojego wpisu.
-Zamknięcie zapisów jest stanem rozłącznym z odwołaniem meczu — odwołanie nadal znaczy
-„nie gramy" i nadal wysyła powiadomienia. Stan widać też BEZ wchodzenia w mecz: karty na
-listach i w wynikach wyszukiwania mają szarą plakietkę „Zapisy zamknięte" zamiast licznika
-wolnych miejsc, przycisk „Dołącz" na karcie jest wtedy nieaktywny, a pinezka na mapie niesie
-ten sam stan kolorem pigułki składu. Gdy mecz jest jednocześnie pełny i zamknięty, karta
-pokazuje „Zapisy zamknięte" — przy zamkniętych zapisach komplet nie wnosi już nic.
-
-MECHANIKA: migracja `141` (kolumna `events.zapisy_zamkniete`, strażniki w funkcjach
-`dolacz_do_meczu()` i `dolacz_do_meczu_jako_goscie()` — granica jest w bazie, nie
-w interfejsie); `setZapisyZamkniete()` w `lib/events.ts` przez `zaktualizujJedenWiersz()`;
-przełącznik i pasek stanu w `app/wydarzenia/[id]/EventDetailClient.tsx`; wygląd stanu na
-kartach i pinezce w `lib/stanZapisow.ts` (jedno miejsce dla trzech kart i mapy, wzorem
-`lib/komplet.ts`); asercje w `supabase/test/zapisy-zamkniete.sql`,
-`src/__tests__/zapisyZamkniete.test.ts` i `src/__tests__/stanZapisow.test.ts`.
-

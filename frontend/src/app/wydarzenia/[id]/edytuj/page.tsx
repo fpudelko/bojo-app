@@ -101,7 +101,6 @@ export default function EditEventPage() {
   const [reserveEnabled, setReserveEnabled] = useState(true);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [descriptionEnabled, setDescriptionEnabled] = useState(false);
   const [visibility, setVisibility] = useState<Visibility>('private');
   const [requireApproval, setRequireApproval] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -175,7 +174,6 @@ export default function EditEventPage() {
         setReserveEnabled(ev.reserveEnabled ?? true);
         setTitle(ev.title ?? '');
         setDescription(ev.description ?? '');
-        setDescriptionEnabled(!!ev.description);
         setVisibility(ev.visibility);
         setRequireApproval(ev.requireApproval);
         setRequireSmsConfirmation(ev.requireSmsConfirmation);
@@ -254,7 +252,7 @@ export default function EditEventPage() {
       customLocationName: location.venue ? undefined : fieldName,
       customAddress: location.venue ? undefined : location.address || undefined,
       title: title || undefined,
-      description: descriptionEnabled && description.trim() ? description : undefined,
+      description: description.trim() || undefined,
       date,
       time,
       endTime: endTime ?? undefined,
@@ -723,8 +721,6 @@ export default function EditEventPage() {
             placeholderTitle={defaultEventTitle(sport, maxPlayers)}
             description={description}
             setDescription={setDescription}
-            descriptionEnabled={descriptionEnabled}
-            setDescriptionEnabled={setDescriptionEnabled}
             inputCls={inputCls}
           />
 

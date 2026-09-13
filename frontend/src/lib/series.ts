@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { zapiszNumerBlik } from './blik';
+import { DOMYSLNE_MINUTY_REZERWY } from './events';
 import type { EventCreate, EventItem } from '@/types';
 
 /**
@@ -126,7 +127,7 @@ export async function updateSeriesEvents(
       require_approval: data.requireApproval ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
-      reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
+      reserve_claim_minutes: data.reserveClaimMinutes ?? DOMYSLNE_MINUTY_REZERWY,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       accepted_sports_cards: data.acceptedSportsCards ?? [],
       sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,

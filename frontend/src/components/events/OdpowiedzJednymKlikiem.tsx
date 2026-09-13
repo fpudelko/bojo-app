@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Check, Loader2, X } from 'lucide-react';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
@@ -29,17 +30,37 @@ import { odmow } from '@/lib/eventDeclines';
  * ODMOWA jest jawna (`event_declines`, migracja `097`), nie jest zwykłym
  * schowaniem karty: organizator ma widzieć „nie gram", bo to jego jedyna
  * informacja, że ma szukać kogoś innego.
+ *
+ * „GRAM" NIE ZAWSZE ZAPISUJE OD RAZU (`gramOtwieraMecz`, 2026-09-13). W panelu
+ * powiadomień przenosi na stronę meczu z OTWARTYM oknem zapisu (`?dolacz=1`,
+ * ta sama ścieżka co powrót z logowania) — decyzja zapada dopiero tam.
+ * Powód: w panelu nie widać nic poza jednym zdaniem, a zapis niesie cenę,
+ * godzinę, rolę i to, czy wchodzi się do składu, czy na rezerwę. Jeden tap
+ * na ślepo w czymś, co kosztuje pieniądze i blokuje cudze miejsce, to za mało.
+ * Okno zapisu zostawia ten sam jeden tap, tylko z treścią przed oczami.
+ *
+ * Na LIŚCIE ZAPROSZEŃ (`InviteList` na `/wydarzenia`) zapis zostaje
+ * natychmiastowy: tam kafelek meczu z datą, miejscem i ceną stoi tuż obok
+ * przycisku, więc warunek „wiem, na co się piszę" jest już spełniony, a
+ * wyrzucanie z listy na stronę meczu kosztowałoby powrót.
  */
 export default function OdpowiedzJednymKlikiem({
-  eventId, onOdpowiedziano, wariant = 'karta',
+  eventId, onOdpowiedziano, wariant = 'karta', gramOtwieraMecz = false, naPrzejscie,
 }: {
   eventId: string;
   onOdpowiedziano?: (odpowiedz: 'gram' | 'nie-gram') => void;
   /** `karta` — na liście zaproszeń; `panel` — węższy, w panelu powiadomień. */
   wariant?: 'karta' | 'panel';
+  /** „Gram" otwiera mecz z oknem zapisu zamiast zapisywać od razu. */
+  gramOtwieraMecz?: boolean;
+  /** Wołane tuż przed przejściem na mecz — panel powiadomień musi się zamknąć
+   *  sam: przycisk zatrzymuje zdarzenie, więc `onClick` odnośnika wokół niego
+   *  nigdy nie dojdzie. */
+  naPrzejscie?: () => void;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [busy, setBusy] = useState<'gram' | 'nie-gram' | null>(null);
 
   if (!user) return null;
@@ -51,6 +72,24 @@ export default function OdpowiedzJednymKlikiem({
     e.preventDefault();
     e.stopPropagation();
     if (busy) return;
+    // Przejście na mecz NIE ustawia `busy`: strona i tak zaraz się zmieni,
+    // a zablokowany przycisk zostałby zablokowany na czas nawigacji.
+    if (odpowiedz === 'gram' && gramOtwieraMecz) {
+      naPrzejscie?.();
+      const cel = `/wydarzenia/${eventId}`;
+      // Dzwonek stoi w nagłówku TAKŻE na stronie meczu, więc „Gram" potrafi
+      // wskazywać mecz, który właśnie jest otwarty. `router.push()` na tę samą
+      // trasę zmienia wtedy wyłącznie adres — komponent się nie montuje, więc
+      // efekt czytający `?dolacz=1` (montowany raz, `[]`) nigdy nie wystrzeli
+      // i przycisk wyglądałby na zepsuty. Wtedy, i tylko wtedy, przeładowujemy
+      // stronę na twardo.
+      if (typeof window !== 'undefined' && window.location.pathname === cel) {
+        window.location.href = `${cel}?dolacz=1`;
+        return;
+      }
+      router.push(`${cel}?dolacz=1`);
+      return;
+    }
     setBusy(odpowiedz);
     try {
       if (odpowiedz === 'gram') {
