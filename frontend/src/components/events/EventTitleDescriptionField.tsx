@@ -8,21 +8,31 @@
 const LIMIT_TYTULU = 80;
 const LIMIT_OPISU = 1000;
 
-/** Licznik „63/80”. Pojawia się dopiero blisko limitu, bo wcześniej odpowiada
- *  na pytanie, którego nikt nie zadaje, a zabiera linijkę pod polem. Sam
- *  `maxLength` wystarcza, żeby limitu nie przekroczyć — nie wystarcza, żeby
- *  zatrzymanie się pola nie wyglądało na zepsutą klawiaturę.
+/** Licznik „63/80”. Liczba pojawia się dopiero blisko limitu, bo wcześniej
+ *  odpowiada na pytanie, którego nikt nie zadaje. Sam `maxLength` wystarcza,
+ *  żeby limitu nie przekroczyć — nie wystarcza, żeby zatrzymanie się pola nie
+ *  wyglądało na zepsutą klawiaturę.
  *
- *  WIERSZ JEST CZĘŚCIĄ LICZNIKA, nie wywołującego: pusty `<div>` z `mt-1`
- *  czekający na licznik zostawia pod polem odstęp, który w chwili pojawienia
- *  się liczby urośnie i podbije układ. Skoro licznika nie ma — nie ma i wiersza. */
+ *  WIERSZ STOI ZAWSZE, ZMIENIA SIĘ TYLKO TREŚĆ — poprawka z 2026-09-13.
+ *  Wcześniej cały `<div>` znikał poniżej progu, więc przy 56. znaku tytułu
+ *  wskakiwał z niczego i spychał w dół wszystko pod spodem: przełącznik
+ *  „Dodaj opis" odjeżdżał spod palca w trakcie pisania. Stary komentarz bronił
+ *  tego argumentem, że pusty wiersz „zostawia odstęp, który urośnie" — ale
+ *  odstęp rośnie tylko wtedy, gdy wysokości nie zarezerwować. `min-h-5` to
+ *  dokładnie wysokość linii `text-xs`, więc wiersz ma tę samą wysokość pusty
+ *  i pełny, a układ nie drgnie ani razu.
+ *
+ *  `aria-live="polite"` czyta liczbę dopiero, gdy naprawdę zaczyna być
+ *  istotna — czytnik ekranu nie odlicza każdego znaku od zera. */
 function LicznikZnakow({ ile, limit }: { ile: number; limit: number }) {
-  if (ile < limit * 0.7) return null;
+  const widoczny = ile >= limit * 0.7;
   return (
-    <div className="mt-1 flex justify-end">
-      <span className={`shrink-0 text-xs tabular-nums ${ile >= limit ? 'font-semibold text-amber-600' : 'text-slate-400'}`}>
-        {ile}/{limit}
-      </span>
+    <div className="mt-1 flex min-h-5 items-center justify-end" aria-live="polite">
+      {widoczny && (
+        <span className={`shrink-0 text-xs tabular-nums ${ile >= limit ? 'font-semibold text-amber-600' : 'text-slate-400'}`}>
+          {ile}/{limit}
+        </span>
+      )}
     </div>
   );
 }

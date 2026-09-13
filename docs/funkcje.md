@@ -2483,6 +2483,43 @@ adresem (pinezka postawiona ręcznie ma dokładny punkt, a jej adres z Nominatim
 przybliżony do najbliższego budynku), bez jednego i drugiego zwraca `null` zamiast
 linku prowadzącego donikąd.
 
+**„Nawiguj" jest zielony tylko wtedy, gdy nie ma „Dołącz do meczu" — od 2026-09-13.**
+Przycisk dojazdu był `bg-primary-700` zawsze, więc ktoś, kto jeszcze nie zdecydował,
+czy zagra, widział na jednym ekranie DWA wypełnione zielone przyciski o tej samej
+wadze — a jeden z nich prowadził w Mapy Google. Warunkiem jest `joinBarVisible`,
+czyli dokładnie ta sama zmienna, która rządzi dolnym paskiem: oba przyciski nie mogą
+być prymarne naraz z definicji, a nie przez zbieg dwóch osobnych warunków. Po starcie
+meczu, przy odwołanym i przy zamkniętych zapisach pasek gaśnie, dojazd staje się
+główną rzeczą do zrobienia na tej stronie — i wtedy wygląda na główną.
+
+**„Do kalendarza" — trzeci przycisk w tej karcie, od 2026-09-13.** Pobiera termin jako
+plik `.ics` (`lib/kalendarz.ts`, składany w przeglądarce, bez backendu i bez paczek);
+iOS i Android otwierają `text/calendar` natywnym kalendarzem. Stoi przy DACIE, nie przy
+zapisie, bo tu pada pytanie „czy mi to pasuje". Widoczny dla każdego, także
+niezapisanego — kalendarz bywa tym, co rozstrzyga, czy da się dołączyć; znika po
+starcie meczu i przy odwołanym.
+
+Cztery rzeczy w tym pliku są nieoczywiste i mają testy (`__tests__/kalendarz.test.ts`):
+`UID` bierze się z `events.id`, więc pobranie po zmianie terminu AKTUALIZUJE wpis
+zamiast dokładać duplikat; termin idzie jako czas ścienny z `TZID=Europe/Warsaw`
+i pełnym blokiem `VTIMEZONE` (przeliczenie na UTC wymagałoby znajomości przesunięcia
+w dniu meczu, a to zmienia się dwa razy w roku); tekst jest escapowany wg RFC 5545
+(nieuciekniety przecinek w adresie dzieli wartość na dwie i część klientów odrzuca
+cały plik); linie są zawijane po 75 OKTETACH, nie znakach — polskie diakrytyki zajmują
+w UTF-8 po dwa bajty. `VALARM` celowo nie ma: przypomnienie wysyła Bojo
+(`lib/reminders.ts`), a alarmu wstawionego do telefonu nie dałoby się wyłączyć
+w ustawieniach powiadomień.
+
+**Opis meczu zszedł z góry zakładki pod skład — od 2026-09-13.** `event.description`
+renderował się jako pierwsza rzecz w zakładce Skład: nad pigułkami, nad kartą „Kiedy
+i gdzie" i nad licznikiem miejsc. Opis ma do 1000 znaków (`LIMIT_OPISU`), więc
+organizator, który opisał zasady akapitem, spychał termin, adres i „ile zostało miejsc"
+pod zgięcie ekranu — czyli te trzy fakty, po które wchodzi się na tę stronę. Ten sam
+argument zdjął stąd wcześniej „Udostępnij"/„Kopiuj". Dziś opis stoi jako karta
+**„O meczu"** pod składem i pod blokami stanu (wypisanie się, rezerwa, oferta miejsca):
+dla niezapisanego te bloki nie renderują nic, więc opis wypada tuż pod licznikiem,
+a zapisany dostaje najpierw swoje wyjścia.
+
 **Nad kartą stoi jednak „Prośby o dołączenie" — od 2026-09-11.** Karta z prośbami
 (organizator/delegat, mecz z `requireApproval`) była wcześniej POD „Kiedy i gdzie",
 więc na telefonie trzeba było przewinąć całą kartę z datą, adresem i przyciskami
