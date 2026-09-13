@@ -1685,7 +1685,7 @@ export default function VenueExplorer({
           wybranego obiektu (patrz niżej), bo przewijana lista NIE mieści się
           obok mapy na 360 px. */}
       <aside className={clsx(
-        'flex-col overflow-hidden bg-[#FAF9F6]',
+        'flex-col overflow-hidden bg-canvas',
         widok === 'lista'
           ? 'flex w-full'
           : 'hidden md:flex md:w-[380px] md:shrink-0 md:border-r md:border-slate-100',
