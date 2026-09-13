@@ -198,8 +198,16 @@ async function zeSprzataniem(proba: () => Promise<void>, sprzatanie: () => Promi
   if (blad) throw blad;
 }
 
+/** Napis na wyjściu ze składu. DWA warianty, bo są dwa rozłączne miejsca:
+ *  dolny pasek stanu mówi krótko „Wypisz się" (ma na to wąską kolumnę obok
+ *  statusu), a przycisk w treści — pełne „Wypisz się z meczu/rezerwy". Ten
+ *  drugi renderuje się WYŁĄCZNIE tam, gdzie paska nie ma (mecz odwołany, gość
+ *  z tokenem), więc na ekranie nigdy nie stoją naraz i wzorzec łapiący oba
+ *  nie może trafić w dwa elementy. */
+const WYJSCIE_ZE_SKLADU = /^wypisz się( z (meczu|rezerwy))?$/i;
+
 async function wypiszSie(page: Page) {
-  await klik(page, /wypisz się z (meczu|rezerwy)/i);
+  await klik(page, WYJSCIE_ZE_SKLADU);
   await klik(page, 'Wypisz mnie', { exact: true });
   await expect(page.getByRole('button', { name: /^Dołącz|komplet — na rezerwę/i }).first())
     .toBeVisible({ timeout: 15_000 });
@@ -259,7 +267,7 @@ async function pokazSie(page: Page, cel: Locator, opis: string) {
  * czerwoną kropkę, nie trzy.
  */
 async function niezapisany(page: Page) {
-  const wyjscie = page.getByRole('button', { name: /wypisz się z (meczu|rezerwy)/i });
+  const wyjscie = page.getByRole('button', { name: WYJSCIE_ZE_SKLADU });
   if (await wyjscie.isVisible().catch(() => false)) await wypiszSie(page);
 }
 
@@ -378,9 +386,13 @@ test.describe('dołączanie do meczu', () => {
     // Przyklejony pasek stanu ZOSTAJE po dołączeniu. Wcześniej gasł razem
     // z paskiem „Dołącz", więc status i „Wypisz się" zjeżdżały do treści,
     // poniżej zgięcia ekranu — zgłoszone wprost z sesji QA na telefonie.
-    // Asercja idzie po podpisie paska, bo sam napis „Jesteś w składzie"
-    // pada też w chmurce i w oknie po zapisie.
-    await expect(tresc(page).getByText('Masz miejsce w składzie')).toBeVisible();
+    // Asercja szła kiedyś po PODPISIE paska („Masz miejsce w składzie"), bo
+    // sam napis „Jesteś w składzie" pada też w chmurce i w oknie po zapisie.
+    // Podpis zniknął 2026-09-13 (powtarzał wiersz nad sobą), więc pasek łapiemy
+    // po `data-pasek-dolny` — atrybut trzyma się układu lepiej niż tekst.
+    await expect(
+      page.locator('[data-pasek-dolny]').getByText('Jesteś w składzie'),
+    ).toBeVisible();
     await bezChmurki(page);
     await uspokoj(page);
     const po = tresc(page).getByText('3 / 10')
@@ -437,8 +449,14 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     await expect(page.getByText(/w polu jest już komplet/i)).toBeVisible();
     await expect(page.getByText(/listę rezerwową/i)).toBeVisible();
     await uspokoj(page);
+    // Maska na termin: ten zrzut łapie też kartę „Kiedy i gdzie" pod oknem,
+    // a data w seedzie liczy się jako ODSTĘP od dnia uruchomienia. Bez maski
+    // ten sam, niezmieniony widok meldował „zmianę wyglądu" codziennie —
+    // dokładnie ta zgnilizna, o której mówi AGENTS.md.
     await zaslonPaskamiDolnymi(page, () => expect(page.getByRole('dialog').or(page.locator('.fixed.inset-0').last()))
-      .toHaveScreenshot('bramkarze-rezerwacja-okno.png'));
+      .toHaveScreenshot('bramkarze-rezerwacja-okno.png', {
+        mask: [page.locator('[data-termin-meczu]')],
+      }));
     // Zamykamy okno bez zapisu — ten test celowo NIC nie zmienia w bazie,
     // sprawdza wyłącznie ostrzeżenie przed zapisem.
     await page.keyboard.press('Escape');
@@ -539,7 +557,7 @@ test.describe('okna na telefonie', () => {
     await otworzMecz(page, MECZ.wolneMiejsca);
     await uspokoj(page);
 
-    await klik(page, /wypisz się z meczu/i);
+    await klik(page, WYJSCIE_ZE_SKLADU);
     // Gdyby okno siedziało pod paskiem, Playwright zgłosi „intercepts pointer
     // events" właśnie tutaj — to jest test na tę konkretną regresję.
     // `exact`, bo w oknie stoi teraz także „Wypisz mnie, ale obserwuj" —
@@ -602,7 +620,7 @@ test.describe('udostępnianie meczu', () => {
     // i przycisk milczy — co wyglądałoby na regresję, a byłoby ustawieniem
     // przeglądarki testowej.
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    // ORGANIZATOR, nie gracz. Panel „Zaproś znajomych" renderuje się WYŁĄCZNIE
+    // ORGANIZATOR, nie gracz. Panel „Zaproś" renderuje się WYŁĄCZNIE
     // komuś, kto jest w środku (`myParticipation || isOwner || myDelegate`) —
     // dla kogoś z zewnątrz nie ma go wcale, więc poprzednia wersja tego testu
     // czekała 30 sekund na przycisk, którego nie mogło być.
@@ -612,14 +630,14 @@ test.describe('udostępnianie meczu', () => {
     await otworzMecz(page, MECZ.wolneMiejsca);
     await uspokoj(page);
 
-    // `exact: true` — bez tego lokator łapie DWA elementy. Podpowiedź przy
-    // „Dopisz osobę bez konta" wskazuje organizatorowi tę sekcję po nazwie
-    // („wyślij mu link przyciskiem «Udostępnij» w sekcji «Zaproś znajomych»…"),
-    // więc sama fraza występuje na stronie także w środku dłuższego zdania.
-    // Tytuł panelu to dokładnie te dwa słowa i tylko on ma nas tu interesować.
-    const panel = tresc(page).getByText('Zaproś znajomych', { exact: true })
-      .locator('xpath=ancestor::div[1]');
-    await pokazSie(page, panel, 'panel „Zaproś znajomych"');
+    // Karta po atrybucie, nie po tytule i `ancestor::div[1]`. Tamten lokator
+    // zakładał, że tytuł jest BEZPOŚREDNIM dzieckiem karty — założenie padło,
+    // gdy przyciski („Udostępnij", „Kopiuj", „Zaproś z grupy", „Otwórz dla
+    // okolicy") przestały mieścić się w jednej linii na telefonie i tytuł
+    // dostał własny wiersz. Lokator łapał wtedy sam nagłówek i szukał
+    // przycisku „Kopiuj" tam, gdzie go z definicji nie ma.
+    const panel = tresc(page).locator('[data-zapros-znajomych]');
+    await pokazSie(page, panel, 'panel „Zaproś"');
     await panel.getByRole('button', { name: 'Kopiuj', exact: true }).click();
     // Potwierdzenie siedzi w SAMYM przycisku (napis zmienia się na „OK"),
     // nie w chmurce — panel nie woła toasta.
@@ -939,11 +957,18 @@ test.describe('kreator meczu — kolejne kroki', () => {
 // osoba spoza składu dostaje zdanie wyjaśniające zamiast pustki. Drugie jest
 // łatwe do zepsucia: warunek renderowania nie może pytać o sam numer, bo
 // wtedy wyjaśnienie znika dokładnie przed tym, komu jest potrzebne.
+//
+// OD 2026-09-13 OBA PATRZĄ W ZAKŁADKĘ ROZLICZENIA, nie w nagłówek meczu —
+// tam zeszła karta „Jak zapłacić" razem z resztą informacji o płatności
+// (nagłówek powtarzał to, co i tak widać niżej). Asercje są te same, zmieniło
+// się wyłącznie miejsce; ta zmiana wyszła właśnie z tej bramki, bo usunięcie
+// akapitu z nagłówka zabrało wyjaśnienie osobie spoza składu.
 
 test.describe('numer BLIK', () => {
   test('uczestnik widzi numer', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await otworzMecz(page, MECZ.platnyZagrany);
+    await klik(page, 'Rozliczenia', { exact: true });
     await uspokoj(page);
 
     // Mecz jest z wczoraj, więc reguła „dopiero na godzinę przed" (canSeeBlikPhone)
@@ -954,6 +979,7 @@ test.describe('numer BLIK', () => {
   test('ktoś spoza składu dostaje wyjaśnienie, nie pustkę', async ({ page }) => {
     await zaloguj(page, KONTA.drugiGracz);
     await otworzMecz(page, MECZ.platnyZagrany);
+    await klik(page, 'Rozliczenia', { exact: true });
     await uspokoj(page);
 
     await expect(tresc(page).getByText('555111222')).toHaveCount(0);

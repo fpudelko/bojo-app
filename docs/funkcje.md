@@ -13,7 +13,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 | Flaga | Wartość | Co chowa | Gdzie warunkuje |
 |---|---|---|---|
 | `SHOW_CUP` | `false` | Turniej / BOJO Cup | `Header.tsx`, `AnnouncementBar.tsx` |
-| `SHOW_GAME_ALERTS` | `false` | „Ustaw alert" o grach w okolicy | `components/home/dashboard/DashboardSections.tsx` (sekcja „Otwarte mecze" na dashboardzie zalogowanego) |
+| `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (przycisk „Powiadom mnie, gdy się pojawi" w pustym stanie listy) |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
 | `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
 | `SHOW_MIN_PLAYERS_THRESHOLD` | `false` | Toggle progu „gra się odbędzie" i werdykt „Gramy ✓ / Brakuje N do minimum" (wyłączona 2026-08-21, produktowa decyzja — `events.min_players` i logika zostają) | `EventCapacityFields.tsx` (kreator + edycja), `CzyGramyPanel.tsx` |
@@ -264,10 +264,38 @@ jeden komponent zamiast dwóch kopii — patrz sekcja „Układ `/moje-gry`" ni�
 Nie mylić z `lib/invites.ts` (tabela `event_invites`, migracja `036`) — zaproszenia po
 e-mailu z tokenem, martwy kod, nic go nie importuje.
 
+**„Gram" / ✕ przy zaproszeniu — `components/events/OdpowiedzJednymKlikiem.tsx`.**
+Powstał, bo „tak" kosztowało więcej kliknięć niż „nie" (nie robisz nic) w produkcie,
+którego całym sensem jest zebranie składu. **Od 2026-09-13 „Gram" nie wszędzie zapisuje
+od razu** (`gramOtwieraMecz`, zgłoszone wprost):
+
+| Gdzie | Co robi „Gram" |
+|---|---|
+| Panel powiadomień (`NotificationBell.tsx`) | przenosi na `/wydarzenia/<id>?dolacz=1` — mecz z OTWARTYM oknem zapisu; decyzja zapada tam |
+| Lista zaproszeń (`InviteList.tsx`, cztery miejsca z tabeli wyżej) | zapisuje natychmiast, jak dotąd |
+
+Różnica bierze się z tego, ile widać w chwili kliknięcia. Panel pokazuje jedno zdanie,
+a zapis niesie cenę, godzinę, rolę i to, czy wchodzi się do składu, czy na rezerwę —
+jeden tap na ślepo w coś, co kosztuje pieniądze i blokuje cudze miejsce, to za mało.
+Na liście kafelek meczu z datą, miejscem i ceną stoi tuż obok przycisku, więc warunek
+„wiem, na co się piszę" jest już spełniony, a wyrzucanie stamtąd na stronę meczu
+kosztowałoby powrót. `?dolacz=1` to ta sama ścieżka, którą wraca się z logowania — **nie
+zapisuje nikogo sam**, tylko otwiera okno (reguła „nikt nie trafia do składu po cichu",
+patrz [domena.md](./domena.md)). ✕ („nie gram") zostaje natychmiastowe w obu miejscach:
+odmowa niczego nie kosztuje i nie ma czego oglądać. Przycisk siedzi WEWNĄTRZ klikalnej
+pozycji panelu, więc zatrzymuje zdarzenie — panel zamyka `naPrzejscie`, bo `onClick`
+odnośnika wokół nigdy nie dojdzie.
+
 **Jeden przycisk „Zaproś z grupy" na stronie, nie dwa.** Do niedawna były dwa — przy
-liczniku wolnych miejsc i osobno w sekcji „Zaproś znajomych" — z różnymi ikonami i różnymi
+liczniku wolnych miejsc i osobno w sekcji „Zaproś" — z różnymi ikonami i różnymi
 warunkami widoczności. Zostaje wyłącznie ten przy liczniku (`!isFull`, ikona `Users`);
 sekcja niżej na stronie ma dziś tylko udostępnianie linku.
+
+**Nagłówek panelu brzmi „Zaproś", nie „Zaproś znajomych" — od 2026-09-13**, zgłoszone
+wprost. Słowo zawężało do kumpli, a z tej karty wychodzą dziś cztery różne drogi: link,
+kopiowanie, zaproszenie z ekipy i „Otwórz dla okolicy" — czyli głównie do ludzi, których
+organizator nie zna. Zaczep `data-zapros-znajomych` (i nazwa pliku) zostają bez zmian:
+to identyfikator dla testów, nie tekst dla człowieka.
 
 **Kto zaprosił, kto odpowiedział — widok organizatora.**
 `components/events/EventInvitesStatus.tsx`, tylko `isOwner` (RLS na
@@ -293,9 +321,48 @@ zasłaniałby ważniejsze CTA:
   użytkownik nie ma potwierdzonego miejsca ani oczekującej prośby). Po dołączeniu panel
   wraca — to zachęta do kolejnej akcji.
 
+**Ekrany rozmów panelu NIE chowają — od 2026-09-12.** Wcześniej chowały (cztery miejsca:
+`/rozmowy/mecz/[id]`, `/rozmowy/grupa/[id]`, zakładka Rozmowa na meczu, Tablica na
+ekipie), bo `fixed bottom-0` nie rezerwuje miejsca w dokumencie i pasek zasłaniał
+composer. Dziś miejsce rezerwuje wysokość ekranu czatu (`calc(<widoczne okno> -
+var(--bottom-nav-h))`), więc composer siada NAD paskiem, a pasek zostaje tam, gdzie
+człowiek go szuka. **Znika go wyłącznie na czas otwartej klawiatury.** Decyzja
+właściciela: „nie chowaj tego paska, ale klawiatura niech go zakryje, a nie podnosi".
+
+**Ten sam efekt, dwie różne drogi — bo systemy zachowują się inaczej.** Na Androidzie
+pasek zakrywa sama klawiatura: `interactiveWidget: 'resizes-visual'` nie rusza layoutu,
+więc `fixed bottom-0` zostaje przy dole ekranu, czyli pod klawiaturą. **iOS tak nie
+umie** — Safari PODNOSI elementy `fixed` nad klawiaturę, więc pasek wjeżdżał na środek
+ekranu i przykrywał sobą pole do pisania (zgłoszone ze zrzutem z iPhone'a). Żadne
+ustawienie viewportu tego nie zmienia, bo to zachowanie systemu, nie strony. Dlatego
+`globals.css` chowa pasek (`html[data-klawiatura='1'] [data-pasek-dolny]`) na czas
+pisania: na Androidzie to no-op, bo i tak go nie widać, na iOS załatwia sprawę.
+Pilnuje tego `klawiaturaAndroid.test.ts`.
+
+Znacznik `data-klawiatura` stawia `useZnacznikKlawiatury()` w `BottomNavGate` — czyli
+tam, gdzie i tak zapada decyzja o istnieniu paska. **Globalnie, nie tylko na ekranach
+czatu**: szukajka na liście rozmów też otwiera klawiaturę i też podnosiła pasek.
+
+**Otwartą klawiaturę poznajemy po SKUPIENIU W POLU TEKSTOWYM** (`wPoluTekstowym()`),
+nie po ubytku wysokości okna. Stało tu porównanie `window.innerHeight -
+visualViewport.height > 160` i **na iOS nigdy nie wychodziło prawdą** — tam przy
+otwartej klawiaturze kurczą się OBIE wartości, więc różnica zostaje bliska zeru. Skutek
+był widać na zrzucie: pasek się nie chował i nie zwalniał swojego miejsca, więc composer
+siadał o jego wysokość za wysoko, a w powstałej luce pływał pasek adresu Safari. Pytanie
+„czy człowiek pisze" jest zresztą tym, o co naprawdę chodzi — nie zależy od tego, czy
+przeglądarka kurczy layout, widoczne okno, czy jedno i drugie.
+
 Mechanizm: `lib/bottomNavVisibility.tsx` — kontekst z licznikiem (nie boolean), żeby dwa
 niezależne powody ukrycia nie odsłaniały panelu przedwcześnie. Komponent `<HideBottomNav/>`
 montowany warunkowo chowa panel, dopóki jest zamontowany.
+
+**Pigułki z cechami meczu stoją POD kartą „Kiedy i gdzie" — od 2026-09-13**, zgłoszone
+wprost. Rząd („7 zł / os.", „Prywatne", nazwa ekipy, „Wymaga akceptacji", „Stała gierka")
+wchodził na ekran PRZED terminem i adresem, czyli przed odpowiedzią na dwa pierwsze
+pytania, jakie się zadaje przy meczu. Dziś kolejność to: opis → karta „Kiedy i gdzie"
+(data, adres, „Nawiguj") → pigułki → licznik miejsc → skład. Cena zostaje **nad**
+licznikiem, a nie pod nim: „ile to kosztuje" jest trzecim z tych pytań i nie ma schodzić
+pod zgięcie ekranu.
 
 **Zapisany gracz ma własny pasek stanu — od 2026-09-09.** Do tej pory pasek na dole
 strony meczu obsługiwał wyłącznie NIEzapisanego (`joinBarVisible`): gasł w chwili
@@ -319,11 +386,19 @@ statusem plus ściszonym „Wypisz się". Trzy rzeczy, które go odróżniają o
   w treści i pod niego napisany jest selektor w `e2e/scenariusze.spec.ts`. Dwa elementy
   o tej samej nazwie dostępnej wywracają strict mode Playwrighta.
 
+**Podpis paska tylko tam, gdzie dokłada fakt — od 2026-09-13.** Dla gracza w składzie
+stało pod „Jesteś w składzie" drugie zdanie: „Masz miejsce w składzie" — ten sam
+komunikat innymi słowami. Do tego „miejsce" czyta się w Bojo także jako BOISKO
+(karta „Kiedy i gdzie" mówi „Miejsce: Szkoła Podstawowa nr 61"), więc podpis nie tylko
+powtarzał, ale i mylił; zgłoszone wprost. Podpis renderuje się dziś wyłącznie dla
+rezerwy („Wejdziesz, gdy ktoś się wypisze") i prośby („Organizator jeszcze nie
+potwierdził"), gdzie niesie informację, której w wierszu nad nim nie ma.
+
 Obserwujący („Obserwuję") **nie** dostaje tego paska i to jest zamierzone: `myParticipation`
 to `myConfirmed`, czyli wiersz z miejscem w składzie albo w kolejce, a `rsvp = 'maybe'`
 do niego nie należy — obserwujący dalej widzi „Dołącz", którego naprawdę potrzebuje.
-Pilnuje tego asercja w scenariuszu dołączenia (`e2e/scenariusze.spec.ts`, podpis
-„Masz miejsce w składzie").
+Pilnuje tego asercja w scenariuszu dołączenia (`e2e/scenariusze.spec.ts`) — po zniknięciu
+podpisu łapie pasek po `data-pasek-dolny`, nie po tekście.
 
 **„Ukryty" chowa przez CSS, nie odmontowuje — od 2026-08-30.** `BottomNavGate.tsx`
 renderuje `<BottomNav hidden={hidden}/>` zawsze (poza „nie zalogowany"/„widget"), a
@@ -569,9 +644,9 @@ statystykami i zarządzaniem. Człowiek dotykał wiadomości, a dostawał panel 
 wyjść tam, skąd się weszło (zgłoszone wprost).
 
 Obie trasy to pełny ekran o układzie 1:1 z rozmową prywatną `/rozmowy/[id]`: własny
-nagłówek zamiast paska serwisu na mobile (`hideMobileBarForUser`), `HideBottomNav`,
-wysokość liczona z widocznego okna (`useOknoCzatu` — inaczej composer ucieka nad
-klawiaturę na iOS). Treść rozmowy to te same komponenty co w zakładkach
+nagłówek zamiast paska serwisu na mobile (`hideMobileBarForUser`), dolna nawigacja
+zostaje na miejscu (chowa ją wyłącznie klawiatura), wysokość liczona z widocznego okna
+(`useOknoCzatu` — inaczej composer ucieka nad klawiaturę na iOS). Treść rozmowy to te same komponenty co w zakładkach
 (`RozmowaGrupy`, `RozmowaWydarzenia`) i te same tabele — nic się nie duplikuje.
 
 **Kontekst jest ODNOŚNIKIEM, nie paskiem zakładek.** `components/rozmowy/NaglowekRozmowy.tsx`
@@ -850,6 +925,16 @@ znajomego"/„Imię i nazwisko" przy dopisywaniu gościa dostały `maxLength={80
 z `validateName(…, 80)` — wcześniej przyjmowały dowolnie długi tekst, a odmowa
 przychodziła dopiero z serwera, po kliknięciu.
 
+**Sposoby zapłaty pokazują się razem z przełącznikiem „Mecz płatny", nie po wpisaniu
+kwoty — od 2026-09-13.** `EventPaymentFields` chował się dotąd pod warunkiem
+`costPln > 0`, przez co blok „Jak można zapłacić?" (+ BLIK, + zniżka z kartą sportową)
+**wskakiwał w trakcie wpisywania kwoty** i przesuwał układ pod kciukiem — przy otwartej
+klawiaturze numerycznej to skok w połowie ruchu. Skoro przełącznik już powiedział
+„płatny", pytanie „czym?" nie ma na co czekać: kreator podaje `zawszeWidoczne`, bo cała
+sekcja siedzi u niego wewnątrz `OpcjaMeczu`. **Strona edycji zachowuje bramkę na kwocie**
+— nie ma tam przełącznika „Mecz płatny", pole kosztu stoi zawsze, a „0" znaczy mecz
+darmowy, więc bez bramki darmowy mecz pytałby o numer BLIK-a.
+
 **Nazwa etykiety pola ceny ujednolicona między kreatorem a edycją.** Kreator mówił
 „Koszt od osoby (zł)", strona edycji „Koszt uczestnictwa (PLN)" — ta sama liczba,
 dwie różne nazwy w dwóch miejscach tego samego przepływu. Edycja przyjęła etykietę
@@ -874,7 +959,13 @@ miejsca meczu jest najgorszą możliwą pomyłką do przeoczenia.
 
 **„Czas na decyzję z rezerwy" (krok 1, pod przełącznikiem rezerwy).** Pole stoi tuż pod
 przełącznikiem „Lista rezerwowa" (presety 30 min – 24 h, gęściej w przedziale 30 min – 3 h, plus „Inny czas…"
-z polem liczbowym w minutach, 15 min – 72 h; domyślnie 180 min = 3 h). Wcześniej
+z polem liczbowym w minutach, 15 min – 72 h; nowy mecz zakłada się z **60 min**
+— `DOMYSLNE_MINUTY_REZERWY` w `lib/events.ts`, decyzja właściciela 2026-09-13; było 180.
+Koszt jest świadomy: awansu automatycznego z rezerwy nie ma, więc oferta wysłana
+wieczorem przy oknie godzinnym wygasa, zanim ktokolwiek spojrzy w telefon — w zamian mecz
+nazajutrz w południe nie trzyma miejsca zablokowanego przez pół dnia. Istniejące mecze
+zachowują swoją wartość, `DEFAULT 180` w bazie (migracja `118`) zostaje: aplikacja i tak
+wysyła tę kolumnę przy każdym zapisie). Wcześniej
 siedziało pod rozwijanym „Więcej opcji" — sekcja została w kodzie, ale nie ma dziś czego
 pokazać i się nie renderuje. Od 2026-08-23 całość jest za przełącznikiem: mecz bez
 rezerwy nie pokazuje ani tego pola, ani zdania o kolejce. Odwrócenie ustalenia O-11 audytu, patrz
@@ -899,6 +990,29 @@ Patrz „Serie wydarzeń cyklicznych" niżej.
 **Krok 3 „Dla kogo" — widoczność, akceptacja, ekipa, tytuł, opis.** Sam ekran nie ma pól
 wymaganych (`validateStep3` zwraca `{}`).
 
+**Opis nie ma przełącznika — od 2026-09-13.** Stał za `ToggleRow` „Dodaj opis"
+(z podpisem „Poziom, zasady, co zabrać"), postawionym przeciwko pustej textarei, która
+czytała się jak pole do wypełnienia. Zgłoszone wprost — i rozstrzyga o tym pole tuż
+wyżej: „Tytuł" jest tak samo opcjonalny i stoi gołe, z dopiskiem „(opcjonalnie)".
+Dwa opcjonalne pola obok siebie, jedno za przełącznikiem, drugie nie, to nie była zasada.
+Dziś opis to zwykła textarea z etykietą „Opis (opcjonalnie)". Stan `descriptionEnabled`
+zniknął z kreatora, edycji i ze szkicu (`lib/eventDraft.ts`) — o wysłaniu opisu decyduje
+wyłącznie to, czy pole jest niepuste. Szkice zapisane wcześniej wczytują się bez zmian
+(nadmiarowy klucz jest ignorowany, `v` zostaje na `1`).
+
+**Podpisy kart widoczności — co wolno w nich skrócić.** „Prywatne" mówi „Nie pojawia się
+na liście — wejdzie tylko ktoś z zaproszeniem lub linkiem". Padła prośba o skrót do
+„widoczne tylko dla zaproszonych" i został **odrzucony jako nieprawdziwy**: do meczu
+prywatnego wchodzi też każdy, kto dostanie link (`/d/<kod>`), a link jest w Bojo głównym
+sposobem zapraszania. Podpis, który przemilcza link, obiecuje szczelność, której nie ma —
+w jedynym miejscu, gdzie organizator tę decyzję podejmuje. Ekipy nie wymieniamy tu
+drugi raz, bo stoi w zdaniu pod kartami (`opisWidocznosciWGrupie()`). „Publiczne":
+„Widoczne dla wszystkich — dołączy każdy chętny".
+
+**„Biorę udział" siedzi w tej samej delikatnej ramce** co „Wymagaj akceptacji" i opcje
+meczu (2026-09-13). Wiersz z samą kreską pod spodem czytał się jak urwany koniec listy
+wyżej, a jest osobną decyzją: czy organizator zajmuje jedno z miejsc w składzie.
+
 **Krok 3 — mecz w ramach grupy.** Wiersz pod kartami widoczności otwiera
 `components/events/WybierzGrupeDialog.tsx` (bottom sheet od najmniejszych ekranów,
 wyśrodkowana karta od `sm:`) z listą `getMyGroups()`. Wybór trafia do `createEvent`
@@ -922,13 +1036,16 @@ Wejścia z listy, mapy czy linku zachowują zwykłe „wstecz".
 ## Podsumowanie przed publikacją
 
 „Sprawdź i opublikuj →" na kroku 3 **nie publikuje** — otwiera okno
-**„Tak zobaczą to gracze"** (`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika
-w `lib/eventSummary.ts`) z dwoma przyciskami: „Popraw" i „Opublikuj mecz" — dopiero ten
+**„Sprawdź mecz przed publikacją"** z kartą podsumowania „Tak zobaczą to gracze"
+w środku (`app/wydarzenia/nowe/PodsumowanieMeczu.tsx`, logika w `lib/eventSummary.ts`)
+i dwoma przyciskami: „Wróć do edycji" i „Opublikuj mecz" — dopiero ten
 drugi naprawdę publikuje. Powód: data, miejsce, skład i cena są ustawiane na krokach 1–2
 i w chwili publikacji nie są widoczne, a mecz jest widoczny natychmiast po utworzeniu
 i od razu idzie linkiem do ekipy — pomyłka w godzinie rozchodzi się szybciej, niż da się
 ją poprawić. Nazwa przycisku na kroku 3 zmieniła się 2026-08-29: „Opublikuj mecz →" mylił,
-bo klik nie publikował — otwierał to okno.
+bo klik nie publikował — otwierał to okno. Nagłówek samego okna i lewy przycisk zmieniły
+się 2026-09-13: nagłówek powtarzał co do znaku tytuł karty stojącej pod nim, a „Popraw"
+nie mówiło, dokąd wraca.
 
 Do 2026-08-23 to samo podsumowanie stało jako karta NA kroku 3, nad przyciskiem. Karta
 zniknęła razem z wejściem okna: dwie kopie tej samej treści na jednej ścieżce znaczą,
@@ -938,7 +1055,7 @@ zamykają okno, żeby komunikat nie renderował się pod nim; kręciołek na „
 zostaje widoczny na czas zapisu.
 
 Karta ze stopką przycisków to od 2026-08-29 kolumna flex (`overflow-hidden` na całości,
-`overflow-y-auto` tylko na treści podsumowania) — stopka z „Popraw"/„Opublikuj mecz" stoi
+`overflow-y-auto` tylko na treści podsumowania) — stopka z „Wróć do edycji"/„Opublikuj mecz" stoi
 poza scrollowanym blokiem, więc jest widoczna od razu. Wcześniej cała karta (nagłówek,
 podsumowanie, przyciski) była jednym scrollującym blokiem: przy dłuższym podsumowaniu
 przycisk publikacji chował się pod dołem ekranu, dopóki ktoś nie przewinął w dół —
@@ -989,6 +1106,20 @@ indeksowaniem, więc crawlery Facebooka i WhatsAppa nie pobiorą Open Graph i ta
 na czat bez podglądu. `eventShareText()` składa cztery linie (sport i tytuł / dzień, data,
 zakres godzin / miejsce z adresem / liczba miejsc i cena), a `shareEvent()` przekazuje je
 do arkusza systemowego razem z adresem — osobno od tekstu, żeby podgląd linku działał.
+
+**Czwarta linia zna stan zapisów, od 2026-09-12 (audyt, ustalenie `S-5`).** Wcześniej
+mówiła zawsze „14 miejsc" — tyle samo dla meczu świeżo utworzonego, co dla takiego, w
+którym brakuje dwóch osób, choć „ile brakuje" jest dokładnie tym, po co organizator
+wkleja link na grupę. Opcjonalny drugi argument `eventShareText(e, stan)` (typ
+`StanUdostepnienia`: `wolneMiejsca`, `reserveEnabled`, `zapisyZamkniete`) zamienia linię
+na „Zostały 2 miejsca" / „Komplet — wejdź na rezerwę" / „Komplet" / „Zapisy zamknięte" —
+w tej kolejności pierwszeństwa, zapisy zamknięte wygrywają nad kompletem tak samo jak w
+`lib/stanZapisow.ts`. Piąta linia, „Zapisujesz się bez zakładania konta.", pada tylko
+wtedy, gdy da się to uczciwie powiedzieć — ta sama bramka co „Dołącz bez konta" na pasku
+dolnym strony meczu (`P-7`): to jest dosłownie argument, którym organizator przebija opór
+graczy przed zakładaniem konta. Bez `stan` (wywołania z listy, gdzie składu nie ma pod
+ręką) zachowanie jest identyczne jak dotąd — bezpiecznik wsteczny. Wołający: panel
+„Mecz gotowy", `ZaprosZnajomychPanel` (dostaje `stan` jako opcjonalny prop).
 
 Trasa `/d/[code]` zostaje żywa dla linków już rozesłanych; zniknęła tylko jako drugi,
 konkurencyjny przycisk „Udostępnij" na tej samej stronie.
@@ -1405,6 +1536,21 @@ kopię „trwającą" 690 minut. Zmiana startu przesuwa koniec o tę samą delt�
 długość), zmiana końca nigdy nie rusza startu — dokładnie ten sam wzorzec co w modalu
 „Zmień termin" (`toMinutes`/`fromMinutes`, wydzielone do `lib/time.ts`).
 
+**Trzy wejścia do `repeatEvent()`, jedna gwarancja na poziomie typów.** Poza tym oknem
+i skróconą wersją w karcie „Po meczu", trzecie wejście żyje na `NajblizszyMeczGrupy.tsx`
+(„Powtórz na {dzień} {data}"). Czwarte wejście istniało na `/moje-gry → Historia`
+(`PowtorzZHistorii.tsx`) — usunięte 2026-09-13 (zgłoszone wprost: link pod KAŻDĄ kartą
+w historii się powtarzał, a te same dwie akcje żyją już na stronie meczu). Pozostałe
+trzy wołają tę samą funkcję, która do 2026-09-12 gubiła po cichu `requireApproval`,
+`reserveEnabled` i `goalkeeperSlotsReserved` — mecz z wymaganą akceptacją zapisów wracał
+po powtórce jako OTWARTY (audyt, ustalenie `S-2`; wcześniej z tego samego powodu ginęły
+`groupId`, `minPlayers`, `endTime`, `recurringEventId` — każde naprawiane osobno). Typ
+`ZrodloPowtorki` w `lib/events.ts` wymusza dziś wymienienie KAŻDEGO pola `EventCreate`
+w ciele `repeatEvent()` — pominięcie nowo dodanej kolumny przestaje się kompilować,
+zamiast po cichu zostawiać domyślną wartość. Wszystkie trzy wejścia trafiają też do
+`?utworzono=1` (panel „Mecz gotowy — wyślij link"), niezależnie skąd organizator go
+powtórzył (ustalenie `S-6`).
+
 ---
 
 ## Oznaczanie nieobecności
@@ -1442,8 +1588,10 @@ organizatora: „Brakuje nam 1go? Dobrze liczę?", „10 to minimum żeby zagra�
 jeszcze ktoś się decyduje?".
 
 **Rozwiązanie.** `CzyGramyPanel.tsx` (`components/events/`), widoczny na stronie meczu
-wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Dwa
-niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
+wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Panel miał
+dwa bloki; **od 2026-09-13 został mu jeden** — „Otwórz dla okolicy" przeniosło się do
+`ZaprosZnajomychPanel.tsx` (patrz niżej). Przy wyłączonej `SHOW_MIN_PLAYERS_THRESHOLD`
+panel nie renderuje dziś nic i zostaje na miejscu wyłącznie na wypadek powrotu flagi:
 
 1. **Werdykt progu** — **ukryte za `SHOW_MIN_PLAYERS_THRESHOLD`** (wyłączona 2026-08-21,
    produktowa decyzja: nie chcemy tej funkcji w aplikacji). Gdy odkryta, działa tak: gdy
@@ -1458,23 +1606,28 @@ niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
 2. **„Otwórz dla okolicy"** — dla prywatnego meczu z wolnymi miejscami, niezależnie od
    tego, czy jest przypięty do grupy. Woła istniejący `handleSetVisibility('public')`
    (ten sam kod co ręczny przełącznik widoczności), z potwierdzeniem tłumaczącym, co się
-   stanie. To jedyna rzecz w tym panelu, której żaden komunikator nie potrafi: zamienia
-   prywatny brak ludzi w publiczną podaż na `/wydarzenia`.
+   stanie. Zamienia prywatny brak ludzi w publiczną podaż na `/wydarzenia`.
 
-**„Nie zagram"** (`NieGramButton.tsx`) — odpowiedź dla członka ekipy, który jeszcze nie
-dołączył do meczu przypiętego do jego grupy. Zapisuje wiersz w
-`event_declines` (migracja `097`) — **nie** w `player_reports`, które karmi
-„Niezawodność" wyłącznie ze zgłoszeń nieobecności na mecz, na który ktoś się zapisał;
-wcześniejsza odmowa jest zachowaniem dobrym. Da się cofnąć („Cofnij odpowiedź").
+   **Mieszka od 2026-09-13 w `ZaprosZnajomychPanel.tsx`, nie tutaj.** Jako osobna karta
+   wisiał nad licznikiem miejsc i podawał tę samą liczbę odwrotnie niż on — licznik
+   „Zostało 13 wolnych miejsc", karta obok „Brakuje 13 — otwórz dla okolicy" — więc jeden
+   stan czytał się jak dwie różne informacje (zgłoszone wprost z sesji UX). Dziś liczba
+   pada RAZ, w liczniku, a otwarcie dla okolicy stoi jako czwarty przycisk obok
+   „Udostępnij", „Kopiuj" i „Zaproś z grupy": wszystkie cztery odpowiadają na to samo
+   pytanie „jak zapełnić skład". Warunek pokazania się nie zmienił (`canManageSquad`,
+   mecz prywatny, są wolne miejsca), `handleOtworzDlaOkolicy` też nie — zmienił się
+   wyłącznie przycisk, który go woła.
 
-**Pytanie stoi NAD przyciskiem i mieszka w komponencie — od 2026-09-09.** Sam przycisk
-„Nie gram" stał bez kontekstu tuż nad przyklejonym paskiem „Dołącz →", więc czytał się
-jak **plakietka ze stanem** („nie gram" = nie ma mnie w składzie) albo druga połowa
-przełącznika obok „Dołącz" — zgłoszone wprost z sesji QA na telefonie. Dziś komponent
-renderuje kartę z pytaniem („Twoja ekipa tu gra. Nie dasz rady?") i odpowiedzią
-(„Nie zagram"), a po kliknięciu podmienia oba na „Ekipa wie, że tym razem nie zagrasz."
-+ „Cofnij odpowiedź". Pytanie musi mieszkać w komponencie, nie na stronie: tylko on zna
-`odmowilem`, więc tylko on może przestać pytać o coś, na co odpowiedź już padła.
+**„Nie zagram" — USUNIĘTE ze strony meczu 2026-09-13.** Karta pytała członka ekipy,
+który jeszcze nie dołączył do meczu przypiętego do jego grupy („Twoja ekipa tu gra.
+Nie dasz rady?" + „Nie zagram"), i zapisywała wiersz w `event_declines` (migracja `097`).
+Zgłoszone wprost jako zbędne — a sprawdzenie pokazało powód mocniejszy niż estetyka:
+**tej odpowiedzi nie oglądał nikt.** `getDeclines()` czytał wyłącznie ten sam przycisk,
+żeby wiedzieć, czy sam już kliknął; po usunięciu panelu „kto milczy" (wyżej) nie został
+ani jeden widok organizatora nad tą tabelą. `NieGramButton.tsx` skasowany;
+`lib/eventDeclines.ts`, tabela i RLS **zostają** — wejście wraca, gdy powstanie widok
+„kto odpadł" (szczegóły i druga, bliźniacza dziura wokół
+`event_player_invites.dismissed_at` → [domena.md](./domena.md)).
 
 **Panel miał wcześniej trzeci blok, „Nie odpowiedziało: N"** (kto z ekipy jeszcze nie
 zareagował na mecz, z przyciskami „Zapytaj w Bojo"/„Tekst na WhatsAppa") — usunięty na
@@ -1615,8 +1768,7 @@ Sekcja **nie** opiera się na `fields.city`: ta kolumna jest pusta we wszystkich
 dopóki nie przejdzie `scraper/backfill_lokalizacja.py`.
 
 **Dane na żywo, nie zaszyte.** Strona woła `getNearbyEvents()` (`lib/events.ts`, RPC
-`get_nearby_events` z `025_game_alerts.sql`, wcześniej nieużywane w kodzie poza wyłączoną
-flagą `SHOW_GAME_ALERTS`) z promieniem 15 km od centrum danego miasta, filtruje wynik po sporcie
+`get_nearby_events` z `025_game_alerts.sql`) z promieniem 15 km od centrum danego miasta, filtruje wynik po sporcie
 i pokazuje do 5 najbliższych meczów jako listę z linkami do `/wydarzenia/[id]`. Licznik
 u góry pokazuje pełną liczbę dopasowań, nie tylko wyświetloną piątkę. Gdy lista jest pusta,
 strona pokazuje uczciwe zastrzeżenie (`content/graj.ts#GRAJ_BRAK_MECZY`) zamiast chować
@@ -1756,7 +1908,7 @@ jednej linii (`overflow-x-auto` z ukrytym scrollbarem):
 |---|---|
 | **„Sortuj"** *(dropdown)* | `PillDropdown` (`components/ui/FilterPill.tsx`), single-select, aplikuje się **natychmiast** po kliknięciu opcji (nie przez szkic modala): Najbliższy termin *(domyślnie)* / **Najbliżej mnie** (pyta o lokalizację od razu, pokazuje „Szukam Cię…" w trakcie) / Najwięcej wolnych miejsc |
 | **„Filtry"** *(przycisk → modal)* | otwiera `FilterSheet` z czterema suwakami: Kiedy / Odległość / Cena / Wolne miejsca |
-| **Sport** *(dropdown)* | `PillDropdown`, multi-select, źródło `FOCUS_SPORTS` (4 opcje); „piłka nożna" łapie też `futsal` |
+| **Sport** | mieszka w arkuszu filtrów (nie w pasku), multi-select, źródło `FOCUS_SPORTS` (4 opcje) + „Wszystkie"; „piłka nożna" łapie też `futsal`. Od 2026-09-12 pigułką jest `components/ui/SportChip.tsx`: **ikona zawsze, podpis dopiero przy wybranym sporcie** — cztery pełne nazwy zajmowały na telefonie dwa wiersze, a nazwa jest potrzebna dokładnie wtedy, gdy trzeba przeczytać, co się wybrało (zostaje w `aria-label`/`title`). Ten sam komponent stoi w oknie alertu, patrz niżej |
 | „Wolne miejsca" *(toggle)* | odsiewa komplety (`participantsCount < maxPlayers`) — **inny** filtr niż suwak „Wolne miejsca" w modalu, patrz niżej |
 | „Za darmo" *(toggle)* | `costGrosze === 0` |
 
@@ -1811,6 +1963,143 @@ wartości w tablicy) — reużywane przez sportowy dropdown na `/wydarzenia` **i
 (`VenueExplorer.tsx`) — jedna powłoka (portal do `<body>`, bottom sheet na mobile,
 wyśrodkowana karta od `md:`), różna wyłącznie treść sekcji. **Pigułki filtrów**
 (`components/ui/FilterPill.tsx`: `PillDropdown`, `TogglePill`) też są wspólne z mapą.
+
+### Alert o nowym meczu w okolicy — od 2026-09-12
+
+Pusta lista meczów (`sorted.length === 0`) pokazuje duży przycisk **„Powiadom mnie, gdy
+się pojawi"**. Filtry są w tym momencie gotową odpowiedzią na pytanie „czego szukasz",
+a człowiek właśnie usłyszał „nie ma".
+
+**Od 2026-09-12 to NIE jest już jedyne wejście** (decyzja właściciela). Poprzednia wersja
+tej sekcji uzasadniała, że jedyne wejście w pustym stanie jest „świadomie jedyne" —
+argument się nie obronił: chęć dowiedzenia się o nowych meczach nie przychodzi do głowy
+wyłącznie po zobaczeniu pustki. Wejścia są dziś trzy:
+
+| Gdzie | Jak wygląda |
+|---|---|
+| **Dzwonek w pasku** nad listą, obok ikon mapy i filtrów | wypełniony `primary-700` = alert włączony, obrys = wyłączony. Ta sama geometria co plakietka aktywnych filtrów obok, więc kształt mówi „stan", nie „nowe zdarzenie" |
+| **Dół arkusza filtrów** | przy niezerowym podglądzie cichy wiersz „Powiadom mnie o nowych takich meczach"; **przy `Pokaż 0 meczy` pełny przycisk** z nagłówkiem „Nic nie pasuje do tych filtrów" |
+| **Pusty stan listy** | duży przycisk, jak dotąd |
+| **Arkusz filtrów `/mapa` w trybie gier** | to samo co w arkuszu `/wydarzenia` (od 2026-09-13) — tryb gier zadaje dokładnie to samo pytanie „gdzie i w co chcę zagrać" |
+
+Wariant zerowy w arkuszu istnieje, bo **podgląd „Pokaż 0 meczy" JEST momentem, w którym
+filtry nic nie wyszukały** — a dotąd trzeba było zamknąć arkusz i zobaczyć pusty stan, żeby
+się o tym dowiedzieć. Blok stoi tuż nad stopką arkusza, czyli tam, gdzie i tak wędruje
+wzrok sięgający po przycisk zatwierdzenia.
+
+Skutek uboczny trzech wejść: **stan alertu (`getMyAlert()`) pobiera się teraz przy każdym
+wejściu zalogowanego na listę**, nie dopiero przy pustym stanie — dzwonek musi wiedzieć, czy
+jest włączony. Wylogowany klika to samo i trafia na `/logowanie?next=/wydarzenia`
+(`otworzAlert()` — jedno miejsce dla wszystkich trzech wejść). Okno alertu renderuje się
+na poziomie całego widoku, nie w pustym stanie: `listContent` bywa w gałęzi ukrytej przez
+CSS, a modal w takiej gałęzi nie miałby jak się pokazać. Wejście na stronie głównej
+(`components/home/NearbyGames.tsx`, martwy kod) zostaje do osobnej decyzji.
+
+| Stan | Co widać |
+|---|---|
+| zalogowany, bez alertu | przycisk „Powiadom mnie, gdy się pojawi" → `AlertSetupDialog` |
+| zalogowany, z aktywnym alertem | „Damy znać, gdy pojawi się pasujący mecz" + „Zmień ustawienia powiadomienia" |
+| wylogowany | ten sam przycisk, prowadzi na `/logowanie?next=/wydarzenia` |
+
+**Okno alertu otwiera się wypełnione filtrami** — `domyslneZFiltrow()` w `lib/alerts.ts`:
+jeden wybrany sport przechodzi wprost, dwa i więcej dają „dowolny" (alert trzyma dokładnie
+jeden sport, więc wybór za kogoś byłby zmyśleniem), promień z filtrów jest przycinany do
+skali suwaka alertu (`PROMIEN_MIN` 3 – `PROMIEN_MAX` 30; filtry chodzą od 1 km, więc same
+z siebie podają wartości spoza skali), a pozycja gracza przechodzi, gdy lista już ją zna.
+
+**Lokalizacja podstawia się sama, ale nigdy nie prosi o zgodę.** Okno woła
+`pozycjaBezPytania()` (`lib/geo.ts`) — pozycję dostaje wyłącznie przy zgodzie JUŻ
+udzielonej. O zgodę prosi dopiero przycisk „Użyj mojej lokalizacji GPS", czyli coś, co
+człowiek nacisnął sam. Istniejący alert wygrywa z wartościami z filtrów: to jego edycja,
+nie zakładanie nowego.
+
+**Odległość jest w oknie alertu w JEDNYM miejscu** — wspólny `RangeSlider` bezpośrednio
+pod wybranym miejscem, bo promień jest dopowiedzeniem do niego („ile kilometrów OD
+CZEGO"). Drugie pytanie o kilometry gdzie indziej w tym samym oknie czytałoby się jak dwie
+różne odległości.
+
+Stan alertu (`getMyAlert()`) pobiera się **dopiero gdy pusty stan realnie widać** — na
+niepustej liście byłoby to zapytanie przy każdym wejściu po nic. Wysyłka jest niezmieniona:
+funkcja brzegowa `notify-game-alert` (Resend), wołana z `lib/events.ts` przy tworzeniu
+meczu. Bez migracji — tabela `game_alerts` stoi w `025` od początku.
+
+### „Ustaw pinezkę na mojej lokalizacji" — od 2026-09-12
+
+`components/ui/PrzyciskMojaLokalizacja.tsx`, jeden komponent w obu arkuszach filtrów.
+
+Powstał, bo zgoda na lokalizację była wyciągana **ubocznie**: na `/wydarzenia` systemowe
+okno przeglądarki wyskakiwało dopiero przy zatwierdzaniu filtrów z ustawionym promieniem
+(`applyDraft`, `needsGeo`), czyli w chwili, w której człowiek myślał, że już wybiera wyniki.
+Prośba o zgodę ma wychodzić z przycisku naciśniętego właśnie po to.
+
+| Gdzie | Co ustawia |
+|---|---|
+| `/wydarzenia` → arkusz filtrów, pod suwakiem „Odległość" | `userPos`. Gdy pozycja jest już znana, zamiast przycisku stoi „Liczę od Twojej lokalizacji" |
+| `/mapa` → arkusz filtrów, nad polem miejscowości (`WyborMiejscowosci.tsx`, oba tryby: obiekty i gry) | `Miejscowosc` o nazwie „Moja lokalizacja" — dalej działa dokładnie jak wpisana miejscowość, bo filtr i tak liczy po ODLEGŁOŚCI od punktu |
+
+Ustawienie pozycji w arkuszu `/wydarzenia` zmienia też podgląd „Pokaż N meczy" od razu —
+wcześniej liczył się bez promienia, dopóki pozycja nie była znana.
+
+**Błąd geolokalizacji renderuje się w samym przycisku**, pod nim, a nie u wywołującego:
+odmowa zgody to normalny stan tej kontrolki, nie awaria ekranu. Pilnuje tego
+`__tests__/przyciskLokalizacji.test.tsx` — tej połowy nie da się zobaczyć w przeglądarce
+bez uprzedniej odmowy zgody i odgrzebywania jej potem w ustawieniach.
+
+Osobno i bez zmian zostaje `pozycjaBezPytania()` (`lib/geo.ts`): pozycja BEZ pytania, przy
+zgodzie już udzielonej — używa jej okno alertu i kropka „nowe w pobliżu" na dolnej nawigacji.
+
+### Odmowa lokalizacji ma trzy przyczyny i trzy różne wyjścia — od 2026-09-13
+
+`PERMISSION_DENIED` z `getCurrentPosition()` jest jednym kodem błędu na trzy zupełnie różne
+sytuacje. Do 2026-09-13 wszystkie trzy dostawały ten sam komunikat: „Zezwól w ustawieniach
+przeglądarki (ikona kłódki przy adresie)". Zgłoszone z telefonu: człowiek **chce**
+udostępnić lokalizację, naciska „Użyj mojej lokalizacji GPS" i dostaje instrukcję
+prowadzącą w miejsce, w którym albo nic takiego nie ma, albo wszystko jest już ustawione
+na „tak" — czyli pętlę bez wyjścia.
+
+`rodzajOdmowy()` w `lib/geo.ts` pyta Permissions API **po** odmowie i zestawia stan
+uprawnienia dla strony z faktem, że pozycja nie przyszła:
+
+| Stan uprawnienia po odmowie | `GeoErrorKind` | Co mówi komunikat |
+|---|---|---|
+| `denied` | `denied` | blokada zapamiętana przez przeglądarkę → ustawienia strony |
+| `granted` | `denied-system` | strona MA zgodę, więc blokuje telefon → uprawnienie aplikacji przeglądarki w ustawieniach systemu |
+| `prompt` | `denied-dismissed` | pytanie zamknięto bez odpowiedzi, blokady nie ma → **wystarczy nacisnąć drugi raz** |
+| brak API / wyjątek | `denied-nieznane` | wymienia oba miejsca, zamiast zgadywać jedno |
+
+Przypadek `denied-system` jest tym z oryginalnego zgłoszenia i jedynym, którego stara rada
+nie mogła naprawić: w ustawieniach strony wszystko jest na „zezwól", a blokada siedzi
+piętro niżej (Android: Ustawienia → Aplikacje → przeglądarka → Uprawnienia; iPhone:
+Ustawienia → Prywatność → Usługi lokalizacji).
+
+Pilnuje tego `__tests__/odmowaLokalizacji.test.ts`: każdy rodzaj ma własny komunikat, każdy
+zostawia drogę ręczną („wpisz miasto"), a komunikat systemowy **nie** odsyła do kłódki.
+Rozpoznanie dotyczy wszystkich wywołań `getCurrentLocation()` naraz — okna alertu, obu
+arkuszy filtrów i sortowania „Najbliżej mnie" — bo siedzi w helperze, nie w komponencie.
+
+### Sport na `/mapa`: ikony w trybie gier, lista przy obiektach — od 2026-09-13
+
+Arkusz filtrów w **trybie gier** używa tego samego `SportChip` co `/wydarzenia`: ikona
+zawsze, podpis przy wybranym. Cztery sporty w pionie zjadały pół ekranu telefonu, przez co
+suwaki pod spodem wypadały poza kadr.
+
+Arkusz **obiektów zostaje listą z podpisami** i nie jest to przeoczenie: jego źródłem jest
+`MAP_FILTER_SPORTS`, gdzie „wielofunkcyjne" ma to samo 🏟️ co pozycja „Wszystkie sporty" —
+same ikony byłyby tam nie do rozróżnienia. Tryb gier bierze `FOCUS_SPORTS`, gdzie każda
+ikona jest inna.
+
+### Podgląd „Pokaż N meczy" liczy ze SZKICU, nie z zastosowanych filtrów
+
+Błąd zgłoszony wprost z telefonu: w arkuszu na `/mapa` klikanie sportu (a także „Wolnych
+miejsc" i „Za darmo") nie ruszało licznika ani o jeden mecz. `gamesPreviewCount` liczył
+z `gamesBaseFiltered`, czyli po wartościach **zastosowanych** — podgląd obiektów miał to
+poprawione (`previewFieldsCount` bierze `draftSports`), tryb gier został z błędem, bo
+liczył z innego miejsca.
+
+Dziś oba wywołują `filtrujGryMapy()` (`lib/eventFilters.ts`) — raz dla wyniku
+(wartości zastosowane), raz dla podglądu (szkic). Funkcja jest w `lib/`, a nie
+w komponencie, bo w komponencie nie dałoby się jej przetestować bez renderowania mapy
+z Leafletem; asercje w `__tests__/filtrGryMapy.test.ts`.
 
 ### Widok mapy w `/wydarzenia` (mobile-only)
 
@@ -2001,7 +2290,7 @@ Mecze** — to jest jej treść (skrót najbliższego terminu), nie uniwersalny 
 strony; wcześniej wyświetlał się na każdej zakładce oprócz Rozmowy, co pod Statystykami
 czy Składem po prostu zajmowało miejsce. **Tu żyje cotygodniowa pętla**: gdy grupa ma
 nadchodzący mecz, ten sam komponent karty co na `/wydarzenia` (`EventBrowseCard`, z moim
-statusem uczestnictwa) plus osobny przycisk „Udostępnij mecz" pod spodem; gdy nie ma, ale
+statusem uczestnictwa) — **bez karty „Zaproś" pod spodem, zdjęta 2026-09-13**; gdy nie ma, ale
 ma historię, przycisk „Powtórz na {dzień} {data}" tworzy nowy termin jednym kliknięciem
 (`repeatEvent()` + `domyslnyTerminPowtorki()`, ta sama data i godzina co poprzednio —
 całą ekipę powiadamia trigger `powiadom_o_nowym_meczu_w_grupie`, migracja `072`/`093`);
@@ -2009,6 +2298,14 @@ gdy grupa nie miała jeszcze żadnego meczu, link prosto do kreatora. Środkowy 
 nawigacji na trasie `/grupy/<id>` sam prowadzi do `/wydarzenia/nowe?group=<id>`
 (`BottomNav.tsx`) — to samo działanie na desktopie robi tekstowy „+ Nowy termin"
 w zakładce Mecze.
+
+**Karta „Zaproś" pod najbliższym meczem — usunięta 2026-09-13, zgłoszone wprost.**
+Na jednym ekranie ekipy stały trzy wejścia do zapraszania: „Zaproś" w nagłówku, belka
+„Zaproś do ekipy" nad Składem i ten panel. Dwa pierwsze wołają do EKIPY, trzeci
+udostępniał LINK DO MECZU — różnica, której z układu nie dało się odczytać, więc karta
+czytała się jak trzecia kopia tego samego. Świadoma strata: link do najbliższego meczu
+bierze się teraz przez wejście w mecz (panel „Zaproś" stoi tam nietknięty) — jeden tap
+więcej za ekran, na którym widać, co się właściwie udostępnia.
 
 Cztery zakładki plus link „Ustawienia" na końcu paska (nawiguje do `/grupy/[id]/edytuj`,
 nie przełącza stanu `tab` — ta strona ma już własne zakładki Ogólne/Zaproszenia/
@@ -2186,6 +2483,43 @@ adresem (pinezka postawiona ręcznie ma dokładny punkt, a jej adres z Nominatim
 przybliżony do najbliższego budynku), bez jednego i drugiego zwraca `null` zamiast
 linku prowadzącego donikąd.
 
+**„Nawiguj" jest zielony tylko wtedy, gdy nie ma „Dołącz do meczu" — od 2026-09-13.**
+Przycisk dojazdu był `bg-primary-700` zawsze, więc ktoś, kto jeszcze nie zdecydował,
+czy zagra, widział na jednym ekranie DWA wypełnione zielone przyciski o tej samej
+wadze — a jeden z nich prowadził w Mapy Google. Warunkiem jest `joinBarVisible`,
+czyli dokładnie ta sama zmienna, która rządzi dolnym paskiem: oba przyciski nie mogą
+być prymarne naraz z definicji, a nie przez zbieg dwóch osobnych warunków. Po starcie
+meczu, przy odwołanym i przy zamkniętych zapisach pasek gaśnie, dojazd staje się
+główną rzeczą do zrobienia na tej stronie — i wtedy wygląda na główną.
+
+**„Do kalendarza" — trzeci przycisk w tej karcie, od 2026-09-13.** Pobiera termin jako
+plik `.ics` (`lib/kalendarz.ts`, składany w przeglądarce, bez backendu i bez paczek);
+iOS i Android otwierają `text/calendar` natywnym kalendarzem. Stoi przy DACIE, nie przy
+zapisie, bo tu pada pytanie „czy mi to pasuje". Widoczny dla każdego, także
+niezapisanego — kalendarz bywa tym, co rozstrzyga, czy da się dołączyć; znika po
+starcie meczu i przy odwołanym.
+
+Cztery rzeczy w tym pliku są nieoczywiste i mają testy (`__tests__/kalendarz.test.ts`):
+`UID` bierze się z `events.id`, więc pobranie po zmianie terminu AKTUALIZUJE wpis
+zamiast dokładać duplikat; termin idzie jako czas ścienny z `TZID=Europe/Warsaw`
+i pełnym blokiem `VTIMEZONE` (przeliczenie na UTC wymagałoby znajomości przesunięcia
+w dniu meczu, a to zmienia się dwa razy w roku); tekst jest escapowany wg RFC 5545
+(nieuciekniety przecinek w adresie dzieli wartość na dwie i część klientów odrzuca
+cały plik); linie są zawijane po 75 OKTETACH, nie znakach — polskie diakrytyki zajmują
+w UTF-8 po dwa bajty. `VALARM` celowo nie ma: przypomnienie wysyła Bojo
+(`lib/reminders.ts`), a alarmu wstawionego do telefonu nie dałoby się wyłączyć
+w ustawieniach powiadomień.
+
+**Opis meczu zszedł z góry zakładki pod skład — od 2026-09-13.** `event.description`
+renderował się jako pierwsza rzecz w zakładce Skład: nad pigułkami, nad kartą „Kiedy
+i gdzie" i nad licznikiem miejsc. Opis ma do 1000 znaków (`LIMIT_OPISU`), więc
+organizator, który opisał zasady akapitem, spychał termin, adres i „ile zostało miejsc"
+pod zgięcie ekranu — czyli te trzy fakty, po które wchodzi się na tę stronę. Ten sam
+argument zdjął stąd wcześniej „Udostępnij"/„Kopiuj". Dziś opis stoi jako karta
+**„O meczu"** pod składem i pod blokami stanu (wypisanie się, rezerwa, oferta miejsca):
+dla niezapisanego te bloki nie renderują nic, więc opis wypada tuż pod licznikiem,
+a zapisany dostaje najpierw swoje wyjścia.
+
 **Nad kartą stoi jednak „Prośby o dołączenie" — od 2026-09-11.** Karta z prośbami
 (organizator/delegat, mecz z `requireApproval`) była wcześniej POD „Kiedy i gdzie",
 więc na telefonie trzeba było przewinąć całą kartę z datą, adresem i przyciskami
@@ -2247,8 +2581,8 @@ całej ekipy** (`myParticipation || isOwner || czlonekGrupyMeczu`, ten ostatni z
 `isGroupMember()` doładowanego razem z `groupInfo`) — dawne komentarze widzieli wyłącznie
 zapisani uczestnicy, co odcinało organizatora niegrającego i resztę ekipy od rozmowy
 o własnym meczu. Na tej zakładce strona zachowuje się jak `/grupy/[id]` na Rozmowie:
-`BottomNav` chowa się (`HideBottomNav`), a strona dostaje `h-[100dvh] overflow-hidden`,
-żeby czat sięgał do dołu ekranu.
+dostaje stałą wysokość widocznego okna minus pasek nawigacji i `overflow-hidden`, żeby
+czat sięgał dokładnie nad pasek. **`BottomNav` NIE znika** — patrz niżej.
 
 **Wysokość ekranu czatu bierze się z `visualViewport`, nie z `100dvh`**
 (`lib/oknoCzatu.ts`, hak `useOknoCzatu()` w `EventDetailClient` i `GroupDetailClient`).
@@ -2257,31 +2591,70 @@ Na iOS-ie `dvh` zostaje takie samo, a przeglądarka tylko przesuwa widoczne okno
 kilkadziesiąt pikseli NAD klawiaturą, a pod nim świeciło tło strony (zgłoszone na
 iPhonie 15 Pro). `visualViewport.height` kurczy się razem z klawiaturą na obu systemach,
 więc korzeń strony dostaje tę wysokość w pikselach i nie ma już czego przewijać.
-Bez pomiaru (SSR, brak API) styl jest `undefined` i zostaje `h-[100dvh]` z klasy.
+Od wyniku odejmuje się `var(--bottom-nav-h)` — pasek nawigacji zostaje na ekranie czatu,
+więc composer ma usiąść nad nim. Bez pomiaru (SSR, brak API) styl jest `undefined`
+i zostaje `WYSOKOSC_CZATU_BEZ_POMIARU`, czyli ta sama arytmetyka na `dvh`.
 
-**`viewport.interactiveWidget` w `app/layout.tsx` MA ZOSTAĆ NIEUSTAWIONY** —
-pilnuje tego `klawiaturaAndroid.test.ts`. Stało tam `resizes-content`, żeby klawiatura
-Androida kurczyła layout; kosztowało to możliwość PISANIA W CAŁEJ APLIKACJI: klawiatura
-mrugała i zamykała się natychmiast po dotknięciu pola (zgłoszone wprost — „nie wyświetla
-klawiatury ani przy pisaniu, ani przy wyszukiwaniu w wiadomościach"). `resizes-content`
-kurczy layout, więc otwarcie klawiatury przelicza `svh`/`dvh` i przestawia stronę pod
-palcem: pole, które właśnie dostało skupienie, wyjeżdża z widoku, przeglądarka chowa
-klawiaturę, layout wraca do pełnej wysokości i cykl startuje od nowa. Przy domyślnym
-`resizes-visual` Android zachowuje się jak iOS, czyli wchodzi na tę samą, sprawdzoną
-ścieżkę pomiaru wyżej. Z tego samego powodu `useOknoCzatu` **nie przewija korzenia
-strony z kodu, gdy skupienie siedzi w polu tekstowym** — programowe przewinięcie w chwili
-otwierania klawiatury każe Chrome ją schować.
+**Jedyny odstęp pod composerem to `odstepNadPaskiem()`** — dokładnie tyle, ile guzik
+„Nowy" WYSTAJE ponad pasek nawigacji (`-mt-4` plus `ring-4` w `BottomNav.tsx`, ~20 px).
+`--bottom-nav-h` opisuje sam pasek, więc bez tej poprawki pole do pisania wchodziło pod
+guzik i wyglądało na wciśnięte za nisko (zgłoszone ze zrzutem). Przy otwartej klawiaturze
+odstęp znika: paska wtedy nie widać, a pusty pas nad klawiaturą to błąd z rundy
+wcześniej. Wcięcia na kreskę gestów kontenery rozmów nie mają wcale — niesie je pasek.
+
+**Pomiar powtarza się z opóźnieniem** (`MS_NA_USTABILIZOWANIE`, 400 ms) po każdym
+zdarzeniu widocznego okna, a nasłuch obejmuje też `focusin`/`focusout`. Powód: iOS
+potrafi zmienić wysokość widocznego okna JUŻ PO ostatnim zdarzeniu, które o tym
+zawiadamia — pływający pasek adresu Safari zwija się chwilę po wjeździe klawiatury.
+Bez powtórki pomiar zostawał za mały na stałe.
+
+**`viewport.interactiveWidget` w `app/layout.tsx` MA BYĆ `resizes-visual`** — pilnuje tego
+`klawiaturaAndroid.test.ts`. Stało tam `resizes-content`, czyli odwrotność, i kosztowało
+dwie rzeczy naraz:
+
+- **możliwość PISANIA W CAŁEJ APLIKACJI**: klawiatura mrugała i zamykała się natychmiast
+  po dotknięciu pola (zgłoszone wprost — „nie wyświetla klawiatury ani przy pisaniu, ani
+  przy wyszukiwaniu w wiadomościach"). `resizes-content` kurczy layout, więc otwarcie
+  klawiatury przelicza `svh`/`dvh` i przestawia stronę pod palcem: pole ze skupieniem
+  wyjeżdża z widoku, przeglądarka chowa klawiaturę, layout wraca i cykl startuje od nowa;
+- **dolna nawigacja jechała NAD klawiaturę** zamiast schować się za nią (zgłoszone ze
+  zrzutem) — `fixed bottom-0` trzyma się dołu layoutu, a ten właśnie się skurczył.
+
+Wartość jest podana JAWNIE, bo samo usunięcie klucza nie wystarczyło: Chrome na Androidzie
+nadal domyślnie kurczy layout. iOS zachowuje się jak `resizes-visual` bez względu na ten
+klucz, więc jawna wartość stawia oba systemy na jednej ścieżce.
+
+**`useOknoCzatu` cofa przewinięcie strony (`scrollTo(0, 0)`) TAKŻE w trakcie pisania.**
+Przez jedną wersję ten reset był pomijany, gdy skupienie siedziało w polu — hipoteza, że
+to programowe przewinięcie każe Androidowi chować klawiaturę. Winne było
+`resizes-content`, a pominięcie kosztowało iOS: przeglądarka przewija stronę, żeby
+odsłonić pole, i bez cofnięcia tego nad klawiaturą świecił pusty kawał tła, a nagłówek
+rozmowy i composer wyjeżdżały za ekran (zgłoszone ze zrzutem). Strona ma dokładnie
+wysokość widocznego okna, więc nie ma tam czego przewijać — reset jest przywróceniem
+stanu, nie ruchem.
 
 Zepsutej klawiatury nie widać poza telefonem: ani `tsc`, ani Vitest, ani Playwright nie
-mają klawiatury ekranowej. Objaw, który ta zmiana „naprawiała" (pusty pas pod
+mają klawiatury ekranowej. Objaw, który `resizes-content` „naprawiało" (pusty pas pod
 composerem), widać natychmiast — dlatego decyzja siedzi w teście, nie w komentarzu.
 
-Ten sam hak mówi, czy klawiatura jest otwarta, a to rozstrzyga **odstęp na pasek gestów
-pod composerem**: przy schowanej klawiaturze kontener rozmowy dostaje
-`pb-[…env(safe-area-inset-bottom)]`, bo bez tego composer siedzi pod samą kreską na dole
-ekranu; przy otwartej odstęp znika, bo pasek gestów jest wtedy schowany za klawiaturą
-i ten sam margines zrobiłby dokładnie tę pustkę, której unikamy. Otwarcie klawiatury
-dociąga też listę na dół (`RozmowaWydarzenia`/`RozmowaGrupy`, prop `klawiatura`) — lista
+**Klawiatura zeruje `--bottom-nav-h`.** `useZnacznikKlawiatury()` (w `BottomNavGate`)
+stawia `data-klawiatura="1"` na `<html>`, a `globals.css` zbija na ten czas zmienną do
+zera i chowa sam pasek. Powód: paska wtedy nie widać, więc rezerwowanie mu miejsca
+zrobiłoby pusty pas między composerem a klawiaturą — dokładnie to, czego ta cała
+mechanika unika. Jedno wyrażenie
+(`calc(<widoczne okno> - var(--bottom-nav-h))`) obsługuje przez to oba stany, a kontenery
+rozmów nie mają już własnych wcięć na pasek gestów: niesie je pasek nawigacji.
+
+**Guzik „Wyślij" nie zabiera skupienia polu** (`bezZabieraniaSkupienia` w `lib/czat.ts`,
+`preventDefault()` na `mousedown`, wszystkie trzy composery). Bez tego dotknięcie guzika
+blurowało pole: klawiatura się chowała, ekran czatu natychmiast rósł do pełnej wysokości
+i guzik uciekał spod palca, ZANIM zdążył dojść `click` — z zewnątrz wyglądało to tak, że
+pierwsze dotknięcie tylko chowa klawiaturę, a wysłać da się dopiero za drugim razem
+(zgłoszone wprost). Przy okazji klawiatura zostaje otwarta po wysłaniu, jak w każdym
+komunikatorze. Pilnuje tego `guzikWyslij.test.ts`.
+
+Otwarcie klawiatury dociąga też listę na dół
+(`RozmowaWydarzenia`/`RozmowaGrupy`/`DmRozmowaClient`, prop `klawiatura`) — lista
 kurczy się od dołu przy niezmienionym `scrollTop`, więc najnowsza wiadomość uciekała pod
 krawędź dokładnie w chwili, gdy ktoś zaczynał na nią odpowiadać. Kto czytał starsze
 wiadomości (`atBottom === false`), zostaje przy nich.
@@ -2794,6 +3167,39 @@ nie ma takiego sportu), filtr się czyści zamiast po cichu zerować wyniki.
 
 ---
 
+## Powiadomienia — trzy listy typów, jedna prawda (od 2026-09-12)
+
+**Typy wstawiane przez bazę, ikony na dzwonku i ustawienia „co nie ma iść na
+telefon" to trzy osobne listy w kodzie, i rozjeżdżały się już trzykrotnie**
+(audyt, ustalenie `S-7`) — piąta runda dopisała sześć brakujących ikon naraz,
+szósta znalazła kolejnych siedem bez ikony i jedenaście bez wiersza
+w ustawieniach: `komplet_skladu`, `zwolnilo_sie_miejsce`, `zapis_zaakceptowany`,
+`prosba_odrzucona`, `usuniety_ze_skladu`, `mecz_usuniety`,
+`niepotwierdzony_wpis_goscia`, `uzupelnij_profil`, `nowy_termin_serii`,
+`gra_potwierdzona`, `gra_zagrozona`. Bez wiersza w ustawieniach nie da się
+wyłączyć pusha dla tego typu; bez ikony powiadomienie ląduje pod szarym
+dzwonkiem z podpisem „Powiadomienie", czyli dokładnie tam, gdzie ikona
+przestaje cokolwiek nieść.
+
+Mapa ikon wyjechała z `NotificationBell.tsx` do osobnego pliku
+`lib/ikonyPowiadomien.ts` (eksportuje `IKONY`/`IKONA_DOMYSLNA`) — dzięki temu
+`__tests__/typyPowiadomien.test.ts` sprawdza ją bez renderowania komponentu
+klienckiego. Test czyta `supabase/migrations/*.sql`, wyciąga wartość `type`
+z każdego `INSERT INTO notifications (user_id, type, …)` (kolejność tych
+dwóch kolumn jest niezmienna w całym repo) i porównuje trzy zbiory: typy
+z bazy, klucze `IKONY`, typy `RODZAJE_POWIADOMIEN` — w obie strony, więc
+łapie też **martwy klucz** (`event_cancelled` był typem dziennika aktywności,
+nigdy powiadomieniem — usunięty). **Dopisując typ powiadomienia w migracji,
+dopisz go w obu plikach `lib/`** — inaczej ten test wskaże dokładnie ten
+brak, tak jak `maskiZrzutow.test.ts` dla masek zrzutów.
+
+Dwa nowe typy dostały przy okazji kolor: `gra_zagrozona` (próg „gra się
+odbędzie", `SHOW_MIN_PLAYERS_THRESHOLD` — flaga wyłączona, ale mecze założone
+wcześniej wciąż mogą mieć próg ustawiony) jest bursztynowa — ostrzeżenie,
+o które jeszcze można zadbać, nie awaria — tym samym odcieniem co baner
+„Obserwujesz" na stronie meczu; `gra_potwierdzona` jest zielona, jak reszta
+dobrych wiadomości o stanie składu.
+
 ## Powiadomienia — co realnie istnieje
 
 Wbrew starszym notatkom kanał powiadomień **jest zbudowany**:
@@ -2913,10 +3319,11 @@ otwartej aplikacji.
 
 **Nowy mecz w grupie ma wyzwalacz** — `powiadom_o_nowym_meczu_w_grupie()`, migracja
 `072`: każdy `INSERT` do `events` z ustawionym `group_id` wstawia powiadomienie
-wszystkim członkom grupy poza organizatorem. Jedyna otwarta luka wobec wizji to
-`game_alerts` (promień + sport, oparte o lokalizację, nie o członkostwo) — wciąż za
-flagą `SHOW_GAME_ALERTS`, [luka 2 wobec wizji](./wizja.md#3-luki), i to jest inna
-funkcja niż powiadomienie o meczu w grupie.
+wszystkim członkom grupy poza organizatorem. Osobno od tego stoi `game_alerts` (promień
++ sport, oparte o lokalizację, nie o członkostwo) — [luka 2 wobec wizji](./wizja.md#3-luki),
+domknięta 2026-09-12 włączeniem `SHOW_GAME_ALERTS`: alert zakłada się w pustym stanie listy
+meczów (patrz „Alert o nowym meczu w okolicy" niżej), a wysyła go funkcja brzegowa
+`notify-game-alert` wołana przy tworzeniu meczu.
 
 **Trzy nowe typy z migracji `097`** (patrz „Czy gramy?" wyżej): `pytanie_o_udzial` —
 RPC `zapytaj_milczacych()`, wołana ręcznie przez organizatora, nie wyzwalacz; jedyny typ
@@ -3158,22 +3565,14 @@ Sprawdzenie: `SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'bo
 Testy: `supabase/test/przypomnienia.sql` (kto dostaje, z jaką treścią, idempotencja) —
 funkcji nie widzi ani `tsc`, ani Vitest, ani Playwright, bo nie ma dla niej interfejsu.
 
-## „Powtórz ten mecz" na `/moje-gry → Historia`
+## „Powtórz ten mecz" na `/moje-gry → Historia` — usunięte
 
-Gry cykliczne są świadomie wyłączone (`SHOW_RECURRING`), więc „Powtórz mecz" jest ich jedynym
-zamiennikiem — a żyło wyłącznie na stronie meczu i przy najbliższym meczu ekipy. Organizator
-wracający w poniedziałek, żeby wrzucić czwartek, miał przed sobą cztery kroki: Moje gry →
-Historia → otwórz mecz → przewiń do panelu „Zarządzaj wydarzeniem" → Powtórz.
-
-`components/events/PowtorzZHistorii.tsx` — przycisk pod kartą meczu, wyłącznie przy meczach,
-które ta osoba organizowała (`relation.isOrganizer`). Data wypełniona z góry
-(`domyslnyTerminPowtorki()` — najbliższy przyszły ten sam dzień tygodnia), długość meczu
-zachowana. Po utworzeniu przenosi na `/wydarzenia/<nowy>?utworzono=1`, czyli od razu
-do panelu „Mecz gotowy — wyślij link".
-
-Świadomie NOWY komponent, nie wspólny z oknem na stronie meczu: tamto siedzi
-w `EventDetailClient.tsx`, który audyt oznacza jako regresyjny hot spot. Scalenie obu wejść
-w jedno zostaje jako osobne zadanie.
+Krótko istniał tu przycisk pod KAŻDĄ kartą w Historii (`PowtorzZHistorii.tsx`, ustalenie
+`O-40`). Usunięty 2026-09-13, zgłoszone wprost: link powtarzał się na każdej karcie
+listy, a te same dwie akcje już istnieją na stronie meczu — „Powtórz mecz (skopiuj)"
+w zakładce Ustawienia (`EventDetailClient.tsx`) i przycisk „Powtórz" w karcie „Po meczu"
+(`PoMeczuCard.tsx`). Kto chce powtórzyć mecz, otwiera go i używa jednej z tych dwóch —
+nie potrzeba trzeciego wejścia rozsianego po liście.
 
 ## Awaria wczytania meczu to nie jest brak meczu
 
@@ -3223,10 +3622,20 @@ od `sm:` wyśrodkowany; główna akcja pierwsza i pełnej szerokości.
 Gdzie działa (strona meczu): odwołanie meczu, usunięcie ze składu, przeniesienie do rezerwy,
 dopisanie ponad limit, zatwierdzenie i usunięcie propozycji składów, masowe oznaczenie
 wpłat — oraz „Nie mogę grać" na stronie wpisu gościa. Treści mówią, KTO dostanie
-powiadomienie: przy odwołaniu meczu Bojo liczy uczestników bez konta i mówi wprost, że oni
-go nie dostaną, a przycisk **„Odwołaj i wyślij wiadomość"** otwiera arkusz udostępniania
+powiadomienie, a przycisk **„Odwołaj i wyślij wiadomość"** otwiera arkusz udostępniania
 z gotowym tekstem (`tekstOdwolania()` w `lib/eventShare.ts`) — dla gości bez konta czat
 jest jedynym kanałem, jaki mają.
+
+**Konsekwencje odwołania liczy `konsekwencjeOdwolania()`, nie okno samo (od 2026-09-12,
+ustalenie `S-4`).** Wcześniej `handleCancel()` liczyło odbiorców po swojemu —
+`[...regulars, ...reserves]`, czyli węziej niż faktycznie powiadamia wyzwalacz `070`
+(ten obejmuje też obserwujących i czekających na akceptację) — i mówiło „dostanie
+e-mail, JEŚLI podała adres", choć kolumna pochodna `ma_guest_email` (migracja `137`)
+niesie dokładną odpowiedź. Dziś `komuDojdzie(participants, event.organizerId)` +
+`konsekwencjeOdwolania()` z `lib/zmianyMeczu.ts` — ta sama para funkcji, którą okno
+edycji już używa przez `konsekwencjeZapisu()` — liczy WSZYSTKICH związanych z meczem
+i dzieli ich dokładnie na trzy zdania: ilu z kontem dostanie powiadomienie w Bojo, ilu
+gości dostanie e-mail, ilu gości bez adresu trzeba powiadomić samemu.
 
 **Notatka organizatora przy odwołaniu, od 2026-09-12.** Okno mówiło dotąd wyłącznie KTO
 dostanie powiadomienie, nie dawało miejsca na DLACZEGO ani co dalej — jedyną drogą było
@@ -3245,7 +3654,7 @@ odwołany" na stronie meczu, czyli do wszystkich miejsc, które i tak już mówi
 
 | Gdzie | Co |
 |---|---|
-| `components/events/CzyGramyPanel.tsx` | „Otwórz dla okolicy” — zmiana meczu prywatnego na publiczny. Przeoczone, bo panel jest komponentem POTOMNYM strony meczu; potwierdzenie stoi dziś w `EventDetailClient` (`handleOtworzDlaOkolicy`), razem z resztą okien tej strony |
+| `components/events/ZaprosZnajomychPanel.tsx` (do 2026-09-13 `CzyGramyPanel.tsx`) | „Otwórz dla okolicy” — zmiana meczu prywatnego na publiczny. Przeoczone, bo przycisk jest w komponencie POTOMNYM strony meczu; potwierdzenie stoi dziś w `EventDetailClient` (`handleOtworzDlaOkolicy`), razem z resztą okien tej strony |
 | `app/grupy/[id]/GroupDetailClient.tsx` | opuszczenie ekipy, usunięcie gracza z ekipy |
 | `app/grupy/[id]/edytuj/page.tsx` | nowy link zaproszenia, opuszczenie ekipy, **usunięcie ekipy** |
 

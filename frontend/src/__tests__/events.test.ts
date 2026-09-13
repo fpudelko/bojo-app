@@ -107,9 +107,15 @@ describe('repeatEvent', () => {
     endTime: '19:30', maxPlayers: 10, visibility: 'private', createdAt: '2099-01-01T00:00:00Z',
     status: 'active', zapisyZamkniete: false, requireSmsConfirmation: false, teamMode: 'brak', trackPayments: false,
     showPaymentStatus: false, trackResults: false, confirmationDeadlineH: 24, costGrosze: 0,
-    teamsPublished: false, allowGuestAdds: false, joinCode: 'ABCDEF', requireApproval: false,
+    teamsPublished: false, allowGuestAdds: false, joinCode: 'ABCDEF',
+    // Wartości NIEDOMYŚLNE naumyślnie (patrz `createEvent()`: `requireApproval ?? false`,
+    // `reserveEnabled ?? true`, `goalkeeperSlotsReserved ?? true`) — atrapa zgadzająca
+    // się z domyślnymi wartościami przepuściłaby regresję `S-2`, w której `repeatEvent`
+    // po prostu POMIJAŁO te trzy pola: `createEvent` podstawiał wtedy domyślną,
+    // a test tego nie widział, bo domyślna akurat pasowała.
+    requireApproval: true,
     maxGoalkeepers: 2, goalkeeperSlotsReserved: false, goalkeepersEnabled: false,
-    reserveClaimMinutes: 120, reserveEnabled: true, acceptedPaymentMethods: [], acceptedSportsCards: [],
+    reserveClaimMinutes: 120, reserveEnabled: false, acceptedPaymentMethods: [], acceptedSportsCards: [],
     sportsCardDiscountGrosze: null,
   };
 
@@ -170,6 +176,23 @@ describe('repeatEvent', () => {
     const insertedRows = mockChain.insert.mock.calls.map(([row]) => row);
     const eventRow = insertedRows.find((row) => 'min_players' in row);
     expect(eventRow.min_players).toBe(8);
+  });
+
+  // Regresja `S-2` (audyt 2026-09-12): `repeatEvent` pomijało `requireApproval`,
+  // `reserveEnabled` i `goalkeeperSlotsReserved` — mecz z wymaganą akceptacją
+  // zapisów wracał po powtórce jako OTWARTY, bo `createEvent()` podstawiał
+  // wtedy swoje domyślne wartości. Fixture `source` używa wartości
+  // NIEDOMYŚLNYCH właśnie po to, żeby to pominięcie było widoczne.
+  it('carries requireApproval, reserveEnabled and goalkeeperSlotsReserved through to the repeated event', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'new-event' }, error: null });
+
+    await repeatEvent(source, '2099-07-08', '10:00', 'organizer-uid', 'Jan Kowalski');
+
+    const insertedRows = mockChain.insert.mock.calls.map(([row]) => row);
+    const eventRow = insertedRows.find((row) => 'require_approval' in row);
+    expect(eventRow.require_approval).toBe(true);
+    expect(eventRow.reserve_enabled).toBe(false);
+    expect(eventRow.goalkeeper_slots_reserved).toBe(false);
   });
 });
 

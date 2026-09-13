@@ -7,8 +7,7 @@ import { Loader2 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import NaglowekRozmowy from '@/components/rozmowy/NaglowekRozmowy';
 import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
-import { HideBottomNav } from '@/lib/bottomNavVisibility';
-import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
+import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import { useAuth } from '@/lib/auth';
 import { getEvent, getMyActiveEventIds } from '@/lib/events';
 import { kluczRozmowyWidziano } from '@/lib/comments';
@@ -82,11 +81,13 @@ export default function RozmowaMeczuClient() {
 
   return (
     <div
-      className={`flex flex-col bg-canvas ${pelnyEkran ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}
+      className={`flex flex-col bg-canvas ${pelnyEkran ? `${WYSOKOSC_CZATU_BEZ_POMIARU} overflow-hidden` : 'min-h-screen'}`}
       style={pelnyEkran ? styleOknaCzatu(okno) : undefined}
     >
       <Header hideMobileBarForUser />
-      <main className={`mx-auto w-full max-w-lg flex-1 px-4 py-4 ${pelnyEkran ? 'flex min-h-0 flex-col overflow-hidden' : ''}`}>
+      {/* Odstęp pod czatem = tyle, ile guzik „Nowy" wystaje ponad pasek
+          (`odstepNadPaskiem`), i zero przy otwartej klawiaturze. */}
+      <main className={`mx-auto w-full max-w-lg flex-1 px-4 pt-4 ${pelnyEkran ? `flex min-h-0 flex-col overflow-hidden ${odstepNadPaskiem(okno)}` : 'pb-4'}`}>
         {stan === 'ladowanie' ? (
           <div className="flex flex-1 items-center justify-center py-16">
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
@@ -113,14 +114,17 @@ export default function RozmowaMeczuClient() {
           </div>
         ) : event ? (
           <>
-            <HideBottomNav />
             <NaglowekRozmowy
               tytul={eventDisplayTitle(event)}
               podtytul={`Otwórz mecz · ${matchWhenLabel(event.date, event.time)}`}
               href={`/wydarzenia/${event.id}`}
               awatar={<span className="text-white">{sportEmoji(event.sport)}</span>}
             />
-            <div className={`mt-2 min-h-0 flex-1 ${okno.klawiatura ? '' : 'pb-[max(0.25rem,calc(env(safe-area-inset-bottom)_-_1rem))]'}`}>
+            {/* Bez własnego odstępu na dole: pod czatem stoi teraz pasek
+                nawigacji (odjęty od wysokości przez `--bottom-nav-h`), a on
+                niesie już wcięcie na kreskę gestów. Przy otwartej klawiaturze
+                zmienna schodzi do zera i czat sięga wprost nad klawiaturę. */}
+            <div className="mt-2 min-h-0 flex-1">
               <RozmowaWydarzenia eventId={event.id} klawiatura={okno.klawiatura} />
             </div>
           </>

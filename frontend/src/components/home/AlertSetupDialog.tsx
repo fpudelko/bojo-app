@@ -2,21 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { X, MapPin, Loader2, Bell, BellOff, Navigation } from 'lucide-react';
-import { getMyAlert, saveAlert, deleteMyAlert, geocodeCity, type AlertInput } from '@/lib/alerts';
-import { getCurrentLocation, geoErrorMessage } from '@/lib/geo';
+import {
+  getMyAlert, saveAlert, deleteMyAlert, geocodeCity,
+  PROMIEN_MIN, PROMIEN_MAX, PROMIEN_DOMYSLNY, type AlertInput,
+} from '@/lib/alerts';
+import { getCurrentLocation, geoErrorMessage, pozycjaBezPytania } from '@/lib/geo';
 import { useAuth } from '@/lib/auth';
+import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
+import SportChip from '@/components/ui/SportChip';
+import RangeSlider from '@/components/ui/RangeSlider';
 import type { GameAlert } from '@/types';
 import { WARSTWA } from '@/lib/warstwy';
-
-const SPORTS = [
-  { value: '',              label: 'Dowolny sport' },
-  { value: 'piłka nożna',  label: 'Piłka nożna' },
-  { value: 'koszykówka',   label: 'Koszykówka' },
-  { value: 'siatkówka',    label: 'Siatkówka' },
-  { value: 'siatkówka plażowa', label: 'Siatkówka plażowa' },
-  { value: 'piłka ręczna', label: 'Piłka ręczna' },
-  { value: 'inne',         label: 'Inne' },
-];
 
 const DAYS = [
   { n: 1, short: 'Pn' }, { n: 2, short: 'Wt' }, { n: 3, short: 'Śr' },
@@ -26,22 +22,26 @@ const DAYS = [
 interface Props {
   onClose: () => void;
   onSaved?: (alert: GameAlert) => void;
+  defaultSport?: string;
+  defaultRadiusKm?: number;
   defaultLat?: number;
   defaultLng?: number;
   defaultLabel?: string;
 }
 
-export default function AlertSetupDialog({ onClose, onSaved, defaultLat, defaultLng, defaultLabel }: Props) {
+export default function AlertSetupDialog({
+  onClose, onSaved, defaultSport, defaultRadiusKm, defaultLat, defaultLng, defaultLabel,
+}: Props) {
   const { user } = useAuth();
 
   const [existing, setExisting] = useState<GameAlert | null>(null);
-  const [sport,    setSport]    = useState('');
+  const [sport,    setSport]    = useState(defaultSport ?? '');
   const [days,     setDays]     = useState<number[]>([]);
   const [lat,      setLat]      = useState<number | null>(defaultLat ?? null);
   const [lng,      setLng]      = useState<number | null>(defaultLng ?? null);
   const [label,    setLabel]    = useState(defaultLabel ?? '');
   const [cityInput,setCityInput]= useState('');
-  const [radius,   setRadius]   = useState(15);
+  const [radius,   setRadius]   = useState(defaultRadiusKm ?? PROMIEN_DOMYSLNY);
 
   const [gpsLoading,   setGpsLoading]   = useState(false);
   const [geoLoading,   setGeoLoading]   = useState(false);
@@ -50,19 +50,36 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
   const [deleting,     setDeleting]     = useState(false);
   const [saved,        setSaved]        = useState(false);
 
-  // Load existing alert
+  // Istniejący alert wygrywa z wartościami przyniesionymi z filtrów — to jego
+  // edycja, nie zakładanie nowego. Gdy alertu nie ma i nikt nie podał miejsca,
+  // bierzemy pozycję, ale WYŁĄCZNIE przy już udzielonej zgodzie
+  // (`pozycjaBezPytania`): samo otwarcie okna nie jest powodem, żeby
+  // przeglądarka wyskoczyła z systemową prośbą o lokalizację.
   useEffect(() => {
-    if (!user) return;
-    getMyAlert().then((a) => {
-      if (!a) return;
-      setExisting(a);
-      setSport(a.sport ?? '');
-      setDays(a.daysOfWeek);
-      setLat(a.lat);
-      setLng(a.lng);
-      setLabel(a.cityLabel ?? '');
-      setRadius(a.radiusKm);
-    });
+    let zywe = true;
+    (async () => {
+      const a = user ? await getMyAlert().catch(() => null) : null;
+      if (!zywe) return;
+      if (a) {
+        setExisting(a);
+        setSport(a.sport ?? '');
+        setDays(a.daysOfWeek);
+        setLat(a.lat);
+        setLng(a.lng);
+        setLabel(a.cityLabel ?? '');
+        setRadius(a.radiusKm);
+        return;
+      }
+      if (defaultLat != null) return;
+      const poz = await pozycjaBezPytania();
+      if (!zywe || !poz) return;
+      setLat(poz.lat);
+      setLng(poz.lng);
+      setLabel('Moja lokalizacja');
+    })();
+    return () => { zywe = false; };
+    // `defaultLat` czytane raz, przy otwarciu — okno nie przestawia się w locie.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const hasLocation = lat !== null && lng !== null;
@@ -108,10 +125,10 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
         radiusKm:   radius,
         cityLabel:  label || undefined,
       };
-      const saved = await saveAlert(user.id, input);
-      setExisting(saved);
+      const zapisany = await saveAlert(user.id, input);
+      setExisting(zapisany);
       setSaved(true);
-      onSaved?.(saved);
+      onSaved?.(zapisany);
       setTimeout(onClose, 1200);
     } finally {
       setSaving(false);
@@ -131,16 +148,16 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative z-10 w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden dark:bg-slate-800">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary-700" />
             <h2 className="text-base font-bold text-ink">
-              {existing ? 'Twój alert na gierki' : 'Ustaw alert na gierki'}
+              {existing ? 'Twój alert na gierki' : 'Powiadom mnie o nowych meczach'}
             </h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
+          <button onClick={onClose} aria-label="Zamknij" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 dark:hover:bg-slate-700">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -150,19 +167,20 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Sport</p>
             <div className="flex flex-wrap gap-2">
-              {SPORTS.map((s) => (
-                <button
-                  key={s.value}
-                  onClick={() => setSport(s.value)}
-                  className={[
-                    'px-3 py-1.5 rounded-full text-sm font-medium transition-colors border',
-                    sport === s.value
-                      ? 'bg-primary-700 text-white border-primary-700'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-primary-300',
-                  ].join(' ')}
-                >
-                  {s.label}
-                </button>
+              <SportChip
+                emoji="🏟️"
+                label="Dowolny sport"
+                selected={sport === ''}
+                onClick={() => setSport('')}
+              />
+              {FOCUS_SPORTS.map((s) => (
+                <SportChip
+                  key={s}
+                  emoji={sportEmoji(s)}
+                  label={sportLabel(s)}
+                  selected={sport === s}
+                  onClick={() => setSport(s)}
+                />
               ))}
             </div>
           </div>
@@ -177,11 +195,12 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
                 <button
                   key={n}
                   onClick={() => toggleDay(n)}
+                  aria-pressed={days.includes(n)}
                   className={[
                     'flex-1 py-2 rounded-xl text-xs font-semibold transition-colors border',
                     days.includes(n)
                       ? 'bg-primary-700 text-white border-primary-700'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-primary-300',
+                      : 'bg-white text-slate-500 border-slate-200 hover:border-primary-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300',
                   ].join(' ')}
                 >
                   {short}
@@ -190,16 +209,22 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
             </div>
           </div>
 
-          {/* Location */}
+          {/* Gdzie — miejsce, a zaraz pod nim zasięg. Promień jest dopowiedzeniem
+              do miejsca („15 km OD CZEGO"), więc stoi razem z nim i tylko tu:
+              drugie pytanie o kilometry gdzie indziej w oknie znaczyłoby dla
+              czytającego dwie różne odległości. */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Gdzie</p>
 
             {hasLocation ? (
-              <div className="flex items-center gap-2 rounded-xl bg-primary-50 border border-primary-200 px-3 py-2.5">
+              <div className="flex items-center gap-2 rounded-xl bg-primary-50 border border-primary-200 px-3 py-2.5 dark:bg-primary-950 dark:border-primary-800">
                 <MapPin className="w-4 h-4 text-primary-600 shrink-0" />
-                <span className="text-sm font-medium text-primary-800 truncate flex-1">{label || 'Wybrana lokalizacja'}</span>
+                <span className="text-sm font-medium text-primary-800 truncate flex-1 dark:text-primary-200">
+                  {label || 'Wybrana lokalizacja'}
+                </span>
                 <button
                   onClick={() => { setLat(null); setLng(null); setLabel(''); }}
+                  aria-label="Zmień lokalizację"
                   className="text-primary-500 hover:text-primary-700 shrink-0"
                 >
                   <X className="w-4 h-4" />
@@ -210,7 +235,7 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
                 <button
                   onClick={handleGps}
                   disabled={gpsLoading}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-3 text-sm font-medium text-slate-600 hover:border-primary-400 hover:text-primary-700 transition-colors disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-3 text-sm font-medium text-slate-600 hover:border-primary-400 hover:text-primary-700 transition-colors disabled:opacity-60 dark:border-slate-600 dark:text-slate-300"
                 >
                   {gpsLoading
                     ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -224,12 +249,12 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
                     onChange={(e) => setCityInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleGeocode()}
                     placeholder="lub wpisz miasto / dzielnicę…"
-                    className="flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                    className="flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 dark:border-slate-600 dark:bg-slate-800"
                   />
                   <button
                     onClick={handleGeocode}
                     disabled={geoLoading || !cityInput.trim()}
-                    className="px-4 rounded-xl border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                    className="px-4 rounded-xl border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
                   >
                     {geoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Szukaj'}
                   </button>
@@ -243,29 +268,25 @@ export default function AlertSetupDialog({ onClose, onSaved, defaultLat, default
               </div>
             )}
 
-            {/* Radius slider — only when location is set */}
             {hasLocation && (
               <div className="mt-3">
-                <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                  <span>Promień</span>
-                  <span className="font-semibold text-ink">{radius} km</span>
-                </div>
-                <input
-                  type="range" min={3} max={30} step={1}
+                <RangeSlider
+                  label="Jak daleko"
+                  min={PROMIEN_MIN}
+                  max={PROMIEN_MAX}
                   value={radius}
-                  onChange={(e) => setRadius(Number(e.target.value))}
-                  className="w-full accent-primary-700"
+                  onChange={setRadius}
+                  formatValue={(km) => `${km} km`}
+                  minLabel={`${PROMIEN_MIN} km`}
+                  maxLabel={`${PROMIEN_MAX} km`}
                 />
-                <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
-                  <span>3 km</span><span>30 km</span>
-                </div>
               </div>
             )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 pb-5 pt-3 border-t border-slate-100 space-y-2">
+        <div className="px-5 pb-5 pt-3 border-t border-slate-100 space-y-2 dark:border-slate-700">
           {saved ? (
             <div className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-50 text-green-700 font-semibold text-sm">
               <Bell className="w-4 h-4" /> Alert zapisany!

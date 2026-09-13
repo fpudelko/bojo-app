@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff,
+  Calendar, CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -17,6 +17,7 @@ import ZaprosZnajomychPanel from '@/components/events/ZaprosZnajomychPanel';
 import OznaczenieKapitana from '@/components/events/OznaczenieKapitana';
 import TeamProposals from '@/components/events/TeamProposals';
 import PoMeczuCard from '@/components/events/PoMeczuCard';
+import DopiszGoscia from '@/components/events/DopiszGoscia';
 import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
 import { getComments, nieprzeczytaneKomentarze, kluczRozmowyWidziano } from '@/lib/comments';
 import { zapiszPowrot } from '@/lib/powrot';
@@ -26,7 +27,6 @@ import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
 import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
 import GuestInviteNudge from '@/components/events/GuestInviteNudge';
 import CzyGramyPanel from '@/components/events/CzyGramyPanel';
-import NieGramButton from '@/components/events/NieGramButton';
 import {
   getSeriesEvents, setSeriesTime, setSeriesTemplateTime,
   terminyWZakresie, type ZakresEdycji,
@@ -38,10 +38,12 @@ import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/Zachet
 import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
-import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
+import { eventUrl, shareEvent, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
+import { pobierzIcs } from '@/lib/kalendarz';
+import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
-import { useOknoCzatu, styleOknaCzatu } from '@/lib/oknoCzatu';
+import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import {
   getEvent, toBrakWiersza, joinEvent, joinEventMaybe, confirmFromMaybe, addGuest, removeParticipant, setVisibility, deleteEvent,
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
@@ -54,7 +56,7 @@ import {
   updateParticipantTeam, updateParticipantPayment, ustawPlatnoscWszystkim,
   assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
   getMatchResult, getPlayerGoals,
-  publishTeams, unpublishTeams, saveEventAdvancedSettings, opisWidocznosciWGrupie,
+  publishTeams, unpublishTeams, saveEventAdvancedSettings,
 } from '@/lib/eventFeatures';
 import type {
   EventItem, EventParticipant, MatchResult, PlayerGoal,
@@ -430,35 +432,6 @@ function Switch({ checked, onChange, disabled, label }: {
   );
 }
 
-/** Opcjonalny adres dopisywanego gościa.
- *
- *  Mobile-first: pole pełnej szerokości pod imieniem, nie obok — na 360 px
- *  imię i e-mail w jednym rzędzie robią z obu pól nieczytelne paski.
- *
- *  Podpis mówi, CO ten adres daje, a nie „opcjonalne": gość bez adresu nie
- *  dostaje niczego — ani potwierdzenia, ani przypomnienia, ani wiadomości
- *  o odwołaniu meczu (patrz migracja `133`). To jest informacja dla
- *  organizatora o tym, czego NIE będzie, jeśli pole zostawi puste.
- */
-function PoleEmailGoscia({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="mt-2">
-      <input
-        type="email"
-        inputMode="email"
-        autoComplete="off"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="E-mail znajomego (opcjonalnie)"
-        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
-      />
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-        Z adresem dostanie potwierdzenie, przypomnienie dzień przed i wiadomość, gdyby mecz się zmienił albo odwołał. Bez adresu — musisz powiadomić go sam.
-      </p>
-    </div>
-  );
-}
-
 export default function EventDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -649,7 +622,6 @@ export default function EventDetailClient() {
   // częścią serii. Decyduje o tym, czy „Zmień termin" pyta o zakres.
   const [seriaTerminy, setSeriaTerminy] = useState<{ id: string; date: string }[]>([]);
   const [zakresTerminuOtwarty, setZakresTerminuOtwarty] = useState(false);
-  const [linkCopied, setLinkCopied] = useState(false);
   // Panel „Mecz gotowy" — tylko tuż po publikacji z kreatora.
   const [swiezoUtworzony, setSwiezoUtworzony] = useState(false);
   /** Token MOJEGO wpisu gościa na tym meczu, zapamiętany na tym urządzeniu.
@@ -1852,13 +1824,42 @@ export default function EventDetailClient() {
   /** Jedna ścieżka udostępniania dla całej strony — patrz `lib/eventShare.ts`.
    *  Adres bierzemy z `eventUrl`, a nie z `window.location.href`, bo ten drugi
    *  potrafi nieść parametry widoku (np. `?utworzono=1` tuż po publikacji). */
+  /** „Do kalendarza" — plik `.ics` składany w przeglądarce (`lib/kalendarz.ts`).
+   *  Miejsce składamy z obu części `eventLocation()`: `primary` bywa samą nazwą
+   *  obiektu („Orlik Rataje"), `secondary` samym adresem — do kalendarza chcemy
+   *  jedno i drugie, bo za tydzień sama nazwa nie wystarczy, żeby tam trafić. */
+  const handleDoKalendarza = () => {
+    const miejsce = [eventLoc.primary, eventLoc.secondary].filter(Boolean).join(', ');
+    const ok = pobierzIcs({
+      id: event.id,
+      tytul: eventDisplayTitle(event),
+      data: event.date,
+      godzina: event.time,
+      godzinaKonca: event.endTime,
+      miejsce: miejsce || null,
+      opis: event.description,
+      url: eventUrl(event.id, window.location.origin),
+    });
+    if (ok) {
+      // Potwierdzenie jest potrzebne, bo pobranie pliku na telefonie bywa
+      // niewidoczne: Android chowa je w pasku powiadomień, a iOS pokazuje
+      // arkusz dopiero po chwili. Bez tego dotknięcie wygląda na nieudane
+      // i człowiek klika drugi raz.
+      toast('Plik z terminem pobrany — otwórz go, żeby dodać mecz do kalendarza');
+      track('event_do_kalendarza', { eventId: event.id });
+    }
+  };
+
   const handleShare = async () => {
     // Zdarzenie leci PRZED arkuszem systemowym, bo „anulowałem arkusz”
     // i „nie umiem odróżnić anulowania od udanego wysłania” to na
     // Androidzie ten sam wynik (`shareEvent` zwraca wtedy 'failed'). Mierzymy
     // INTENCJĘ organizatora — czy w ogóle sięga po wysłanie linku.
     track('event_shared', { eventId: event.id, skad: swiezoUtworzony ? 'po-publikacji' : 'strona-meczu' });
-    const wynik = await shareEvent(event, eventUrl(event.id, window.location.origin));
+    const wynik = await shareEvent(
+      event, eventUrl(event.id, window.location.origin),
+      { wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete },
+    );
     if (wynik === 'copied') {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -1947,19 +1948,6 @@ export default function EventDetailClient() {
     await zapiszTermin('ten');
   };
 
-  /** Straight to the clipboard — for people who just want to paste the link
-   *  into a chat and skip the system share sheet. Tekst + adres, tak jak
-   *  `shareEvent()` — goły URL na desktopie powtarzał błąd O-18. */
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(textDoKopiowania(event, eventUrl(event.id, window.location.origin)));
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch {
-      toast('Nie udało się skopiować linku', 'error');
-    }
-  };
-
   const handleDelete = async () => {
     setBusy(true);
     try { await deleteEvent(event.id); router.push('/wydarzenia'); }
@@ -1978,23 +1966,25 @@ export default function EventDetailClient() {
    *
    * OD MIGRACJI `133` gość bez konta dostaje e-mail — ale tylko wtedy, gdy ma
    * zapisany adres: podaje go, zapisując się sam, albo dostaje go od tego, kto
-   * go dopisał (pole obok imienia). Dlatego zdanie mówi „jeśli podała
-   * adres”, a nie „dostanie” — obietnica bez pokrycia byłaby tu
-   * gorsza niż jej brak.
+   * go dopisał (pole obok imienia). Kolumna pochodna `ma_guest_email` (`137`)
+   * niesie dokładną odpowiedź, więc zdania budujemy tą samą funkcją
+   * `konsekwencjeOdwolania()` co okno edycji (`konsekwencjeZapisu()`) —
+   * nie liczymy odbiorców po swojemu drugi raz. Odbiorcy to WSZYSCY związani
+   * z meczem (`komuDojdzie()`), nie tylko `regulars`/`reserves`: wyzwalacz
+   * `070` powiadamia też obserwujących i czekających na akceptację, więc
+   * węższe liczenie pokazywało mniej ludzi, niż faktycznie dostanie
+   * wiadomość (audyt 2026-09-12, ustalenie `S-4`).
    *
    * Stąd druga droga: „Odwołaj i wyślij wiadomość" odwołuje i od razu otwiera
    * arkusz udostępniania z gotowym tekstem. Dla gości bez konta czat jest
    * jedynym kanałem, jaki mają.
    */
   const handleCancel = async () => {
-    const bezKonta = [...regulars, ...reserves].filter((p) => !p.userId).length;
+    const komu = komuDojdzie(participants, event.organizerId);
     const wybor = await potwierdz({
       tytul: 'Odwołać mecz?',
       konsekwencje: [
-        'Uczestnicy z kontem dostaną powiadomienie w Bojo (i na telefon, jeśli je włączyli).',
-        bezKonta > 0
-          ? `${withCount(bezKonta, 'osoba', 'osoby', 'osób')} w składzie nie ma konta — dostanie e-mail, jeśli podała adres. Kto nie podał, dowie się tylko od Ciebie.`
-          : 'Wszyscy w składzie mają konto, więc informacja dojdzie do każdego.',
+        ...konsekwencjeOdwolania(komu),
         'Mecz zostanie na liście jako odwołany. Możesz go przywrócić tym samym panelem.',
       ],
       potwierdzLabel: 'Odwołaj mecz',
@@ -2109,7 +2099,12 @@ export default function EventDetailClient() {
       );
       setRepeatOpen(false);
       toast('Wydarzenie skopiowane!');
-      router.push(`/wydarzenia/${newId}`);
+      // `?utworzono=1` — ten sam panel „Mecz gotowy — wyślij link" co po
+      // kreatorze i po „Powtórz" z `/moje-gry → Historia`. Brakowało go tu
+      // (audyt 2026-09-12, ustalenie `S-6`): organizator powtarzający mecz
+      // z jego własnej strony ląduje w dokładnie tym samym momencie —
+      // nowy mecz bez wysłanego linku — co po utworzeniu od zera.
+      router.push(`/wydarzenia/${newId}?utworzono=1`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setRepeatBusy(false); }
@@ -2261,10 +2256,10 @@ export default function EventDetailClient() {
   const statusBarVisible = !!user && !!(myParticipation || myPendingRequest)
     && !mojTokenGoscia
     && !eventStarted && !isCancelled;
-  // Zakładka Rozmowa ma zachowywać się jak ekran czatu — BottomNav znika
-  // (HideBottomNav niżej), więc strona musi mieć stałą wysokość viewportu,
-  // żeby kontener rozmowy mógł się rozciągnąć do samego dołu ekranu zamiast
-  // zostawiać pod sobą pustą przestrzeń. Ta sama sztuczka co w GroupDetailClient.
+  // Zakładka Rozmowa ma zachowywać się jak ekran czatu — stała wysokość
+  // widocznego okna minus pasek nawigacji (który ZOSTAJE; klawiatura go
+  // zakrywa, patrz `lib/oknoCzatu.ts`), żeby kontener rozmowy sięgnął
+  // dokładnie nad pasek. Ta sama sztuczka co w GroupDetailClient.
   const mozeWidziecRozmowe = !!myParticipation || isOwner || czlonekGrupyMeczu;
   const rozmowaPelnoekranowa = tab === 'rozmowa' && mozeWidziecRozmowe;
   // resultsAvailable: event started + 30 min buffer before result form is shown
@@ -2339,12 +2334,15 @@ export default function EventDetailClient() {
         </div>
       )}
 
-      {/* Quick enable teams for organizer */}
-      {!showTeams && (isOwner || canManageSquad) && (
+      {/* Quick enable teams for organizer — po meczu nie ma co dzielić na
+          drużyny na przyszłość; to wyłącznie CTA do UTWORZENIA składu, więc
+          gaśnie razem z resztą przedmeczowych zaproszeń (`!eventStarted`).
+          Sam odczyt już utworzonego składu (wyżej i w TeamsPanel niżej) tego
+          warunku nie ma. */}
+      {!showTeams && !eventStarted && (isOwner || canManageSquad) && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-slate-800">Podział na drużyny</p>
-            <p className="text-xs text-slate-500 mt-0.5">Niebiescy vs Czerwoni — przypisz graczy ręcznie lub losuj</p>
+            <p className="text-sm font-semibold text-slate-800">Podział na drużyny — Niebiescy vs Czerwoni</p>
           </div>
           <button
             onClick={handleEnableTeams}
@@ -2670,12 +2668,75 @@ export default function EventDetailClient() {
             </div>
           );
         })()}
+
+      {/* ── JAK ZAPŁACIĆ ── co organizator PRZYJMUJE.
+          Zeszło tu 2026-09-13 z nagłówka meczu, gdzie stało szarym akapitem nad
+          licznikiem miejsc („Gotówka · Karty sportowe: …") i było jednym z dwóch
+          powtórzeń, które kazano stamtąd zdjąć.
+
+          RENDERUJE SIĘ KAŻDEMU, kto widzi tę zakładkę — nie tylko składowi.
+          To nie jest kosmetyka: karta „Twoja płatność" wyżej wymaga
+          `myConfirmed`, a okno zapisu wymienia akceptowane karty tylko PRZED
+          dołączeniem. Bez tej karty zdanie „numer do BLIKA zobaczysz, jeśli
+          dołączysz do składu" nie istniałoby nigdzie — a to jest dokładnie ta
+          rzecz, której pilnuje scenariusz „ktoś spoza składu dostaje
+          wyjaśnienie, nie pustkę" (migracje `120`/`121` wyjęły numer do osobnej
+          tabeli z własnym RLS; warunek NIE pyta o sam numer, bo osoba spoza
+          składu go w danych nie ma i wyjaśnienie zniknęłoby przed tym, komu
+          jest potrzebne).
+
+          Zapisany gracz, który wybrał BLIK, widzi numer i tutaj, i w „Twojej
+          płatności" — tak samo jak wcześniej stał i w nagłówku, i w karcie. */}
+      {event.costGrosze > 0
+        && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
+            <Banknote className="w-4 h-4" /> Jak zapłacić
+          </h2>
+          {event.acceptedPaymentMethods.length > 0 && (
+            <div className="flex items-start justify-between gap-3 text-sm">
+              <span className="shrink-0 text-slate-500">Przyjmowane</span>
+              <span className="min-w-0 text-right text-ink">
+                {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
+              </span>
+            </div>
+          )}
+          {event.acceptedPaymentMethods.includes('blik') && (
+            <div className="mt-2 flex items-start justify-between gap-3 text-sm">
+              <span className="shrink-0 text-slate-500">Numer BLIK</span>
+              <span className="min-w-0 text-right">
+                {event.blikPhone && canSeeBlikPhone({
+                  isOrganizer: isOwner || canManagePayments,
+                  isInSquad: !!myParticipation,
+                  minutesToStart: minutesUntilStart(event.date, event.time),
+                }) ? (
+                  <span className="font-semibold text-ink">{event.blikPhone}</span>
+                ) : myParticipation ? (
+                  <span className="text-slate-400">zobaczysz na godzinę przed meczem</span>
+                ) : (
+                  <span className="text-slate-400">numer do BLIKA zobaczysz, jeśli dołączysz do składu</span>
+                )}
+              </span>
+            </div>
+          )}
+          {event.acceptedSportsCards.length > 0 && (
+            <div className="mt-2 flex items-start justify-between gap-3 text-sm">
+              <span className="shrink-0 text-slate-500">Karty sportowe</span>
+              <span className="min-w-0 text-right text-ink">
+                {event.acceptedSportsCards.map((c) => sportsCardLabel(c, event.sportsCardOtherName)).join(', ')}
+                {event.sportsCardDiscountGrosze != null
+                  && ` (−${(event.sportsCardDiscountGrosze / 100).toFixed(0)} zł)`}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 
   return (
     <div
-      className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? 'h-[100dvh] overflow-hidden' : 'min-h-screen'}`}
+      className={`flex flex-col bg-canvas ${rozmowaPelnoekranowa ? `${WYSOKOSC_CZATU_BEZ_POMIARU} overflow-hidden` : 'min-h-screen'}`}
       style={rozmowaPelnoekranowa ? styleOknaCzatu(oknoCzatu) : undefined}
     >
       <Header showMobileWordmark />
@@ -2855,38 +2916,17 @@ export default function EventDetailClient() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
-              Wyślij link znajomym — to wszystko, czego trzeba, żeby się zapisali.
-            </p>
-
-            <Button size="lg" className="mt-3 w-full" onClick={handleShare}>
+            <Button size="lg" className="mt-2 w-full" onClick={handleShare}>
               <Share2 className="h-4 w-4" strokeWidth={2.25} /> Wyślij link znajomym
             </Button>
 
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <Button variant="outline" onClick={handleCopyLink}>
-                {linkCopied
-                  ? <><Check className="h-4 w-4 text-primary-700" strokeWidth={2.25} /> Skopiowano</>
-                  : <><Copy className="h-4 w-4" strokeWidth={2.25} /> Kopiuj link</>}
-              </Button>
-              <Button variant="outline" onClick={() => setInviteOpen(true)}>
-                <Users className="h-4 w-4" strokeWidth={2.25} /> Zaproś z grupy
-              </Button>
-            </div>
-
-            <p className="mt-3 text-xs text-slate-600 dark:text-slate-400">
-              {event.visibility === 'public'
-                ? 'Mecz jest publiczny: zobaczą go też gracze z okolicy na liście otwartych gier.'
-                : 'Mecz jest prywatny: wejdą tylko osoby z tym linkiem.'}
-            </p>
-
-            {/* Druga połowa zdania z podsumowania kreatora, tu w drugiej
-                osobie: tam brzmi jak zapowiedź, tu jak podział pracy. To jest
-                moment, w którym organizator odruchowo zaczyna planować
-                „przypomnę im w środę" — czyli ostatnia chwila, żeby mu
-                powiedzieć, że nie musi (migracja `129`). */}
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-              Przypomnienie dzień przed meczem wyjdzie samo. Ty wyślij tylko link.
+            {/* Jedno zdanie zamiast dawnych dwóch (widoczność + przypomnienie)
+                — zgłoszone wprost: ta karta, "Zaproś z grupy" przy liczniku
+                miejsc i sekcja „Zaproś" niżej mówiły to samo trzy
+                razy. "Kopiuj link" i "Zaproś z grupy" zostają wyłącznie w tych
+                dwóch stałych miejscach, nie powtarzają się tutaj. */}
+            <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+              Przypomnienie wyśle się samo — Ty wyślij tylko link.
             </p>
 
             {cyklicznyId && (
@@ -2900,28 +2940,254 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── HEADER: meta ──
-            „Udostępnij" i „Kopiuj" BYŁY tutaj, na samej górze. Zostały zdjęte:
-            ta sama para przycisków stoi niżej, w karcie „Wyślij link znajomym",
-            gdzie ma nagłówek i zdanie tłumaczące, po co to klikać — czyli jest
-            czytelniejsza. Dwa wejścia do tej samej akcji na jednym ekranie
-            kosztowały pół ekranu nad najważniejszą informacją, czyli licznikiem
-            miejsc.
+        {/* ── DAWNY „HEADER: meta" — BLOK ZNIKNĄŁ, 2026-09-13 ──
+            Stały tu kolejno: „Udostępnij"/„Kopiuj", opis meczu i rząd pigułek.
+            Wszystkie trzy zeszły niżej, każde z własnego powodu, i nic tu po
+            nich nie zostało — stąd brak pustego kontenera.
 
-            OD TERAZ TYLKO W ZAKŁADCE „SKŁAD". Wcześniej ten blok renderował się
-            na każdej zakładce poza Rozmową, więc wchodząc w Taktykę albo
-            Rozliczenia trzeba było przewinąć opis meczu, datę, miejsce i pigułki,
-            zanim zobaczyło się to, po co się tam weszło. Zgłoszone wprost.
-            Zasada: szczegóły meczu mieszkają w „Składzie", zakładki pokazują
-            swoją treść. */}
-        {tab === 'sklad' && (
+            1. „Udostępnij"/„Kopiuj" → karta „Wyślij link znajomym", gdzie mają
+            nagłówek i zdanie tłumaczące, po co to klikać. Dwa wejścia do tej
+            samej akcji kosztowały pół ekranu nad licznikiem miejsc.
+
+            2. Opis meczu → karta „O meczu" pod składem. Ma do tysiąca znaków
+            (`LIMIT_OPISU`), więc organizator, który opisał zasady akapitem,
+            spychał termin, adres i „ile zostało miejsc" pod zgięcie ekranu.
+
+            3. Pigułki → blok „CECHY MECZU" pod kartą „Kiedy i gdzie" (niżej).
+            Rząd pigułek nad kartą wchodził na ekran przed terminem i adresem,
+            czyli przed odpowiedzią na dwa pierwsze pytania zadawane przy meczu.
+
+            Zasada wspólna dla całej trójki i dla warunku `tab === 'sklad'`
+            w blokach niżej: szczegóły meczu mieszkają w „Składzie", a nad
+            licznikiem miejsc stoi tylko to, po co się na tę stronę wchodzi. */}
+
+        {tab === 'sklad' && (<>
+
+        {/* ── PROŚBY O DOŁĄCZENIE — tylko organizator, gdy są oczekujące ── */}
+        {/* NAD kartą „Kiedy i gdzie": to jedyne miejsce na tej stronie,
+            które czeka na DECYZJĘ organizatora, a termin i adres są
+            informacją, którą zna on na pamięć. Prośba schowana pod kartą
+            z dojazdem wymagała przewinięcia, żeby w ogóle zobaczyć, że
+            ktoś czeka na akceptację — zgłoszone wprost. Zasada ta sama,
+            co przy plakietce na ikonie „Mecze": akcja do wykonania nie
+            może zniknąć pod informacją. */}
+        {/* Shown whenever the organizer requires approval — even with zero
+            pending requests — so it's clear the feature is there and working,
+            rather than the whole card vanishing (which read as "broken/missing"). */}
+        {(isOwner || canManageSquad) && event.requireApproval && (
+          <div className="px-4">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <UserPlus className="w-4 h-4 text-blue-600" />
+                <p className="text-sm font-semibold text-blue-800">
+                  Prośby o dołączenie
+                  {pendingRequests.length > 0 && (
+                    <span className="ml-1.5 rounded-full bg-blue-200 px-1.5 py-0.5 text-[11px] font-bold text-blue-800">{pendingRequests.length}</span>
+                  )}
+                </p>
+              </div>
+              {pendingRequests.length === 0 && (
+                <p className="text-sm text-blue-700/80">Na razie nikt nie czeka na akceptację.</p>
+              )}
+              <ul className="space-y-2">
+                {pendingRequests.map((p) => (
+                  <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 border border-blue-100">
+                    {p.avatarUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={p.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                        <UserPlus className="w-4 h-4" />
+                      </span>
+                    )}
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-ink truncate">{p.name}</span>
+                      {p.isGoalkeeper && <span className="text-[11px] text-slate-500">Bramkarz 🧤</span>}
+                    </span>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleApprove(p.id)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-primary-800 active:scale-95 transition disabled:opacity-50"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Akceptuj
+                      </button>
+                      <button
+                        onClick={() => handleReject(p.id)}
+                        disabled={busy}
+                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 active:scale-95 transition disabled:opacity-50"
+                        title="Odrzuć"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* ── KIEDY I GDZIE ──────────────────────────────────────────────
+            Termin i miejsce mieszczą się wprawdzie w jednej linijce paska
+            nagłówka, ale tam adres jest `truncate` (urywa się w połowie ulicy),
+            a dojazdu nie ma wcale — link „Nawiguj" siedział wyłącznie w okienku
+            otwieranym po dotknięciu miejsca SPOZA katalogu, więc dla meczu na
+            boisku z katalogu nie istniał w ogóle. Zgłoszone wprost z sesji QA:
+            „brak karty «Kiedy i gdzie» z dojazdem i ucięty adres".
+
+            Karta powtarza te dwa fakty świadomie: pasek nagłówka jest
+            identyfikacją meczu (widoczną na każdej zakładce), a to jest
+            odpowiedź na pytanie, które gracz zadaje przed wyjściem z domu —
+            i musi dać się z niej JEDNYM dotknięciem pojechać na miejsce. */}
         <div className="px-4">
-          {event.description && (
-            <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
-              {event.description}
-            </p>
-          )}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            {/* Bez nagłówka „KIEDY I GDZIE" — zgłoszone wprost: data z ikoną
+                kalendarza i adres z pinezką mówią same, co to za karta, więc
+                etykieta powtarzała treść pod sobą własnymi słowami. */}
+            {(isOrganizer || canEditDelegate) && !eventStarted ? (
+              <button
+                type="button"
+                onClick={openEditWhen}
+                className="mt-2 flex w-full items-start gap-2 text-left text-sm text-ink"
+              >
+                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                {/* `data-termin-meczu`: wszystko, co w tej karcie zmienia się
+                    z dnia na dzień — data, godzina, „za 3 h". Zrzuty
+                    scenariuszy zasłaniają to maską, bo seed liczy datę jako
+                    ODSTĘP od dnia uruchomienia, więc bez maski ten sam,
+                    niezmieniony widok meldował „zmianę wyglądu" każdego dnia. */}
+                <span className="min-w-0 flex-1" data-termin-meczu>
+                  <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
+                  {timeStr && <> · {timeStr}</>}
+                  {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
+                  {zaCzas && (
+                    <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                      {zaCzas}
+                    </span>
+                  )}
+                </span>
+                <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
+              </button>
+            ) : (
+              <p className="mt-2 flex items-start gap-2 text-sm text-ink">
+                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                <span data-termin-meczu>
+                  <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
+                  {timeStr && <> · {timeStr}</>}
+                  {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
+                  {zaCzas && (
+                    <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                      {zaCzas}
+                    </span>
+                  )}
+                </span>
+              </p>
+            )}
+
+            {venueBadgeLabel && (
+              <p className="mt-2 flex items-start gap-2 text-sm text-ink">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                {/* Bez `truncate` — to jest miejsce, w którym adres ma się
+                    zmieścić w całości, choćby w dwóch linijkach. */}
+                <span className="min-w-0">
+                  <span className="font-semibold">{eventLoc.primary}</span>
+                  {eventLoc.secondary && (
+                    <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
+                  )}
+                </span>
+              </p>
+            )}
+
+            {(dojazdHref || event.fieldId) && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {dojazdHref && (
+                  // JEDEN PRIMARY NA EKRANIE — „Nawiguj" jest zielony
+                  // i wypełniony dokładnie wtedy, gdy dolny pasek NIE pokazuje
+                  // „Dołącz do meczu". Do 2026-09-13 był `bg-primary-700`
+                  // zawsze, więc niezapisany widział dwa wypełnione zielone
+                  // przyciski o tej samej wadze, z których jeden prowadził
+                  // w Mapy Google, zanim w ogóle zdecydował, że zagra.
+                  //
+                  // Warunek to `joinBarVisible`, a nie `myParticipation`,
+                  // bo to dokładnie ta sama zmienna, która rządzi tamtym
+                  // przyciskiem — oba nie mogą być prymarne naraz z definicji,
+                  // a nie przez zbieg dwóch osobnych warunków, które ktoś
+                  // kiedyś rozjedzie. Po starcie meczu, przy odwołanym
+                  // i przy zamkniętych zapisach pasek gaśnie, a dojazd staje
+                  // się główną rzeczą do zrobienia na tej stronie — i wtedy
+                  // wygląda na główną.
+                  <a
+                    href={dojazdHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-xl px-4 text-sm transition active:scale-95 ${
+                      joinBarVisible
+                        ? 'border border-primary-200 bg-primary-50 font-semibold text-primary-700 hover:bg-primary-100 dark:border-primary-800'
+                        : 'bg-primary-700 font-bold text-white'
+                    }`}
+                  >
+                    <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj
+                  </a>
+                )}
+                {event.fieldId && (
+                  <Link
+                    href={`/boisko/${event.fieldId}`}
+                    onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    <MapPin className="h-4 w-4" strokeWidth={2.25} /> O boisku
+                  </Link>
+                )}
+                {/* DO KALENDARZA — przy terminie, nie przy przycisku zapisu.
+                    Tu stoi data, więc tu pada pytanie „czy mi to pasuje";
+                    odpowiedź „sprawdzę w kalendarzu" ma być jednym dotknięciem
+                    dalej, a nie przewijaniem na dół strony.
+
+                    Widoczne dla KAŻDEGO, także niezapisanego: kalendarz bywa
+                    tym, co rozstrzyga, czy w ogóle da się dołączyć. Znika po
+                    starcie meczu i przy odwołanym — wtedy wpis kalendarza już
+                    niczego nie planuje. */}
+                {!eventStarted && !isCancelled && (
+                  <button
+                    type="button"
+                    onClick={handleDoKalendarza}
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    <CalendarPlus className="h-4 w-4" strokeWidth={2.25} /> Do kalendarza
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── CECHY MECZU (pigułki) ── cena, widoczność, ekipa, akceptacja.
+            STOJĄ PONIŻEJ KARTY „Kiedy i gdzie", nie nad nią (2026-09-13,
+            zgłoszone wprost). Rząd pigułek nad kartą wchodził na ekran
+            przed terminem i adresem, czyli przed odpowiedzią na dwa
+            pierwsze pytania, jakie się zadaje przy meczu. Cena zostaje
+            nad licznikiem miejsc, żeby „ile to kosztuje" nie schodziło
+            pod zgięcie ekranu. */}
+          {/* NAD LICZNIKIEM NIE MA JUŻ DWÓCH SZARYCH AKAPITÓW — zdjęte
+              2026-09-13, zgłoszone wprost („za dużo tekstów i opisów").
+
+              1. Zdanie „Prywatny — na liście ekipy X. Zobaczą go N członków…"
+              powtarzało własnymi słowami to, co niosą pigułki w tym rzędzie
+              („Prywatne" + nazwa ekipy). `opisWidocznosciWGrupie()` zostaje
+              w `lib/eventFeatures.ts` dla KREATORA — tam stoi pod kartą
+              widoczności w chwili, gdy decyzja dopiero zapada i nie ma jeszcze
+              żadnej pigułki, która by ją pokazała.
+
+              2. Wiersz „Gotówka · Karty sportowe: …" PRZENIÓSŁ SIĘ do zakładki
+              Rozliczenia, do karty „Jak zapłacić". Nie dało się go po prostu
+              skasować: okno zapisu wymienia akceptowane karty tylko PRZED
+              dołączeniem, więc zapisany gracz nie miałby już gdzie sprawdzić,
+              czy przejdzie jego Multisport. Reguła dostępu do numeru BLIK
+              (`canSeeBlikPhone`) siedzi nietknięta tam, gdzie była. Cenę i tak
+              niesie pigułka „7 zł / os." w rzędzie pigułek. */}
+        <div className="px-4">
+          <div className="mt-4 flex flex-wrap gap-2">
             {/* My relation to this match — the two axes (ownership × participation)
                 shown up front, so nobody has to expand the roster to learn
                 whether they're actually in. */}
@@ -2930,12 +3196,14 @@ export default function EventDetailClient() {
                 <Star className="h-3.5 w-3.5" strokeWidth={2.25} /> Organizujesz
               </span>
             )}
-            {myConfirmed && !myConfirmed.isReserve && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1.5 text-xs font-bold text-green-800">
-                <Check className="h-3.5 w-3.5" strokeWidth={2.25} />
-                Grasz{myConfirmed.isGoalkeeper ? ' · bramkarz' : ''}
-              </span>
-            )}
+            {/* Pigułki „Grasz" tu NIE MA — zdjęta 2026-09-13, zgłoszone wprost.
+                Dolny pasek stanu mówi to samo i mówi więcej: „Jesteś w składzie",
+                rola („· bramkarz") i wyjście
+                („Wypisz się") — a stoi na ekranie przez cały czas, bo jest
+                `fixed`. Pigułka powtarzała status dwa razy na jednym widoku.
+                Pozostałe pigułki w tym rzędzie zostają: niosą cechy MECZU
+                (za darmo, publiczny, ekipa), których nigdzie indziej nie widać,
+                a nie mój stan względem niego. */}
             {myConfirmed?.isReserve && (
               // Szary, nie bursztyn: bursztyn znaczy w tej apce „uwaga, coś się
               // dzieje" (obserwowanie, ostrzeżenia), a niebieski — „wymaga
@@ -3070,218 +3338,6 @@ export default function EventDetailClient() {
               )
             )}
           </div>
-
-          {/* Data, czas trwania i miejsce nie powtarzają się już tutaj —
-              mieszkają wyłącznie w karcie „Kiedy i gdzie" niżej (pełna data,
-              adres bez ucinania, „Nawiguj"). Ten wiersz miał kiedyś skróconą
-              wersję tej samej informacji nad nim — dwa miejsca z tym samym
-              faktem czytały się jak literówka, nie jak dwa źródła prawdy.
-              Zgłoszone wprost. Edycja terminu przez organizatora (dawny
-              `openEditWhen()` przy dacie) przeniosła się do karty „Kiedy
-              i gdzie" razem z resztą. */}
-          {/* Ta sama zasada, co pod kartą widoczności w kreatorze: prywatny
-              mecz przypięty do grupy i tak widzi cała ekipa — to zdanie mówi
-              to wprost, zamiast zostawiać organizatora w niepewności. */}
-          {groupInfo && (
-            <p className="mt-2 text-xs text-slate-500">
-              {opisWidocznosciWGrupie(event.visibility, groupInfo.name, groupInfo.memberCount)}
-            </p>
-          )}
-          {/* Payment info — how to pay + sports-card discount, at a glance. Shown
-              generally on the event page, not just at join time. */}
-          {event.costGrosze > 0 && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
-            <p className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5">
-              {event.acceptedPaymentMethods.length > 0 && (
-                <span>
-                  Płatność: {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
-                  {/* Warunek NIE pyta o `event.blikPhone`: od migracji `120`
-                      numeru po prostu nie ma w danych osoby spoza składu (RLS
-                      na `event_blik`), a to właśnie ona ma zobaczyć zdanie
-                      „zobaczysz, jeśli dołączysz". Pytanie o numer chowałoby
-                      wyjaśnienie dokładnie przed tym, komu jest potrzebne. */}
-                  {event.acceptedPaymentMethods.includes('blik') && (
-                    event.blikPhone && canSeeBlikPhone({
-                      isOrganizer: isOwner || canManagePayments,
-                      isInSquad: !!myParticipation,
-                      minutesToStart: minutesUntilStart(event.date, event.time),
-                    }) ? (
-                      <> — BLIK na numer <span className="font-semibold text-ink">{event.blikPhone}</span></>
-                    ) : myParticipation ? (
-                      <> — numer do BLIKA zobaczysz na godzinę przed meczem</>
-                    ) : (
-                      <> — numer do BLIKA zobaczysz, jeśli dołączysz do składu</>
-                    )
-                  )}
-                </span>
-              )}
-              {event.acceptedSportsCards.length > 0 && (
-                <span>
-                  {event.acceptedPaymentMethods.length > 0 && '· '}
-                  Karty sportowe: {event.acceptedSportsCards.map((c) => sportsCardLabel(c, event.sportsCardOtherName)).join(', ')}
-                  {event.sportsCardDiscountGrosze != null && ` (−${(event.sportsCardDiscountGrosze / 100).toFixed(0)} zł)`}
-                </span>
-              )}
-            </p>
-          )}
-        </div>
-        )}
-
-        {tab === 'sklad' && (<>
-
-        {/* ── PROŚBY O DOŁĄCZENIE — tylko organizator, gdy są oczekujące ── */}
-        {/* NAD kartą „Kiedy i gdzie": to jedyne miejsce na tej stronie,
-            które czeka na DECYZJĘ organizatora, a termin i adres są
-            informacją, którą zna on na pamięć. Prośba schowana pod kartą
-            z dojazdem wymagała przewinięcia, żeby w ogóle zobaczyć, że
-            ktoś czeka na akceptację — zgłoszone wprost. Zasada ta sama,
-            co przy plakietce na ikonie „Mecze": akcja do wykonania nie
-            może zniknąć pod informacją. */}
-        {/* Shown whenever the organizer requires approval — even with zero
-            pending requests — so it's clear the feature is there and working,
-            rather than the whole card vanishing (which read as "broken/missing"). */}
-        {(isOwner || canManageSquad) && event.requireApproval && (
-          <div className="px-4">
-            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <UserPlus className="w-4 h-4 text-blue-600" />
-                <p className="text-sm font-semibold text-blue-800">
-                  Prośby o dołączenie
-                  {pendingRequests.length > 0 && (
-                    <span className="ml-1.5 rounded-full bg-blue-200 px-1.5 py-0.5 text-[11px] font-bold text-blue-800">{pendingRequests.length}</span>
-                  )}
-                </p>
-              </div>
-              {pendingRequests.length === 0 && (
-                <p className="text-sm text-blue-700/80">Na razie nikt nie czeka na akceptację.</p>
-              )}
-              <ul className="space-y-2">
-                {pendingRequests.map((p) => (
-                  <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 border border-blue-100">
-                    {p.avatarUrl ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={p.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
-                        <UserPlus className="w-4 h-4" />
-                      </span>
-                    )}
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-sm font-medium text-ink truncate">{p.name}</span>
-                      {p.isGoalkeeper && <span className="text-[11px] text-slate-500">Bramkarz 🧤</span>}
-                    </span>
-                    <div className="flex gap-1.5 shrink-0">
-                      <button
-                        onClick={() => handleApprove(p.id)}
-                        disabled={busy}
-                        className="inline-flex items-center gap-1 rounded-lg bg-primary-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-primary-800 active:scale-95 transition disabled:opacity-50"
-                      >
-                        <Check className="w-3.5 h-3.5" /> Akceptuj
-                      </button>
-                      <button
-                        onClick={() => handleReject(p.id)}
-                        disabled={busy}
-                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 active:scale-95 transition disabled:opacity-50"
-                        title="Odrzuć"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* ── KIEDY I GDZIE ──────────────────────────────────────────────
-            Termin i miejsce mieszczą się wprawdzie w jednej linijce paska
-            nagłówka, ale tam adres jest `truncate` (urywa się w połowie ulicy),
-            a dojazdu nie ma wcale — link „Nawiguj" siedział wyłącznie w okienku
-            otwieranym po dotknięciu miejsca SPOZA katalogu, więc dla meczu na
-            boisku z katalogu nie istniał w ogóle. Zgłoszone wprost z sesji QA:
-            „brak karty «Kiedy i gdzie» z dojazdem i ucięty adres".
-
-            Karta powtarza te dwa fakty świadomie: pasek nagłówka jest
-            identyfikacją meczu (widoczną na każdej zakładce), a to jest
-            odpowiedź na pytanie, które gracz zadaje przed wyjściem z domu —
-            i musi dać się z niej JEDNYM dotknięciem pojechać na miejsce. */}
-        <div className="px-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Kiedy i gdzie</p>
-
-            {(isOrganizer || canEditDelegate) && !eventStarted ? (
-              <button
-                type="button"
-                onClick={openEditWhen}
-                className="mt-2 flex w-full items-start gap-2 text-left text-sm text-ink"
-              >
-                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                <span className="min-w-0 flex-1">
-                  <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                  {timeStr && <> · {timeStr}</>}
-                  {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
-                  {zaCzas && (
-                    <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                      {zaCzas}
-                    </span>
-                  )}
-                </span>
-                <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
-              </button>
-            ) : (
-              <p className="mt-2 flex items-start gap-2 text-sm text-ink">
-                <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                <span>
-                  <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                  {timeStr && <> · {timeStr}</>}
-                  {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
-                  {zaCzas && (
-                    <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                      {zaCzas}
-                    </span>
-                  )}
-                </span>
-              </p>
-            )}
-
-            {venueBadgeLabel && (
-              <p className="mt-2 flex items-start gap-2 text-sm text-ink">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                {/* Bez `truncate` — to jest miejsce, w którym adres ma się
-                    zmieścić w całości, choćby w dwóch linijkach. */}
-                <span className="min-w-0">
-                  <span className="font-semibold">{eventLoc.primary}</span>
-                  {eventLoc.secondary && (
-                    <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
-                  )}
-                </span>
-              </p>
-            )}
-
-            {(dojazdHref || event.fieldId) && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {dojazdHref && (
-                  <a
-                    href={dojazdHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-primary-700 px-4 text-sm font-bold text-white transition active:scale-95"
-                  >
-                    <Navigation className="h-4 w-4" strokeWidth={2.25} /> Nawiguj
-                  </a>
-                )}
-                {event.fieldId && (
-                  <Link
-                    href={`/boisko/${event.fieldId}`}
-                    onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
-                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-                  >
-                    <MapPin className="h-4 w-4" strokeWidth={2.25} /> O boisku
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* ── CZY GRAMY? ── odpowiada na to, co ekipy dziś liczą ręcznie na
@@ -3294,8 +3350,6 @@ export default function EventDetailClient() {
               event={event}
               participants={participants}
               canManage={canManageSquad}
-              busy={busy}
-              onOtworzDlaOkolicy={handleOtworzDlaOkolicy}
             />
           </div>
         )}
@@ -3354,7 +3408,10 @@ export default function EventDetailClient() {
                 // Only pitch the reserve list to someone who could actually act on
                 // it — a player already signed up (squad, reserve, pending or
                 // observing) is told the match is full, not invited to join again.
-                ? (amIInvolved ? 'Komplet' : 'Komplet — dołącz do rezerwy')
+                // Po starcie meczu dołączenie do rezerwy jest już bez sensu
+                // (`joinBarVisible` niżej z tego samego powodu chowa cały pasek
+                // zapisu) — sam napis wtedy też nie zaprasza do rezerwy.
+                ? (amIInvolved || eventStarted ? 'Komplet' : 'Komplet — dołącz do rezerwy')
                 : `Zostało ${withCount(freeSpots, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}`}
             </p>
 
@@ -3380,24 +3437,12 @@ export default function EventDetailClient() {
               </p>
             )}
 
-            {/* Zapraszanie stoi tuż pod licznikiem wolnych miejsc, bo to tutaj
-                człowiek orientuje się, że brakuje ludzi. Panel z linkiem jest
-                na samym dole strony — zanim ktoś tam dojedzie, zdąży wyjść
-                i wkleić link z Messengera.
-
-                To jest teraz JEDYNY stały przycisk „Zaproś z grupy" na stronie —
-                dolna sekcja „Zaproś znajomych" miała kiedyś własny, drugi
-                przycisk o tej samej nazwie, innej ikonie i innym warunku
-                widoczności (bez `!isFull`). Ikona ujednolicona na `Users`,
-                bo tej samej używa panel „Mecz gotowy" tuż po publikacji. */}
-            {user && !eventStarted && !isFull && (myParticipation || isOwner || canManageSquad) && (
-              <button
-                onClick={() => setInviteOpen(true)}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-800 hover:bg-primary-100"
-              >
-                <Users className="h-4 w-4" /> Zaproś z grupy
-              </button>
-            )}
+            {/* „Zaproś z grupy" żył tu jako osobny, stały przycisk — usunięty
+                2026-09-13 (zgłoszone wprost: to samo zaproszenie powtarzało
+                się na tej stronie w trzech miejscach z osobnym opisem
+                każdym razem). Jedyne miejsce dziś: sekcja „Zaproś"
+                niżej (`ZaprosZnajomychPanel`, `onZaprosZGrupy`), razem
+                z „Udostępnij"/„Kopiuj". */}
 
             {/* Avatar stack — tap to expand. Hidden when roster is open.
                 Rezerwa też otwiera listę: przy pustym składzie i kimś w kolejce
@@ -3681,50 +3726,21 @@ export default function EventDetailClient() {
                 </div>
               )}
 
-              {/* Add guest — dopisuje osobę bez konta wprost do składu (to NIE wysyła zaproszenia) */}
+              {/* Add guest — dopisuje osobę bez konta wprost do składu (to NIE wysyła zaproszenia).
+                  Modal, nie stały formularz — patrz `DopiszGoscia.tsx`. */}
               {(isOrganizer || canManageSquad) && (
                 <div className="mt-4 pt-4 border-t border-slate-100">
-                  <p className="text-xs font-medium text-slate-600 mb-1.5">Dopisz osobę bez konta</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
-                      placeholder="Imię znajomego"
-                      // 80 znaków = limit, który i tak wymusza `validateName()`
-                      // przy zapisie (`lib/events.ts`). Bez tego pole przyjmowało
-                      // dowolnie długi tekst, a odmowa przychodziła dopiero
-                      // z serwera, po kliknięciu „Dodaj".
-                      maxLength={80}
-                      className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                    <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
-                      <UserPlus className="w-4 h-4" /> Dodaj
-                    </Button>
-                  </div>
-                  <PoleEmailGoscia value={emailDopisywanegoGoscia} onChange={setEmailDopisywanegoGoscia} />
-                  {gkEnabled && (
-                    <div className="mt-2 flex gap-2">
-                      {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
-                        <button
-                          key={r}
-                          type="button"
-                          onClick={() => setGuestRole(r === 'gk' ? 'goalkeeper' : 'player')}
-                          className={[
-                            'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
-                            (r === 'gk') === (guestRole === 'goalkeeper')
-                              ? 'border-primary-600 bg-primary-50 text-primary-700'
-                              : 'border-slate-200 text-slate-600 hover:bg-slate-50',
-                          ].join(' ')}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <p className="mt-2 text-[11px] text-slate-400">
-                    Dopisujesz gracza ręcznie. Jeśli ma dołączyć sam — wyślij mu link
-                    przyciskiem „Udostępnij" w sekcji „Zaproś znajomych" na dole tej zakładki.
-                  </p>
+                  <DopiszGoscia
+                    guestName={guestName}
+                    onGuestNameChange={setGuestName}
+                    email={emailDopisywanegoGoscia}
+                    onEmailChange={setEmailDopisywanegoGoscia}
+                    gkEnabled={gkEnabled}
+                    guestRole={guestRole}
+                    onGuestRoleChange={setGuestRole}
+                    onAdd={handleAddGuest}
+                    busy={busy}
+                  />
                 </div>
               )}
                   </>
@@ -3756,45 +3772,32 @@ export default function EventDetailClient() {
           <div className="px-4">
             {!isOrganizer && !canManageSquad && event.allowGuestAdds && (
               <div className="mb-3">
-                <p className="text-xs font-medium text-slate-600 mb-1.5">Dopisz osobę bez konta</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddGuest()}
-                    placeholder="Imię znajomego"
-                    maxLength={80}
-                    className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                  <Button variant="outline" onClick={handleAddGuest} disabled={busy || !guestName.trim()} className="shrink-0">
-                    <UserPlus className="w-4 h-4" /> Dodaj
-                  </Button>
-                </div>
-                <PoleEmailGoscia value={emailDopisywanegoGoscia} onChange={setEmailDopisywanegoGoscia} />
-                {gkEnabled && (
-                  <div className="mt-2 flex gap-2">
-                    {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => setGuestRole(r === 'gk' ? 'goalkeeper' : 'player')}
-                        className={[
-                          'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
-                          (r === 'gk') === (guestRole === 'goalkeeper')
-                            ? 'border-primary-600 bg-primary-50 text-primary-700'
-                            : 'border-slate-200 text-slate-600 hover:bg-slate-50',
-                        ].join(' ')}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <p className="mt-2 text-[11px] text-slate-400">
-                  Dopisujesz gracza ręcznie. Jeśli ma dołączyć sam — wyślij mu link
-                  przyciskiem „Udostępnij" w sekcji „Zaproś znajomych" na dole tej zakładki.
-                </p>
+                <DopiszGoscia
+                  guestName={guestName}
+                  onGuestNameChange={setGuestName}
+                  email={emailDopisywanegoGoscia}
+                  onEmailChange={setEmailDopisywanegoGoscia}
+                  gkEnabled={gkEnabled}
+                  guestRole={guestRole}
+                  onGuestRoleChange={setGuestRole}
+                  onAdd={handleAddGuest}
+                  busy={busy}
+                />
               </div>
             )}
+            {/* TYLKO gdy nie ma dolnego paska stanu — zgłoszone wprost: przy
+                widocznym pasku to samo wyjście stało dwa razy na jednym ekranie,
+                raz w treści i raz nad nim.
+
+                Warunek jest `!statusBarVisible`, a nie zwykłe usunięcie, bo pasek
+                NIE pokazuje się zawsze, gdy widać ten przycisk: znika przy meczu
+                ODWOŁANYM i gościowi wchodzącemu z tokenem (`mojTokenGoscia`),
+                a oba te stany nadal pozwalają się wypisać. Samo skasowanie
+                przycisku zostawiłoby te osoby w meczu bez żadnej drogi wyjścia.
+                Dzięki temu warunkowi oba wyjścia są też ROZŁĄCZNE — nigdy nie
+                stoją na ekranie naraz — na czym opierają się helpery
+                `wypiszSie()` i `niezapisany()` w `e2e/scenariusze.spec.ts`. */}
+            {!statusBarVisible && (
             <button
               onClick={() => setLeaveConfirmOpen(true)} disabled={busy}
               // Czerwony od razu, nie dopiero pod kursorem. Wcześniej przycisk
@@ -3814,6 +3817,7 @@ export default function EventDetailClient() {
             >
               {amIReserve ? 'Wypisz się z rezerwy' : 'Wypisz się z meczu'}
             </button>
+            )}
           </div>
         )}
 
@@ -3968,12 +3972,31 @@ export default function EventDetailClient() {
           </div>
         )}
 
-        {/* ── NIE GRAM — jawna odmowa dla członka ekipy, który jeszcze nie
-            odpowiedział. Cisza w Bojo znaczyła dotąd naraz "nie widziałem"
-            i "odpadam"; to jest osobna, widoczna odpowiedź (097). ── */}
-        {user && event.groupId && !amIInvolved && !eventStarted && (
+        {/* KARTY „Twoja ekipa tu gra. Nie dasz rady? / Nie zagram" TU NIE MA —
+            zdjęta 2026-09-13, zgłoszone wprost. Powód mocniejszy niż sam
+            nadmiar kontrolek: odpowiedzi NIKT NIE OGLĄDAŁ. `odmow()` pisała do
+            `event_declines` (migracja `097`), a `getDeclines()` czytał
+            wyłącznie ten przycisk, żeby wiedzieć, czy sam już kliknął — żaden
+            widok organizatora tej tabeli nie pokazuje. Pytaliśmy więc gracza
+            o deklarację i chowaliśmy ją przed jedyną osobą, której była
+            potrzebna. Tabela, RLS i `lib/eventDeclines.ts` zostają nietknięte:
+            gdy powstanie widok „kto odpadł", wejście wraca razem z nim
+            (BACKLOG.md). */}
+
+        {/* ── O MECZU ── opis od organizatora. Przyjechał tu z samej góry
+            zakładki (patrz komentarz przy rzędzie pigułek): to jedyny blok
+            na tej stronie o nieograniczonej z góry wysokości, a odpowiada na
+            pytanie zadawane PO tym, jak się już wie kiedy, gdzie i czy jest
+            miejsce. Nagłówek jest nowy — bez niego akapit wyrwany z góry
+            strony wyglądałby tu jak komentarz bez autora. */}
+        {event.description && (
           <div className="px-4">
-            <NieGramButton eventId={event.id} userId={user.id} />
+            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+              <h2 className="text-sm font-semibold text-ink">O meczu</h2>
+              <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
+                {event.description}
+              </p>
+            </div>
           </div>
         )}
 
@@ -4047,22 +4070,31 @@ export default function EventDetailClient() {
                       : 'Jesteś w składzie'}
                   {!myPendingRequest && myConfirmed?.isGoalkeeper ? ' · bramkarz' : ''}
                 </span>
-                <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                  {myPendingRequest
-                    ? 'Organizator jeszcze nie potwierdził'
-                    : amIReserve
-                      ? 'Wejdziesz, gdy ktoś się wypisze'
-                      : 'Masz miejsce w składzie'}
-                </span>
+                {/* Podpis WYŁĄCZNIE tam, gdzie dokłada fakt, którego nie ma
+                    w wierszu nad nim. Dla składu stało tu „Masz miejsce
+                    w składzie" — czyli „Jesteś w składzie" jeszcze raz, innymi
+                    słowami; do tego „miejsce" czyta się w tej apce także jako
+                    boisko („Miejsce: Szkoła Podstawowa nr 61"), więc podpis
+                    nie tylko powtarzał, ale i mylił. Zgłoszone wprost. */}
+                {(myPendingRequest || amIReserve) && (
+                  <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                    {myPendingRequest
+                      ? 'Organizator jeszcze nie potwierdził'
+                      : 'Wejdziesz, gdy ktoś się wypisze'}
+                  </span>
+                )}
               </p>
               {myParticipation && (
                 <button
                   onClick={() => setLeaveConfirmOpen(true)}
                   disabled={busy}
-                  // „Wypisz się", a NIE „Wypisz się z meczu": ten drugi napis
-                  // niesie przycisk w treści i pod niego jest napisany selektor
-                  // w `e2e/scenariusze.spec.ts`. Dwa elementy o tej samej
-                  // nazwie dostępnej wywracają strict mode Playwrighta.
+                  // „Wypisz się", a NIE „Wypisz się z meczu": krócej, bo pasek
+                  // ma na to wąską kolumnę obok statusu. Przycisk w treści niesie
+                  // pełny napis, ale oba są dziś ROZŁĄCZNE (tamten renderuje się
+                  // wyłącznie przy `!statusBarVisible`), więc nie ma już dwóch
+                  // elementów o tej samej roli i podobnej nazwie na jednym
+                  // ekranie. Helpery `wypiszSie()`/`niezapisany()`
+                  // w `e2e/scenariusze.spec.ts` łapią oba napisy jednym wzorcem.
                   className="h-11 shrink-0 px-2 text-sm font-semibold text-red-600 transition-colors hover:text-red-700 disabled:opacity-50"
                 >
                   Wypisz się
@@ -4243,11 +4275,10 @@ export default function EventDetailClient() {
             <h2 className="font-semibold text-ink flex items-center gap-2 mb-1">
               <Trash2 className="w-4 h-4 text-slate-400" /> Zarządzanie graczami
             </h2>
-            <p className="text-xs text-slate-500 mb-3">
-              „Na rezerwę" zostawia gracza w meczu, bez miejsca w składzie. Usuwanie zawsze
-              wymaga potwierdzenia.
-            </p>
-            <ul className="divide-y divide-slate-100">
+            {/* Bez podpisu pod nagłówkiem — zgłoszone wprost. Przyciski przy
+                każdym graczu nazywają się tak, jak działają, a o potwierdzeniu
+                przy usuwaniu mówi samo okno, które wyskakuje. */}
+            <ul className="mt-3 divide-y divide-slate-100">
               {regulars.filter((p) => p.userId !== event.organizerId).map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-2 py-3 sm:flex-nowrap sm:gap-3">
                   {p.avatarUrl
@@ -4355,25 +4386,32 @@ export default function EventDetailClient() {
 
             {editMode && (
               <div className="space-y-3 pt-1">
-                {/* Settings switches */}
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-1 divide-y divide-slate-100">
-                  <SettingSwitch
-                    icon={<Globe className="w-4 h-4" />}
-                    title="Widoczne publicznie"
-                    desc="Mecz pojawia się w Otwarte mecze i może do niego dołączyć każdy. Wyłączone = prywatny, tylko przez link."
-                    checked={event.visibility === 'public'}
-                    disabled={busy}
-                    onChange={() => handleSetVisibility(event.visibility === 'public' ? 'private' : 'public')}
-                  />
-                  <SettingSwitch
-                    icon={<UserPlus className="w-4 h-4" />}
-                    title="Uczestnicy mogą dodawać gości"
-                    desc="Każdy zapisany może dopisać osobę bez konta."
-                    checked={event.allowGuestAdds}
-                    disabled={busy}
-                    onChange={handleToggleAllowGuestAdds}
-                  />
-                </div>
+                {/* Settings switches. `!eventStarted` — oba przełączniki sterują
+                    wyłącznie ZAPISAMI: kto zobaczy mecz na liście i kto może
+                    dopisać gościa. Po gwizdku nie ma już czego zapisywać, więc
+                    na rozegranym meczu były decyzją bez skutku (zgłoszone
+                    wprost). Reszta panelu zostaje — powtórka, uprawnienia,
+                    edycja szczegółów i usunięcie mają sens także po meczu. */}
+                {!eventStarted && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-1 divide-y divide-slate-100">
+                    <SettingSwitch
+                      icon={<Globe className="w-4 h-4" />}
+                      title="Widoczne publicznie"
+                      desc="Mecz pojawia się w Otwarte mecze i może do niego dołączyć każdy. Wyłączone = prywatny, tylko przez link."
+                      checked={event.visibility === 'public'}
+                      disabled={busy}
+                      onChange={() => handleSetVisibility(event.visibility === 'public' ? 'private' : 'public')}
+                    />
+                    <SettingSwitch
+                      icon={<UserPlus className="w-4 h-4" />}
+                      title="Uczestnicy mogą dodawać gości"
+                      desc="Każdy zapisany może dopisać osobę bez konta."
+                      checked={event.allowGuestAdds}
+                      disabled={busy}
+                      onChange={handleToggleAllowGuestAdds}
+                    />
+                  </div>
+                )}
 
                 {/* Edit event details (separate form page) */}
                 <Link
@@ -4447,19 +4485,32 @@ export default function EventDetailClient() {
 
         {tab === 'sklad' && (<>
 
-        {/* ── Zaproś znajomych — tylko dla uczestników ──
+        {/* ── Zaproś — tylko dla uczestników ──
             Warunek nie zależy już od `event.joinCode`: link jest kanoniczny,
             więc panel ma sens także przy meczach sprzed migracji 041.
 
-            Sekcja miała kiedyś WŁASNY przycisk „Zaproś z grupy" nad panelem
-            linku — drugi na tej samej stronie, z inną ikoną i innym warunkiem
-            widoczności niż ten przy liczniku wolnych miejsc (`O-20` w audycie
-            ścieżki organizatora). Jedyny stały punkt imiennego zaproszenia
-            jest teraz tam, tuż pod licznikiem — tutaj zostaje wyłącznie
-            udostępnianie linku. */}
-        {!isCancelled && (myParticipation || isOwner || !!myDelegate) && (
+            JEDYNE miejsce na stronie z "Zaproś z grupy" (`onZaprosZGrupy`,
+            od 2026-09-13) — wcześniej ten sam przycisk stał osobno tuż pod
+            licznikiem wolnych miejsc (`O-20` w audycie ścieżki organizatora)
+            i osobno w karcie „Mecz gotowy"; trzy miejsca z tą samą akcją
+            i osobnym opisem każde. `!eventStarted`: po meczu nikogo się już
+            nie zaprasza. */}
+        {!isCancelled && !eventStarted && (myParticipation || isOwner || !!myDelegate) && (
           <div className="px-4">
-            <ZaprosZnajomychPanel event={event} />
+            <ZaprosZnajomychPanel
+              event={event}
+              stan={{ wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete }}
+              onZaprosZGrupy={(isOwner || canManageSquad) ? () => setInviteOpen(true) : undefined}
+              // Ten sam warunek, co dawniej w `CzyGramyPanel`: otwierać dla
+              // okolicy ma po co tylko organizator prywatnego meczu, w którym
+              // zostało jeszcze miejsce.
+              onOtworzDlaOkolicy={
+                canManageSquad && event.visibility === 'private' && freeSpots > 0
+                  ? handleOtworzDlaOkolicy
+                  : undefined
+              }
+              busy={busy}
+            />
           </div>
         )}
 
@@ -4480,9 +4531,9 @@ export default function EventDetailClient() {
 
         </>)}
 
-        {/* Dialogi — uniwersalne, poza zakładkami: wyzwalane z przycisków na
-            różnych zakładkach (np. "Zaproś z grupy" w karcie "Mecz gotowy",
-            uniwersalnej), więc same nie mogą być zamknięte w jednej z nich. */}
+        {/* Dialogi — uniwersalne, poza zakładkami: wyzwalane z przycisku
+            "Zaproś z grupy" w sekcji „Zaproś" wyżej, więc same nie
+            mogą być zamknięte razem z jedną konkretną zakładką. */}
         {inviteOpen && user && (
           <InviteFromGroupDialog
             eventId={event.id}
@@ -4561,14 +4612,15 @@ export default function EventDetailClient() {
 
         {tab === 'rozmowa' && (mozeWidziecRozmowe ? (
           <>
-            {/* BottomNav jest `fixed bottom-0` i nie rezerwuje miejsca w
-                dokumencie — bez tego zasłaniałby composer na dole rozmowy. */}
-            <HideBottomNav />
-            {/* Odstęp na pasek gestów — bez niego composer siedzi pod samą
-                kreską na dole ekranu. Przy otwartej klawiaturze pasek gestów
-                jest schowany za nią, więc ten sam odstęp zrobiłby wtedy
-                dokładnie to, czego tu unikamy: pustkę pod composerem. */}
-            <div className={`min-h-0 flex-1 px-4 ${oknoCzatu.klawiatura ? '' : 'pb-[max(0.5rem,env(safe-area-inset-bottom))]'}`}>
+            {/* Dolna nawigacja ZOSTAJE — jest `fixed bottom-0`, a wysokość
+                ekranu czatu odejmuje `--bottom-nav-h`, więc composer siada nad
+                paskiem, nie pod nim. Przy otwartej klawiaturze zmienna schodzi
+                do zera (`lib/oknoCzatu.ts`): pasek jest wtedy schowany za
+                klawiaturą, więc jego miejsce byłoby pustym pasem. Stąd też
+                brak własnego wcięcia na kreskę gestów — niesie je pasek.
+                Zostaje tylko `odstepNadPaskiem`: tyle, ile guzik „Nowy"
+                wystaje ponad pasek, i zero przy otwartej klawiaturze. */}
+            <div className={`min-h-0 flex-1 px-4 ${odstepNadPaskiem(oknoCzatu)}`}>
               <RozmowaWydarzenia eventId={event.id} klawiatura={oknoCzatu.klawiatura} />
             </div>
           </>

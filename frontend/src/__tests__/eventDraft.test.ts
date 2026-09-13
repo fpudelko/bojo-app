@@ -21,7 +21,6 @@ const VALUES: EventDraftValues = {
   reserveClaimMinutes: 180,
   title: '',
   description: '',
-  descriptionEnabled: false,
   visibility: 'public',
   requireApproval: false,
   organizerParticipates: true,

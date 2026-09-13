@@ -138,12 +138,37 @@ sprzątanie zawsze, a oryginalna przyczyna i tak wygrywa.
 
 **Raport na PR — jedna strona do obejrzenia, działa na telefonie:**
 
-`.github/podglad-zrzutow.sh` wystawia raport na technicznej gałęzi
+**Zmienione miejsca widać wprost w komentarzu do PR-a** — od 2026-09-12.
+Wcześniej komentarz niósł wyłącznie odnośnik, więc obejrzenie zmiany wymagało
+kliknięcia i wyjścia z wątku. Dziś komentarz pokazuje WYCINEK zmienionego
+miejsca („było" obok „jest") dla maksymalnie trzech widoków; reszta zostaje za
+odnośnikiem, bo przebieg z czterdziestoma zmianami dałby komentarz nie do
+przewinięcia. Obrazki idą przez `raw.githubusercontent.com` — działa, bo repo
+jest publiczne.
+
+**Gdy raportu nie da się wystawić, komentarz NIE pokazuje obrazków.** Gałąź
+`podglad-zrzutow` jest jedna, a pisze do niej każde zadanie każdego otwartego
+PR-a — przy pięciu PR-ach naraz push potrafił przegrać komplet prób i raport
+nie powstawał, a komentarz i tak obiecywał obrazki (czyli zepsute miniatury).
+Dziś prób jest sześć, z losowym odczekaniem między nimi (bez losowości wszyscy
+przegrani wracają w tej samej chwili), a po nieudanym komplecie komentarz mówi
+wprost, że raport został w artefakcie. Treści dla komentarza NIE wolno wtedy
+czyścić do zera — pusta znaczy w `komentarz-zrzutow.js` coś innego: „testy nie
+doszły do porównania, nie chodzi o wygląd".
+
+**Adres obrazka w komentarzu ma `?v=<numer przebiegu>`.** Obrazki
+w komentarzach GitHub podaje przez pośrednik (camo), który buforuje po ADRESIE,
+a ścieżka pliku jest między przebiegami identyczna
+(`pr-355/widoki-publiczne/wycinek__X__actual.png`). Bez tego dopisku kolejny
+przebieg pokazywałby obrazek z poprzedniego — komentarz kłamałby dokładnie
+tam, gdzie ma mówić prawdę.
+
+`.github/podglad-zrzutow.sh` wystawia pełny raport na technicznej gałęzi
 `podglad-zrzutow`, pod adresem `…/tree/podglad-zrzutow/pr-<numer>/<zestaw>`.
 GitHub renderuje `README.md` katalogu jako stronę, więc wchodzisz w odnośnik
-z komentarza i przewijasz obrazki. Nic nie trzeba pobierać ani odpisywać.
-Raporty **kasują się same po 7 dniach** — gałąź nie ma rosnąć w nieskończoność.
-Artefakt z raportem HTML zostaje jako droga zapasowa.
+z komentarza i przewijasz obrazki. W raporcie są dodatkowo całe strony bok
+w bok i nakładka diff. Raporty **kasują się same po 7 dniach** — gałąź nie ma
+rosnąć w nieskończoność. Artefakt z raportem HTML zostaje jako droga zapasowa.
 
 Zmieniony widok pokazuje się **jako wycinek samego zmienionego miejsca**
 (`frontend/e2e/wytnij-zmiane.js` liczy prostokąt obejmujący podświetlone piksele
@@ -210,6 +235,13 @@ merge'u"), bo każdy przebieg meldował je jako świeżą „zmianę wyglądu".
 zero pikseli. Selektor `data-*` użyty w `mask:` musi więc istnieć w `frontend/src`;
 pilnuje tego `maskiZrzutow.test.ts` (Vitest, bez przeglądarki).
 
+**Dopisując typ powiadomienia w migracji, dopisz go w `lib/ikonyPowiadomien.ts`
+i `lib/ustawieniaPowiadomien.ts`** — inaczej ląduje pod szarym dzwonkiem
+z podpisem „Powiadomienie" i nie da się go wyłączyć na telefonie. Trzy listy
+(typy wstawiane przez bazę, ikony, ustawienia push) rozjechały się już
+kilkukrotnie; pilnuje tego `typyPowiadomien.test.ts` (Vitest, czyta
+`supabase/migrations/*.sql`).
+
 **Testy klikalności (Playwright):**
 
 ```bash
@@ -247,8 +279,10 @@ i `npm run check:docs` przy każdym PR i push na master):
 ## Zanim uznasz, że funkcja nie istnieje — sprawdź flagi
 
 Najczęstsze nieporozumienie w tym repo: funkcja jest zbudowana, ale schowana.
-`SHOW_CUP`, `SHOW_GAME_ALERTS`, `SHOW_SMS_FEATURES` (`frontend/src/lib/features.ts`)
-oraz `FEATURE_RESERVATIONS` (`frontend/src/config/features.ts`) są dziś wyłączone.
+`SHOW_CUP`, `SHOW_SMS_FEATURES` (`frontend/src/lib/features.ts`) oraz
+`FEATURE_RESERVATIONS` (`frontend/src/config/features.ts`) są dziś wyłączone.
+`SHOW_GAME_ALERTS` jest **włączona** od 2026-09-12 — alert o nowym meczu w okolicy
+zakłada się przyciskiem „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów.
 `SHOW_RECURRING` jest **wyłączona** od 2026-08-16 (produktowa decyzja o rezygnacji
 z gier cyklicznych/stałych gierek) — chowa wejścia w nawigacji i przełącznik
 „Wydarzenie cykliczne" w kreatorze; istniejące serie i ich strony zarządzania

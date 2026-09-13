@@ -57,9 +57,11 @@ jobs:
             exit 1
           fi
 
+      # Wersja na sztywno, nie "latest" — patrz komentarz w wizualne.yml
+      # (rozwiązywanie "latest" przez GitHub API potrafi trafić na rate limit).
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.117.0
 
       - name: Wdróż
         env:

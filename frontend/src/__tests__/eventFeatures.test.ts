@@ -26,4 +26,17 @@ describe('opisWidocznosciWGrupie', () => {
     const opis = opisWidocznosciWGrupie('private', 'Czwartkowa Gierka', undefined);
     expect(opis).toContain('członkowie ekipy');
   });
+
+  // Orzeczenie musi iść za liczbą. `withCount` odmienia sam rzeczownik, więc
+  // przy jednoosobowej ekipie zdanie brzmiało „Zobaczą go 1 członek ekipy" —
+  // a kreator pokazuje je właśnie przy świeżo założonej, czyli najmniejszej.
+  it('dopasowuje orzeczenie do jednego członka ekipy', () => {
+    expect(opisWidocznosciWGrupie('private', 'Czwartkowa Gierka', 1))
+      .toContain('Zobaczy go 1 członek ekipy');
+  });
+
+  it('zostawia liczbę mnogą przy większej ekipie', () => {
+    expect(opisWidocznosciWGrupie('private', 'Czwartkowa Gierka', 3))
+      .toContain('Zobaczą go 3 członkowie ekipy');
+  });
 });

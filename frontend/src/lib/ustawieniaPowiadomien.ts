@@ -63,6 +63,15 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     wazne: true,
   },
   {
+    // Trwałe usunięcie meczu (`116`), nie odwołanie — organizator skasował
+    // mecz, nie zostaje po nim nawet strona z informacją „odwołany". Ta sama
+    // rodzina co para wyżej: coś unieważnia Twoje plany na ten wieczór.
+    typ: 'mecz_usuniety',
+    nazwa: 'Mecz usunięty',
+    opis: 'Organizator skasował mecz — nie zostaje po nim żaden ślad w Bojo',
+    wazne: true,
+  },
+  {
     // DWA TYPY, KTÓRYCH TU NIE BYŁO, choć realnie przychodzą od migracji `065`
     // i `114` — czyli nie dało się ich wyłączyć nawet dla pusha, a od `140`
     // chodzą także pocztą. Stoją przy odwołaniu, bo to ta sama rodzina:
@@ -76,6 +85,15 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     typ: 'zmiana_warunkow_meczu',
     nazwa: 'Zmiana miejsca lub kosztu',
     opis: 'Mecz przeniesiony na inne boisko albo zmieniona cena od osoby',
+    wazne: true,
+  },
+  {
+    // Organizator (albo delegat) usunął Cię ze składu (`113`) — dokładnie ta
+    // sama waga co zmiana terminu: musisz wiedzieć, że w tym meczu już nie
+    // grasz, żeby zdążyć poszukać czegoś innego.
+    typ: 'usuniety_ze_skladu',
+    nazwa: 'Usunięto Cię ze składu',
+    opis: 'Organizator albo delegat wypisał Cię z meczu',
     wazne: true,
   },
   {
@@ -97,6 +115,28 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     wazne: true,
   },
   {
+    // Odpowiedź na prośbę wyżej — dwie strony tej samej sprawy, więc stoją
+    // obok siebie. Ani jedna, ani druga nie wymaga już żadnej decyzji (ta
+    // zapadła), stąd bez `wazne`.
+    typ: 'zapis_zaakceptowany',
+    nazwa: 'Zapis przyjęty',
+    opis: 'Organizator zaakceptował Twoją prośbę o dołączenie',
+  },
+  {
+    typ: 'prosba_odrzucona',
+    nazwa: 'Prośba odrzucona',
+    opis: 'Organizator nie przyjął Twojej prośby o dołączenie',
+  },
+  {
+    // Konto założone po zapisie bez konta (`084`) — token przejęcia wpisu
+    // gościa ma termin ważności, więc zwłoka kosztuje utracony skład i
+    // historię. Ten sam poziom pilności co prośba o dołączenie wyżej.
+    typ: 'niepotwierdzony_wpis_goscia',
+    nazwa: 'Potwierdź swój zapis',
+    opis: 'Masz niepotwierdzony wpis na mecz sprzed założenia konta',
+    wazne: true,
+  },
+  {
     // Migracja `129`. Pierwsze powiadomienie w Bojo, które powstaje SAMO,
     // z zegara — reszta jest reakcją na czyjeś kliknięcie. Dla organizatora
     // niesie dodatkowo liczbę brakujących osób, bo dzień wcześniej to ostatni
@@ -112,6 +152,36 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     opis: 'Dostaje organizator dzień po meczu i tylko wtedy, gdy zostało coś do domknięcia',
   },
   {
+    // Próg „gra się odbędzie" (`097`, `SHOW_MIN_PLAYERS_THRESHOLD`) — flaga
+    // dziś wyłączona, ale mecze założone przed jej wyłączeniem mogą mieć próg
+    // ustawiony, więc te dwa typy wciąż realnie wychodzą do CAŁEGO składu,
+    // nie tylko organizatora. „Zagrożona" jest `wazne`, bo to jest dokładnie
+    // ta sama rodzina co zmiana terminu — plan na wieczór staje pod znakiem
+    // zapytania; „potwierdzona" jest samą dobrą wiadomością, więc nie.
+    typ: 'gra_zagrozona',
+    nazwa: 'Gra zagrożona',
+    opis: 'Skład spadł poniżej minimum — mecz może się nie odbyć',
+    wazne: true,
+  },
+  {
+    typ: 'gra_potwierdzona',
+    nazwa: 'Gramy',
+    opis: 'Skład przekroczył minimum — mecz jest pewny',
+  },
+  {
+    // Stan składu — ta sama rodzina co przypomnienie i „po meczu": Bojo mówi
+    // organizatorowi, gdzie stoi jego mecz, bez czyjegoś kliknięcia jako
+    // powodu (migracja `079`).
+    typ: 'komplet_skladu',
+    nazwa: 'Komplet',
+    opis: 'Skład Twojego meczu jest pełny',
+  },
+  {
+    typ: 'zwolnilo_sie_miejsce',
+    nazwa: 'Zwolniło się miejsce',
+    opis: 'Ktoś wypisał się z Twojego meczu — skład przestał być pełny',
+  },
+  {
     typ: 'sklady_opublikowane',
     nazwa: 'Są składy',
     opis: 'Organizator opublikował podział na drużyny',
@@ -120,6 +190,13 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     typ: 'nowy_mecz_w_grupie',
     nazwa: 'Nowy mecz w ekipie',
     opis: 'Ktoś z Twojej ekipy założył mecz',
+  },
+  {
+    // Gry cykliczne (`SHOW_RECURRING`) — flaga dziś wyłączona, ale istniejące
+    // serie i ich powiadomienia (`073`) zostają w kodzie nietknięte.
+    typ: 'nowy_termin_serii',
+    nazwa: 'Nowy termin w serii',
+    opis: 'Powstał kolejny termin Twojej cyklicznej gierki',
   },
   {
     typ: 'wiadomosc_w_meczu',
@@ -135,6 +212,13 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     typ: 'ogloszenie_w_grupie',
     nazwa: 'Ogłoszenia ekipy',
     opis: 'Przypięty wpis, czyli coś, co kapitan uznał za ważne',
+  },
+  {
+    // Nudge o profilu (`070`/`086`), nie o konkretnym meczu — jedyny typ na
+    // liście, który nie dotyczy żadnego wydarzenia.
+    typ: 'uzupelnij_profil',
+    nazwa: 'Uzupełnij profil',
+    opis: 'Konto bez imienia i nazwiska — gracze widzą Cię pod adresem e-mail',
   },
 ];
 

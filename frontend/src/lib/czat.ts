@@ -66,3 +66,21 @@ export function koniecGrupyWiadomosci(
   if (etykietaDniaCzatu(nastepna.createdAt) !== etykietaDniaCzatu(biezaca.createdAt)) return true;
   return !taSamaGrupaWiadomosci(biezaca, nastepna);
 }
+
+/**
+ * Props dla guzika „Wyślij" (i każdego innego, który stoi obok pola pisania).
+ *
+ * PO CO. Dotknięcie zwykłego `<button>` zabiera skupienie polu tekstowemu:
+ * klawiatura się chowa, ekran czatu natychmiast rośnie do pełnej wysokości —
+ * i guzik ucieka spod palca, ZANIM zdąży dojść `click`. Z zewnątrz wygląda to
+ * tak, że pierwsze dotknięcie tylko chowa klawiaturę, a wysłać da się dopiero
+ * za drugim razem (zgłoszone wprost).
+ *
+ * `preventDefault()` na `mousedown` blokuje wyłącznie przeniesienie skupienia
+ * — skupienie zostaje w polu, klawiatura zostaje na ekranie, layout się nie
+ * rusza, a `click` dochodzi normalnie. Na dotyku działa tak samo, bo to
+ * zgodnościowe `mousedown` niesie tam domyślną akcję zmiany skupienia.
+ */
+export const bezZabieraniaSkupienia = {
+  onMouseDown: (e: { preventDefault: () => void }) => e.preventDefault(),
+} as const;

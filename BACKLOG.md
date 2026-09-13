@@ -75,8 +75,14 @@ wobec postu na grupie jest SKUTEK, nie kanał. Uzasadnienie zapisane przy samej 
 żeby nie wracało.
 
 Świadomie poza zakresem audytu i tych rund: trzeci poziom widoczności (§1.1),
-odmrażanie flag (§2), cron dla wygasania oferty zwolnionego miejsca, domknięcie RLS
-na `events` (patrz §5 niżej).
+odmrażanie flag (§2), domknięcie RLS na `events` (patrz §5 niżej).
+
+**Cron dla wygasania oferty zwolnionego miejsca — ZAMKNIĘTE (2026-09-12,
+migracja `143`).** Szósta runda audytu (ustalenie `S-1` w
+[docs/przeplyw-organizatora.md § Faza 12](./docs/przeplyw-organizatora.md)) —
+`sync_reserve_claim()` czekało na czyjeś kliknięcie, więc wygasła oferta
+potrafiła stać w nieskończoność, gdy nikt nie otworzył strony meczu. Zadanie
+`bojo-kolejka-rezerwy` co 15 minut woła istniejącą funkcję za nikogo.
 
 **Zdjęte z tej listy po czwartej rundzie (2026-09-08, `P-1`…`P-11`
 w [audycie](./docs/przeplyw-organizatora.md#faza-10--czwarta-runda-audytu-2026-09-08)):**
@@ -181,7 +187,7 @@ Jedno miejsce, jeden przełącznik. Pełna tabela z miejscami użycia →
 | Flaga | Co chowa | Dlaczego schowane |
 |---|---|---|
 | `SHOW_CUP` | Turniej BOJO Cup — pasek ogłoszeń, TrustBar, link w nagłówku | Brak gotowego turnieju; nie obiecywać na zapas |
-| `SHOW_GAME_ALERTS` | „Ustaw alert" o pasującej grze w okolicy | Historycznie: brak kanału dostarczania. **Powód nieaktualny** — kanał istnieje (§3), do ponownej decyzji |
+| ~~`SHOW_GAME_ALERTS`~~ | — | **WŁĄCZONA 2026-09-12.** Powód wyłączenia (brak kanału) zniknął — kanał istnieje (§3). Wejście: „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów |
 | `SHOW_SMS_FEATURES` | Potwierdzenie SMS + przypomnienia | Brak podpiętej bramki SMS |
 | `SHOW_RECURRING` | Gry cykliczne | Skupienie na meczach jednorazowych — patrz §1.3 |
 | `FEATURE_RESERVATIONS` | Rezerwacje obiektów, panel menedżera | Brak partnerstw z obiektami. Można włączyć per obiekt przez `fields.booking_enabled` |
@@ -219,13 +225,15 @@ funkcji). Cztery kroki do włączenia: `supabase/functions/powiadom-goscia/READM
 ## 4. Zbudowane, nieużywane, martwy kod
 
 - **`components/home/NearbyGames.tsx`** — kompletny komponent „gry w pobliżu + alert",
-  nigdzie nie renderowany. Do decyzji: wpiąć (po włączeniu alertów) albo usunąć.
+  nigdzie nie renderowany. Alerty są już włączone (§2), ale wejście do nich zrobiliśmy
+  w pustym stanie listy meczów, nie tutaj. Do decyzji: wpiąć na stronę główną albo usunąć.
 - **`components/map/{MapView,LeafletMapImpl,EventsMapView,EventsMapImpl}.tsx`** — nic
   ich nie importuje. Aktywna mapa to `VenueExplorer.tsx`.
 - **Tabela `games`** (`001`) — zastąpiona przez `events` (`002`), żaden kod jej nie używa.
 - **`/gracze`** — trasa istnieje, ale to `redirect('/wydarzenia')`. Albo zbudować listę
   graczy, albo usunąć trasę.
-- **`RemindersSection` / `AlertSetupDialog`** — renderowane tylko za flagami z §2.
+- **`RemindersSection`** — renderowany tylko za flagą `SHOW_SMS_FEATURES` z §2.
+  `AlertSetupDialog` od 2026-09-12 renderuje się realnie (pusty stan `/wydarzenia`).
 
 ---
 

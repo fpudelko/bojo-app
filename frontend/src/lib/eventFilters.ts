@@ -196,3 +196,46 @@ export function swipeEventId(rows: EventRow[], currentId: string, direction: 1 |
   const next = (idx + direction + rows.length) % rows.length;
   return rows[next].event.id;
 }
+
+/**
+ * Zawężenia trybu gier na `/mapa`, które NIE zależą od punktu odniesienia:
+ * sport, „tylko z wolnymi miejscami", „tylko za darmo" i fraza szukania.
+ *
+ * Wyniesione z `VenueExplorer` po błędzie zgłoszonym wprost: podgląd
+ * „Pokaż N meczy" w arkuszu filtrów liczył po wartościach ZASTOSOWANYCH,
+ * a nie po szkicu, więc klikanie sportu nie ruszało licznika ani o jeden
+ * mecz. Poprawka polega na wywołaniu tej samej funkcji dwa razy — raz dla
+ * wyniku, raz dla podglądu — a funkcja w komponencie nie dałaby się
+ * przetestować bez renderowania mapy z Leafletem.
+ *
+ * `piłka nożna` łapie też `futsal` — w interfejsie to odmiana tego samego
+ * sportu, tak samo jak w filtrach na `/wydarzenia`.
+ */
+export function filtrujGryMapy(events: EventItem[], zawezenia: {
+  sporty: string[];
+  tylkoWolne: boolean;
+  tylkoZaDarmo: boolean;
+  szukaj: string;
+}): EventItem[] {
+  let list = events;
+  if (zawezenia.sporty.length > 0) {
+    const chciane = zawezenia.sporty.includes('piłka nożna')
+      ? [...zawezenia.sporty, 'futsal']
+      : zawezenia.sporty;
+    list = list.filter((e) => chciane.includes(e.sport));
+  }
+  if (zawezenia.tylkoWolne) {
+    list = list.filter((e) => (e.participantsCount ?? 0) < (e.maxPlayers ?? 0));
+  }
+  if (zawezenia.tylkoZaDarmo) {
+    list = list.filter((e) => (e.costGrosze ?? 0) <= 0);
+  }
+  const q = zawezenia.szukaj.trim().toLowerCase();
+  if (q) {
+    list = list.filter((e) =>
+      e.title?.toLowerCase().includes(q) ||
+      e.fieldName.toLowerCase().includes(q) ||
+      e.district?.toLowerCase().includes(q));
+  }
+  return list;
+}

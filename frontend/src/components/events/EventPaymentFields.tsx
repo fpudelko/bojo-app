@@ -5,12 +5,23 @@ import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, SPORTS_CARD_PROVIDERS, SPORTS_C
 import type { PaymentMethod, SportsCardProvider } from '@/types';
 
 /**
- * Metody płatności + numer BLIK + zniżka z kartą sportową — pokazywane, gdy
- * mecz w ogóle coś kosztuje (`costPln > 0`). Wspólne dla kreatora
- * (`wydarzenia/nowe`) i edycji wydarzenia — dawniej wklejone osobno w obu
- * plikach, przez co notatka o widoczności numeru BLIK ("godzinę przed
- * meczem", patrz `lib/payments.ts#canSeeBlikPhone`) istniała tylko w
- * kreatorze, nie w edycji.
+ * Metody płatności + numer BLIK + zniżka z kartą sportową. Wspólne dla
+ * kreatora (`wydarzenia/nowe`) i edycji wydarzenia — dawniej wklejone osobno
+ * w obu plikach, przez co notatka o widoczności numeru BLIK ("godzinę przed
+ * meczem", patrz `lib/payments.ts#canSeeBlikPhone`) istniała tylko
+ * w kreatorze, nie w edycji.
+ *
+ * KIEDY WIDAĆ — dwa różne ekrany, dwie różne odpowiedzi:
+ *
+ * - KREATOR podaje `zawszeWidoczne`, bo cała sekcja siedzi już wewnątrz
+ *   przełącznika „Mecz płatny". Bramka `costPln > 0` znaczyła tam, że blok
+ *   „Jak można zapłacić?" WSKAKUJE W TRAKCIE WPISYWANIA KWOTY i przesuwa
+ *   layout pod kciukiem — przy otwartej klawiaturze numerycznej to jest
+ *   skok w połowie ruchu. Skoro przełącznik już powiedział „płatny", pytanie
+ *   „czym?" nie ma na co czekać. Zgłoszone wprost 2026-09-13.
+ * - EDYCJA nie ma takiego przełącznika: pole kosztu stoi tam zawsze, a „0"
+ *   znaczy mecz darmowy. Tam bramka na kwocie zostaje, bo inaczej darmowy
+ *   mecz pytałby o BLIK-a.
  */
 export default function EventPaymentFields({
   costPln,
@@ -22,6 +33,7 @@ export default function EventPaymentFields({
   acceptedSportsCards, setAcceptedSportsCards,
   sportsCardOtherName, setSportsCardOtherName,
   inputCls,
+  zawszeWidoczne = false,
 }: {
   costPln: string;
   acceptedPaymentMethods: PaymentMethod[];
@@ -39,8 +51,10 @@ export default function EventPaymentFields({
   sportsCardOtherName: string;
   setSportsCardOtherName: (v: string) => void;
   inputCls: string;
+  /** Kreator: sekcja stoi już pod przełącznikiem „Mecz płatny". */
+  zawszeWidoczne?: boolean;
 }) {
-  if (!(parseFloat(costPln || '0') > 0)) return null;
+  if (!zawszeWidoczne && !(parseFloat(costPln || '0') > 0)) return null;
 
   return (
     <div className="space-y-4 rounded-xl border border-slate-200 p-4">

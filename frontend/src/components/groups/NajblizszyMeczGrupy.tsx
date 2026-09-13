@@ -8,7 +8,6 @@ import { pl } from 'date-fns/locale';
 import { CalendarPlus, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
-import ZaprosZnajomychPanel from '@/components/events/ZaprosZnajomychPanel';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { repeatEvent } from '@/lib/events';
@@ -53,7 +52,12 @@ export default function NajblizszyMeczGrupy({
         true, false, ostatni.endTime?.slice(0, 5),
       );
       toast('Nowy termin utworzony — cała ekipa dostanie powiadomienie w aplikacji.');
-      router.push(`/wydarzenia/${newId}`);
+      // `?utworzono=1` — panel „Mecz gotowy — wyślij link", tak samo jak po
+      // kreatorze (audyt 2026-09-12, ustalenie `S-6`). Ekipa dostaje
+      // powiadomienie w aplikacji, ale goście bez konta i osoby spoza grupy
+      // nadal potrzebują linku, a to jest moment, w którym organizator ma go
+      // wysłać.
+      router.push(`/wydarzenia/${newId}?utworzono=1`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
       setBusy(false);
@@ -65,13 +69,16 @@ export default function NajblizszyMeczGrupy({
       <section>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700">Najbliższy mecz</p>
         <EventBrowseCard event={upcoming} relation={relation} unreadMessages={unreadMessages} isNew={isNew} />
-        {/* Ten sam panel co w widoku meczu, nie własny przycisk „Udostępnij
-            mecz". Poprzednia wersja robiła połowę tego samego: otwierała
-            systemowe okno wyboru aplikacji i na tym kończyła, więc kto je
-            zamknął, zostawał z niczym. Kopiowanie linku działa zawsze. */}
-        <div className="mt-2">
-          <ZaprosZnajomychPanel event={upcoming} />
-        </div>
+        {/* KARTY „Zaproś" TU NIE MA — zdjęta 2026-09-13, zgłoszone wprost.
+            Na jednym ekranie ekipy stały trzy wejścia do zapraszania: „Zaproś"
+            w nagłówku, belka „Zaproś do ekipy" nad Składem i ta karta. Dwa
+            pierwsze wołają do EKIPY, ta jedna udostępniała LINK DO MECZU —
+            różnica, której z układu nie dało się odczytać, więc karta czytała
+            się jak trzecia kopia tego samego.
+
+            Świadoma strata: link do najbliższego meczu bierze się teraz przez
+            wejście w mecz (panel „Zaproś" stoi tam nietknięty) — jeden tap
+            więcej za ekran, na którym widać, co się właściwie udostępnia. */}
       </section>
     );
   }

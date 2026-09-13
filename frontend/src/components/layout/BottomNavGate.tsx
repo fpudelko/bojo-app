@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useBottomNavHidden } from '@/lib/bottomNavVisibility';
 import { useJestWidget } from '@/lib/widget';
+import { useZnacznikKlawiatury } from '@/lib/oknoCzatu';
 import BottomNav from './BottomNav';
 
 /**
@@ -31,6 +32,13 @@ export default function BottomNavGate() {
   // NIE wchodzi tutaj — patrz niżej, dlaczego.
   const dostepny = !loading && !!user && !jestWidget;
   const visible = dostepny && !hidden;
+
+  // Otwarta klawiatura ekranowa chowa pasek — na Androidzie robi to sama
+  // (zakrywa go), na iOS musimy my, bo Safari podnosi elementy `fixed` NAD
+  // klawiaturę i pasek lądował na środku ekranu, na polu do pisania. Znacznik
+  // na `<html>`, resztę robi `globals.css`; śledzimy tylko wtedy, gdy pasek
+  // w ogóle istnieje.
+  useZnacznikKlawiatury(visible);
 
   // Zaznaczamy obecność paska na <html>, żeby CSS mógł odjąć jego wysokość od
   // pełnego ekranu (--bottom-nav-h w globals.css). Element-dystans tego nie

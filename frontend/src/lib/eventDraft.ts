@@ -42,7 +42,6 @@ export interface EventDraftValues {
   reserveEnabled?: boolean;
   title: string;
   description: string;
-  descriptionEnabled: boolean;
   visibility: Visibility;
   requireApproval: boolean;
   organizerParticipates: boolean;

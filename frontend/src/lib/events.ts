@@ -6,6 +6,28 @@ import { track } from './analytics';
 import { zaktualizujJedenWiersz } from './zapytania';
 import type { EventCreate, EventItem, EventParticipant, Visibility, EventStatus, PaymentMethod, SportsCardProvider } from '@/types';
 
+/**
+ * Ile czasu ma rezerwowy na odebranie zwolnionego miejsca — wartość, z jaką
+ * zakłada się NOWY mecz. Było 180 (3 h), jest 60 (1 h) — decyzja właściciela
+ * 2026-09-13.
+ *
+ * Koszt tej zmiany jest realny i świadomy: AWANSU AUTOMATYCZNEGO Z REZERWY
+ * NIE MA (patrz AGENTS.md), więc oferta wysłana wieczorem przy oknie
+ * godzinnym wygasa, zanim ktokolwiek spojrzy w telefon, i miejsce zostaje
+ * puste do rana. Przy trzech godzinach nocna oferta dożywała poranka.
+ * W zamian: mecz nazajutrz w południe nie trzyma miejsca zablokowanego przez
+ * pół dnia u kogoś, kto już nie odpowie. Okno jest polem w kreatorze
+ * (`PRESETY_REZERWY` od 30 min do doby), więc organizator, któremu to nie
+ * pasuje, zmienia je w jednym kliknięciu.
+ *
+ * Dotyczy WYŁĄCZNIE nowo zakładanych meczów. Istniejące trzymają swoją
+ * wartość w kolumnie, a `DEFAULT 180` w bazie (migracja `118`) zostaje
+ * nietknięty — aplikacja i tak wysyła tę kolumnę przy każdym zapisie, więc
+ * migracja tylko po to, żeby zrównać liczby, byłaby ręcznym puszczaniem SQL-a
+ * na produkcji bez żadnej zmiany zachowania.
+ */
+export const DOMYSLNE_MINUTY_REZERWY = 60;
+
 // ---------------------------------------------------------------------------
 // Row mappers
 // ---------------------------------------------------------------------------
@@ -72,6 +94,11 @@ export function toEvent(row: any): EventItem {
     maxGoalkeepers: row.max_goalkeepers ?? 2,
     goalkeeperSlotsReserved: row.goalkeeper_slots_reserved ?? true,
     goalkeepersEnabled: row.goalkeepers_enabled ?? false,
+    // CZYTANIE zostaje na 180, mimo że nowe mecze zakładają się z 60
+    // (`DOMYSLNE_MINUTY_REZERWY`): to jest zapas dla wierszy sprzed migracji
+    // `118` i dla kolumny z DEFAULT 180 w bazie. Podmiana tej liczby skróciłaby
+    // okno meczom, które ZOSTAŁY JUŻ ZAŁOŻONE z trzema godzinami — a tego nikt
+    // nie prosił i nikt by nie zauważył, dopóki komuś nie przepadłoby miejsce.
     reserveClaimMinutes: row.reserve_claim_minutes ?? 180,
     // `?? true` nie jest ostrożnością: kolumna doszła w `123` i mecze
     // sprzed migracji mają zachowywać się dokładnie jak dotąd.
@@ -234,7 +261,7 @@ export async function createEvent(
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
-      reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
+      reserve_claim_minutes: data.reserveClaimMinutes ?? DOMYSLNE_MINUTY_REZERWY,
       reserve_enabled: data.reserveEnabled ?? true,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       accepted_sports_cards: data.acceptedSportsCards ?? [],
@@ -355,7 +382,7 @@ export async function updateEvent(
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
-      reserve_claim_minutes: data.reserveClaimMinutes ?? 180,
+      reserve_claim_minutes: data.reserveClaimMinutes ?? DOMYSLNE_MINUTY_REZERWY,
       reserve_enabled: data.reserveEnabled ?? true,
       accepted_payment_methods: data.acceptedPaymentMethods ?? [],
       accepted_sports_cards: data.acceptedSportsCards ?? [],
@@ -1330,6 +1357,28 @@ export async function restoreEvent(
   }
 }
 
+/** Pola, których powtórka NIE bierze ze źródła — podaje je wywołujący. */
+type PolaWlasnePowtorki = 'date' | 'time' | 'endTime';
+
+/**
+ * Każde pozostałe pole `EventCreate` MUSI zostać tu wymienione — `-?` zdejmuje
+ * opcjonalność klucza (wolno mu być `undefined`, ale nie wolno go POMINĄĆ),
+ * więc dodanie kolumny do `EventCreate` bez dopisania jej niżej w `repeatEvent`
+ * przestaje się kompilować, zamiast po cichu gubić ustawienie.
+ *
+ * DLACZEGO TAK, A NIE LISTA PÓL DO PILNOWANIA. `repeatEvent` zgubiło już
+ * `groupId`, `minPlayers`, `endTime` i `recurringEventId` — każde naprawiane
+ * osobno, po fakcie, bo ręczna lista nie umie się zepsuć głośno. Audyt
+ * 2026-09-12 (ustalenie `S-2`) znalazł piąty, szósty i siódmy przypadek tej
+ * samej rodziny: `requireApproval`, `reserveEnabled`, `goalkeeperSlotsReserved`
+ * — mecz z wymaganą akceptacją zapisów wracał po powtórce OTWARTY, bo
+ * przełącznik po prostu nie był przepisywany. Typ, który wymusza wymienienie
+ * każdego pola, jest jedynym sposobem, żeby ta klasa błędu przestała wracać.
+ */
+type ZrodloPowtorki = {
+  [K in Exclude<keyof EventCreate, PolaWlasnePowtorki>]-?: EventCreate[K]
+};
+
 export async function repeatEvent(
   source: EventItem,
   newDate: string,
@@ -1340,15 +1389,54 @@ export async function repeatEvent(
   organizerIsGoalkeeper = false,
   newEndTime?: string,
 ): Promise<string> {
+  const zZrodla: ZrodloPowtorki = {
+    sport: source.sport,
+    fieldId: source.fieldId,
+    fieldName: source.fieldName,
+    lat: source.lat,
+    lng: source.lng,
+    title: source.title,
+    description: source.description,
+    maxPlayers: source.maxPlayers,
+    minPlayers: source.minPlayers,
+    visibility: source.visibility,
+    requireSmsConfirmation: source.requireSmsConfirmation,
+    teamMode: source.teamMode,
+    trackPayments: source.trackPayments,
+    showPaymentStatus: source.showPaymentStatus,
+    trackResults: source.trackResults,
+    confirmationDeadlineH: source.confirmationDeadlineH,
+    costGrosze: source.costGrosze,
+    // Świadome zapisy organizatora o TYM, KTO WCHODZI — dotąd gubione po
+    // cichu, więc mecz z akceptacją zapisów albo z wyłączoną rezerwą wracał
+    // po powtórce jako zwykły, otwarty mecz (`S-2`).
+    requireApproval: source.requireApproval,
+    reserveEnabled: source.reserveEnabled,
+    goalkeeperSlotsReserved: source.goalkeeperSlotsReserved,
+    maxGoalkeepers: source.maxGoalkeepers,
+    goalkeepersEnabled: source.goalkeepersEnabled,
+    reserveClaimMinutes: source.reserveClaimMinutes,
+    acceptedPaymentMethods: source.acceptedPaymentMethods,
+    blikPhone: source.blikPhone,
+    acceptedSportsCards: source.acceptedSportsCards,
+    sportsCardDiscountGrosze: source.sportsCardDiscountGrosze,
+    sportsCardOtherName: source.sportsCardOtherName,
+    customLocationName: source.customLocationName,
+    customAddress: source.customAddress,
+    // Powtórka meczu z serii ZOSTAJE w serii — inaczej „Powtórz mecz" po cichu
+    // wypinałoby termin ze stałej gierki i psuło zarówno edycję zbiorczą, jak
+    // i dziedziczenie ustawień przez kolejne terminy. Powtórka zwykłego meczu
+    // pozostaje zwykłym meczem (`undefined`).
+    recurringEventId: source.recurringEventId,
+    // Powtórka meczu grupy ZOSTAJE w grupie — bez tego „Powtórz mecz" po cichu
+    // wypinało termin z ekipy, i cotygodniowa gierka rozjeżdżała się z listą
+    // meczów grupy po pierwszej powtórce.
+    groupId: source.groupId,
+  };
+
   return createEvent(
     {
-      sport: source.sport,
-      fieldId: source.fieldId,
-      fieldName: source.fieldName,
-      lat: source.lat,
-      lng: source.lng,
-      title: source.title,
-      description: source.description,
+      ...zZrodla,
       date: newDate,
       time: newTime,
       // Bez `newEndTime` kopiowalibyśmy zegarową wartość źródłowego końca
@@ -1357,35 +1445,6 @@ export async function repeatEvent(
       // nowy koniec z zachowaniem oryginalnej długości (patrz modal "Powtórz
       // mecz" w `EventDetailClient.tsx`).
       endTime: newEndTime ?? source.endTime,
-      maxPlayers: source.maxPlayers,
-      minPlayers: source.minPlayers,
-      visibility: source.visibility,
-      requireSmsConfirmation: source.requireSmsConfirmation,
-      teamMode: source.teamMode,
-      trackPayments: source.trackPayments,
-      showPaymentStatus: source.showPaymentStatus,
-      trackResults: source.trackResults,
-      confirmationDeadlineH: source.confirmationDeadlineH,
-      costGrosze: source.costGrosze,
-      maxGoalkeepers: source.maxGoalkeepers,
-      goalkeepersEnabled: source.goalkeepersEnabled,
-      reserveClaimMinutes: source.reserveClaimMinutes,
-      acceptedPaymentMethods: source.acceptedPaymentMethods,
-      blikPhone: source.blikPhone,
-      acceptedSportsCards: source.acceptedSportsCards,
-      sportsCardDiscountGrosze: source.sportsCardDiscountGrosze,
-      sportsCardOtherName: source.sportsCardOtherName,
-      customLocationName: source.customLocationName,
-      customAddress: source.customAddress,
-      // Powtórka meczu z serii ZOSTAJE w serii — inaczej „Powtórz mecz" po cichu
-      // wypinałoby termin ze stałej gierki i psuło zarówno edycję zbiorczą, jak
-      // i dziedziczenie ustawień przez kolejne terminy. Powtórka zwykłego meczu
-      // pozostaje zwykłym meczem (`undefined`).
-      recurringEventId: source.recurringEventId,
-      // Powtórka meczu grupy ZOSTAJE w grupie — bez tego „Powtórz mecz" po cichu
-      // wypinało termin z ekipy, i cotygodniowa gierka rozjeżdżała się z listą
-      // meczów grupy po pierwszej powtórce.
-      groupId: source.groupId,
     },
     organizerId,
     organizerName,

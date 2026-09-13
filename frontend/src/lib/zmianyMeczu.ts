@@ -342,3 +342,38 @@ export function konsekwencjeZapisu(
 
   return zdania;
 }
+
+/**
+ * Konsekwencje odwołania meczu — ten sam podział na kanały co
+ * `konsekwencjeZapisu()`, bo odwołanie kosztuje ludzi wyjazd na boisko i nie
+ * może wiedzieć MNIEJ niż zmiana godziny o kwadrans.
+ *
+ * PO CO OSOBNA FUNKCJA, NIE `konsekwencjeZapisu()` Z INNYMI ARGUMENTAMI.
+ * Odwołanie zawsze powiadamia (nie ma stanu „cisza" jak przy zapisie bez
+ * zmian) i nie zna `nadLimitem` — to dwie różne rzeczy, których mieszanie
+ * jednym parametrem `powiadamia: boolean` byłoby czytelniejsze jako dwie
+ * funkcje niż jedna z dodatkowym przełącznikiem.
+ *
+ * DLACZEGO TO ZASTĘPUJE RĘCZNE LICZENIE W `EventDetailClient.tsx`. Okno
+ * odwołania liczyło odbiorców po swojemu — `[...regulars, ...reserves]`
+ * (pomija obserwujących i czekających na akceptację, których wyzwalacz `070`
+ * i tak powiadamia) i mówiło „dostanie e-mail, JEŚLI podała adres", choć
+ * `ma_guest_email` (migracja `137`) niesie dokładną odpowiedź. Audyt
+ * 2026-09-12, ustalenie `S-4`.
+ */
+export function konsekwencjeOdwolania(komu: KomuDojdzie): string[] {
+  const zdania: string[] = [];
+
+  zdania.push(komu.zKontem > 0
+    ? `${withCount(komu.zKontem, 'osoba', 'osoby', 'osób')} z kontem dostanie powiadomienie w Bojo (i na telefon, jeśli je włączyła).`
+    : 'Nikt w składzie nie ma konta, więc powiadomienie w Bojo nie ma do kogo pójść.');
+
+  if (komu.gosciezAdresem > 0) {
+    zdania.push(`${withCount(komu.gosciezAdresem, 'gość', 'gości', 'gości')} bez konta dostanie e-mail.`);
+  }
+  if (komu.gosciebezAdresu > 0) {
+    zdania.push(`${withCount(komu.gosciebezAdresu, 'osoba', 'osoby', 'osób')} bez konta nie podała adresu — powiadom ją sam.`);
+  }
+
+  return zdania;
+}

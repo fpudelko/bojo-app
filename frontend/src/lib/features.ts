@@ -8,11 +8,21 @@
 export const SHOW_CUP = false;
 
 /**
- * Game alerts — "Ustaw alert" so users get pinged when a matching game is
- * created nearby. Hidden until we have a real delivery channel (SMS/email/push);
- * showing it now would over-promise. Code lives in lib/alerts.ts + AlertSetupDialog.
+ * Game alerts — "Powiadom mnie, gdy się pojawi": a saved sport + place + radius
+ * (`game_alerts`, migration `025`), matched on every new event by the
+ * `notify-game-alert` edge function. Code: lib/alerts.ts + AlertSetupDialog.
+ *
+ * WŁĄCZONA 2026-09-12. Była wyłączona, bo „nie ma czym dostarczyć" — ten powód
+ * zniknął: mail (Resend) i web-push działają na produkcji, a funkcja
+ * `notify-game-alert` jest wołana przy każdym nowym meczu (`lib/events.ts`).
+ * Zostawała wyłączona wyłącznie siłą rozpędu; BACKLOG §2 opisywał ją jako
+ * „powód nieaktualny, do ponownej decyzji" — to jest ta decyzja.
+ *
+ * Wejście jest dziś jedno: pusta lista na `/wydarzenia`, czyli moment,
+ * w którym człowiek właśnie powiedział filtrami, czego szuka, i usłyszał
+ * „nie ma".
  */
-export const SHOW_GAME_ALERTS = false;
+export const SHOW_GAME_ALERTS = true;
 
 /**
  * SMS-based features — "Potwierdzenie SMS" on events and scheduled SMS/email

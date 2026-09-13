@@ -504,11 +504,14 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
     // zmienna --bottom-nav-h w globals.css; jej wartość musi się zgadzać
     // z `h-14` niżej.
     <nav
-      // `data-pasek-dolny` istnieje WYŁĄCZNIE dla regresji wizualnej:
-      // `scenariusze.spec.ts` chowa tym selektorem wszystko, co przykleja się
-      // do dołu ekranu, zanim zrobi zrzut kafelka. Powód w `ukryjPaskiDolne()`
-      // tamże — w skrócie: pływający pasek wchodzi w zrzut elementu i zasłania
-      // go za każdym razem inaczej.
+      // `data-pasek-dolny` ma dziś dwóch odbiorców. Pierwszy: regresja
+      // wizualna — `scenariusze.spec.ts` chowa tym selektorem wszystko, co
+      // przykleja się do dołu ekranu, zanim zrobi zrzut kafelka (powód
+      // w `ukryjPaskiDolne()` tamże: pływający pasek wchodzi w zrzut elementu
+      // i zasłania go za każdym razem inaczej). Drugi: `globals.css` chowa tym
+      // samym selektorem pasek na czas otwartej klawiatury ekranowej — na iOS
+      // Safari podnosi elementy `fixed` NAD klawiaturę, więc pasek lądował na
+      // środku ekranu, na polu do pisania.
       data-pasek-dolny
       className={clsx(
         'fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-sm border-t border-slate-200/70',

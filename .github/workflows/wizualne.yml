@@ -225,9 +225,13 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # Wersja na sztywno, nie "latest": rozwiązanie "latest" idzie przez GitHub
+      # API i przy zbiegu żądań (kilka jobów naraz, w tym repo Vercel i inne
+      # akcje) potrafi trafić na "rate limit exceeded" — job pada, zanim
+      # cokolwiek się zbuduje. Podbijaj ręcznie, gdy potrzebna nowsza wersja CLI.
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.117.0
 
       - name: Stos Supabase, migracje i dane
         # Skrypt dopisuje NEXT_PUBLIC_SUPABASE_* do GITHUB_ENV, więc build
