@@ -88,7 +88,11 @@ test('dymek „Przytrzymaj «Grupy»" nie odlicza od nowa po każdym wyjściu z 
   // na desktopie nie ma czego testować.
   test.skip(testInfo.project.name !== 'telefon', 'Dolna nawigacja jest tylko na telefonie');
   await zalogowany(page);
-  await page.goto('/wydarzenia');
+  // `/moje-gry`, nie `/wydarzenia` — wejście do kreatora przeniosło się
+  // z FAB-a w dolnej nawigacji do kapsułki „Dodaj nowy mecz" na ekranie
+  // „Mecze". Sam test dotyczy dymka nad paskiem i działa na dowolnym ekranie
+  // z paskiem; potrzebuje wyłącznie czegoś, co prowadzi do kreatora.
+  await page.goto('/moje-gry');
 
   const nowyMecz = page.getByRole('link', { name: 'Stwórz nowy mecz' }).filter({ visible: true }).first();
   await expect(nowyMecz).toBeVisible({ timeout: 15_000 });
@@ -106,7 +110,7 @@ test('dymek „Przytrzymaj «Grupy»" nie odlicza od nowa po każdym wyjściu z 
     await nowyMecz.click();
     await expect(page).toHaveURL(/\/wydarzenia\/nowe/);
     await page.goBack();
-    await expect(page).toHaveURL(/\/wydarzenia$/);
+    await expect(page).toHaveURL(/\/moje-gry$/);
   }
 
   // Bez naprawy każdy powrót z kreatora podbijałby licznik (2, 3, 4) —

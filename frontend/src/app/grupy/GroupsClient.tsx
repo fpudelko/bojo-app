@@ -176,7 +176,7 @@ export default function GroupsPage() {
       <Header showMobileWordmark />
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-8">
         <div className="flex items-center justify-between">
-          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Twoje ekipy</h1>
+          <h1 className="font-display text-2xl font-bold text-ink sm:text-3xl">Twoje grupy</h1>
           <Link href="/grupy/nowe">
             <Button size="sm" className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Nowa</Button>
           </Link>
@@ -189,13 +189,13 @@ export default function GroupsPage() {
         ) : groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
             <span className="text-5xl">👥</span>
-            <p className="text-base font-semibold text-ink">Nie masz jeszcze ekipy</p>
+            <p className="text-base font-semibold text-ink">Nie masz jeszcze grupy</p>
             <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
               Ekipa to stała paczka, z którą grasz. Terminy, skład i rozliczenia w jednym miejscu —
               zamiast liczenia plusów w czacie.
             </p>
             <Link href="/grupy/nowe" className="mt-1">
-              <Button size="sm" className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Załóż ekipę</Button>
+              <Button size="sm" className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Załóż grupę</Button>
             </Link>
             <button onClick={() => setKodOtwarty(true)} className="text-sm font-medium text-slate-500 hover:text-primary-700">
               Mam kod

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogIn, Users, ChevronRight } from 'lucide-react';
+import { LogIn, Users, ChevronRight, Plus } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
@@ -215,8 +215,21 @@ function MojeGryContent() {
       <Header showMobileWordmark />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-6" {...gestSwipe}>
 
-        {/* Bez nagłówka "Twoje mecze" i przycisku "+ Nowy mecz" — mecz
-            tworzy się z FAB-a w dolnej nawigacji, dostępnego z każdego ekranu. */}
+        {/* KAPSUŁKA „DODAJ NOWY MECZ" — tu, nie w dolnej nawigacji.
+            Do 2026-09-13 mecz tworzyło się wystającym FAB-em ze środka paska;
+            środek paska jest najcenniejszym miejscem w aplikacji, a tworzenie
+            meczu to czynność organizatora raz na tydzień. Kapsułka stoi na
+            ekranie „Mecze", czyli tam, gdzie organizator i tak jest, kiedy
+            myśli o kolejnym terminie — i nad zakładkami, żeby była widoczna
+            także z Historii („powtórz to, w co graliśmy"). Aria-label ten sam
+            co dawny FAB, więc scenariusze klikalności nie zgadują nazwy. */}
+        <Link
+          href="/wydarzenia/nowe"
+          aria-label="Stwórz nowy mecz"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-primary-700 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary-800 active:scale-[0.98]"
+        >
+          <Plus className="h-4 w-4" /> Dodaj nowy mecz
+        </Link>
 
         {/* Stałe gierki link */}
         {SHOW_RECURRING && (

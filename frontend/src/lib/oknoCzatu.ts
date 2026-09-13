@@ -86,12 +86,18 @@ export function styleOknaCzatu(okno: OknoCzatu): CSSProperties | undefined {
 export const WYSOKOSC_CZATU_BEZ_POMIARU = 'h-[calc(100dvh_-_var(--bottom-nav-h))]';
 
 /**
- * Odstęp pod composerem: tyle, ile guzik „Nowy" WYSTAJE ponad pasek nawigacji.
+ * Odstęp pod composerem: tyle, ile guzik „Nowy" WYSTAWAŁ ponad pasek nawigacji.
  *
  * `--bottom-nav-h` opisuje sam pasek (`h-14` + wcięcie na kreskę gestów), ale
- * FAB pośrodku wychodzi ponad jego górną krawędź o `-mt-4` plus `ring-4`
+ * FAB pośrodku wychodził ponad jego górną krawędź o `-mt-4` plus `ring-4`
  * (`BottomNav.tsx`), czyli ~20 px. Bez tego odstępu pole do pisania wchodziło
  * pod guzik i wyglądało na wciśnięte za nisko (zgłoszone ze zrzutem).
+ *
+ * OD 2026-09-13 FAB-a NIE MA — środek paska to zwykła pozycja „Turniej",
+ * płaska jak reszta. Odstęp zostaje jako zwykły luz pod composerem i czeka na
+ * świadomą decyzję: skasowanie go przesuwa composer w czterech widokach czatu,
+ * czyli ruszy ich wzorce zrzutów. Do zrobienia razem z rozstrzygnięciem
+ * o turniejach, nie mimochodem.
  *
  * Przy otwartej klawiaturze odstępu nie ma: paska wtedy nie widać, więc nie ma
  * czego omijać, a pusty pas nad klawiaturą to dokładnie ten błąd, który ta

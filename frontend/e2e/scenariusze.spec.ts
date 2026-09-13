@@ -689,7 +689,7 @@ test.describe('grupy', () => {
     await zaloguj(page, KONTA.gracz);
     await page.goto('/grupy');
     // Produkt mówi „ekipa", nie „grupa" — trasa i kod zostały, treść nie.
-    const pusto = page.getByText('Nie masz jeszcze ekipy');
+    const pusto = page.getByText('Nie masz jeszcze grupy');
     await expect(pusto).toBeVisible({ timeout: 20_000 });
     await uspokoj(page);
     await zaslonPaskamiDolnymi(page, () => expect(pusto.locator('xpath=ancestor::div[1]')).toHaveScreenshot('grupy-pusto.png'));
@@ -701,7 +701,7 @@ test.describe('grupy', () => {
     // Pole na kod przeniosło się do arkusza na dole ekranu. Wejście zależy od
     // tego, czy masz już jakąś ekipę: bez ekip jest „Mam kod" w pustym stanie,
     // z ekipami — „Masz kod zaproszenia?" pod listą. To konto nie ma żadnej.
-    await expect(page.getByText('Nie masz jeszcze ekipy')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Nie masz jeszcze grupy')).toBeVisible({ timeout: 20_000 });
     await klik(page, /^Mam kod$/);
     await expect(page.getByText('Masz kod zaproszenia?')).toBeVisible();
 
