@@ -2609,32 +2609,6 @@ export default function EventDetailClient() {
                   <span className="text-ink">{PAYMENT_METHOD_LABELS[myConfirmed.paymentMethod]}</span>
                 </div>
               )}
-              {/* Co organizator PRZYJMUJE — zeszło tu 2026-09-13 z nagłówka
-                  meczu, gdzie było szarym akapitem nad licznikiem miejsc.
-                  Nie dało się tego po prostu skasować: okno zapisu wymienia
-                  akceptowane karty tylko PRZED dołączeniem, więc zapisany
-                  gracz nie miał już gdzie sprawdzić, czy przejdzie jego
-                  Multisport albo czy można zapłacić gotówką. Tutaj stoi obok
-                  kwoty i własnego wyboru, czyli w miejscu, w którym to pytanie
-                  naprawdę pada. */}
-              {event.acceptedPaymentMethods.length > 0 && (
-                <div className="mt-2 flex items-start justify-between gap-3 text-sm">
-                  <span className="shrink-0 text-slate-500">Przyjmowane</span>
-                  <span className="min-w-0 text-right text-ink">
-                    {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
-                  </span>
-                </div>
-              )}
-              {event.acceptedSportsCards.length > 0 && (
-                <div className="mt-2 flex items-start justify-between gap-3 text-sm">
-                  <span className="shrink-0 text-slate-500">Karty sportowe</span>
-                  <span className="min-w-0 text-right text-ink">
-                    {event.acceptedSportsCards.map((c) => sportsCardLabel(c, event.sportsCardOtherName)).join(', ')}
-                    {event.sportsCardDiscountGrosze != null
-                      && ` (−${(event.sportsCardDiscountGrosze / 100).toFixed(0)} zł)`}
-                  </span>
-                </div>
-              )}
               {/* Numer do BLIKA tuż przy kwocie, a nie tylko w nagłówku meczu:
                   „ile" i „na co przelać" to jedna czynność. Widoczność rządzi
                   się tą samą regułą co wszędzie (`canSeeBlikPhone`). */}
@@ -2668,6 +2642,69 @@ export default function EventDetailClient() {
             </div>
           );
         })()}
+
+      {/* ── JAK ZAPŁACIĆ ── co organizator PRZYJMUJE.
+          Zeszło tu 2026-09-13 z nagłówka meczu, gdzie stało szarym akapitem nad
+          licznikiem miejsc („Gotówka · Karty sportowe: …") i było jednym z dwóch
+          powtórzeń, które kazano stamtąd zdjąć.
+
+          RENDERUJE SIĘ KAŻDEMU, kto widzi tę zakładkę — nie tylko składowi.
+          To nie jest kosmetyka: karta „Twoja płatność" wyżej wymaga
+          `myConfirmed`, a okno zapisu wymienia akceptowane karty tylko PRZED
+          dołączeniem. Bez tej karty zdanie „numer do BLIKA zobaczysz, jeśli
+          dołączysz do składu" nie istniałoby nigdzie — a to jest dokładnie ta
+          rzecz, której pilnuje scenariusz „ktoś spoza składu dostaje
+          wyjaśnienie, nie pustkę" (migracje `120`/`121` wyjęły numer do osobnej
+          tabeli z własnym RLS; warunek NIE pyta o sam numer, bo osoba spoza
+          składu go w danych nie ma i wyjaśnienie zniknęłoby przed tym, komu
+          jest potrzebne).
+
+          Zapisany gracz, który wybrał BLIK, widzi numer i tutaj, i w „Twojej
+          płatności" — tak samo jak wcześniej stał i w nagłówku, i w karcie. */}
+      {event.costGrosze > 0
+        && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
+            <Banknote className="w-4 h-4" /> Jak zapłacić
+          </h2>
+          {event.acceptedPaymentMethods.length > 0 && (
+            <div className="flex items-start justify-between gap-3 text-sm">
+              <span className="shrink-0 text-slate-500">Przyjmowane</span>
+              <span className="min-w-0 text-right text-ink">
+                {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
+              </span>
+            </div>
+          )}
+          {event.acceptedPaymentMethods.includes('blik') && (
+            <div className="mt-2 flex items-start justify-between gap-3 text-sm">
+              <span className="shrink-0 text-slate-500">Numer BLIK</span>
+              <span className="min-w-0 text-right">
+                {event.blikPhone && canSeeBlikPhone({
+                  isOrganizer: isOwner || canManagePayments,
+                  isInSquad: !!myParticipation,
+                  minutesToStart: minutesUntilStart(event.date, event.time),
+                }) ? (
+                  <span className="font-semibold text-ink">{event.blikPhone}</span>
+                ) : myParticipation ? (
+                  <span className="text-slate-400">zobaczysz na godzinę przed meczem</span>
+                ) : (
+                  <span className="text-slate-400">numer do BLIKA zobaczysz, jeśli dołączysz do składu</span>
+                )}
+              </span>
+            </div>
+          )}
+          {event.acceptedSportsCards.length > 0 && (
+            <div className="mt-2 flex items-start justify-between gap-3 text-sm">
+              <span className="shrink-0 text-slate-500">Karty sportowe</span>
+              <span className="min-w-0 text-right text-ink">
+                {event.acceptedSportsCards.map((c) => sportsCardLabel(c, event.sportsCardOtherName)).join(', ')}
+                {event.sportsCardDiscountGrosze != null
+                  && ` (−${(event.sportsCardDiscountGrosze / 100).toFixed(0)} zł)`}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 
