@@ -1,15 +1,23 @@
 import { describe, it, expect } from 'vitest';
+import { addDays, format } from 'date-fns';
 import { metadataDlaMeczu, type EventMeta } from '@/app/wydarzenia/[id]/eventMeta';
 
 // Bliźniak structuredData.test.ts, tylko dla metadanych. Powód osobnego pliku:
 // JSON-LD był chroniony progiem widoczności od początku, a <title>, description
 // i og: NIE — i to przeszło niezauważone, bo nic tego nie sprawdzało.
 
+// Data na sztywno („2026-09-12") gniła: test „nadchodzący mecz" sam stawał się
+// miniony w dniu, na który była wpisana. `metadataDlaMeczu` porównuje z
+// PRAWDZIWYM zegarem (`isPast` w lib/eventWizard.ts), więc fixture musi liczyć
+// się względem `Date.now()`, nie stać w miejscu — ten sam wzorek co
+// `CURRENT_DATE + n` w seedach SQL (patrz AGENTS.md).
+const DATA_NADCHODZACA = format(addDays(new Date(), 30), 'yyyy-MM-dd');
+
 function mecz(overrides: Partial<EventMeta> = {}): EventMeta {
   return {
     title: 'Gierka na Ratajach',
     sport: 'piłka nożna',
-    date: '2026-09-12',
+    date: DATA_NADCHODZACA,
     time: '18:00',
     field_name: 'Orlik Rataje',
     custom_address: 'ul. Kwiatowa 3, Poznań',
@@ -35,7 +43,7 @@ describe('metadataDlaMeczu — próg widoczności', () => {
 
       expect(tekst).not.toContain('Gierka na Ratajach');
       expect(tekst).not.toContain('Orlik Rataje');
-      expect(tekst).not.toContain('2026-09-12');
+      expect(tekst).not.toContain(DATA_NADCHODZACA);
       expect(tekst).not.toContain('18:00');
       expect(tekst).not.toContain('Kwiatowa');
     });
@@ -87,7 +95,7 @@ describe('metadataDlaMeczu — polityka cyklu życia strony meczu (roadmapa poz.
   });
 
   it('nadchodzący publiczny mecz zostaje indeksowalny (robots nieustawione)', () => {
-    const meta = metadataDlaMeczu('abc', mecz({ date: '2026-09-12', time: '18:00' }));
+    const meta = metadataDlaMeczu('abc', mecz({ date: DATA_NADCHODZACA, time: '18:00' }));
     expect(meta.robots).toBeUndefined();
   });
 
