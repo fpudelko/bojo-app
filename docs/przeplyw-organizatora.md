@@ -514,7 +514,7 @@ Ustalenia mają numery `S-n`.
 
 | # | Ustalenie | Stan |
 |---|---|---|
-| **S-1** | **Kolejka rezerwowa nie miała zegara.** `sync_reserve_claim()` jest wołane WYŁĄCZNIE czyimś kliknięciem — wejściem na stronę meczu, wypisaniem się kogoś, odpuszczeniem oferty. Sprawdzone zapytaniami: 6 h po wygaśnięciu okna oferty (domyślnie 180 min), gdy nikt nie otworzył strony, oferta dalej wisiała, druga osoba w kolejce miała zero powiadomień, skład 1 z 2. Gorsza połowa: po starcie meczu funkcja wychodzi natychmiast, więc taka oferta nie wygasała już NIGDY. Migracja `079` mówi przy tym organizatorowi wprost „Miejsce trafia do pierwszej osoby z rezerwy" — obietnica, której druga połowa działała tylko przypadkiem | zrobione (migracja `143`). Zadanie `bojo-kolejka-rezerwy` co 15 minut (dolny limit okna oferty to 15 min) woła ISTNIEJĄCĄ `sync_reserve_claim()` dla aktywnych, przyszłych meczów z niepustą rezerwą — reguła „czy jest wolne miejsce" nie jest powtórzona drugi raz. Testy: `supabase/test/kolejka-zegar.sql` |
+| **S-1** | **Kolejka rezerwowa nie miała zegara.** `sync_reserve_claim()` jest wołane WYŁĄCZNIE czyimś kliknięciem — wejściem na stronę meczu, wypisaniem się kogoś, odpuszczeniem oferty. Sprawdzone zapytaniami: 6 h po wygaśnięciu okna oferty (domyślnie 180 min), gdy nikt nie otworzył strony, oferta dalej wisiała, druga osoba w kolejce miała zero powiadomień, skład 1 z 2. Gorsza połowa: po starcie meczu funkcja wychodzi natychmiast, więc taka oferta nie wygasała już NIGDY. Migracja `079` mówi przy tym organizatorowi wprost „Miejsce trafia do pierwszej osoby z rezerwy" — obietnica, której druga połowa działała tylko przypadkiem | zrobione (migracja `143`) + uzupełnienie 2026-09-13, patrz niżej |
 | **S-3** | **Przypomnienie dzień przed meczem nie znało zamkniętych zapisów ani rezerwy.** `wyslij_przypomnienia()` (`129`) powstała przed `141` i mówiła organizatorowi „brakuje 11 (3/14)" na meczu, który sam zamknął słowami „gramy w tym składzie" — aplikacja kłóciła się z jego własną decyzją. Rezerwa była przy tym niewidzialna: „brakuje 11" przy dwóch osobach czekających na ławce to zgadywanka, nie informacja | zrobione (migracja `144`). Trzy warianty zamiast dwóch, dla obu bloków (organizator gra / nie gra): „zapisy zamknięte (N/M)" bez „brakuje"; „brakuje N (W/M) · K osób czeka na rezerwie"; „brakuje N (W/M)" bez zmian, gdy rezerwa pusta. Nowy pomocnik odmiany `odmien_czeka_na_rezerwie()`, wzorem `odmien_nie_oddalo()` z `131` |
 | **S-2** | **„Powtórz mecz" po cichu gubi trzy ustawienia organizatora.** `repeatEvent()` przepisuje 32 z 35 pól `EventCreate` — pomija `requireApproval`, `reserveEnabled`, `goalkeeperSlotsReserved`, więc mecz z akceptacją zapisów wraca po powtórce OTWARTY. Piąty, szósty i siódmy przypadek tej samej rodziny (po `groupId`, `minPlayers`, `endTime`, `recurringEventId` — każde naprawiane osobno, po fakcie) | zrobione. Typ `ZrodloPowtorki` w `lib/events.ts` wymusza wymienienie każdego pola `EventCreate` w `repeatEvent()` — pominięcie przestaje się kompilować. Testy: `__tests__/events.test.ts` |
 | **S-4** | **Okno odwołania meczu wie mniej niż okno edycji.** `handleCancel()` liczy odbiorców po swojemu zamiast przez `komuDojdzie()` — mówi „jeśli podała adres" zamiast dokładnego podziału z kolumny `ma_guest_email`, i liczy węższy zbiór (`regulars`+`reserves`) niż faktycznie powiadamia wyzwalacz `070` (wszyscy z kontem, w tym obserwujący i czekający na akceptację) | zrobione. Nowa `konsekwencjeOdwolania()` w `lib/zmianyMeczu.ts`, wołana przez `komuDojdzie()` — ta sama para co w oknie edycji. Testy: `__tests__/zmianyMeczu.test.ts` |
@@ -525,6 +525,39 @@ Ustalenia mają numery `S-n`.
 Pełny opis i uzasadnienie każdego ustalenia, plan wdrożenia i szkic opisu PR-a
 — w historii sesji; skrót nad tabelą trzyma się tego, co odróżnia to repo od
 innych: dowód wykonany zapytaniami na bazie, nie tylko czytanie kodu.
+
+**Uzupełnienie S-1 (2026-09-13) — zegar w bazie działał, widoczność nie.**
+Zgłoszone wprost przy sprawdzaniu migracji `143`/`144` na produkcji: skoro
+kolejka ma już zegar, to czy reszta rezerwy i organizator widzą, ile czasu
+zostało graczowi z aktywną ofertą na kliknięcie „Wchodzę"? Nie widzieli —
+badge „czeka na decyzję" w liście „Rezerwa — kolejka do zwolnionego miejsca"
+(widocznej dla KAŻDEGO na stronie meczu, nie tylko dla samego zainteresowanego)
+nie niósł żadnego terminu, mimo że własny baner rezerwowego liczy go od dawna.
+Przy okazji wyszedł drugi, poważniejszy błąd w TEJ SAMEJ liście: numer „N."
+przy każdym wierszu liczył się gołym indeksem z `.map()`, nie przez
+`pozycjaWKolejce()` — czyli DOKŁADNIE ten sam bug, który dla własnego banera
+rezerwowego naprawiono już wcześniej (bramkarz jedyny w swojej kolejce czytał
+„4." zamiast „1.", bo liczyło się razem z kolejką do pola), tylko że tu wracał
+w widoku, który widzi organizator i cała reszta rezerwy. Naprawione:
+- numer liczy `pozycjaWKolejce()` (rola + kolejność po wygasłych ofertach),
+  `null` (odpuścił na stałe) pokazuje kreskę zamiast zgadywanej liczby,
+- badge „czeka na decyzję" dostał termin z nowego `terminOferty()`
+  (`lib/kolejkaRezerwy.ts`), sformatowany przez `krotkiTermin()`
+  (`lib/eventDates.ts`),
+- nowy badge „nie zdążył(a)" dla `oferta_wygasla_at` bez aktywnej oferty ani
+  świadomego odpuszczenia — stan „wrócił na koniec kolejki, ale zostaje
+  w grze" nie miał dotąd ŻADNEGO odznaczenia w widoku listy, tylko treść
+  powiadomienia, którego reszta rezerwy nie widzi.
+
+Powiadomienia (`reserve_claim_offered`, `oferta_wygasla`) sprawdzone jako
+działające — mają ikony w `lib/ikonyPowiadomien.ts`, wiersze w
+`lib/ustawieniaPowiadomien.ts` (obie oznaczone `wazne: true`), push leci
+generycznym mechanizmem z `102`/`109` bez żadnej listy dozwolonych typów,
+a treść i moment wysyłki potwierdza `supabase/test/kolejka-zegar.sql` z PR-a
+migracji `143`/`144` — nic tu nie wymagało naprawy.
+
+Pełny opis w [domena.md](./domena.md#zwolnione-miejsce-oferta-nie-auto-awans).
+Testy: `__tests__/kolejkaRezerwy.test.ts`, `__tests__/eventDates.test.ts`.
 
 ---
 

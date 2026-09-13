@@ -40,7 +40,7 @@ import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
 import { eventUrl, shareEvent, textDoKopiowania, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
 import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
-import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce } from '@/lib/kolejkaRezerwy';
+import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce, terminOferty } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import {
@@ -68,7 +68,7 @@ import { tekstRozliczenia } from '@/lib/settlementShare';
 import { track } from '@/lib/analytics';
 import { domyslnyTerminPowtorki } from '@/lib/recurring';
 import { eventDisplayTitle } from '@/lib/eventTitle';
-import { minutesUntilStart, timeUntil } from '@/lib/eventDates';
+import { minutesUntilStart, timeUntil, krotkiTermin } from '@/lib/eventDates';
 import {
   getTeamProposals, createTeamProposal, deleteTeamProposal,
   voteTeamProposal, unvoteTeamProposal, acceptTeamProposal,
@@ -1073,9 +1073,7 @@ export default function EventDetailClient() {
     : null;
   // A freed spot currently offered to me (I'm on the reserve and it's my turn).
   const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
-  const claimDeadline = myClaimOffer?.claimOfferedAt
-    ? new Date(new Date(myClaimOffer.claimOfferedAt).getTime() + event.reserveClaimMinutes * 60_000)
-    : null;
+  const claimDeadline = myClaimOffer ? terminOferty(myClaimOffer, event.reserveClaimMinutes) : null;
   const takenSpots = regulars.length;
   const isFull = takenSpots >= event.maxPlayers;
   const eventLoc = eventLocation(event);
@@ -3597,30 +3595,55 @@ export default function EventDetailClient() {
               {/* Rezerwa siedzi w tej samej liście co skład, a nie w osobnej
                   karcie na dole strony. Przy pustym składzie osobna karta dawała
                   sprzeczny obraz: „nikt jeszcze nie dołączył" tuż nad listą osób,
-                  które dołączyły. Numer to pozycja w kolejce — ta sama, którą
-                  `sync_reserve_claim` obchodzi przy zwolnionym miejscu. */}
+                  które dołączyły. Numer to pozycja w kolejce z `pozycjaWKolejce()`
+                  — TA SAMA reguła (rola + kolejność po wygasłych ofertach), którą
+                  `sync_reserve_claim` obchodzi przy zwolnionym miejscu, nie goły
+                  indeks z `.map()`. Gołym indeksem był to bug: przy włączonym
+                  rozróżnieniu bramkarzy jedyny bramkarz na rezerwie czytał „4."
+                  zamiast „1.", bo liczyło się razem z kolejką do pola — ta sama
+                  pomyłka, którą `myReservePosition` naprawiono wyżej, tu wracała
+                  dla WIDOKU, który widzi każdy, nie tylko sam zainteresowany.
+                  `null` (ktoś przepuścił ofertę na stałe) pokazuje kreskę, nie
+                  zgadywany numer. */}
               {reserves.length > 0 && (
                 <div className="mt-4 border-t border-slate-100 pt-3">
                   <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                     Rezerwa — kolejka do zwolnionego miejsca
                   </p>
                   <ul className="divide-y divide-slate-100">
-                    {reserves.map((p, i) => (
+                    {reserves.map((p) => {
+                      const pozycja = pozycjaWKolejce(p, reserves, gkEnabled);
+                      const deadline = terminOferty(p, event.reserveClaimMinutes);
+                      return (
                       <li key={p.id} className="flex items-start justify-between gap-2 py-2.5">
                         <div className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">{i + 1}</span>
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">{pozycja ?? '—'}</span>
                             <span className="min-w-0 truncate">{p.name}</span>
                             {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
                             {p.isGuest && <span className="shrink-0 text-xs text-slate-400">(gość)</span>}
+                            {/* Termin widoczny dla KAŻDEGO patrzącego na kolejkę,
+                                nie tylko dla osoby, której dotyczy oferta —
+                                zgłoszone wprost (audyt S-1, druga część): reszta
+                                rezerwy i organizator nie wiedzieli, ile czasu
+                                zostało koledze na kliknięcie „Wchodzę". */}
                             {p.claimOfferedAt && (
                               <span title="Zaproponowano zwolnione miejsce — czeka na decyzję" className="shrink-0 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
-                                czeka na decyzję
+                                czeka na decyzję{deadline ? ` · ${krotkiTermin(deadline)}` : ''}
                               </span>
                             )}
                             {p.claimPassed && !p.claimOfferedAt && (
-                              <span title="Odpuścił(a) miejsce albo nie zdążył(a) — możesz awansować ręcznie" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                              <span title="Odpuścił(a) miejsce — możesz awansować ręcznie" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                                 przepuścił(a)
+                              </span>
+                            )}
+                            {/* Wygasła oferta ≠ przepuszczenie: brak odpowiedzi
+                                w czasie odsuwa na koniec kolejki, ale zostawia
+                                w grze (migracja `135`) — inny badge, żeby to było
+                                widać, nie tylko w treści powiadomienia. */}
+                            {p.ofertaWygaslaAt && !p.claimOfferedAt && !p.claimPassed && (
+                              <span title="Nie zdążył(a) odpowiedzieć w czasie — wraca na koniec kolejki, ale zostaje w grze" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                                nie zdążył(a)
                               </span>
                             )}
                           </span>
@@ -3690,7 +3713,8 @@ export default function EventDetailClient() {
                           )}
                         </span>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </div>
               )}
