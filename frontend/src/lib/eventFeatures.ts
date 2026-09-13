@@ -22,28 +22,29 @@ import type {
  * wprost. Bez tego zdania „Prywatne" wygląda jak obietnica bez pokrycia: każdy
  * członek grupy i tak zobaczy ten mecz na liście `/grupy/[id]`.
  *
- * `krotko` — wariant do nagłówka strony meczu (od 2026-09-13), GDZIE pigułki
- * „Prywatne"/„Publiczne" i nazwa ekipy stoją tuż nad tym zdaniem i już
- * niosą stan; pełna wersja (domyślna) zostaje w kreatorze, gdzie żadnych
- * pigułek jeszcze nie ma i zdanie musi wytłumaczyć wszystko samo.
+ * JEDYNY DZIŚ CZYTELNIK TO KREATOR (`EventVisibilityFields`). Strona meczu
+ * pokazywała to zdanie do 2026-09-13 i przestała: tam tuż nad nim stoją pigułki
+ * „Prywatne"/„Publiczne" i nazwa ekipy, więc zdanie powtarzało własnymi słowami
+ * stan, który widać. W kreatorze żadnej pigułki jeszcze nie ma — decyzja dopiero
+ * zapada i to zdanie jest jedynym miejscem, które mówi, co z niej wyniknie.
+ *
+ * Orzeczenie odmieniane z liczbą: „Zobaczy go 1 członek", ale „Zobaczą go
+ * 3 członkowie". `withCount` odmienia sam rzeczownik i przy jednym członku
+ * zostawiało „Zobaczą go 1 członek ekipy" — zgrzyt widoczny w kreatorze
+ * dokładnie przy najmniejszej ekipie, czyli świeżo założonej.
  */
 export function opisWidocznosciWGrupie(
   visibility: 'public' | 'private',
   grupaNazwa: string | undefined,
   liczbaCzlonkow: number | undefined,
-  krotko = false,
 ): string | null {
   if (!grupaNazwa) return null;
   const czlonkowie = liczbaCzlonkow != null
     ? withCount(liczbaCzlonkow, 'członek', 'członkowie', 'członków')
     : 'członkowie';
-  if (krotko) {
-    return visibility === 'private'
-      ? `Zobaczą go ${czlonkowie} ekipy i każdy, kto dostanie link.`
-      : `Widoczny dla wszystkich, także na liście ekipy.`;
-  }
+  const zobacza = liczbaCzlonkow === 1 ? 'Zobaczy' : 'Zobaczą';
   if (visibility === 'private') {
-    return `Prywatny — na liście ekipy „${grupaNazwa}". Zobaczą go ${czlonkowie} ekipy i każdy, kto dostanie link.`;
+    return `Prywatny — na liście ekipy „${grupaNazwa}". ${zobacza} go ${czlonkowie} ekipy i każdy, kto dostanie link.`;
   }
   return `Publiczny — także na liście ekipy „${grupaNazwa}".`;
 }

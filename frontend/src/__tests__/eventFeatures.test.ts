@@ -27,24 +27,16 @@ describe('opisWidocznosciWGrupie', () => {
     expect(opis).toContain('członkowie ekipy');
   });
 
-  // Wariant "krotko" (strona meczu, obok pigułek "Prywatne"/nazwa ekipy) nie
-  // powtarza tego, co pigułki już mówią — bez "Prywatny —" i bez nazwy grupy.
-  describe('krotko', () => {
-    it('drops the visibility word and group name for a private match', () => {
-      const opis = opisWidocznosciWGrupie('private', 'Czwartkowa Gierka', 14, true);
-      expect(opis).not.toContain('Czwartkowa Gierka');
-      expect(opis).not.toMatch(/^Prywatny/);
-      expect(opis).toMatch(/14 członków/);
-    });
+  // Orzeczenie musi iść za liczbą. `withCount` odmienia sam rzeczownik, więc
+  // przy jednoosobowej ekipie zdanie brzmiało „Zobaczą go 1 członek ekipy" —
+  // a kreator pokazuje je właśnie przy świeżo założonej, czyli najmniejszej.
+  it('dopasowuje orzeczenie do jednego członka ekipy', () => {
+    expect(opisWidocznosciWGrupie('private', 'Czwartkowa Gierka', 1))
+      .toContain('Zobaczy go 1 członek ekipy');
+  });
 
-    it('stays a single short line for a public match', () => {
-      const opis = opisWidocznosciWGrupie('public', 'Czwartkowa Gierka', 14, true);
-      expect(opis).not.toContain('Czwartkowa Gierka');
-      expect(opis).not.toMatch(/^Publiczny/);
-    });
-
-    it('still returns null without a group, same as the long form', () => {
-      expect(opisWidocznosciWGrupie('private', undefined, undefined, true)).toBeNull();
-    });
+  it('zostawia liczbę mnogą przy większej ekipie', () => {
+    expect(opisWidocznosciWGrupie('private', 'Czwartkowa Gierka', 3))
+      .toContain('Zobaczą go 3 członkowie ekipy');
   });
 });

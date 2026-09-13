@@ -198,8 +198,16 @@ async function zeSprzataniem(proba: () => Promise<void>, sprzatanie: () => Promi
   if (blad) throw blad;
 }
 
+/** Napis na wyjściu ze składu. DWA warianty, bo są dwa rozłączne miejsca:
+ *  dolny pasek stanu mówi krótko „Wypisz się" (ma na to wąską kolumnę obok
+ *  statusu), a przycisk w treści — pełne „Wypisz się z meczu/rezerwy". Ten
+ *  drugi renderuje się WYŁĄCZNIE tam, gdzie paska nie ma (mecz odwołany, gość
+ *  z tokenem), więc na ekranie nigdy nie stoją naraz i wzorzec łapiący oba
+ *  nie może trafić w dwa elementy. */
+const WYJSCIE_ZE_SKLADU = /^wypisz się( z (meczu|rezerwy))?$/i;
+
 async function wypiszSie(page: Page) {
-  await klik(page, /wypisz się z (meczu|rezerwy)/i);
+  await klik(page, WYJSCIE_ZE_SKLADU);
   await klik(page, 'Wypisz mnie', { exact: true });
   await expect(page.getByRole('button', { name: /^Dołącz|komplet — na rezerwę/i }).first())
     .toBeVisible({ timeout: 15_000 });
@@ -259,7 +267,7 @@ async function pokazSie(page: Page, cel: Locator, opis: string) {
  * czerwoną kropkę, nie trzy.
  */
 async function niezapisany(page: Page) {
-  const wyjscie = page.getByRole('button', { name: /wypisz się z (meczu|rezerwy)/i });
+  const wyjscie = page.getByRole('button', { name: WYJSCIE_ZE_SKLADU });
   if (await wyjscie.isVisible().catch(() => false)) await wypiszSie(page);
 }
 

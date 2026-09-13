@@ -642,9 +642,13 @@ Przypisanie meczu do grupy sprawia, że pojawia się on na liście meczów grupy
 (`getMyGroupEvents()`) — mimo że `events.visibility` samo w sobie mówi tylko
 `private`/`public` i nie ma osobnej trzeciej wartości „widoczne dla grupy". To jest
 **świadomie ustalone zachowanie**, nie luka: prywatny mecz przypięty do grupy jest
-zawsze widoczny dla jej członków, tak samo jak dla organizatora. Kreator meczu i strona
-meczu mówią to wprost pod kartą widoczności (`opisWidocznosciWGrupie()` w
+zawsze widoczny dla jej członków, tak samo jak dla organizatora. Mówi to wprost
+**kreator meczu**, pod kartą widoczności (`opisWidocznosciWGrupie()` w
 `lib/eventFeatures.ts`) — inaczej „Prywatne" wygląda jak obietnica bez pokrycia.
+Strona meczu pokazywała to samo zdanie do 2026-09-13 i przestała: tam nad nim stoją
+pigułki „Prywatne"/„Publiczne" i nazwa ekipy, więc zdanie powtarzało własnymi słowami
+stan, który widać. W kreatorze żadnej pigułki jeszcze nie ma i decyzja dopiero zapada,
+więc tam zostaje.
 Nadal nie ma **prawdziwego** trzeciego poziomu w `events.visibility` (CHECK zostaje
 dwuwartościowy) i nadal nie zaostrzono ogólnej polityki `Events readable by all`
 (`USING (true)`) — `getMyGroupEvents()` w dalszym ciągu działa dzięki tej luźnej
