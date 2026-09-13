@@ -1502,8 +1502,10 @@ organizatora: „Brakuje nam 1go? Dobrze liczę?", „10 to minimum żeby zagra�
 jeszcze ktoś się decyduje?".
 
 **Rozwiązanie.** `CzyGramyPanel.tsx` (`components/events/`), widoczny na stronie meczu
-wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Dwa
-niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
+wyłącznie dla organizatora/delegata z `canManageSquad`, przed startem meczu. Panel miał
+dwa bloki; **od 2026-09-13 został mu jeden** — „Otwórz dla okolicy" przeniosło się do
+`ZaprosZnajomychPanel.tsx` (patrz niżej). Przy wyłączonej `SHOW_MIN_PLAYERS_THRESHOLD`
+panel nie renderuje dziś nic i zostaje na miejscu wyłącznie na wypadek powrotu flagi:
 
 1. **Werdykt progu** — **ukryte za `SHOW_MIN_PLAYERS_THRESHOLD`** (wyłączona 2026-08-21,
    produktowa decyzja: nie chcemy tej funkcji w aplikacji). Gdy odkryta, działa tak: gdy
@@ -1518,8 +1520,17 @@ niezależne bloki, każdy renderuje się tylko wtedy, gdy ma o czym mówić:
 2. **„Otwórz dla okolicy"** — dla prywatnego meczu z wolnymi miejscami, niezależnie od
    tego, czy jest przypięty do grupy. Woła istniejący `handleSetVisibility('public')`
    (ten sam kod co ręczny przełącznik widoczności), z potwierdzeniem tłumaczącym, co się
-   stanie. To jedyna rzecz w tym panelu, której żaden komunikator nie potrafi: zamienia
-   prywatny brak ludzi w publiczną podaż na `/wydarzenia`.
+   stanie. Zamienia prywatny brak ludzi w publiczną podaż na `/wydarzenia`.
+
+   **Mieszka od 2026-09-13 w `ZaprosZnajomychPanel.tsx`, nie tutaj.** Jako osobna karta
+   wisiał nad licznikiem miejsc i podawał tę samą liczbę odwrotnie niż on — licznik
+   „Zostało 13 wolnych miejsc", karta obok „Brakuje 13 — otwórz dla okolicy" — więc jeden
+   stan czytał się jak dwie różne informacje (zgłoszone wprost z sesji UX). Dziś liczba
+   pada RAZ, w liczniku, a otwarcie dla okolicy stoi jako czwarty przycisk obok
+   „Udostępnij", „Kopiuj" i „Zaproś z grupy": wszystkie cztery odpowiadają na to samo
+   pytanie „jak zapełnić skład". Warunek pokazania się nie zmienił (`canManageSquad`,
+   mecz prywatny, są wolne miejsca), `handleOtworzDlaOkolicy` też nie — zmienił się
+   wyłącznie przycisk, który go woła.
 
 **„Nie zagram"** (`NieGramButton.tsx`) — odpowiedź dla członka ekipy, który jeszcze nie
 dołączył do meczu przypiętego do jego grupy. Zapisuje wiersz w
@@ -3487,7 +3498,7 @@ odwołany" na stronie meczu, czyli do wszystkich miejsc, które i tak już mówi
 
 | Gdzie | Co |
 |---|---|
-| `components/events/CzyGramyPanel.tsx` | „Otwórz dla okolicy” — zmiana meczu prywatnego na publiczny. Przeoczone, bo panel jest komponentem POTOMNYM strony meczu; potwierdzenie stoi dziś w `EventDetailClient` (`handleOtworzDlaOkolicy`), razem z resztą okien tej strony |
+| `components/events/ZaprosZnajomychPanel.tsx` (do 2026-09-13 `CzyGramyPanel.tsx`) | „Otwórz dla okolicy” — zmiana meczu prywatnego na publiczny. Przeoczone, bo przycisk jest w komponencie POTOMNYM strony meczu; potwierdzenie stoi dziś w `EventDetailClient` (`handleOtworzDlaOkolicy`), razem z resztą okien tej strony |
 | `app/grupy/[id]/GroupDetailClient.tsx` | opuszczenie ekipy, usunięcie gracza z ekipy |
 | `app/grupy/[id]/edytuj/page.tsx` | nowy link zaproszenia, opuszczenie ekipy, **usunięcie ekipy** |
 

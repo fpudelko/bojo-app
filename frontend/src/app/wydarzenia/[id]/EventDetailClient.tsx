@@ -3032,8 +3032,15 @@ export default function EventDetailClient() {
               i gdzie" razem z resztą. */}
           {/* Ta sama zasada, co pod kartą widoczności w kreatorze: prywatny
               mecz przypięty do grupy i tak widzi cała ekipa — to zdanie mówi
-              to wprost, zamiast zostawiać organizatora w niepewności. */}
-          {groupInfo && (
+              to wprost, zamiast zostawiać organizatora w niepewności.
+
+              TYLKO dla tego, kto widoczność USTAWIA (`canManageEvent`).
+              Grającemu pigułki „Prywatne" i nazwa ekipy mówią wszystko, czego
+              potrzebuje; zdanie pod spodem powtarzało mu je własnymi słowami
+              i było jednym z dwóch szarych akapitów nad licznikiem miejsc
+              (zgłoszone wprost: „za dużo tekstów i opisów"). Dla organizatora
+              zostaje, bo to on ponosi skutek wyboru. */}
+          {groupInfo && canManageEvent && (
             <p className="mt-2 text-xs text-slate-500">
               {opisWidocznosciWGrupie(event.visibility, groupInfo.name, groupInfo.memberCount, true)}
             </p>
@@ -3042,9 +3049,13 @@ export default function EventDetailClient() {
               generally on the event page, not just at join time. */}
           {event.costGrosze > 0 && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
             <p className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-x-1.5">
+              {/* Bez prefiksu „Płatność:" — pigułka z ceną („7 zł / os.") stoi
+                  w rzędzie wyżej i już ustawia kontekst, więc słowo powtarzało
+                  to, co widać. Lista kart ZOSTAJE w całości: ktoś z Medicoverem
+                  musi zobaczyć swoją kartę, a nie „i 2 inne". */}
               {event.acceptedPaymentMethods.length > 0 && (
                 <span>
-                  Płatność: {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
+                  {event.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', ')}
                   {/* Warunek NIE pyta o `event.blikPhone`: od migracji `120`
                       numeru po prostu nie ma w danych osoby spoza składu (RLS
                       na `event_blik`), a to właśnie ona ma zobaczyć zdanie
@@ -3158,8 +3169,9 @@ export default function EventDetailClient() {
             i musi dać się z niej JEDNYM dotknięciem pojechać na miejsce. */}
         <div className="px-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Kiedy i gdzie</p>
-
+            {/* Bez nagłówka „KIEDY I GDZIE" — zgłoszone wprost: data z ikoną
+                kalendarza i adres z pinezką mówią same, co to za karta, więc
+                etykieta powtarzała treść pod sobą własnymi słowami. */}
             {(isOrganizer || canEditDelegate) && !eventStarted ? (
               <button
                 type="button"
@@ -3250,8 +3262,6 @@ export default function EventDetailClient() {
               event={event}
               participants={participants}
               canManage={canManageSquad}
-              busy={busy}
-              onOtworzDlaOkolicy={handleOtworzDlaOkolicy}
             />
           </div>
         )}
@@ -4247,25 +4257,32 @@ export default function EventDetailClient() {
 
             {editMode && (
               <div className="space-y-3 pt-1">
-                {/* Settings switches */}
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-1 divide-y divide-slate-100">
-                  <SettingSwitch
-                    icon={<Globe className="w-4 h-4" />}
-                    title="Widoczne publicznie"
-                    desc="Mecz pojawia się w Otwarte mecze i może do niego dołączyć każdy. Wyłączone = prywatny, tylko przez link."
-                    checked={event.visibility === 'public'}
-                    disabled={busy}
-                    onChange={() => handleSetVisibility(event.visibility === 'public' ? 'private' : 'public')}
-                  />
-                  <SettingSwitch
-                    icon={<UserPlus className="w-4 h-4" />}
-                    title="Uczestnicy mogą dodawać gości"
-                    desc="Każdy zapisany może dopisać osobę bez konta."
-                    checked={event.allowGuestAdds}
-                    disabled={busy}
-                    onChange={handleToggleAllowGuestAdds}
-                  />
-                </div>
+                {/* Settings switches. `!eventStarted` — oba przełączniki sterują
+                    wyłącznie ZAPISAMI: kto zobaczy mecz na liście i kto może
+                    dopisać gościa. Po gwizdku nie ma już czego zapisywać, więc
+                    na rozegranym meczu były decyzją bez skutku (zgłoszone
+                    wprost). Reszta panelu zostaje — powtórka, uprawnienia,
+                    edycja szczegółów i usunięcie mają sens także po meczu. */}
+                {!eventStarted && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-1 divide-y divide-slate-100">
+                    <SettingSwitch
+                      icon={<Globe className="w-4 h-4" />}
+                      title="Widoczne publicznie"
+                      desc="Mecz pojawia się w Otwarte mecze i może do niego dołączyć każdy. Wyłączone = prywatny, tylko przez link."
+                      checked={event.visibility === 'public'}
+                      disabled={busy}
+                      onChange={() => handleSetVisibility(event.visibility === 'public' ? 'private' : 'public')}
+                    />
+                    <SettingSwitch
+                      icon={<UserPlus className="w-4 h-4" />}
+                      title="Uczestnicy mogą dodawać gości"
+                      desc="Każdy zapisany może dopisać osobę bez konta."
+                      checked={event.allowGuestAdds}
+                      disabled={busy}
+                      onChange={handleToggleAllowGuestAdds}
+                    />
+                  </div>
+                )}
 
                 {/* Edit event details (separate form page) */}
                 <Link
@@ -4355,6 +4372,15 @@ export default function EventDetailClient() {
               event={event}
               stan={{ wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete }}
               onZaprosZGrupy={(isOwner || canManageSquad) ? () => setInviteOpen(true) : undefined}
+              // Ten sam warunek, co dawniej w `CzyGramyPanel`: otwierać dla
+              // okolicy ma po co tylko organizator prywatnego meczu, w którym
+              // zostało jeszcze miejsce.
+              onOtworzDlaOkolicy={
+                canManageSquad && event.visibility === 'private' && freeSpots > 0
+                  ? handleOtworzDlaOkolicy
+                  : undefined
+              }
+              busy={busy}
             />
           </div>
         )}

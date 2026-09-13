@@ -370,6 +370,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-13 — Strona meczu przestaje tłumaczyć to, co widać
+
+PROBLEM: strona meczu i lista meczów opisywały słowami rzeczy, które były już widoczne
+obok, i powtarzały tę samą akcję w kilku miejscach. Pod każdym rozegranym meczem na liście
+wisiał osobny odnośnik „Powtórz ten mecz", choć powtórka stoi w ustawieniach meczu.
+„Wyślij link znajomym", „Kopiuj link" i „Zaproś z grupy" pojawiały się w trzech miejscach
+jednego ekranu, za każdym razem z własnym akapitem wyjaśniającym. Karta nad licznikiem
+miejsc mówiła „Brakuje 13 — otwórz dla okolicy", a licznik tuż pod nią „Zostało 13 wolnych
+miejsc" — jeden stan opisany dwa razy, odwrotnie. Nagłówek „KIEDY I GDZIE" stał nad datą
+z ikoną kalendarza i adresem z pinezką. Rozegrany mecz nadal proponował dołączenie do
+rezerwy, utworzenie składu, zapraszanie ludzi i przełączniki sterujące zapisami.
+Formularz „Dopisz osobę bez konta" z dwoma akapitami opisu był stale rozwinięty w składzie.
+
+ROZWIĄZANIE BOJO: każda akcja ma na stronie meczu jedno miejsce, a opis zostaje tylko tam,
+gdzie niesie coś, czego nie widać. Wszystkie cztery sposoby zapełnienia składu —
+udostępnienie linku, skopiowanie go, imienne zaproszenie z ekipy i otwarcie meczu dla
+okolicy — stoją w jednej sekcji „Zaproś znajomych" pod licznikiem miejsc, a liczba wolnych
+miejsc pada raz, w liczniku. Mecz, który się już odbył, nie proponuje zapisów, zaproszeń
+ani tworzenia składu i nie pokazuje przełączników sterujących zapisami; powtórka,
+uprawnienia i rozliczenie zostają. Dopisanie osoby bez konta otwiera się jako okno.
+Zdanie o tym, kto zobaczy prywatny mecz ekipy, widzi organizator, który o tym decyduje,
+a nie każdy gracz. W statystykach ekipy nazwisko gracza prowadzi do jego profilu.
+
+MECHANIKA: `ZaprosZnajomychPanel.tsx` przyjmuje `onZaprosZGrupy` i `onOtworzDlaOkolicy`
+jako opcjonalne przyciski — `CzyGramyPanel.tsx` oddał mu „Otwórz dla okolicy", zostawiając
+sobie werdykt progu za `SHOW_MIN_PLAYERS_THRESHOLD`. Nowy `DopiszGoscia.tsx` zastąpił dwie
+rozwinięte kopie formularza gościa w `EventDetailClient.tsx`. Gałęzie `!eventStarted`
+w `EventDetailClient.tsx` chowają po gwizdku zaproszenia, tworzenie składu i przełączniki
+„Widoczne publicznie"/„Uczestnicy mogą dodawać gości". `opisWidocznosciWGrupie()`
+(`lib/eventFeatures.ts`) dostał wariant `krotko`. `PowtorzZHistorii.tsx` usunięty.
+Linki do profilu w `StatystykiGrupy.tsx`. Testy: `poMeczuCard.test.tsx`,
+`statystykiGrupy.test.tsx`, `eventFeatures.test.ts`.
+
+
 ### 2026-09-12 — Każde powiadomienie ma ikonę i da się je wyciszyć
 
 PROBLEM: Bojo prowadzi trzy osobne listy typów powiadomień — co realnie wstawia baza,
@@ -662,20 +696,3 @@ MECHANIKA: migracja `135` (kolumna `oferta_wygasla_at`, kolejność kolejki
 `przyjmij_oferte_goscia()` / `odpusc_oferte_goscia()`, kolumna pochodna `ma_guest_email`),
 `lib/kolejkaRezerwy.ts` jako lustro reguły w przeglądarce. Asercje w `supabase/test/rls.sql`
 i `supabase/test/poczta-goscia.sql`.
-
-### 2026-09-08 — Kreator nie odsyła już do złego kroku, a wyłączona płatność zostaje wyłączona
-
-PROBLEM: w oknie „Tak zobaczą to gracze" — ostatnim sprawdzeniu przed opublikowaniem meczu
-— przycisk „Zmień" przy dacie przenosił organizatora na wybór miejsca, a „Zmień" przy
-miejscu na wybór terminu. Osobno: po wyłączeniu przełącznika „Mecz płatny" cena wracała
-przy najbliższej zmianie liczby miejsc, więc mecz publikował się jako płatny, bez żadnego
-sposobu zapłaty, przy przełączniku pokazującym „wyłączony". Gracz widział kwotę i nie miał
-jak jej uregulować.
-
-ROZWIĄZANIE BOJO: układ kroków kreatora ma jedno źródło prawdy, więc podsumowanie nie może
-się już z nim rozjechać. Wyłączenie płatności czyści też koszt wynajmu obiektu, z którego
-liczona jest cena od osoby, a o tym, czy mecz jest płatny, decyduje przełącznik, nie
-resztka w polu. „Zacznij od nowa" wraca do wszystkich ustawień domyślnych.
-
-MECHANIKA: stała `KROK_KREATORA` i funkcja `czyMeczPlatny()` w `lib/eventWizard.ts`,
-czytane przez `lib/eventSummary.ts` i `app/wydarzenia/nowe/page.tsx`. Testy

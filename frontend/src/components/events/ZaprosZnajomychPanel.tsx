@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Copy, Share2, Users } from 'lucide-react';
+import { Check, Copy, Loader2, Radar, Share2, Users } from 'lucide-react';
 import { eventUrl, shareEvent, textDoKopiowania, type StanUdostepnienia } from '@/lib/eventShare';
 import type { EventItem } from '@/types';
 
@@ -34,9 +34,23 @@ import type { EventItem } from '@/types';
  * na stronie meczu; zebrane tutaj, żeby "zaproś kogoś" miało jedno miejsce,
  * nie dwa (zgłoszone wprost z sesji UX 2026-09-13). Bez handlera przycisk się
  * nie renderuje — `NajblizszyMeczGrupy.tsx` woła panel bez niego.
+ *
+ * `onOtworzDlaOkolicy` (opcjonalny) dokłada czwarty przycisk — z `CzyGramyPanel`,
+ * gdzie stał jako osobna karta nad licznikiem miejsc, z własnym akapitem i własnym
+ * ujęciem tej samej liczby: licznik mówił „Zostało 13 wolnych miejsc", a karta
+ * obok „Brakuje 13". Dwa sposoby opisania jednego stanu na jednym ekranie czytały
+ * się jak dwie różne informacje (zgłoszone wprost). Tutaj liczba pada RAZ, w
+ * liczniku, a to jest po prostu czwarty sposób na zapełnienie składu — obok
+ * linku, kopiowania i zaproszenia z ekipy.
  */
 export default function ZaprosZnajomychPanel(
-  { event, stan, onZaprosZGrupy }: { event: EventItem; stan?: StanUdostepnienia; onZaprosZGrupy?: () => void },
+  { event, stan, onZaprosZGrupy, onOtworzDlaOkolicy, busy = false }: {
+    event: EventItem;
+    stan?: StanUdostepnienia;
+    onZaprosZGrupy?: () => void;
+    onOtworzDlaOkolicy?: () => void;
+    busy?: boolean;
+  },
 ) {
   const [copied, setCopied] = useState(false);
 
@@ -89,6 +103,16 @@ export default function ZaprosZnajomychPanel(
             className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-slate-600 dark:text-slate-200"
           >
             <Users className="h-3.5 w-3.5" /> Zaproś z grupy
+          </button>
+        )}
+        {onOtworzDlaOkolicy && (
+          <button
+            onClick={onOtworzDlaOkolicy}
+            disabled={busy}
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200"
+          >
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Radar className="h-3.5 w-3.5" />}
+            Otwórz dla okolicy
           </button>
         )}
       </div>
