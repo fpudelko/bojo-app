@@ -11,8 +11,8 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import {
-  Check, CalendarCheck, CalendarPlus, Loader2, MapPin, Globe, Search, SlidersHorizontal, Ticket,
-  Wallet, X,
+  Bell, BellRing, Check, CalendarCheck, CalendarPlus, Loader2, MapPin, Globe, Search,
+  SlidersHorizontal, Ticket, Wallet, X,
 } from 'lucide-react';
 import { TogglePill } from '@/components/ui/FilterPill';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
@@ -37,8 +37,14 @@ import { plural } from '@/lib/plural';
 import { distanceKm, getCurrentLocation, geoErrorMessage, pozycjaBezPytania } from '@/lib/geo';
 import { POZNAN, PROMIEN_LISTY_KM } from '@/lib/startowyPunkt';
 import { FOCUS_SPORTS, MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
+import SportChip from '@/components/ui/SportChip';
+import AlertSetupDialog from '@/components/home/AlertSetupDialog';
+import { domyslneZFiltrow, getMyAlert } from '@/lib/alerts';
+import { SHOW_GAME_ALERTS } from '@/lib/features';
+import { useAuth } from '@/lib/auth';
+import type { GameAlert } from '@/types';
 import {
-  filterByMaxPrice, filterByMinFreeSpots, filterByRadius, matchesDateFilter,
+  filterByMaxPrice, filterByMinFreeSpots, filterByRadius, filtrujGryMapy, matchesDateFilter,
   sortEvents, swipeEventId, toggleInArray, type DateFilter, type EventRow, type SortBy,
 } from '@/lib/eventFilters';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
@@ -705,6 +711,25 @@ export default function VenueExplorer({
   const [gamesOnlyFreeSpots, setGamesOnlyFreeSpots] = useState(false);
   const [gamesOnlyNoCost, setGamesOnlyNoCost] = useState(false);
   const [gamesUserPos, setGamesUserPos] = useState<{ lat: number; lng: number } | null>(null);
+
+  // ALERT O NOWYM MECZU — to samo wejście co w arkuszu filtrów na
+  // `/wydarzenia`. Tryb gier na mapie zadaje dokładnie to samo pytanie („gdzie
+  // i w co chcę zagrać"), więc odpowiedź „nie ma, ale damy znać" należy się
+  // tak samo tutaj. Zgłoszone wprost: na mapie alertu nie było.
+  const { user: zalogowany } = useAuth();
+  const [mojAlert, setMojAlert] = useState<GameAlert | null>(null);
+  const [oknoAlertu, setOknoAlertu] = useState(false);
+  useEffect(() => {
+    if (!SHOW_GAME_ALERTS || !zalogowany) return;
+    let zywe = true;
+    getMyAlert().then((a) => { if (zywe) setMojAlert(a); }).catch(() => {});
+    return () => { zywe = false; };
+  }, [zalogowany]);
+  const otworzAlert = () => {
+    if (!zalogowany) { router.push('/logowanie?next=%2Fmapa'); return; }
+    setSheetOpen(false);
+    setOknoAlertu(true);
+  };
   const [gamesGeoBusy, setGamesGeoBusy] = useState(false);
   const [gamesGeoError, setGamesGeoError] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -1159,23 +1184,26 @@ export default function VenueExplorer({
   // Tryb gier (D11) — reużywa `events`, już pobierane wyżej dla fieldStats,
   // zero nowego zapytania. Ten sam pipeline co /wydarzenia (matchesDateFilter,
   // filterByRadius/MaxPrice/MinFreeSpots, sortEvents), z lokalnym stanem gamesX.
-  const gamesBaseFiltered = useMemo(() => {
-    let list = events.filter((e) => e.status !== 'cancelled' && isEventJoinable(e));
-    if (sports.length > 0) {
-      const wanted = sports.includes('piłka nożna') ? [...sports, 'futsal'] : sports;
-      list = list.filter((e) => wanted.includes(e.sport));
-    }
-    if (gamesOnlyFreeSpots) list = list.filter((e) => (e.participantsCount ?? 0) < (e.maxPlayers ?? 0));
-    if (gamesOnlyNoCost) list = list.filter((e) => (e.costGrosze ?? 0) <= 0);
-    const q = search.trim().toLowerCase();
-    if (q) {
-      list = list.filter((e) =>
-        e.title?.toLowerCase().includes(q) ||
-        e.fieldName.toLowerCase().includes(q) ||
-        e.district?.toLowerCase().includes(q));
-    }
-    return list;
-  }, [events, sports, gamesOnlyFreeSpots, gamesOnlyNoCost, search]);
+  /** Sport, przełączniki i szukanie — sparametryzowane, bo liczą to samo dla
+   *  DWÓCH różnych zestawów wartości: zastosowanych (wynik na mapie i liście)
+   *  oraz szkicu z otwartego arkusza (podgląd „Pokaż N meczy").
+   *
+   *  Wcześniej podgląd brał tę listę gotową, czyli po wartościach
+   *  ZASTOSOWANYCH — więc klikanie sportu, „Wolnych miejsc" i „Za darmo"
+   *  w arkuszu nie ruszało licznika ani o jeden mecz. Zgłoszone wprost.
+   *  Podgląd obiektów miał to poprawione (patrz `previewFieldsCount`), tryb
+   *  gier został z błędem, bo liczył z innego miejsca. */
+  const filtrujGry = useCallback((
+    sporty: string[], tylkoWolne: boolean, tylkoZaDarmo: boolean,
+  ) => filtrujGryMapy(
+    events.filter((e) => e.status !== 'cancelled' && isEventJoinable(e)),
+    { sporty, tylkoWolne, tylkoZaDarmo, szukaj: search },
+  ), [events, search]);
+
+  const gamesBaseFiltered = useMemo(
+    () => filtrujGry(sports, gamesOnlyFreeSpots, gamesOnlyNoCost),
+    [filtrujGry, sports, gamesOnlyFreeSpots, gamesOnlyNoCost],
+  );
 
   const gamesDateFiltered = useMemo(() => {
     if (gamesDate === 'wszystkie') return gamesBaseFiltered;
@@ -1201,8 +1229,15 @@ export default function VenueExplorer({
     widzianoWczesniej != null && new Date(event.createdAt).getTime() > new Date(widzianoWczesniej).getTime()
   );
 
+  /** Okno alertu otwiera się wypełnione tym, co widać na mapie: wybranym
+   *  sportem oraz punktem odniesienia (miejscowość albo pozycja gracza). */
+  const domyslneAlertu = useMemo(
+    () => domyslneZFiltrow({ sports, radiusKm: promienGier, pozycja: srodekGier }),
+    [sports, promienGier, srodekGier],
+  );
+
   const gamesPreviewCount = useMemo(() => {
-    let list = gamesBaseFiltered;
+    let list = filtrujGry(draftSports, draftGamesOnlyFreeSpots, draftGamesOnlyNoCost);
     if (draftGamesDate !== 'wszystkie') list = list.filter((e) => matchesDateFilter(e.date, draftGamesDate));
     const withDist = srodekGier
       ? list.map((event) => ({
@@ -1216,7 +1251,8 @@ export default function VenueExplorer({
     rows = filterByMaxPrice(rows, draftGamesMaxPricePln == null ? null : draftGamesMaxPricePln * 100);
     rows = filterByMinFreeSpots(rows, draftGamesMinFreeSpots);
     return rows.length;
-  }, [gamesBaseFiltered, draftGamesDate, draftGamesRadius, draftGamesMaxPricePln, draftGamesMinFreeSpots,
+  }, [filtrujGry, draftSports, draftGamesOnlyFreeSpots, draftGamesOnlyNoCost,
+      draftGamesDate, draftGamesRadius, draftGamesMaxPricePln, draftGamesMinFreeSpots,
       srodekGier, draftMiejscowosc, draftPromienKm]);
 
   const selectedEventRow = selectedEventId ? gamesRows.find((r) => r.event.id === selectedEventId) ?? null : null;
@@ -1460,30 +1496,34 @@ export default function VenueExplorer({
         </section>
 
         <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Sport</h3>
-          <button
-            type="button"
-            onClick={() => setDraftSports([])}
-            aria-pressed={draftSports.length === 0}
-            className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
-          >
-            <span className="text-base">🏟️</span>
-            <span className="flex-1 text-left">Wszystkie sporty</span>
-            {draftSports.length === 0 && <Check className="h-4 w-4 shrink-0 text-primary-700" />}
-          </button>
-          {GAMES_SPORT_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => setDraftSports(toggleInArray(draftSports, o.value))}
-              aria-pressed={draftSports.includes(o.value)}
-              className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
-            >
-              <span className="text-base">{o.emoji}</span>
-              <span className="flex-1 text-left">{o.label}</span>
-              {draftSports.includes(o.value) && <Check className="h-4 w-4 shrink-0 text-primary-700" />}
-            </button>
-          ))}
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Sport</h3>
+          {/* Ikony zamiast listy z podpisami — ten sam `SportChip` co w arkuszu
+              filtrów na `/wydarzenia`. Cztery sporty w pionie zjadały pół
+              ekranu telefonu, przez co suwaki pod spodem były poza kadrem.
+              Podpis wraca przy wybranym, więc widać, co się wybrało.
+
+              Tylko tryb gier: `GAMES_SPORT_OPTIONS` to `FOCUS_SPORTS`, gdzie
+              każda ikona jest inna. Lista obiektów (`SPORT_OPTIONS`,
+              `MAP_FILTER_SPORTS`) ma „wielofunkcyjne" z tym samym 🏟️ co
+              „Wszystkie sporty" — same ikony byłyby tam nie do rozróżnienia,
+              więc zostaje listą. */}
+          <div className="flex flex-wrap gap-2">
+            <SportChip
+              emoji="🏟️"
+              label="Wszystkie sporty"
+              selected={draftSports.length === 0}
+              onClick={() => setDraftSports([])}
+            />
+            {GAMES_SPORT_OPTIONS.map((o) => (
+              <SportChip
+                key={o.value}
+                emoji={o.emoji}
+                label={o.label}
+                selected={draftSports.includes(o.value)}
+                onClick={() => setDraftSports(toggleInArray(draftSports, o.value))}
+              />
+            ))}
+          </div>
         </section>
 
         <section className="flex flex-wrap gap-2">
@@ -1525,6 +1565,47 @@ export default function VenueExplorer({
           formatValue={(n) => (n === 0 ? 'Dowolna liczba' : `co najmniej ${n}`)}
           minLabel="Dowolna liczba" maxLabel="14+"
         />
+
+        {/* Przy „Pokaż 0 meczy" to JEST moment, w którym filtry nic nie
+            znalazły — wtedy pełny przycisk. Przy niezerowym wyniku cichy
+            wiersz, żeby nie konkurował z zatwierdzeniem filtrów. */}
+        {SHOW_GAME_ALERTS && (
+          mojAlert ? (
+            <button
+              type="button"
+              onClick={otworzAlert}
+              className="flex w-full items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-3 py-2.5 text-left text-sm font-medium text-primary-800"
+            >
+              <BellRing className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="flex-1">Damy znać, gdy pojawi się pasujący mecz</span>
+              <span className="shrink-0 text-xs underline">Zmień</span>
+            </button>
+          ) : gamesPreviewCount === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+              <p className="text-sm font-semibold text-ink">Nic nie pasuje do tych filtrów</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Możemy dać znać, gdy pojawi się pierwszy taki mecz.
+              </p>
+              <button
+                type="button"
+                onClick={otworzAlert}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98]"
+              >
+                <Bell className="h-4 w-4 shrink-0" aria-hidden />
+                Powiadom mnie, gdy się pojawi
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={otworzAlert}
+              className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition-colors hover:border-primary-300 hover:text-primary-700"
+            >
+              <Bell className="h-4 w-4 shrink-0" aria-hidden />
+              Powiadom mnie o nowych takich meczach
+            </button>
+          )
+        )}
       </div>
     </FilterSheet>
   ) : (
@@ -1882,6 +1963,18 @@ export default function VenueExplorer({
           (sidebar desktopu i overlay mobile), żeby oba przyciski „Filtry"
           otwierały ten sam, współdzielony stan szkicu. */}
       {filtersModal}
+
+      {oknoAlertu && (
+        <AlertSetupDialog
+          defaultSport={domyslneAlertu.sport}
+          defaultRadiusKm={domyslneAlertu.radiusKm}
+          defaultLat={domyslneAlertu.lat}
+          defaultLng={domyslneAlertu.lng}
+          defaultLabel={domyslneAlertu.lat != null ? (miejscowosc?.nazwa ?? 'Moja lokalizacja') : undefined}
+          onClose={() => setOknoAlertu(false)}
+          onSaved={setMojAlert}
+        />
+      )}
 
       {/* ── Map area ─────────────────────────────────────────────────── */}
       {/* `hidden`, nie unmount: Leaflet trzyma tu kadr i przybliżenie w swojej

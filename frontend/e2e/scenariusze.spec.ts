@@ -437,8 +437,14 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     await expect(page.getByText(/w polu jest już komplet/i)).toBeVisible();
     await expect(page.getByText(/listę rezerwową/i)).toBeVisible();
     await uspokoj(page);
+    // Maska na termin: ten zrzut łapie też kartę „Kiedy i gdzie" pod oknem,
+    // a data w seedzie liczy się jako ODSTĘP od dnia uruchomienia. Bez maski
+    // ten sam, niezmieniony widok meldował „zmianę wyglądu" codziennie —
+    // dokładnie ta zgnilizna, o której mówi AGENTS.md.
     await zaslonPaskamiDolnymi(page, () => expect(page.getByRole('dialog').or(page.locator('.fixed.inset-0').last()))
-      .toHaveScreenshot('bramkarze-rezerwacja-okno.png'));
+      .toHaveScreenshot('bramkarze-rezerwacja-okno.png', {
+        mask: [page.locator('[data-termin-meczu]')],
+      }));
     // Zamykamy okno bez zapisu — ten test celowo NIC nie zmienia w bazie,
     // sprawdza wyłącznie ostrzeżenie przed zapisem.
     await page.keyboard.press('Escape');

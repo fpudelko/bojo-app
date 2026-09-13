@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ArrowDown, Loader2, Send, Trash2 } from 'lucide-react';
-import { etykietaDniaCzatu, koniecGrupyWiadomosci, taSamaGrupaWiadomosci } from '@/lib/czat';
+import { bezZabieraniaSkupienia, etykietaDniaCzatu, koniecGrupyWiadomosci, taSamaGrupaWiadomosci } from '@/lib/czat';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { getComments, addComment, deleteComment } from '@/lib/comments';
@@ -206,6 +206,7 @@ export default function RozmowaWydarzenia({ eventId, klawiatura = false }: { eve
             className="max-h-[110px] flex-1 resize-none rounded-2xl border border-slate-200 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
           />
           <button
+            {...bezZabieraniaSkupienia}
             onClick={handleAdd}
             disabled={busy || !body.trim()}
             aria-label="Wyślij"

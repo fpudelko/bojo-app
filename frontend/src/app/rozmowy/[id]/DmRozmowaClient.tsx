@@ -9,7 +9,7 @@ import Header from '@/components/layout/Header';
 import { useAuth, displayName } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { getPublicPlayer } from '@/lib/players';
-import { etykietaDniaCzatu, koniecGrupyWiadomosci, taSamaGrupaWiadomosci } from '@/lib/czat';
+import { bezZabieraniaSkupienia, etykietaDniaCzatu, koniecGrupyWiadomosci, taSamaGrupaWiadomosci } from '@/lib/czat';
 import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
 import { useWstecz } from '@/lib/historia';
 import {
@@ -332,6 +332,7 @@ export default function DmRozmowaClient() {
               />
               <button
                 type="button"
+                {...bezZabieraniaSkupienia}
                 onClick={wyslij}
                 disabled={!tekst.trim() || wysylanie}
                 aria-label="Wyślij wiadomość"
