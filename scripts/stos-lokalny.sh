@@ -116,6 +116,32 @@ BEGIN
 END $$;
 SQL
 
+# Ta sama pułapka, ten sam skrypt: `GRANT ALL ON ALL TABLES` wyżej cofa też
+# ograniczenia kolumnowe z migracji `145` na `turniej_druzyny` (kontakt
+# kapitana). Lista znowu odwrócona — wymieniamy UKRYTE, resztę wyliczamy.
+echo "→ Przywracam kolumnowe ograniczenia z migracji 145 (kontakt kapitana turnieju)…"
+psql "$DB_URL" -q -v ON_ERROR_STOP=1 <<'SQL'
+DO $$
+DECLARE v_kolumny text;
+BEGIN
+  IF to_regclass('public.turniej_druzyny') IS NULL THEN
+    RETURN; -- moduł turniejowy jeszcze nie wdrożony na tym stosie
+  END IF;
+
+  SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position)
+    INTO v_kolumny
+    FROM information_schema.columns
+   WHERE table_schema = 'public'
+     AND table_name = 'turniej_druzyny'
+     -- Dokładnie to, co ukrywa migracja `145`: telefon i e-mail kapitana,
+     -- podane wyłącznie po to, żeby zgłosić drużynę, nie do publikacji.
+     AND column_name NOT IN ('kontakt_telefon', 'kontakt_email');
+
+  EXECUTE 'REVOKE SELECT ON turniej_druzyny FROM anon, authenticated';
+  EXECUTE format('GRANT SELECT (%s) ON turniej_druzyny TO anon, authenticated', v_kolumny);
+END $$;
+SQL
+
 echo "→ Konta testowe…"
 psql "$DB_URL" -q -v ON_ERROR_STOP=1 -f supabase/seed-test-users.sql
 
