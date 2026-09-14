@@ -12,7 +12,7 @@
 //    "Czego Bojo NIE robi" w `docs/funkcje.md`.
 
 export const ZAKAZANE_NA_LANDINGU = [
-  'turniej', // SHOW_CUP = false
+  'turniej', // SHOW_TURNIEJE = false
   'sms', // SHOW_SMS_FEATURES = false
   // Przypomnienia ISTNIEJĄ od migracji `129` (zadanie `bojo-przypomnienia`),
   // więc komentarz „no scheduler exists" był nieaktualny. Fraza zostaje zakazana
@@ -74,7 +74,7 @@ export const ZAKAZANE_WSZEDZIE = [
   'poziom(u|ie)? zaawansowania', // does not exist
   'automatyczn[iy].*(awans|wskocz)', // no reserve auto-promotion, by design
   'rezerw(uj|acj[aeę]) boisk', // FEATURE_RESERVATIONS = false
-  'turniej', // SHOW_CUP = false
+  'turniej', // SHOW_TURNIEJE = false
   'odznak', // no badges beyond "rzetelny gracz"
   'płatność online', // no payment integration
   'zapłać przez', // no payment integration

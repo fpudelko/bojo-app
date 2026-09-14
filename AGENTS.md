@@ -279,8 +279,14 @@ i `npm run check:docs` przy każdym PR i push na master):
 ## Zanim uznasz, że funkcja nie istnieje — sprawdź flagi
 
 Najczęstsze nieporozumienie w tym repo: funkcja jest zbudowana, ale schowana.
-`SHOW_CUP`, `SHOW_SMS_FEATURES` (`frontend/src/lib/features.ts`) oraz
+`SHOW_TURNIEJE`, `SHOW_SMS_FEATURES` (`frontend/src/lib/features.ts`) oraz
 `FEATURE_RESERVATIONS` (`frontend/src/config/features.ts`) są dziś wyłączone.
+`SHOW_TURNIEJE` chowa moduł turniejowy budowany etapami od 2026-09-13 — plan
+w [docs/turnieje-plan-duze-klocki.md](./docs/turnieje-plan-duze-klocki.md) i
+[docs/turnieje-plan-srednie-klocki.md](./docs/turnieje-plan-srednie-klocki.md).
+Zastępuje wcześniejszy, nieużywany „BOJO Cup" (dawna flaga `SHOW_CUP`,
+`lib/tournaments.ts`, tabele `tournament_*`) — usunięty z frontu, tabele kasuje
+osobna migracja, gdy nowy moduł zastąpi go w całości.
 `SHOW_GAME_ALERTS` jest **włączona** od 2026-09-12 — alert o nowym meczu w okolicy
 zakłada się przyciskiem „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów.
 `SHOW_RECURRING` jest **wyłączona** od 2026-08-16 (produktowa decyzja o rezygnacji

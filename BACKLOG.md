@@ -422,37 +422,53 @@ gęstość poza Poznaniem wciąż będzie odstawać), gdy ten import się domkni
 ### Bezpieczeństwo (wdrożone — pilnować)
 - Telefony i e-maile zescrapowane z OSM **ukryte domyślnie**; widoczność per obiekt
   włącza admin (`contact_visible`, migracja `033`). Egzekwowane na poziomie DB.
-- `/admin`, `/api`, `/d/`, `/g/` wyłączone z indeksowania (`robots.ts`). Kody dołączenia
-  są jedyną kontrolą dostępu do prywatnych meczów — nie mogą trafić do wyszukiwarki.
+- `/admin`, `/api`, `/d/`, `/g/`, `/t/` wyłączone z indeksowania (`robots.ts`). Kody
+  dołączenia są jedyną kontrolą dostępu do prywatnych meczów, grup i drużyn turniejowych
+  — nie mogą trafić do wyszukiwarki.
 - Mecze prywatne nie emitują JSON-LD (`lib/structuredData.ts`, pokryte testem).
 
 ---
 
 ## 6. Turniej — stan i co zostało
 
-**Zbudowane** (wbrew wcześniejszej wersji tego pliku, która listowała to jako TODO):
-`lib/tournaments.ts` (455 linii), 6 tabel `tournament_*` (`029`–`031`), trasy `/turniej`,
-`/turniej/rejestracja`, `/turniej/drabinka`, `/turniej/druzyna/[teamId]`,
-`/turniej/druzyna/[teamId]/dolacz`, RPC `tournament_team_count`, `shared_availability_days`,
-`admin_team_contacts`. Rejestracja drużyn, składy, terminarz, drabinka, zgłaszanie
-i potwierdzanie wyników — działa. Ukryte flagą `SHOW_CUP`.
+**Przebudowa w toku od 2026-09-13.** Dawny moduł (`lib/tournaments.ts`, 455 linii, 6 tabel
+`tournament_*` z migracji `029`–`030`, trasy `/turniej/*`, flaga `SHOW_CUP`) był kompletny,
+ale wyprzedzał roadmapę bez popytu: turniej zakładał wyłącznie admin, była jedna edycja
+wpisana seedem, a drużyny umawiały mecze same przez tygodnie. **Skasowany** — front w
+Etapie 0 przebudowy, tabele osobną migracją (`149`), gdy nowy moduł go zastąpi w całości.
 
-**Zakres: 3 sporty — piłka nożna, koszykówka, siatkówka plażowa.**
+**Nowy moduł** — pełny plan produktowy i techniczny w
+[docs/turnieje-plan-duze-klocki.md](./docs/turnieje-plan-duze-klocki.md) i
+[docs/turnieje-plan-srednie-klocki.md](./docs/turnieje-plan-srednie-klocki.md). W skrócie:
+turniej zakłada każdy organizator (dowolnie wiele naraz), na jeden dzień/weekend, z
+terminarzem generowanym z góry i wynikiem wpisywanym na żywo przez prowadzącego (gole,
+strzelcy, asysty, kartki, MVP). Ściana logowania na składach i statystykach (RLS, nie UI)
+jest głównym mechanizmem zakładania kont w tym module. Tabele: `turnieje`, `turniej_osoby`,
+`turniej_druzyny`, `turniej_zawodnicy`, `turniej_grupy`, `turniej_areny`, `turniej_mecze`,
+`turniej_zdarzenia`, `turniej_ogloszenia`, `turniej_blik` — polskie nazwy celowo, żeby nie
+kolidować ze starym schematem podczas przenosin.
 
-> ⭐ **Siatkówka plażowa to główny przypadek użycia** — więcej osób robi turnieje
-> plażówki niż hali. Halową siatkówkę traktujemy jako zwykły sport meczowy.
+Flaga `SHOW_TURNIEJE` (`frontend/src/lib/features.ts`), pięć etapów/PR-ów (fundament i
+zgłoszenia → terminarz → rozgrywka na żywo → tabela i statystyki → domknięcie i
+odmrożenie), migracje `145`–`149`.
 
-| Sport | Format domyślny | Rozmiar | Uwaga |
-|---|---|---|---|
-| **Siatkówka plażowa** ⭐ | pucharowy | 2v2 / 4v4 | główny przypadek; boiska już na mapie |
-| Piłka nożna | grupy → puchar | 5v5 / 7v7 | trzeba wielu boisk lub slotów czasowych |
-| Koszykówka | pucharowy | 3v3 | streetball, najpopularniejszy format amatorski |
+**Zrobione: Etap 0 (`145`) i Etap 1 (`146`).** Terminarz — generator w
+`lib/turniejFormat.ts`, zakładka Terminarz na `/turnieje/[id]` i w panelu (losowanie
+grup, areny, generowanie/podgląd/zapis terminarza, przesunięcie o N minut). Następny:
+Etap 2 — konsola prowadzącego z wynikiem na żywo.
 
-### Zostało do decyzji
-- [ ] Wizualizacja drabinki na mobile (drzewko jest trudne na małym ekranie)
-- [ ] Powiadomienia: wylosowano drabinkę / kiedy następny mecz
-- [ ] Płatność za drużynę (re-użyć `trackPayments`)
-- [ ] Lista wielu turniejów — dziś model zakłada jeden aktywny (`getActiveTournament`)
+### Świadomie NIE budujemy (zapisane w planie, nie zapomniane)
+- Czatu turniejowego, głosowania graczy na MVP (prowadzący wybiera ręcznie), płatności
+  online za wpisowe (BLIK + odhaczanie „opłacone", jak przy meczach), rezerwacji obiektu
+  pod turniej, trybu offline w konsoli prowadzącego, Supabase Realtime, widoku na
+  TV/projektor, wielu sportów w jednym turnieju, sędziów do wynajęcia.
+
+### Zostało do decyzji (poza zakresem v1)
+- [ ] Kolory drużyn w interfejsie (dziś: pełne nazwy, żeby nie kolidować z rezerwacją
+      kolorów różowy/niebieski/pomarańczowy z AGENTS.md)
+- [ ] Integracja statystyk turniejowych z publicznym profilem gracza (`get_player_stats`)
+- [ ] Drabinka jako prawdziwe drzewko na desktopie ponad listą rund (v1 ma listę wszędzie
+      na telefonie, drzewko z liniami dopiero od `md:`)
 
 ---
 

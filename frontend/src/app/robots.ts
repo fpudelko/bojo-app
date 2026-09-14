@@ -4,8 +4,9 @@ import type { MetadataRoute } from 'next';
 //   /admin   — admin panel
 //   /api     — server routes, no user-facing content
 //   /profil, /moje-gry — per-user pages, useless to a crawler
-//   /d/, /g/ — join codes are the only access control on private events and
-//              groups; a code sitting in a search index defeats it
+//   /d/, /g/, /t/ — join codes are the only access control on private events,
+//                   groups and tournament teams; a code sitting in a search
+//                   index defeats it
 //
 // Dopisane 2026-08-23 po audycie SEO. Wszystkie poniższe trasy to komponenty
 // klienckie ('use client'), a taki plik NIE MOŻE wyeksportować `metadata` —
@@ -16,7 +17,7 @@ import type { MetadataRoute } from 'next';
 //   2. Kreatory i edycja: /wydarzenia/nowe, /grupy/nowe, */edytuj. Formularze
 //      za logowaniem; /wydarzenia/nowe jest przy tym linkowane ze stopki
 //      i z czterech CTA landingu, więc realnie zbierało odesłania.
-//   3. Funkcje ZA WYŁĄCZONYMI FLAGAMI: /turniej (SHOW_CUP), /cykliczne
+//   3. Funkcje ZA WYŁĄCZONYMI FLAGAMI: /turnieje (SHOW_TURNIEJE), /cykliczne
 //      (SHOW_RECURRING), /obiekt i /rezerwacje (FEATURE_RESERVATIONS).
 //      docs/funkcje.md mówi wprost: „reklamowanie ich wyszukiwarce obiecuje
 //      coś, czego użytkownik nie znajdzie w interfejsie". Flagi chowają
@@ -37,6 +38,7 @@ const DISALLOW = [
   '/moje-gry',
   '/d/',
   '/g/',
+  '/t/',
   '/auth/',
   '/logowanie',
   '/zglos-blad',
@@ -44,7 +46,7 @@ const DISALLOW = [
   '/wydarzenia/*/edytuj',
   '/grupy/nowe',
   '/grupy/*/edytuj',
-  '/turniej',
+  '/turnieje',
   '/cykliczne',
   '/obiekt',
   '/rezerwacje',

@@ -139,13 +139,20 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `team_proposals` | `059` | Propozycje składów od uczestników |
 | `team_proposal_picks` | `059` | Przypisania graczy w propozycji |
 | `team_proposal_votes` | `059` | Poparcia propozycji |
-| `tournaments` i 5 tabel `tournament_*` | `029` | Turniej |
+| `tournaments` i 5 tabel `tournament_*` | `029` | **MARTWE** — dawny „BOJO Cup", zastąpiony modułem niżej. Kod usunięty z frontu; tabele kasuje osobna migracja `149`, uruchamiana świadomie, gdy nowy moduł zastąpi go w całości |
 | `event_delegates` | `089` | Delegowanie uprawnień organizatora (`can_edit`/`can_manage_squad`/`can_manage_payments`) — patrz `090` niżej |
 | `push_subscriptions` | `102` | Subskrypcje web-push, jedna na przeglądarkę. Każdy widzi i kasuje wyłącznie swoje |
 | `konfiguracja_push` | `102` | Adres funkcji `send-push` i sekret wyzwalacza. RLS bez polityk — przez API nieczytelna |
 | `event_team_setup` | `103` | Ustawienie i taktyka drużyny (jeden wiersz na drużynę meczu) |
 | `event_team_slots` | `103` | Przypisanie gracza do pozycji w ustawieniu |
 | `event_team_messages` | `103` | Czat drużyny — czyta wyłącznie ta drużyna (+ organizator/delegat) |
+| `turnieje` | `145` | Nowy moduł turniejowy (Etap 0) — turniej zakłada każdy organizator, dowolnie wiele naraz. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) |
+| `turniej_osoby` | `145` | Współorganizatorzy i prowadzący — trzy niezależne przełączniki (`moze_edytowac`/`moze_prowadzic`/`moze_zarzadzac_druzynami`), wzorem `event_delegates` |
+| `turniej_druzyny` | `145` | Zgłoszenia drużyn. Kontakt kapitana (`kontakt_telefon`/`kontakt_email`) ma uprawnienia KOLUMNOWE jak `event_participants` od `127` — nowa kolumna wymaga jawnego `GRANT SELECT` |
+| `turniej_zawodnicy` | `145` | Skład — **ściana logowania**: `SELECT` wyłącznie dla `auth.uid() IS NOT NULL`. Indeks unikalny `(turniej_id, user_id)` pilnuje, że jedna osoba gra w jednej drużynie turnieju |
+| `turniej_grupy` | `146` | Grupy fazy grupowej (Etap 1 — terminarz). `turniej_druzyny.grupa_id` (deklarowany w `145` jako goły `uuid`) dostaje tu domykający FK |
+| `turniej_areny` | `146` | Boiska turnieju — jeden turniej gra zwykle na 2-3 naraz. Wyzwalacz `utworz_domyslna_arene()` zakłada „Boisko 1" przy każdym nowym turnieju (kreator o nie nie pyta) |
+| `turniej_mecze` | `146` | Terminarz. `zrodlo_a_mecz_id`/`zrodlo_b_mecz_id` + `zrodlo_a_typ`/`zrodlo_b_typ` łączą mecze drabinki w drzewo (wzajemne odwołania w JEDNYM wielorzędowym INSERCIE — UUID-y meczów nadaje przeglądarka). Wyzwalacz `propaguj_zwyciezce()` przenosi zwycięzcę/przegranego do kolejnej rundy po `UPDATE ... SET status IN ('zakonczony','walkower')` |
 
 **Tabela `games` (`001`) jest martwa** — powstała w pierwszym schemacie i została
 zastąpiona przez `events` (`002`). Żaden kod jej nie używa.
@@ -258,7 +265,13 @@ powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 | `set_event_teams_published` | Publikacja składów. `SECURITY DEFINER` + `can_manage_squad()` od `090` (wcześniej `SECURITY INVOKER` z `organizer_id` wpisanym wprost w `WHERE`) |
 | `generate_join_code` | Kod dołączenia do meczu |
 | `add_group_creator_as_member` | Trigger — twórca grupy zostaje członkiem |
-| `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | Turniej |
+| `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | **Martwe** — dawny „BOJO Cup" (`029`), kasowane migracją `149` razem z tabelami |
+| `czy_organizator_turnieju`, `czy_zarzadza_turniejem`, `czy_zarzadza_druzynami`, `czy_kapitan_druzyny` | Nowy moduł turniejowy (`145`) — funkcje pomocnicze do polityk RLS, wzorem `can_edit_event()`/`czy_czlonek_grupy()` |
+| `dolacz_do_druzyny_kodem` | Jedyna droga wejścia do drużyny turniejowej (`/t/[kod]`): kapitanat, przypisanie do wolnego wpisu składu albo dopisanie nowego — jedna transakcja (`SECURITY DEFINER`, `145`) |
+| `turniej_kontakty` | Telefon i e-mail kapitanów — wyłącznie dla zarządzających turniejem, bo kolumny są odebrane grantem (`SECURITY DEFINER`, `145`) |
+| `czy_prowadzi_mecz` | Trzy niezależne drogi do prowadzenia meczu: zarządzający turniejem, `prowadzacy_id` wpisany na TYM meczu, albo `turniej_osoby.moze_prowadzic` ogólnie (`SECURITY DEFINER`, `146`) |
+| `zapisz_terminarz` | Zapisuje cały wygenerowany terminarz naraz (usuwa stary, wielorzędowy INSERT z UUID-ami mecze od klienta). Odmawia, gdy jakikolwiek mecz turnieju jest już poza `zaplanowany` — inaczej „wygeneruj ponownie" kasowałoby wynik (`SECURITY DEFINER`, `146`) |
+| `przesun_terminarz` | Przesuwa wskazany mecz i wszystkie kolejne wciąż-zaplanowane o N minut, powiadamia zawodników z kontem (`SECURITY DEFINER`, `146`) |
 | `sync_reserve_claim` | Utrzymuje kolejkę ofert zwolnionego miejsca i powiadamia o ofercie (`SECURITY DEFINER`, `062`) |
 | `zglos_brak_pelnej_nazwy` | Wołana z przeglądarki (`supabase.rpc()`) przez świeżo zalogowanego użytkownika bez pełnego imienia i nazwiska — wstawia powiadomienie `uzupelnij_profil`, chyba że już istnieje (`SECURITY DEFINER`, `086`) |
 | `accept_team_proposal` | Przenosi propozycję składów na realne drużyny (`SECURITY DEFINER`) |

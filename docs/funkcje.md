@@ -12,7 +12,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 
 | Flaga | Wartość | Co chowa | Gdzie warunkuje |
 |---|---|---|---|
-| `SHOW_CUP` | `false` | Turniej / BOJO Cup | `Header.tsx`, `AnnouncementBar.tsx` |
+| `SHOW_TURNIEJE` | `false` | Moduł turniejowy (`/turnieje/*`) — w budowie, etapami. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | jeszcze nigdzie — wejścia (`/profil`, `/moje-gry`) dochodzą w Etapie 4 |
 | `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (przycisk „Powiadom mnie, gdy się pojawi" w pustym stanie listy) |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
 | `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
@@ -26,10 +26,11 @@ Ostatnia: `frontend/src/config/features.ts` (zmienna środowiskowa).
 flaga globalna jest włączona **albo** dany obiekt ma `fields.booking_enabled = true`.
 Czyli rezerwacje można włączyć pojedynczemu boisku bez odmrażania całej funkcji.
 
-**Flagi ukrywają wejścia, nie trasy.** Trasa `/turniej` odpowiada normalnie, jeśli ktoś
-wpisze adres ręcznie — flaga (`SHOW_CUP`) usuwa tylko linki w nawigacji. Dlatego trasy za
-flagami nie trafiają do `llms.txt` ani do `sitemap.ts`: reklamowanie ich wyszukiwarce
-obiecuje coś, czego użytkownik nie znajdzie w interfejsie.
+**Flagi ukrywają wejścia, nie trasy.** Trasa `/turnieje` odpowiada normalnie, jeśli ktoś
+wpisze adres ręcznie — flaga (`SHOW_TURNIEJE`) usuwa tylko linki w nawigacji, a dodatkowo
+`robots.ts` blokuje jej skanowanie, dopóki flaga jest wyłączona. Dlatego trasy za flagami nie
+trafiają do `llms.txt` ani do `sitemap.ts`: reklamowanie ich wyszukiwarce obiecuje coś, czego
+użytkownik nie znajdzie w interfejsie.
 
 ---
 
@@ -3730,6 +3731,45 @@ bo dzieli ją jeszcze nagłówek i `PustyStanMeczow`.
 
 Pusty stan `PustyStanMeczow` uprzedza tym samym tonem, że otwartych gier bywa mało
 i szybszą drogą jest własny mecz plus link do znajomych.
+
+---
+
+## Moduł turniejowy (`/turnieje/*`) — w budowie etapami
+
+Za flagą `SHOW_TURNIEJE` (dziś `false`). Pełny plan produktowy i techniczny →
+[docs/turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) i
+[docs/turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md); stan wdrożenia
+etapów → [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało).
+
+**Etap 0 (migracja `145`) — zbudowane:** turniej z parametrami (`lib/turnieje.ts`),
+zgłoszenia i skład drużyn (`lib/turniejDruzyny.ts`), etykiety i odmiana
+(`lib/turniejEtykiety.ts`). Trasy: `/turnieje` (lista), `/turnieje/nowe` (kreator —
+jeden ekran, nie wielokrokowy wizard jak `/wydarzenia/nowe`), `/turnieje/[id]`
+(zakładki Info/Drużyny), `/turnieje/[id]/zglos`, `/turnieje/[id]/panel` (zakładki
+Drużyny/Ludzie/Ustawienia), `/t/[kod]` (lądowanie z linku drużyny — kapitanat,
+„to ja" do wolnego wpisu składu, albo nowy zawodnik; ten sam wzorzec co `/d/[code]`
+i `/g/[code]`).
+
+**Ściana logowania jest głównym mechanizmem zakładania kont w tym module** — skład
+drużyny (`turniej_zawodnicy`) czyta wyłącznie zalogowany, egzekwowane w RLS, nie w UI
+(patrz [domena.md](./domena.md#turniej-ściana-logowania-i-uprawnienia)).
+
+**Etap 1 (migracja `146`) — zbudowane:** generator terminarza, czyste funkcje w
+`lib/turniejFormat.ts` (losowanie grup, „każdy z każdym", drabinka pucharowa z wolnymi
+losami, rozstawienie na arenach i w czasie, szacunek czasu trwania — patrz
+[domena.md](./domena.md#turniej-terminarz-i-drabinka-146)); funkcje sięgające do bazy
+w `lib/turniejMecze.ts`. Na `/turnieje/[id]` doszła zakładka **Terminarz** (lista meczów,
+komponent `components/turnieje/KartaMeczu.tsx` — reużywany dalej przy drabince i stronie
+drużyny). W panelu doszła zakładka **Terminarz**, łącząca w JEDNYM ekranie zarządzanie
+arenami, losowanie grup (dla formatu „Grupy → puchar") i generowanie/podgląd/zapis
+terminarza oraz jego przesuwanie o N minut — świadome odejście od trzech osobnych
+zakładek (Losowanie/Terminarz/Areny) z pierwotnego rozpisania w
+[turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md), żeby nie mnożyć
+zakładek w pasku, który już ma cztery pozycje.
+
+Kolejne etapy (konsola prowadzącego z wynikiem na żywo, tabela i statystyki, ogłoszenia,
+„zamień drużynę w ekipę") dochodzą w osobnych PR-ach — plan już je rozpisuje co do
+pliku i funkcji.
 
 ---
 

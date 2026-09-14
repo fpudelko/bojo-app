@@ -4,8 +4,24 @@
 // back. See /BACKLOG.md for the why behind each one.
 // ---------------------------------------------------------------------------
 
-/** BOJO Cup / tournament promo (AnnouncementBar, TrustBar, Header link). */
-export const SHOW_CUP = false;
+/**
+ * Moduł turniejowy (`/turnieje/*`) — turniej z zapisami drużyn, terminarzem
+ * generowanym automatycznie i wynikami wpisywanymi na żywo przez prowadzącego.
+ * Kod: `lib/turnieje.ts`, `lib/turniejDruzyny.ts`, migracja `145`.
+ *
+ * Nie mylić ze starym „BOJO Cup" (`SHOW_CUP`, usunięty 2026-09-13 razem z
+ * `lib/tournaments.ts` i tabelami `tournament_*` — kasowane osobno migracją
+ * `149`, gdy ten moduł zastąpi go w całości): tamten turniej zakładał
+ * wyłącznie admin, był jeden, a drużyny umawiały mecze same przez tygodnie.
+ * Ten zakłada każdy organizator, wielu naraz, z terminarzem z góry na jeden
+ * dzień/weekend. Plan → `docs/turnieje-plan-duze-klocki.md` i
+ * `docs/turnieje-plan-srednie-klocki.md`.
+ *
+ * WYŁĄCZONA do zakończenia Etapu 4 (domknięcie + odmrożenie) — moduł powstaje
+ * etapami, każdy w osobnym PR-ze, i do samego końca nikt poza deweloperem nie
+ * ma jak wejść na te trasy.
+ */
+export const SHOW_TURNIEJE = false;
 
 /**
  * Game alerts — "Powiadom mnie, gdy się pojawi": a saved sport + place + radius

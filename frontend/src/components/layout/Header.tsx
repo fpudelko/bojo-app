@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Plus, LogOut, User, UserCircle, RefreshCw, Map, Trophy, Settings, Sun, Moon } from 'lucide-react';
+import { Plus, LogOut, User, UserCircle, RefreshCw, Map, Settings, Sun, Moon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTheme } from 'next-themes';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
@@ -13,7 +13,7 @@ import { ADMIN_LINKS } from '@/lib/adminLinks';
 import { LogoPill } from '@/components/Logo';
 import NotificationBell from './NotificationBell';
 import WczesnyEtapBadge from '@/components/home/landing/WczesnyEtapBadge';
-import { SHOW_CUP, SHOW_RECURRING } from '@/lib/features';
+import { SHOW_RECURRING } from '@/lib/features';
 
 // Ordered by user-journey priority: discover → map
 const NAV_LINKS = [
@@ -141,19 +141,6 @@ export default function Header({
                   {link.earlyStage && <WczesnyEtapBadge />}
                 </Link>
               ))}
-              {SHOW_CUP && (
-                <Link
-                  href="/turniej"
-                  className={clsx(
-                    'inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors',
-                    pathname === '/turniej' || pathname.startsWith('/turniej/')
-                      ? 'bg-accent-100 text-accent-700'
-                      : 'text-accent-700 hover:bg-accent-50',
-                  )}
-                >
-                  <Trophy className="w-4 h-4" /> Cup
-                </Link>
-              )}
             </nav>
 
             <div className="hidden md:flex items-center gap-3">

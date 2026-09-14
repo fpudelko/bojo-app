@@ -5,7 +5,6 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth';
 import { ToastProvider } from '@/lib/toast';
 import CookieBanner from '@/components/CookieBanner';
-import AnnouncementBar from '@/components/AnnouncementBar';
 import BottomNavGate from '@/components/layout/BottomNavGate';
 import PostSignupRoleModal from '@/components/onboarding/PostSignupRoleModal';
 import RejestracjaSW from '@/components/RejestracjaSW';
@@ -173,7 +172,6 @@ export default function RootLayout({
                     szczegółowych mogło wrócić do POPRZEDNIEGO ekranu zamiast na
                     sztywno wpisanego rodzica (patrz lib/historia.tsx). */}
                 <SledzenieHistorii />
-                <AnnouncementBar />
                 {children}
                 <BottomNavGate />
                 <CookieBanner />

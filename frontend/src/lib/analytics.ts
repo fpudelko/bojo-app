@@ -39,7 +39,18 @@ export type AnalyticsEvent =
    *  bez tego licznika „Do kalendarza" zostaje przyciskiem, o którym nie da się
    *  powiedzieć, czy ktokolwiek go dotyka. Kolumna `event_type` to zwykły TEXT
    *  bez ograniczenia (migracja `047`), więc nowa wartość nie wymaga migracji. */
-  | 'event_do_kalendarza';
+  | 'event_do_kalendarza'
+  // ── MODUŁ TURNIEJOWY (145, Etap 0) ───────────────────────────────────────
+  /** Turniej utworzony — od kreatora do publikacji. */
+  | 'turniej_utworzony'
+  /** Drużyna zgłoszona (samodzielnie albo dodana ręcznie). */
+  | 'turniej_druzyna_zgloszona'
+  /** Ktoś dołączył do drużyny linkiem `/t/[kod]` — kapitanat, „to ja" albo nowy wpis. */
+  | 'turniej_dolaczyl_do_druzyny'
+  /** Mecz poprowadzony do końca konsolą prowadzącego (Etap 2). */
+  | 'turniej_mecz_poprowadzony'
+  /** Organizator wysłał link do turnieju/drużyny dalej. */
+  | 'turniej_udostepniony';
 
 export async function track(
   eventType: AnalyticsEvent,

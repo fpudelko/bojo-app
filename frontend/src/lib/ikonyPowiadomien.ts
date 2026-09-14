@@ -85,6 +85,17 @@ export const IKONY: Record<string, IkonaPowiadomienia> = {
   // jeszcze można zadbać, nie awarią — ta sama para znaczeń co bursztynowy
   // baner „Obserwujesz" w `EventDetailClient.tsx`.
   gra_zagrozona:                { Ikona: AlertTriangle, klasa: 'bg-amber-50 text-amber-700',    rodzaj: 'Gra zagrożona' },
+  // Turniej (migracja 145). Zgłoszenie prosi ORGANIZATORA o decyzję —
+  // niebieski, jak każde „wymaga akceptacji uczestnictwa" w AGENTS.md.
+  // Decyzja organizatora i przejęcie drużyny są neutralne (nie awaria).
+  turniej_zgloszenie_druzyny:  { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Zgłoszenie' },
+  turniej_druzyna_przyjeta:    { Ikona: CheckCircle,   klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Przyjęci' },
+  turniej_druzyna_odrzucona:   { Ikona: X,             klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Decyzja' },
+  turniej_kapitan_przejal:     { Ikona: UserCog,       klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Kapitan' },
+  // Terminarz (migracja 146) — neutralne: to informacja o planie, nie decyzja
+  // do podjęcia ani awaria.
+  turniej_terminarz_gotowy:   { Ikona: CalendarPlus,  klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Terminarz' },
+  turniej_zmiana_terminu:     { Ikona: CalendarClock, klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Nowy termin' },
 };
 
 export const IKONA_DOMYSLNA: IkonaPowiadomienia = { Ikona: Bell, klasa: 'bg-slate-100 text-slate-500', rodzaj: 'Powiadomienie' };

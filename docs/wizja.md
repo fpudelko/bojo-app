@@ -147,14 +147,14 @@ Legenda:
 | (później) zarezerwuj obiekt przez apkę | `ZBUDOWANE, UKRYTE` | **Wyprzedza roadmapę.** `lib/bookings.ts`, `/obiekt/*`, `/rezerwacje`; flaga `FEATURE_RESERVATIONS` |
 | (później) rozliczanie płatności | `CZĘŚCIOWO` | Rejestrowanie kto zapłacił — tak. Realny przepływ pieniędzy (BLIK/Stripe) — nie |
 | (później) wynajmij sędziego | `NIE ZNALEZIONO` | — |
-| (później) turniej firmowy, liga | `ZBUDOWANE, UKRYTE` | **Wyprzedza roadmapę.** `lib/tournaments.ts` (455 linii), 6 tabel `tournament_*`, `/turniej/*`; flaga `SHOW_CUP` |
+| (później) turniej firmowy, liga | `CZĘŚCIOWO` | **Wyprzedza roadmapę, w przebudowie od 2026-09-13.** Dawny „BOJO Cup" (`lib/tournaments.ts`, `tournament_*`, `SHOW_CUP`) skasowany — zastąpiony nowym modułem budowanym etapami za flagą `SHOW_TURNIEJE`, plan → [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało) |
 
 ### B. Poziom socjalny
 
 | Propozycja wartości | Status | Szczegóły |
 |---|---|---|
 | (później) Rywalizacja i statystyki — **gole, asysty, liczba gier** | `ZBUDOWANE` | RPC `get_player_stats`, tabele `player_goals`, `match_results`, `player_stats` |
-| …**MVP** | `NIE ZNALEZIONO` | Jedyne wystąpienie to tekst nagrody na `/turniej` |
+| …**MVP** | `CZĘŚCIOWO` | Nowy moduł turniejowy planuje MVP meczu i turnieju (prowadzący wybiera ręcznie) — patrz [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało) |
 | …statystyki dla **zamkniętych grup** | `ZBUDOWANE` | `getGroupPlayerStats` w `lib/eventFeatures.ts` |
 | …**rankingi publiczne** | `NIE ZNALEZIONO` | — |
 | (później) Profil gracza | `ZBUDOWANE` | `/gracz/[id]`, `lib/players.ts` |
@@ -195,6 +195,11 @@ Pozycje, w których **kod nie nadążył za dokumentem**. Każda ma wpis w
 
 ### Odwrotny kierunek: kod wyprzedza dokument
 
-**Rezerwacje obiektów** i **turniej** są oznaczone w dokumencie jako „(później)", a są
-zbudowane i schowane za flagami. To nie jest luka — to decyzja do podjęcia: odmrozić
-i przesunąć w roadmapie, czy zostawić do czasu, aż będzie na to popyt.
+**Rezerwacje obiektów** są oznaczone w dokumencie jako „(później)", a są zbudowane i
+schowane za flagą. To nie jest luka — to decyzja do podjęcia: odmrozić i przesunąć w
+roadmapie, czy zostawić do czasu, aż będzie na to popyt.
+
+**Turniej** przeszedł tę decyzję 2026-09-13: dawny „BOJO Cup" wyprzedzał roadmapę bez
+popytu (jedna edycja wpisana seedem, admin jako jedyny organizator) i został skasowany
+na rzecz modułu, w którym turniej zakłada każdy organizator — patrz
+[BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało).

@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-12 · migracja `144` · 56 tabel
+**Stan na:** 2026-09-14 · migracja `146` · 63 tabele
 
 ---
 
@@ -95,7 +95,7 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 | Status | Co obejmuje |
 |---|---|
 | **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, alert o nowym meczu w okolicy, panel admina |
-| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | turniej (BOJO Cup), potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
+| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | moduł turniejowy (w budowie etapami), potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
 | **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
 Aktualny stan flag i miejsca ich użycia → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
@@ -326,9 +326,9 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Osobny backend, API ani kontrolery.**
 - **Automatyczne uruchamianie migracji.**
 
-Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — turniej (BOJO Cup),
-potwierdzenia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się
-odbędzie". Kod istnieje, wejścia w nawigacji nie ma. Aktualny
+Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — moduł turniejowy (w
+budowie etapami), potwierdzenia SMS, gry cykliczne, rezerwacje obiektów, próg minimum
+graczy „gra się odbędzie". Kod istnieje, wejścia w nawigacji nie ma. Aktualny
 stan flag → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
 
 **Pytania, na które odpowiada ta sekcja:** Czy Bojo ma ranking graczy? Czy Bojo obsługuje
