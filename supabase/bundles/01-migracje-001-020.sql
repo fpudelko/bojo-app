@@ -320,6 +320,20 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- `CREATE TABLE IF NOT EXISTS` milczy, gdy tabela już jest — a `profiles` to
+-- najpopularniejsza nazwa w całym Supabase: zakłada ją quickstart „User
+-- Management Starter" (id, username, full_name, avatar_url, website), więc
+-- świeży projekt potrafi ją mieć, zanim ktokolwiek wklei pierwszą migrację.
+-- Wtedy powyższe CREATE przechodzi bez słowa, a pierwsza polityka wywraca się
+-- na `column "is_admin" does not exist` — komunikat, w którym nie ma ani słowa
+-- o tym, że winna jest cudza tabela. Kolumny dokładamy więc jawnie; to samo
+-- lekarstwo, co na migrację przerwaną w połowie (patrz docs/baza-danych.md).
+-- Na bazie, która ma je od zawsze, ten blok jest pustym przebiegiem.
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS is_admin   BOOLEAN     NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS avatar_url TEXT,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Profiles are publicly readable" ON profiles;
