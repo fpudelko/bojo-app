@@ -381,9 +381,9 @@ osoby, a suwak „Wolne miejsca" kazał trafiać palcem w konkretną liczbę na 
 ekran. Filtr „Kiedy" był pięciopozycyjnym suwakiem, w którym „Jutro" wykluczało
 DZISIAJ, czyli mecz za dwie godziny, a „Ten miesiąc" pod koniec miesiąca znaczyło co
 innego niż na jego początku. Okno alertu pytało o sport, miejsce, promień, dni tygodnia
-i porę dnia — czyli o to samo, co człowiek przed chwilą ustawił w filtrach, tyle że
-drugi raz i w innych kontrolkach; a przycisk zapisu był wyszarzony bez podania powodu,
-gdy nikt nie wskazał miejsca.
+i porę dnia — pięć pytań, z których dwa (dni tygodnia, pora dnia) dublowały „Kiedy"
+z filtrów; a przycisk zapisu był wyszarzony bez podania powodu, gdy nikt nie wskazał
+miejsca.
 
 ROZWIĄZANIE BOJO: przełącznik „Lista | Mapa" niesie dziś ikony zamiast napisów, a wejście
 do alertu jest podpisanym przyciskiem nakładającym się na listę meczów („Powiadom
@@ -395,9 +395,13 @@ z kompletem". „Kiedy" to cztery przyciski w jednej linii — Dzisiaj, 3 dni, T
 i Termin, który odsłania kalendarz „do kiedy"; brak wyboru znaczy wszystkie terminy,
 a dotknięcie wybranego odznacza go. Okno alertu pyta już tylko o dwie rzeczy: jak długo
 powiadamiać (te same cztery przyciski, brak wyboru = bezterminowo) i czym dać znać
-(dzwonek, mail, powiadomienie na telefon, SMS). Filtry pokazuje wierszem do
-przeczytania, zamiast pytać o nie drugi raz. Gdy nie wiadomo, gdzie szukać, Bojo pisze
-wprost dlaczego i daje przycisk „Użyj mojej lokalizacji".
+(dzwonek, mail, powiadomienie na telefon, SMS). Dni tygodnia i pora dnia zniknęły
+z okna — dublowały „Kiedy" z filtrów. Sport, miejscowość i promień zostają, wypełnione
+wartościami z filtrów, jeśli te były ustawione: alert da się otworzyć, zanim ktokolwiek
+ruszył filtry, a wtedy miejsce trzeba gdzieś wpisać. Pole przyjmuje nazwę miejscowości
+albo kod pocztowy; pinezka obok jest skrótem, nie jedyną drogą — w przeglądarce
+wbudowanej w inną aplikację geolokalizacja bywa zablokowana. Gdy miejsca nie ma, Bojo
+pisze wprost, dlaczego nie da się zapisać.
 
 MECHANIKA: `SegmentedToggle` przyjmuje `icon` w obu opcjach (nazwa dostępna zostaje
 z `label`). Przycisk alertu na `/mapa` to nakładka `absolute bottom-0` nad listą,
@@ -408,7 +412,10 @@ liczy tę pozycję dopiero przy odchyleniu od jedynki. `filterByMaxPrice()` usun
 z `lib/eventFilters.ts` razem z filtrem ceny, tak samo martwe `onlyFreeSpots`/
 `onlyNoCost`. Koniec alertu trzymają `koniecDnia()` / `dataWygasniecia()` /
 `najwczesniejszyKoniec()` w `lib/alerts.ts` — wybrany dzień liczy się cały (23:59:59),
-`min` pola daty stoi na jutrze. `DateFilter` jest jednym stringiem także dla własnego
+`min` pola daty stoi na jutrze. Okno alertu używa `WyborMiejscowosci` i `SportChip`,
+czyli tych samych kontrolek co arkusz filtrów; `alertZFiltrow.test.tsx` pilnuje, że pole
+miejscowości w nim jest, a nie sam przycisk lokalizacji. `DateFilter` jest jednym
+stringiem także dla własnego
 terminu (`do:2026-09-30`), więc wchodzi do adresu bez drugiego pola; zepsuta data
 zachowuje się jak brak filtra, a nie jak „nic nie pasuje". `components/ui/WyborKiedy.tsx`
 stoi w obu arkuszach i w oknie alertu, a `wygasaZKiedy()`/`kiedyZWygasniecia()` mapują

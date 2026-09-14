@@ -2053,23 +2053,47 @@ porę dnia meczu (`godzina_od`/`godzina_do`) obok dni tygodnia, czyli drugi wymi
 nazwą sekcji było słuszne, ale samo pytanie wypadło z okna tego samego dnia — patrz
 sekcję niżej. W bazie i w funkcji brzegowej obie kolumny zostają nietknięte.
 
-### Okno alertu pyta o DWIE rzeczy, nie o siedem — od 2026-09-14
+### Okno alertu — co z niego wypadło i co MUSIAŁO wrócić (2026-09-14)
 
 Zgłoszone wprost: *„jak klikam «powiadom mnie o takich meczach», to filtry już są,
 zostaje tylko kwestia czy mailowo, czy SMS, czy notyfikacja i w jakim czasie. Resztę
-wywal, w sensie filtry."*
+wywal, w sensie filtry."* Okno pytało wtedy o sport, miejsce, promień, dni tygodnia
+i porę dnia — czyli w dużej mierze o to samo, co człowiek przed chwilą ustawił
+w filtrach, tyle że drugi raz i w innych kontrolkach.
 
-Okno pytało o sport, miejsce, promień, dni tygodnia i porę dnia — czyli o to samo, co
-człowiek przed chwilą ustawił w filtrach, tyle że drugi raz i w innych kontrolkach.
-Wejście do alertu prowadzi WPROST z wyników tych filtrów (`domyslneZFiltrow`), więc
-odpowiedź już jest; pytanie o nią jeszcze raz to nie „upewnienie się", tylko praca do
-wykonania ponownie.
+Wycięte zostało wszystko. **Pół dnia później wróciły sport, miejsce i promień** —
+zgłoszenie brzmiało: *„nie da się lokalizacji wskazać. Popraw całe to okno, bo w nim
+brakuje filtrów akurat."*
+
+**Dlaczego pierwsza wersja była błędna.** Rozumowanie „wejście prowadzi z wyników
+filtrów, więc punkt już jest" pomija jeden przypadek: alert da się otworzyć, ZANIM
+cokolwiek zostało w filtrach ustawione. Zostawała wtedy lokalizacja urządzenia — a ta
+w przeglądarce wbudowanej w inną aplikację (zgłoszone ze zrzutu z GitHuba) bywa po
+prostu zablokowana. Okno kończyło się ślepo: „nie wiemy, gdzie szukać", przycisk, który
+nic nie daje, i wyszarzony zapis.
+
+Wniosek jest ogólniejszy niż ten jeden ekran i wart zapamiętania:
+**wartość z innego ekranu może być WYPEŁNIENIEM pola, ale nie może być jedynym sposobem
+jego ustawienia.** Pole miejscowości przyjmuje nazwę albo kod pocztowy z klawiatury
+i działa wszędzie; pinezka w nim jest skrótem, nie jedyną drogą.
 
 | Sekcja | Co robi |
 |---|---|
-| Wiersz podsumowania | **do przeczytania, nie do wypełnienia**: „Piłka nożna · Wrocław", „W promieniu 25 km · z Twoich filtrów". Zostaje, bo alert bez tego byłby obietnicą bez treści — nie wiadomo, czego ma pilnować |
+| **Sport** | `SportChip`, ten sam co w arkuszu filtrów. Wybór POJEDYNCZY (alert trzyma jeden sport albo dowolny), więc dotknięcie wybranego odznacza go |
+| **Gdzie** *(wymagane)* | `WyborMiejscowosci` — pole na nazwę/kod pocztowy z pinezką obok, a po wybraniu suwak promienia po wspólnej skali `PROMIENIE_SUWAK_KM` |
 | **Jak długo powiadamiać** | ten sam `WyborKiedy` co w filtrach (Dzisiaj / 3 dni / Tydzień / Termin), tylko o czym innym: tam odcinek czasu wybiera MECZE, tu długość życia alertu. Brak wyboru = **Bezterminowo**, czyli stan domyślny |
 | **Czym dać znać** | dzwonek (zawsze) / mail (`kanal_email`) / push (stan + włącznik) / SMS za flagą |
+
+Wartości z filtrów (`domyslneZFiltrow`) nadal **wypełniają** trzy pierwsze pola przy
+otwarciu — więc kto przyszedł z ustawionych filtrów, sprawdza je wzrokiem zamiast
+wpisywać od nowa. Pilnuje tego `alertZFiltrow.test.tsx`: osobna asercja sprawdza, że
+okno w ogóle MA `WyborMiejscowosci`, a nie sam przycisk lokalizacji.
+
+**Co z tej rundy zostaje wycięte: dni tygodnia i pora dnia.** Te dwa naprawdę były
+pytaniem o termin zadanym drugi raz, obok „Kiedy" w filtrach, i nikt nie wiedział,
+które z nich czyta. Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `149`)
+zostają w bazie i w funkcji brzegowej nietknięte — okno zapisuje odpowiednio `[]`
+i `NULL`.
 
 Przeliczniki `wygasaZKiedy()` / `kiedyZWygasniecia()` w `lib/alerts.ts` mapują wybór na
 `expires_at` i z powrotem — „3 dni" liczy DZISIAJ jako pierwszy, dokładnie tak jak filtr,
@@ -2078,10 +2102,8 @@ na **nazwany przycisk**, gdy data się zgadza co do dnia; dopiero cokolwiek inne
 na własnym terminie (`alertKoniec.test.ts`). Wybrany dzień liczy się **cały** (23:59:59,
 nie północ: „do 30 września" znaczy, że 30 września alert jeszcze działa).
 
-**Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `149`) zostają w bazie
-i w funkcji brzegowej nietknięte** — okno po prostu przestało o nie pytać i zapisuje
-odpowiednio `[]` / `NULL`. Gdyby ten wymiar wrócił, wróci jako część FILTRÓW, wspólna
-dla listy i alertu, a nie jako druga, osobna kopia pytania o termin.
+Gdyby wymiar dni/godzin kiedyś wrócił, wróci jako część FILTRÓW, wspólna dla listy
+i alertu, a nie jako druga, osobna kopia pytania o termin.
 
 **Bez wskazanego miejsca alertu nie da się zapisać — i jest to NAPISANE.** Zgłoszone
 wprost: „użytkownik nie wie, dlaczego nie może dodać alertu, jak nie wybierze miasta".
@@ -2089,12 +2111,12 @@ Przycisk był po prostu wyszarzony, a wyszarzony przycisk bez powodu czyta się 
 zepsuta aplikacja, nie jak brakujące pole — zwłaszcza że brakujące pole jest wtedy o pół
 ekranu wyżej. Powód jest prawdziwy, nie formalny: alert dopasowuje mecze po ODLEGŁOŚCI
 od punktu (`lat`/`lng` + `radius_km`), więc bez punktu nie ma od czego liczyć promienia.
-Odkąd okno nie ma własnego pola miejscowości (patrz wyżej), brak punktu znaczy, że nie
-było go też w filtrach — więc jedyne wyjście dostępne STĄD to lokalizacja urządzenia.
-Okno pokazuje wtedy bursztynowy blok „Nie wiemy jeszcze, gdzie szukać" z powodem
-(„alert wyłapuje mecze po odległości od konkretnego punktu") i przyciskiem **„Użyj mojej
-lokalizacji"**, a obok mówi wprost, że drugą drogą jest wskazanie miejscowości
-w filtrach. Nigdy sam wyszarzony przycisk bez słowa wyjaśnienia.
+Dziś nagłówek sekcji mówi „Gdzie *(wymagane)*", pod pustym polem stoi wyjaśnienie
+(„alert wyłapuje mecze po odległości od wskazanego punktu, więc bez niego nie ma od
+czego liczyć") z podpowiedzią o pinezce, a nad wyszarzonym przyciskiem — jedno zdanie
+kierujące w górę („Wybierz najpierw miejsce ↑"). Wskaźnik, nie powtórzenie: wyjaśnienie
+jest w jednym miejscu, przy polu, które je naprawia. Sam atrybut `title` nie wystarcza —
+na telefonie nie ma czym najechać.
 
 Godziny idą **parami albo wcale** — pilnuje tego `CHECK` w migracji. Sama dolna granica
 dałaby się obronić, ale wtedy dwa pola znaczą trzy różne rzeczy zależnie od tego, które

@@ -1,19 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, Bell, BellOff, Mail, MapPin, Smartphone, Check } from 'lucide-react';
+import { X, Loader2, Bell, BellOff, Mail, Smartphone, Check } from 'lucide-react';
 import {
   getMyAlert, saveAlert, deleteMyAlert,
   wygasaZKiedy, kiedyZWygasniecia, PROMIEN_DOMYSLNY, type AlertInput,
 } from '@/lib/alerts';
 import { pozycjaBezPytania } from '@/lib/geo';
 import { useAuth } from '@/lib/auth';
-import { sportLabel } from '@/lib/sports';
+import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import { SHOW_SMS_FEATURES } from '@/lib/features';
 import { stanPush, wlaczPush, type StanPush } from '@/lib/push';
+import SportChip from '@/components/ui/SportChip';
 import ToggleRow from '@/components/ui/ToggleRow';
 import WyborKiedy from '@/components/ui/WyborKiedy';
-import PrzyciskMojaLokalizacja from '@/components/ui/PrzyciskMojaLokalizacja';
+import WyborMiejscowosci from '@/components/map/WyborMiejscowosci';
 import type { DateFilter } from '@/lib/eventFilters';
 import type { Miejscowosc } from '@/lib/miejscowosci';
 import type { GameAlert } from '@/types';
@@ -42,26 +43,38 @@ interface Props {
 /**
  * Okno alertu o nowych meczach.
  *
- * DWA PYTANIA, NIE SIEDEM — 2026-09-14, zgłoszone wprost: „jak klikam
- * «powiadom mnie o takich meczach», to filtry już są, zostaje tylko kwestia
- * czy mailowo, czy SMS, czy notyfikacja i w jakim czasie. Resztę wywal,
- * w sensie filtry".
+ * FILTRY SĄ W OKNIE — WRÓCIŁY PO JEDNEJ PRÓBIE BEZ NICH (2026-09-14).
  *
- * Okno pytało wcześniej o sport, miejsce, promień, dni tygodnia i porę dnia —
- * czyli o to samo, co człowiek przed chwilą ustawił w filtrach, tyle że
- * drugi raz i w innych kontrolkach. Wejście do alertu prowadzi WPROST
- * z wyników tych filtrów (`domyslneZFiltrow`), więc odpowiedź już jest;
- * pytanie o nią jeszcze raz to nie „upewnienie się", tylko praca do wykonania
- * ponownie. Dziś filtry są POKAZANE (wiersz podsumowania, do przeczytania),
- * a wypełnia się wyłącznie:
+ * Przez pół dnia okno ich nie miało. Rozumowanie brzmiało: wejście prowadzi
+ * wprost z wyników filtrów (`domyslneZFiltrow`), więc odpowiedź już jest,
+ * a pytanie o nią drugi raz to praca do wykonania ponownie. Zostały dwa
+ * pytania (jak długo, czym) i wiersz podsumowania do przeczytania.
  *
- *   1. **Kiedy** — jak długo powiadamiać (`expires_at`),
- *   2. **Czym dać znać** — mail, push, SMS.
+ * ROZUMOWANIE BYŁO BŁĘDNE, bo pomijało jeden przypadek: alert da się otworzyć,
+ * ZANIM cokolwiek zostało ustawione w filtrach. Wtedy nie ma skąd wziąć
+ * punktu, a jedyną drogą zostawała lokalizacja urządzenia — która w
+ * przeglądarce wbudowanej w inną aplikację (zgłoszone ze zrzutu z GitHuba)
+ * bywa po prostu zablokowana. Okno kończyło się wtedy ślepo: „nie wiemy,
+ * gdzie szukać", przycisk, który nic nie daje, i wyszarzony zapis.
  *
- * Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `149`) zostają
- * w bazie i w funkcji brzegowej nietknięte — okno po prostu przestało o nie
- * pytać. Gdyby wróciły, wrócą jako część FILTRÓW, wspólne dla listy i alertu,
- * a nie jako druga, osobna kopia pytania o termin.
+ * Wniosek jest ogólniejszy niż ten jeden ekran: **wartość z innego ekranu może
+ * być WYPEŁNIENIEM pola, ale nie może być jedynym sposobem jego ustawienia.**
+ * Pole miejscowości przyjmuje nazwę albo kod pocztowy z klawiatury i działa
+ * wszędzie; pinezka jest skrótem, nie jedyną drogą.
+ *
+ * Okno pyta więc dziś o cztery rzeczy, ale trzy z nich przychodzą już
+ * wypełnione z filtrów, gdy tamte były ustawione:
+ *
+ *   1. **Sport** — `SportChip`, ten sam co w arkuszu filtrów,
+ *   2. **Gdzie** — `WyborMiejscowosci`: pole z pinezką plus suwak promienia,
+ *   3. **Jak długo powiadamiać** — `WyborKiedy` (`expires_at`),
+ *   4. **Czym dać znać** — mail, push, SMS.
+ *
+ * Co z tej rundy ZOSTAJE: dni tygodnia i pora dnia (`days_of_week`,
+ * `godzina_od`/`godzina_do`, migracja `149`) nie wracają do okna. Te dwa
+ * naprawdę były pytaniem o termin zadanym drugi raz, obok „Kiedy" w filtrach,
+ * i nikt nie wiedział, które z nich czyta. Kolumny zostają w bazie i w funkcji
+ * brzegowej nietknięte.
  *
  * ALERT JEST DOMYŚLNIE BEZTERMINOWY (decyzja właściciela) — brak wyboru
  * w „Kiedy" znaczy właśnie to. Warunek jest jeden: musi dać się wyłączyć
@@ -74,7 +87,7 @@ export default function AlertSetupDialog({
   const { user } = useAuth();
 
   const [existing, setExisting] = useState<GameAlert | null>(null);
-  const [sport] = useState(defaultSport ?? '');
+  const [sport,    setSport]    = useState(defaultSport ?? '');
   const [miejsce,  setMiejsce]  = useState<Miejscowosc | null>(
     defaultLat != null && defaultLng != null
       ? { nazwa: defaultLabel || 'Moja lokalizacja', kontekst: '', lat: defaultLat, lng: defaultLng }
@@ -105,6 +118,7 @@ export default function AlertSetupDialog({
       if (!zywe) return;
       if (a) {
         setExisting(a);
+        setSport(a.sport ?? '');
         setMiejsce({ nazwa: a.cityLabel || 'Wybrane miejsce', kontekst: '', lat: a.lat, lng: a.lng });
         setPromienKm(a.radiusKm);
         setKiedy(kiedyZWygasniecia(a.expiresAt));
@@ -192,42 +206,58 @@ export default function AlertSetupDialog({
         </div>
 
         <div className="px-5 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
-          {/* ── CZEGO SZUKAMY ── do PRZECZYTANIA, nie do wypełnienia. Wartości
-              przychodzą z filtrów (`domyslneZFiltrow`), więc okno pokazuje je
-              zamiast pytać o nie drugi raz. Wiersz zostaje, bo alert bez tego
-              byłby obietnicą bez treści: nie wiadomo, czego ma pilnować. */}
-          {!brakMiejsca && (
-            <div className="flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-ink">
-                  {sport ? sportLabel(sport) : 'Dowolny sport'} · {miejsce.nazwa}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  W promieniu {promienKm} km · z Twoich filtrów
-                </p>
-              </div>
+          {/* ── SPORT ── ten sam `SportChip` co w arkuszu filtrów. Wybór jest
+              POJEDYNCZY (alert trzyma jeden sport albo dowolny), więc
+              dotknięcie wybranego odznacza go i wraca do „Dowolnego sportu" —
+              bez tego brak piątej ikony „Wszystkie" byłby pułapką. */}
+          <div>
+            <p className={naglowekSekcji}>Sport</p>
+            <div className="flex flex-wrap gap-2">
+              {FOCUS_SPORTS.map((s) => (
+                <SportChip
+                  key={s}
+                  emoji={sportEmoji(s)}
+                  label={sportLabel(s)}
+                  selected={sport === s}
+                  onClick={() => setSport((cur) => (cur === s ? '' : s))}
+                />
+              ))}
             </div>
-          )}
+            <p className="mt-2 text-sm font-medium text-ink">
+              {sport === '' ? 'Dowolny sport' : sportLabel(sport)}
+            </p>
+          </div>
 
-          {brakMiejsca && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 dark:border-amber-800 dark:bg-amber-950">
-              <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                Nie wiemy jeszcze, gdzie szukać
+          {/* ── GDZIE ── POLE, nie sam przycisk lokalizacji. Zgłoszone wprost:
+              „nie da się lokalizacji wskazać". Przez pół dnia stał tu wyłącznie
+              przycisk „Użyj mojej lokalizacji", bo zakładaliśmy, że punkt
+              przyjdzie z filtrów — a w przeglądarce wbudowanej w inną aplikację
+              geolokalizacja bywa po prostu zablokowana i okno kończyło się
+              ślepo. Pole przyjmuje nazwę albo kod pocztowy z klawiatury
+              i działa wszędzie; pinezka w nim jest skrótem, nie jedyną drogą.
+
+              Ten sam komponent co w arkuszu filtrów, więc promień chodzi po tej
+              samej skali (`PROMIENIE_SUWAK_KM`) i te same kilometry znaczą
+              w obu miejscach to samo. */}
+          <div>
+            <p className={naglowekSekcji}>
+              Gdzie{' '}
+              <span className="normal-case font-normal text-slate-400">(wymagane)</span>
+            </p>
+            <WyborMiejscowosci
+              wybrana={miejsce}
+              promienKm={promienKm}
+              naZmiane={(m, km) => { setMiejsce(m); setPromienKm(km); }}
+            />
+            {brakMiejsca && (
+              <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                Alert wyłapuje mecze po odległości od wskazanego punktu, więc bez
+                niego nie ma od czego liczyć. Wpisz miejscowość albo kod pocztowy —
+                pinezka obok pola ustawia Twoją lokalizację, jeśli przeglądarka
+                na to pozwala.
               </p>
-              <p className="mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
-                Alert wyłapuje mecze po odległości od konkretnego punktu, więc
-                bez niego nie ma od czego liczyć. Użyj swojej lokalizacji albo
-                zamknij to okno i wskaż miejscowość w filtrach.
-              </p>
-              <PrzyciskMojaLokalizacja
-                className="mt-3"
-                etykieta="Użyj mojej lokalizacji"
-                onPozycja={(lat, lng) =>
-                  setMiejsce({ nazwa: 'Moja lokalizacja', kontekst: '', lat, lng })}
-              />
-            </div>
-          )}
+            )}
+          </div>
 
           {/* ── JAK DŁUGO POWIADAMIAĆ ── ten sam kształt co „Kiedy" w filtrach,
               o czym innym: tam odcinek czasu wybiera MECZE, tu długość życia
@@ -316,15 +346,26 @@ export default function AlertSetupDialog({
               <Bell className="w-4 h-4" /> Alert zapisany!
             </div>
           ) : (
-            <button
-              onClick={handleSave}
-              disabled={saving || brakMiejsca}
-              title={brakMiejsca ? 'Najpierw wskaż miejsce — alert szuka meczów w promieniu od niego' : undefined}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-3.5 text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.98] transition-all"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
-              {existing ? 'Zaktualizuj alert' : 'Zapisz alert'}
-            </button>
+            <>
+              {/* Wskaźnik, nie powtórzenie: pełne wyjaśnienie stoi przy samym
+                  polu, tutaj zostaje jedno zdanie mówiące, gdzie go szukać —
+                  bo to TUTAJ ktoś odkrywa, że przycisk nie działa. Sam `title`
+                  nie wystarcza: na telefonie nie ma czym najechać. */}
+              {brakMiejsca && (
+                <p className="text-center text-xs font-medium text-amber-700 dark:text-amber-400">
+                  Wybierz najpierw miejsce ↑
+                </p>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={saving || brakMiejsca}
+                title={brakMiejsca ? 'Najpierw wskaż miejsce — alert szuka meczów w promieniu od niego' : undefined}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-3.5 text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.98] transition-all"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                {existing ? 'Zaktualizuj alert' : 'Zapisz alert'}
+              </button>
+            </>
           )}
 
           {existing && !saved && (

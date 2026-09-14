@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import SportChip from '@/components/ui/SportChip';
@@ -87,5 +89,40 @@ describe('SportChip — sama ikona, nazwa tylko dla dostępności', () => {
       expect(klasyNiewybranej).toContain(rozmiar);
       expect(klasyWybranej).toContain(rozmiar);
     }
+  });
+});
+
+describe('okno alertu ma WŁASNE pole miejscowości', () => {
+  // Zgłoszone wprost ze zrzutu: „nie da się lokalizacji wskazać".
+  //
+  // Przez pół dnia okno nie miało pola miejscowości — zakładaliśmy, że punkt
+  // przyjdzie z filtrów (`domyslneZFiltrow`), a gdyby nie przyszedł, wystarczy
+  // przycisk „Użyj mojej lokalizacji". Założenie pomijało przypadek, w którym
+  // alert otwiera ktoś, kto filtrów jeszcze nie ruszył, W PRZEGLĄDARCE
+  // WBUDOWANEJ W INNĄ APLIKACJĘ — tam geolokalizacja bywa zablokowana i okno
+  // kończyło się ślepo: przycisk, który nic nie daje, i wyszarzony zapis.
+  //
+  // Test jest statyczny (czyta źródło), bo wyrenderowanie całego okna wymaga
+  // atrapy sesji, pusha i Supabase — a pilnowana rzecz jest prostsza niż to:
+  // czy w oknie w ogóle JEST kontrolka przyjmująca wpisaną miejscowość.
+  // Ten sam wzorzec co `maskiZrzutow.test.ts` i `typyPowiadomien.test.ts`.
+  const zrodlo = readFileSync(
+    join(process.cwd(), 'src/components/home/AlertSetupDialog.tsx'), 'utf8');
+
+  it('używa `WyborMiejscowosci`, czyli pola na nazwę albo kod pocztowy', () => {
+    expect(zrodlo).toContain("from '@/components/map/WyborMiejscowosci'");
+    expect(zrodlo).toContain('<WyborMiejscowosci');
+  });
+
+  it('nie opiera się WYŁĄCZNIE na przycisku lokalizacji', () => {
+    // `PrzyciskMojaLokalizacja` siedzi w środku `WyborMiejscowosci` jako
+    // skrót obok pola. Gdyby wrócił tu jako jedyna droga, wróciłby też błąd.
+    const samPrzycisk = zrodlo.includes('PrzyciskMojaLokalizacja')
+      && !zrodlo.includes('<WyborMiejscowosci');
+    expect(samPrzycisk).toBe(false);
+  });
+
+  it('pyta też o sport — alert bez tego łapie wszystko, o co nikt nie prosił', () => {
+    expect(zrodlo).toContain('<SportChip');
   });
 });
