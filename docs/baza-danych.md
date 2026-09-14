@@ -419,13 +419,16 @@ zepsute. Site URL: `http://localhost:3000`. Redirect URLs (wildcardy Supabase ro
 
 ```
 http://localhost:3000/**
-https://bojo-app-git-*-<team>.vercel.app/**
-https://bojo-app-*-<team>.vercel.app/**
+https://bojo-app-git-*-franciszek-pudelkos-projects.vercel.app/**
+https://bojo-app-*-franciszek-pudelkos-projects.vercel.app/**
 ```
 
-`<team>` to segment z adresu, który Vercel wypisuje przy deployu podglądowym — skopiuj
-go stamtąd, nie zgaduj. Dwa wzorce, bo Vercel nadaje podglądowi adres od nazwy gałęzi
-(`-git-`) i drugi, od skrótu builda.
+Dwa wzorce, bo Vercel nadaje podglądowi DWA adresy: jeden od nazwy gałęzi
+(`bojo-app-git-claude-dev-env-2c8b68-…` — nazwa bywa skracana i domykana skrótem,
+więc gwiazdka jest konieczna) i drugi od skrótu builda. Ogon
+`franciszek-pudelkos-projects` to slug zespołu z tego konta Vercela; gdyby projekt
+kiedyś przeniósł się do innego, oba wzorce trzeba poprawić — inaczej logowanie
+w podglądzie odbija na produkcję.
 
 **8. Vercel → Settings → Environment Variables.** Tu jest jedyna pułapka tej
 procedury: zmienna w Vercelu ma JEDNĄ wartość i listę środowisk, więc nie da się
