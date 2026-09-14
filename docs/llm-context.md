@@ -370,6 +370,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-13 — Kolejka rezerwowa mówi resztce graczy to, co dotąd mówiła tylko jednej osobie
+
+PROBLEM: dzień wcześniej kolejka rezerwowa dostała własny zegar (patrz niżej) — ale
+widoczność stanu kolejki dla kogoś INNEGO niż osoba z akurat aktywną ofertą wciąż
+kulała. W liście „Rezerwa — kolejka do zwolnionego miejsca" (widocznej dla każdego na
+stronie meczu) badge „czeka na decyzję" nie mówił, DO KIEDY — organizator i reszta
+rezerwy nie mieli jak sprawdzić, ile czasu koledze zostało, mimo że własny baner
+rezerwowego liczy to od dawna. Gorzej: numer „N." przy każdym wierszu tej listy liczył
+się gołym indeksem, nie regułą bazy — przy włączonym rozróżnieniu bramkarzy jedyny
+bramkarz na rezerwie znów czytał „4." zamiast „1." (ten sam bug, którego pierwszą wersję
+naprawiono wcześniej tylko dla banera „mój", nie dla tej wspólnej listy). Do tego ktoś,
+komu oferta WYGASŁA (wrócił na koniec kolejki, ale wciąż gra), nie miał w tej liście
+żadnego odznaczenia — tylko treść powiadomienia, którego reszta rezerwy nie widzi.
+
+ROZWIĄZANIE BOJO: lista rezerwy pokazuje dziś dokładnie to, co widzi baza. Numer przy
+każdym wierszu liczy się tą samą regułą kolejki (rola + kolejność po wygasłych
+ofertach), więc bramkarz w swojej osobnej kolejce ma poprawny numer, a ktoś, kto
+odpuścił na stałe, dostaje kreskę zamiast zgadywanej liczby. Badge „czeka na decyzję"
+niesie teraz termin („do 18:30" / „do jutra, 18:30"), widoczny dla każdego, nie tylko
+dla zainteresowanego. Nowy badge „nie zdążył(a)" oznacza kogoś, kogo oferta właśnie
+wygasła — bez sugerowania, że wypadł z gry na stałe.
+
+MECHANIKA: `pozycjaWKolejce()` (`lib/kolejkaRezerwy.ts`) liczy numer w liście zamiast
+gołego indeksu z `.map()`; nowy `terminOferty()` w tym samym pliku liczy deadline
+z `claim_offered_at` + `events.reserve_claim_minutes`; nowy `krotkiTermin()`
+(`lib/eventDates.ts`) formatuje go kompaktowo, świadomie bez nazwy dnia tygodnia (żeby
+nie odmieniać przez przypadki jak `dzienTygodniaWBierniku()`). `EventDetailClient.tsx`
+— sekcja „Rezerwa — kolejka do zwolnionego miejsca". Testy:
+`__tests__/kolejkaRezerwy.test.ts`, `__tests__/eventDates.test.ts`.
+
 ### 2026-09-13 — Akcje przy swoim wierszu; zarządzanie graczami w liście składu
 
 PROBLEM: karta z terminem i miejscem meczu miała pod spodem rząd trzech przycisków
@@ -695,33 +725,4 @@ Nowy `components/ui/SportChip.tsx` używany przez arkusz filtrów i okno alertu.
 zajmuje się niezmieniona funkcja brzegowa `notify-game-alert`, wołana z `lib/events.ts`
 przy tworzeniu meczu. Bez migracji. Testy: `__tests__/alertZFiltrow.test.tsx`,
 `__tests__/przyciskLokalizacji.test.tsx`.
-
-### 2026-09-12 — Notatka organizatora przy odwołaniu meczu
-
-PROBLEM: Okno „Odwołać mecz?" mówi wprost, KTO dostanie powiadomienie, ale nie dawało
-organizatorowi miejsca, żeby powiedzieć DLACZEGO albo co dalej — „boisko zalane, szukam
-zastępczego terminu", „gramy w przyszłą sobotę o tej samej porze". Jedyną drogą było
-„Odwołaj i wyślij wiadomość" — osobna wiadomość na czacie meczu, którą widzi tylko ten,
-kto tam zajrzy. Kto dostał wyłącznie dzwonek, push albo maila, widział gołe „Organizator
-odwołał ten mecz" bez powodu.
-
-ROZWIĄZANIE BOJO: okno odwołania ma dziś pole „Notatka dla uczestników (opcjonalnie)".
-Wpisany tekst trafia do WSZYSTKICH kanałów, które i tak już wychodzą przy odwołaniu —
-dzwonek w aplikacji, push (ten sam ładunek co dzwonek), mail do uczestnika z kontem, mail
-do gościa bez konta — a przy wyborze „Odwołaj i wyślij wiadomość" także na czat. Notatka
-pokazuje się też w czerwonym banerze „Mecz odwołany" na stronie meczu, więc widzi ją
-każdy, kto trafi tam z linku, nie tylko ten, kto dostał powiadomienie. Notatka jest
-nadpisywana przy każdym odwołaniu i czyszczona przy przywróceniu meczu — nie jest to
-trwały opis meczu, tylko treść jednego konkretnego zdarzenia.
-
-MECHANIKA: migracja `142` — kolumna `events.notatka_odwolania`; `powiadom_o_odwolaniu()`
-(`070`) dopisuje ją do treści dzwonka; `wyslij_mail_do_konta()` (`140`) i
-`wyslij_mail_do_goscia()` (`133`/`137`) dokładają pole `notatka` w ładunku do funkcji
-brzegowej `powiadom-goscia`, wyłącznie dla powodu odwołania. `cancelEvent()`
-i `restoreEvent()` w `lib/events.ts` zarządzają kolumną z aplikacji, wyzwalacz
-`wyczysc_notatke_po_przywroceniu()` jest siecią bezpieczeństwa w bazie. Pole notatki
-w oknie potwierdzenia — `OpcjeNotatki` w `components/ui/OknoPotwierdzenia.tsx`,
-`pobierzNotatke()` w `lib/usePotwierdzenie.tsx`. Ta sama notatka jedzie na czat przez
-`tekstOdwolania()` w `lib/eventShare.ts`. Asercje w `supabase/test/notatka-odwolania.sql`
-i `frontend/src/__tests__/mailePowiadomien.test.ts`.
 

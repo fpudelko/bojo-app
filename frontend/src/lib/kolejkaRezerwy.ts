@@ -127,3 +127,20 @@ export function czekaNaOferte(p: EventParticipant): boolean {
 export function pominietyWKolejce(p: EventParticipant): boolean {
   return wKolejce(p) && !p.userId && !p.maGuestEmail;
 }
+
+/**
+ * Kiedy wygaśnie AKTYWNA oferta tego wpisu — deadline, do którego trzeba
+ * kliknąć „Wchodzę", zanim `sync_reserve_claim()` przekaże miejsce dalej.
+ * `null`, gdy nikt nie ma teraz wystawionej oferty.
+ *
+ * Jedno źródło tej daty: dotąd liczył ją tylko banner „jesteś następny" dla
+ * WŁASNEJ oferty (`EventDetailClient.tsx`) — kolejka widoczna dla innych
+ * (organizator, reszta rezerwy) pokazywała samą etykietkę „czeka na decyzję"
+ * bez terminu, więc nikt poza samym zainteresowanym nie wiedział, ile czasu
+ * zostało (zgłoszone wprost, audyt S-1, druga część).
+ */
+export function terminOferty(p: EventParticipant, reserveClaimMinutes: number): Date | null {
+  return p.claimOfferedAt
+    ? new Date(new Date(p.claimOfferedAt).getTime() + reserveClaimMinutes * 60_000)
+    : null;
+}

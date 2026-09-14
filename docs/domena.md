@@ -292,6 +292,31 @@ sposoby i dawały różne wyniki: baner rezerwowego ignorował rolę, choć baza
 osobne kolejki dla pola i bramkarzy, więc bramkarz jedyny w swojej kolejce czytał
 „Rezerwa · 4.", choć wchodził następny.
 
+**Ten sam błąd wracał w liście „Rezerwa — kolejka do zwolnionego miejsca"
+widocznej dla WSZYSTKICH** (skład meczu, nie tylko baner „mój" rezerwowego)
+— audyt S-1, druga część (2026-09-13). Numer przy każdym wierszu liczył się
+gołym indeksem `.map()`, czyli po kolejności wyświetlania, nie przez
+`pozycjaWKolejce()` — więc przy włączonym rozróżnieniu bramkarzy jedyny
+bramkarz na rezerwie znów czytał „4." zamiast „1.", a ktoś z wygasłą ofertą
+(patrz niżej) trzymał swój stary numer, mimo że realnie stoi na końcu.
+Naprawione: numer w tej liście liczy `pozycjaWKolejce()`, tak samo jak
+własny baner; `null` (odpuścił na stałe) pokazuje kreskę zamiast zgadywanej
+liczby.
+
+**Termin oferty jest dziś widoczny dla każdego, nie tylko dla osoby, której
+dotyczy** (ta sama poprawka). Do niej badge „czeka na decyzję" w tej liście
+nie niósł ŻADNEGO terminu — reszta rezerwy i organizator nie mieli jak
+sprawdzić, ile czasu zostało koledze, mimo że własny baner rezerwowego to
+liczy od dawna. `lib/kolejkaRezerwy.ts` eksportuje `terminOferty()` (deadline
+z `claim_offered_at` + `reserve_claim_minutes`), sformatowany kompaktowo przez
+`krotkiTermin()` z `lib/eventDates.ts` („do 18:30" / „do jutra, 18:30" —
+świadomie bez nazwy dnia tygodnia, żeby nie odmieniać przez przypadki jak
+`dzienTygodniaWBierniku()`). Ta sama lista dostała też osobny badge
+„nie zdążył(a)" dla `oferta_wygasla_at` bez `claim_offered_at`/`claim_passed`
+— stan „wrócił na koniec kolejki, ale zostaje w grze" (patrz wyżej) nie miał
+dotąd ŻADNEGO odznaczenia w tym widoku, tylko treść powiadomienia, którego
+reszta rezerwy i tak nie widzi.
+
 Kolumna nazywała się `reserve_claim_hours` (pełne godziny) do migracji `118` —
 przenumerowana na minuty, bo wybór był „mocno ograniczony": godzina jako
 jednostka fizycznie nie mieściła „30 minut", typowego czasu reakcji na telefon
@@ -299,11 +324,19 @@ jednostka fizycznie nie mieściła „30 minut", typowego czasu reakcji na telef
 presety w przedziale 30 min – 3 h plus pole „Inny czas…" bez górnego ograniczenia
 poza CHECK-iem bazy.
 
-Kolejka rusza się przy **wejściu na stronę meczu** — nie ma backendu ani crona, więc
-`sync_reserve_claim` jest wołane z klienta (`syncReserveClaim` w `lib/events.ts`) i musi
-być idempotentne. Funkcja wygasza przeterminowaną ofertę i przekazuje miejsce dalej,
-**sortując rezerwę po `zapisano_at`, nie po `created_at`** — patrz niżej, dlaczego to
-dwie różne rzeczy.
+Kolejka rusza się przy **wejściu na stronę meczu** (`syncReserveClaim` w `lib/events.ts`
+woła `sync_reserve_claim` z klienta, więc funkcja musi być idempotentna) — a od migracji
+`143` (audyt S-1, 2026-09-12) **też sama, co 15 minut**, zadaniem `pg_cron`
+`bojo-kolejka-rezerwy` → `porzadkuj_kolejki_rezerwy()`. Bez tego kolejka stała, gdy
+oferta wygasła i akurat nikt nie otworzył strony meczu — sprawdzone zapytaniami:
+6 h po wygaśnięciu okna oferta dalej wisiała, druga osoba w kolejce miała zero
+powiadomień. Gorzej: po starcie meczu funkcja wychodzi natychmiast, więc taka oferta
+nie wygasłaby już NIGDY, mimo że migracja `079` mówi organizatorowi wprost „miejsce
+trafia do pierwszej osoby z rezerwy". `porzadkuj_kolejki_rezerwy()` przegląda aktywne,
+PRZYSZŁE mecze z niepustą rezerwą i woła tę samą, niezduplikowaną `sync_reserve_claim()`
+— reguła „czy jest wolne miejsce" żyje w jednym miejscu. Funkcja wygasza przeterminowaną
+ofertę i przekazuje miejsce dalej, **sortując rezerwę po `zapisano_at`, nie po
+`created_at`** — patrz niżej, dlaczego to dwie różne rzeczy.
 
 **Kolejność liczy się od `zapisano_at`, nie od `created_at` — migracja `110`.**
 „Obserwuję" (`rsvp = 'maybe'`, patrz wyżej) to ten sam wiersz w `event_participants` co
