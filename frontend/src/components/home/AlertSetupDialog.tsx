@@ -166,23 +166,25 @@ export default function AlertSetupDialog({
           {/* Sport */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Sport</p>
+            {/* Bez ikony „Dowolny sport" — tak samo jak w obu arkuszach
+                filtrów. Tu wybór jest POJEDYNCZY, więc żeby dało się wrócić do
+                „dowolnego", dotknięcie już wybranego sportu go odznacza.
+                Bez tego zniknięcie piątej ikony byłoby pułapką: raz wybrany
+                sport nie dałby się cofnąć inaczej niż zamknięciem okna. */}
             <div className="flex flex-wrap gap-2">
-              <SportChip
-                emoji="🏟️"
-                label="Dowolny sport"
-                selected={sport === ''}
-                onClick={() => setSport('')}
-              />
               {FOCUS_SPORTS.map((s) => (
                 <SportChip
                   key={s}
                   emoji={sportEmoji(s)}
                   label={sportLabel(s)}
                   selected={sport === s}
-                  onClick={() => setSport(s)}
+                  onClick={() => setSport((cur) => (cur === s ? '' : s))}
                 />
               ))}
             </div>
+            <p className="mt-2 text-sm font-medium text-ink">
+              {sport === '' ? 'Dowolny sport' : sportLabel(sport)}
+            </p>
           </div>
 
           {/* Days of week */}

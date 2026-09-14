@@ -45,7 +45,7 @@ describe('domyslneZFiltrow — okno alertu nie pyta o to, co już powiedziały f
   });
 });
 
-describe('SportChip — podpis dopiero po wybraniu', () => {
+describe('SportChip — sama ikona, nazwa tylko dla dostępności', () => {
   it('niewybrany sport to sama ikona, ale nazwa zostaje dla czytnika ekranu', () => {
     render(<SportChip emoji="🏐" label="Siatkówka" selected={false} onClick={() => {}} />);
     const chip = screen.getByRole('button', { name: 'Siatkówka' });
@@ -53,10 +53,23 @@ describe('SportChip — podpis dopiero po wybraniu', () => {
     expect(chip.getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('wybrany sport pokazuje podpis — wtedy trzeba go przeczytać', () => {
+  it('WYBRANY sport też jest samą ikoną — podpis stoi pod rzędem, nie w pigułce', () => {
+    // Sedno zmiany z 2026-09-14: gdyby nazwa wracała do środka, wybrana ikona
+    // rosłaby w poziomie i przestawiała cały rząd pod palcem.
     render(<SportChip emoji="🏐" label="Siatkówka" selected onClick={() => {}} />);
     const chip = screen.getByRole('button', { name: 'Siatkówka' });
-    expect(chip.textContent).toContain('Siatkówka');
+    expect(chip.textContent).toBe('🏐');
     expect(chip.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('wybór zmienia tylko wygląd, a szerokość zostaje ta sama', () => {
+    const { rerender } = render(<SportChip emoji="🏐" label="Siatkówka" selected={false} onClick={() => {}} />);
+    const klasyNiewybranej = screen.getByRole('button', { name: 'Siatkówka' }).className;
+    rerender(<SportChip emoji="🏐" label="Siatkówka" selected onClick={() => {}} />);
+    const klasyWybranej = screen.getByRole('button', { name: 'Siatkówka' }).className;
+    for (const rozmiar of ['h-11', 'w-11']) {
+      expect(klasyNiewybranej).toContain(rozmiar);
+      expect(klasyWybranej).toContain(rozmiar);
+    }
   });
 });

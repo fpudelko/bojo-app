@@ -370,6 +370,39 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-14 — Arkusz filtrów: mniej napisów, sport czytany pod ikonami
+
+PROBLEM: arkusz filtrów na mapie i liście meczów otwierał się trzema rzędami
+poświęconymi wyłącznie temu, gdzie szukać: nagłówek „Gdzie szukam", akapit tłumaczący
+słowami to, co robi kontrolka pod nim, i osobny przycisk na całą szerokość „Ustaw
+pinezkę na mojej lokalizacji" nad polem miejscowości. Pierwsza rzecz do dotknięcia
+wypadała nisko. Osobno: ikony sportów pokazywały nazwę dopiero po wybraniu, więc
+wybrana ikona rosła w poziomie i przestawiała cały rząd — ikony skakały pod palcem, a
+przy dwóch wybranych rząd łamał się na dwa wiersze. W rzędzie stała też piąta ikona
+„Wszystkie sporty", czyli dodatkowy cel dotyku na powrót do stanu domyślnego i jedyna
+pozycja, która nie jest sportem.
+
+ROZWIĄZANIE BOJO: nagłówek „Gdzie szukam" i akapit pod nim zniknęły — pole mówi
+„Miejscowość albo kod pocztowy" swoim placeholderem. Pinezka stoi jako ikona po prawej
+stronie tego pola, w jednym wierszu z nim, zamiast osobnego przycisku nad nim. Rząd
+sportów to cztery ikony o stałej szerokości, bez piątej „Wszystkie sporty": nic
+niewybrane znaczy wszystkie. Co jest wybrane, mówi jedna linijka pod rzędem — wymienia
+nazwy po przecinku, nie liczbę. Okno alertu o nowym meczu dostało przy okazji
+przełączanie wyboru: ma wybór pojedynczy, więc dotknięcie już wybranego sportu go
+odznacza i wraca do „Dowolnego sportu".
+
+MECHANIKA: `components/ui/SportChip.tsx` renderuje sam emoji w kwadracie 44×44 px
+(WCAG 2.5.5), nazwa zostaje w `aria-label`/`title`. Podpis pod rzędem składa
+`multiLabel()` z `lib/eventFilters.ts`, przepisane tak, żeby wymieniało nazwy zamiast
+zwracać „N wybrane" — funkcja nie miała dotąd ani jednego wywołania w interfejsie,
+więc nic się na tej zmianie nie opierało. `PrzyciskMojaLokalizacja.tsx` dostał
+`wariant` (`pelny` | `ikona`); wariant ikony przyjmuje pole adresu jako `children`
+i sam składa wiersz, bo to on trzyma komunikat o odmowie zgody na lokalizację, a ten
+musi wypaść pod wierszem, nie obok pola. Miejsca użycia: `WyborMiejscowosci.tsx`,
+`VenueExplorer.tsx` (oba arkusze), `app/wydarzenia/EventsListView.tsx`,
+`components/home/AlertSetupDialog.tsx`. Testy: `alertZFiltrow.test.tsx`,
+`eventFilters.test.ts`.
+
 ### 2026-09-13 — Kolejka rezerwowa mówi resztce graczy to, co dotąd mówiła tylko jednej osobie
 
 PROBLEM: dzień wcześniej kolejka rezerwowa dostała własny zegar (patrz niżej) — ale
@@ -669,60 +702,4 @@ jej reguł) plus zadanie `pg_cron` `bojo-kolejka-rezerwy` co 15 minut. Migracja 
 i liczbę czekających w kolejce do treści dla organizatora, nowy pomocnik odmiany
 `odmien_czeka_na_rezerwie()` wzorem `odmien_nie_oddalo()` z `131`. Testy:
 `supabase/test/kolejka-zegar.sql` (nowy), rozszerzony `supabase/test/przypomnienia.sql`.
-
-### 2026-09-12 — Alert „Powiadom mnie, gdy się pojawi" i pinezka na własnej lokalizacji
-
-PROBLEM: gracz wchodził na listę meczów Bojo, zawężał ją filtrami do tego, czego naprawdę
-szuka — sport, okolica, termin — i dostawał „Brak meczów". W tym miejscu Bojo nie oferowało
-nic poza wyczyszczeniem filtrów albo wystawieniem własnego meczu; obie odpowiedzi każą
-zrobić coś innego, niż się przyszło zrobić. Człowiek wychodził i nie wracał, mimo że mecz
-w jego okolicy mógł pojawić się nazajutrz. Alert o nowej grze był w Bojo ZBUDOWANY od
-migracji `025` — tabela `game_alerts`, dopasowywanie po sporcie i promieniu, wysyłka mailem
-przy każdym nowym meczu — ale schowany za flagą `SHOW_GAME_ALERTS`, wyłączoną w czasach,
-gdy Bojo nie miało czym dostarczyć powiadomienia. Kanał (poczta, web-push) działa od
-2026-09-08, flaga została wyłączona siłą rozpędu.
-
-ROZWIĄZANIE BOJO: gracz włącza w Bojo alert o nowym meczu w **trzech** miejscach na liście
-meczów — dzwonkiem w pasku nad listą (wypełniony znaczy „włączony"), na dole arkusza
-filtrów oraz dużym przyciskiem w pustym stanie listy. W arkuszu filtrów wejście zmienia
-postać: gdy podgląd wyników pokazuje „Pokaż 0 meczy", robi się pełnym przyciskiem
-z nagłówkiem „Nic nie pasuje do tych filtrów" — bo to JEST moment, w którym filtry nic nie
-wyszukały, a wcześniej trzeba było zamknąć arkusz, żeby się o tym dowiedzieć. Alert otwiera
-się WYPEŁNIONY tym, co gracz przed chwilą ustawił filtrami (sport, promień), a lokalizację
-podstawia sam, jeśli przeglądarka ma już zgodę (samo otwarcie okna nigdy o nią nie prosi).
-Gdy alert już istnieje, wszystkie trzy miejsca mówią „Damy znać, gdy pojawi się pasujący
-mecz". Osoba niezalogowana trafia stąd na logowanie.
-
-Od 2026-09-13 alert włącza się także z arkusza filtrów na mapie Bojo (tryb gier) — mapa
-zadaje to samo pytanie „gdzie i w co chcę zagrać". Wybór sportu w tym arkuszu pokazuje same
-ikony dyscyplin, a podgląd „Pokaż N meczy" reaguje na klikane zawężenia od razu: wcześniej
-liczył po filtrach już zastosowanych, więc klikanie sportu nie ruszało liczby.
-
-Osobno: oba arkusze filtrów w Bojo — na liście meczów i na mapie — mają przycisk **„Ustaw
-pinezkę na mojej lokalizacji"**. Dotąd zgoda na lokalizację wyciągała się ubocznie, dopiero
-przy zatwierdzaniu filtrów z ustawionym promieniem; teraz prośba wychodzi z przycisku
-naciśniętego właśnie po to, a odmowa zgody pokazuje się pod nim jako zwykły komunikat.
-Na mapie pinezka zastępuje wpisywanie miejscowości z ręki.
-
-Wybór sportu — w filtrach i w oknie alertu — pokazuje same ikony dyscyplin, a podpis dopiero
-przy wybranej; cztery pełne nazwy zajmowały na telefonie dwa wiersze. Odległość w oknie
-alertu jest w jednym miejscu, bezpośrednio pod wybranym miejscem, bo to dopowiedzenie do
-niego („ile kilometrów OD CZEGO"), a nie osobne pytanie.
-
-MECHANIKA: flaga `SHOW_GAME_ALERTS` (`frontend/src/lib/features.ts`) włączona. Trzy wejścia
-w `app/wydarzenia/EventsListView.tsx` (dzwonek w pasku, dół arkusza filtrów z wariantem dla
-zerowego podglądu, pusty stan) otwiera wspólne `otworzAlert()`; okno renderuje się na
-poziomie całego widoku, bo `listContent` bywa w gałęzi ukrytej przez CSS. Stan alertu
-(`getMyAlert()`) pobiera się przy wejściu zalogowanego na listę — dzwonek musi znać stan.
-Nowy `components/ui/PrzyciskMojaLokalizacja.tsx` (własny stan zajętości i błędu) stoi
-w arkuszu `/wydarzenia` pod suwakiem „Odległość" oraz w `components/map/WyborMiejscowosci.tsx`
-na `/mapa`, gdzie ustawia `Miejscowosc` o nazwie „Moja lokalizacja". `lib/alerts.ts` — `domyslneZFiltrow()` przenosi filtry do
-okna alertu (jeden sport przechodzi wprost, dwa i więcej dają „dowolny", promień jest
-przycinany do skali suwaka) plus stałe `PROMIEN_MIN/MAX/DOMYSLNY`. `components/home/
-AlertSetupDialog.tsx` — lokalizacja z `pozycjaBezPytania()` (`lib/geo.ts`), promień na
-wspólnym `components/ui/RangeSlider`, sporty z `lib/sports.ts` zamiast własnej listy.
-Nowy `components/ui/SportChip.tsx` używany przez arkusz filtrów i okno alertu. Wysyłką
-zajmuje się niezmieniona funkcja brzegowa `notify-game-alert`, wołana z `lib/events.ts`
-przy tworzeniu meczu. Bez migracji. Testy: `__tests__/alertZFiltrow.test.tsx`,
-`__tests__/przyciskLokalizacji.test.tsx`.
 

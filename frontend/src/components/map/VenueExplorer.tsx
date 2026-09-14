@@ -45,7 +45,7 @@ import { useAuth } from '@/lib/auth';
 import type { GameAlert } from '@/types';
 import {
   filterByMaxPrice, filterByMinFreeSpots, filterByRadius, filtrujGryMapy, matchesDateFilter,
-  sortEvents, swipeEventId, toggleInArray, type DateFilter, type EventRow, type SortBy,
+  multiLabel, sortEvents, swipeEventId, toggleInArray, type DateFilter, type EventRow, type SortBy,
 } from '@/lib/eventFilters';
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
 import { foldText, foldedIncludes } from '@/lib/searchText';
@@ -1483,11 +1483,13 @@ export default function VenueExplorer({
     >
       <div className="space-y-6">
         <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Gdzie szukam</h3>
-          <p className="mb-2 text-xs text-slate-500">
-            Postaw pinezkę na swojej lokalizacji albo wpisz miejscowość lub kod
-            pocztowy — pokażemy to, co jest w promieniu.
-          </p>
+          {/* BEZ NAGŁÓWKA „GDZIE SZUKAM" I BEZ AKAPITU POD NIM — 2026-09-14,
+              zgłoszone wprost. Akapit tłumaczył słowami dokładnie to, co robi
+              kontrolka pod nim: pole mówi „Miejscowość albo kod pocztowy"
+              swoim placeholderem, a pinezka niesie `title`/`aria-label`.
+              Sam nagłówek też nie niósł nic ponad to, co widać — a razem
+              zajmowały dwa rzędy nad pierwszą rzeczą do dotknięcia,
+              na samej górze arkusza. */}
           <WyborMiejscowosci
             wybrana={draftMiejscowosc}
             promienKm={draftPromienKm}
@@ -1508,12 +1510,6 @@ export default function VenueExplorer({
               „Wszystkie sporty" — same ikony byłyby tam nie do rozróżnienia,
               więc zostaje listą. */}
           <div className="flex flex-wrap gap-2">
-            <SportChip
-              emoji="🏟️"
-              label="Wszystkie sporty"
-              selected={draftSports.length === 0}
-              onClick={() => setDraftSports([])}
-            />
             {GAMES_SPORT_OPTIONS.map((o) => (
               <SportChip
                 key={o.value}
@@ -1524,6 +1520,13 @@ export default function VenueExplorer({
               />
             ))}
           </div>
+          {/* Podpis pod rzędem — jedyne miejsce, w którym widać NAZWĘ
+              wybranego sportu. Przy pustym wyborze mówi „Wszystkie sporty",
+              czyli nazywa stan domyślny, który wcześniej trzeba było
+              ustawiać piątą ikoną. */}
+          <p className="mt-2 text-sm font-medium text-ink">
+            {multiLabel(draftSports, 'Wszystkie sporty', GAMES_SPORT_OPTIONS)}
+          </p>
         </section>
 
         <section className="flex flex-wrap gap-2">
@@ -1636,11 +1639,13 @@ export default function VenueExplorer({
     >
       <div className="space-y-6">
         <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Gdzie szukam</h3>
-          <p className="mb-2 text-xs text-slate-500">
-            Postaw pinezkę na swojej lokalizacji albo wpisz miejscowość lub kod
-            pocztowy — pokażemy to, co jest w promieniu.
-          </p>
+          {/* BEZ NAGŁÓWKA „GDZIE SZUKAM" I BEZ AKAPITU POD NIM — 2026-09-14,
+              zgłoszone wprost. Akapit tłumaczył słowami dokładnie to, co robi
+              kontrolka pod nim: pole mówi „Miejscowość albo kod pocztowy"
+              swoim placeholderem, a pinezka niesie `title`/`aria-label`.
+              Sam nagłówek też nie niósł nic ponad to, co widać — a razem
+              zajmowały dwa rzędy nad pierwszą rzeczą do dotknięcia,
+              na samej górze arkusza. */}
           <WyborMiejscowosci
             wybrana={draftMiejscowosc}
             promienKm={draftPromienKm}

@@ -272,8 +272,19 @@ describe('multiLabel', () => {
     expect(multiLabel(['siatkowka'], 'Wszystkie sporty', options)).toBe('Siatkówka');
   });
 
-  it('kilka wyborów → licznik', () => {
-    expect(multiLabel(['pilka-nozna', 'siatkowka'], 'Wszystkie sporty', options)).toBe('2 wybrane');
+  it('kilka wyborów → nazwy po przecinku, nie licznik', () => {
+    expect(multiLabel(['pilka-nozna', 'siatkowka'], 'Wszystkie sporty', options)).toBe('Piłka nożna, Siatkówka');
+  });
+
+  it('kolejność bierze się z listy opcji, nie z kolejności klikania', () => {
+    expect(multiLabel(['siatkowka', 'pilka-nozna'], 'Wszystkie sporty', options))
+      .toBe('Piłka nożna, Siatkówka');
+  });
+
+  it('wybór spoza listy opcji nie daje pustego podpisu', () => {
+    // Zapisany filtr może nieść sport, którego już nie ma na liście — wtedy
+    // podpis wraca do zbiorczego zamiast pokazać pusty wiersz.
+    expect(multiLabel(['kometka'], 'Wszystkie sporty', options)).toBe('Wszystkie sporty');
   });
 });
 
