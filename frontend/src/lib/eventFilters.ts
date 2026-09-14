@@ -162,14 +162,29 @@ export function filterByMinFreeSpots(rows: EventRow[], minSpots: number): EventR
 }
 
 /** 0 → allLabel; 1 → etykieta jedynej wybranej opcji; >1 → „N wybrane". */
+/**
+ * Podpis pod rzędem ikon sportów: „Wszystkie sporty" przy pustym wyborze,
+ * inaczej nazwy wybranych po przecinku.
+ *
+ * WYMIENIA NAZWY, NIE LICZY ICH — zmiana z 2026-09-14. Funkcja zwracała
+ * wcześniej „2 wybrane" powyżej jednego wyboru i nie miała ani jednego
+ * wywołania w interfejsie (tylko test), więc nic się na tym nie opiera.
+ * Podpis istnieje po to, żeby przeczytać, CO jest wybrane — a „2 wybrane"
+ * odsyła z powrotem do liczenia podświetlonych ikon, czyli do pytania,
+ * na które miał odpowiedzieć. Sportów jest cztery, więc pełna lista mieści
+ * się w jednej, najwyżej dwóch linijkach.
+ *
+ * Kolejność bierze się z `options`, nie z kolejności klikania: ten sam wybór
+ * ma dawać ten sam napis niezależnie od tego, co ktoś dotknął pierwsze.
+ */
 export function multiLabel<T extends string>(
   selected: T[],
   allLabel: string,
   options: { value: T; label: string }[],
 ): string {
   if (selected.length === 0) return allLabel;
-  if (selected.length === 1) return options.find((o) => o.value === selected[0])?.label ?? allLabel;
-  return `${selected.length} wybrane`;
+  const nazwy = options.filter((o) => selected.includes(o.value)).map((o) => o.label);
+  return nazwy.length > 0 ? nazwy.join(', ') : allLabel;
 }
 
 export function toggleInArray<T>(arr: T[], value: T): T[] {

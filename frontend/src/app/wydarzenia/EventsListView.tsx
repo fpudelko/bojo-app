@@ -32,7 +32,7 @@ import { plural } from '@/lib/plural';
 import { distanceKm, getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import {
   DAY_GROUP_LABEL, filterByMaxPrice, filterByMinFreeSpots, filterByRadius, groupByDay,
-  matchesDateFilter, sortEvents,
+  matchesDateFilter, multiLabel, sortEvents,
   type DateFilter, type EventRow, type SortBy,
 } from '@/lib/eventFilters';
 
@@ -812,13 +812,9 @@ export default function EventsListView({ widzianoWczesniej }: {
 
           <div>
             <p className="mb-2 text-sm font-semibold text-ink">Sport</p>
+            {/* Bez ikony „Wszystkie" — brak wyboru ZNACZY wszystkie i tak mówi
+                podpis pod rzędem. Ten sam układ co w arkuszu na `/mapa`. */}
             <div className="flex flex-wrap gap-2">
-              <SportChip
-                emoji="🏟️"
-                label="Wszystkie"
-                selected={sports.length === 0}
-                onClick={() => setSports([])}
-              />
               {FOCUS_SPORTS.map((sport) => (
                 <SportChip
                   key={sport}
@@ -831,6 +827,13 @@ export default function EventsListView({ widzianoWczesniej }: {
                 />
               ))}
             </div>
+            <p className="mt-2 text-sm font-medium text-ink">
+              {multiLabel(
+                sports,
+                'Wszystkie sporty',
+                FOCUS_SPORTS.map((s) => ({ value: s, label: sportLabel(s) })),
+              )}
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">

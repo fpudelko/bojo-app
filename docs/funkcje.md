@@ -1909,7 +1909,7 @@ jednej linii (`overflow-x-auto` z ukrytym scrollbarem):
 |---|---|
 | **„Sortuj"** *(dropdown)* | `PillDropdown` (`components/ui/FilterPill.tsx`), single-select, aplikuje się **natychmiast** po kliknięciu opcji (nie przez szkic modala): Najbliższy termin *(domyślnie)* / **Najbliżej mnie** (pyta o lokalizację od razu, pokazuje „Szukam Cię…" w trakcie) / Najwięcej wolnych miejsc |
 | **„Filtry"** *(przycisk → modal)* | otwiera `FilterSheet` z czterema suwakami: Kiedy / Odległość / Cena / Wolne miejsca |
-| **Sport** | mieszka w arkuszu filtrów (nie w pasku), multi-select, źródło `FOCUS_SPORTS` (4 opcje) + „Wszystkie"; „piłka nożna" łapie też `futsal`. Od 2026-09-12 pigułką jest `components/ui/SportChip.tsx`: **ikona zawsze, podpis dopiero przy wybranym sporcie** — cztery pełne nazwy zajmowały na telefonie dwa wiersze, a nazwa jest potrzebna dokładnie wtedy, gdy trzeba przeczytać, co się wybrało (zostaje w `aria-label`/`title`). Ten sam komponent stoi w oknie alertu, patrz niżej |
+| **Sport** | mieszka w arkuszu filtrów (nie w pasku), multi-select, źródło `FOCUS_SPORTS` (4 opcje); „piłka nożna" łapie też `futsal`. Pigułką jest `components/ui/SportChip.tsx`: **sama ikona, kwadrat 44×44 px, podpis POD rzędem** (`multiLabel()`). Od 2026-09-14 nie ma piątej ikony „Wszystkie" — brak wyboru znaczy wszystkie i tak mówi podpis. Ten sam komponent stoi w arkuszu na `/mapa` i w oknie alertu, patrz niżej |
 | „Wolne miejsca" *(toggle)* | odsiewa komplety (`participantsCount < maxPlayers`) — **inny** filtr niż suwak „Wolne miejsca" w modalu, patrz niżej |
 | „Za darmo" *(toggle)* | `costGrosze === 0` |
 
@@ -2036,7 +2036,13 @@ Prośba o zgodę ma wychodzić z przycisku naciśniętego właśnie po to.
 | Gdzie | Co ustawia |
 |---|---|
 | `/wydarzenia` → arkusz filtrów, pod suwakiem „Odległość" | `userPos`. Gdy pozycja jest już znana, zamiast przycisku stoi „Liczę od Twojej lokalizacji" |
-| `/mapa` → arkusz filtrów, nad polem miejscowości (`WyborMiejscowosci.tsx`, oba tryby: obiekty i gry) | `Miejscowosc` o nazwie „Moja lokalizacja" — dalej działa dokładnie jak wpisana miejscowość, bo filtr i tak liczy po ODLEGŁOŚCI od punktu |
+| `/mapa` → arkusz filtrów, **obok pola miejscowości** (`WyborMiejscowosci.tsx`, oba tryby: obiekty i gry) | `Miejscowosc` o nazwie „Moja lokalizacja" — dalej działa dokładnie jak wpisana miejscowość, bo filtr i tak liczy po ODLEGŁOŚCI od punktu |
+
+**Dwa warianty, jeden komponent** (`wariant`). `pelny` to przycisk na całą szerokość
+z podpisem — tak stoi na `/wydarzenia`, pod suwakiem odległości, gdzie nie ma obok pola
+adresu i musi sam powiedzieć, co robi. `ikona` to kwadrat 44×44 px z samą pinezką,
+sklejony w jeden wiersz z polem adresu podanym jako `children` — tak stoi na `/mapa`
+od 2026-09-14 (patrz „Gdzie szukam" niżej).
 
 Ustawienie pozycji w arkuszu `/wydarzenia` zmienia też podgląd „Pokaż N meczy" od razu —
 wcześniej liczył się bez promienia, dopóki pozycja nie była znana.
@@ -2080,9 +2086,28 @@ arkuszy filtrów i sortowania „Najbliżej mnie" — bo siedzi w helperze, nie 
 
 ### Sport na `/mapa`: ikony w trybie gier, lista przy obiektach — od 2026-09-13
 
-Arkusz filtrów w **trybie gier** używa tego samego `SportChip` co `/wydarzenia`: ikona
-zawsze, podpis przy wybranym. Cztery sporty w pionie zjadały pół ekranu telefonu, przez co
+Arkusz filtrów w **trybie gier** używa tego samego `SportChip` co `/wydarzenia`: sama
+ikona, podpis pod rzędem. Cztery sporty w pionie zjadały pół ekranu telefonu, przez co
 suwaki pod spodem wypadały poza kadr.
+
+**Podpis zszedł POD rząd ikon, a ikona „Wszystkie sporty" zniknęła — 2026-09-14,
+zgłoszone wprost.** Pigułka pokazywała dotąd nazwę po wybraniu, więc wybrana rosła
+w poziomie i przestawiała cały rząd: ikony skakały pod palcem przy każdym dotknięciu,
+a przy dwóch wybranych rząd łamał się na dwa wiersze. Dziś każda ikona ma stały kwadrat
+44×44 px (WCAG 2.5.5), a co jest wybrane — mówi jedna linijka pod spodem. Piąta ikona
+„Wszystkie sporty" odpadła, bo brak wyboru już to znaczy: była dodatkowym celem dotyku
+na powrót do stanu domyślnego i jedyną pozycją w rzędzie, która nie jest sportem.
+
+Podpis składa `multiLabel()` (`lib/eventFilters.ts`), które **wymienia nazwy po
+przecinku zamiast liczyć wybrane**. Funkcja zwracała wcześniej „2 wybrane" i nie miała
+ani jednego wywołania w interfejsie — a licznik odsyła z powrotem do liczenia
+podświetlonych ikon, czyli do pytania, na które podpis ma odpowiadać. Kolejność bierze
+się z listy opcji, nie z kolejności klikania, więc ten sam wybór zawsze daje ten sam
+napis.
+
+**Okno alertu dostało przy okazji przełączanie wyboru.** Ma wybór POJEDYNCZY, więc po
+zniknięciu ikony „Dowolny sport" nie dałoby się wrócić do „dowolnego" — dotknięcie już
+wybranego sportu go odznacza.
 
 Arkusz **obiektów zostaje listą z podpisami** i nie jest to przeoczenie: jego źródłem jest
 `MAP_FILTER_SPORTS`, gdzie „wielofunkcyjne" ma to samo 🏟️ co pozycja „Wszystkie sporty" —
@@ -3017,9 +3042,25 @@ pinezki".
 
 ## Filtr „miejscowość + ile km"
 
-Arkusz filtrów — w OBU trybach, gier i katalogu — otwiera sekcja **„Gdzie szukam"**:
-pole na nazwę miejscowości albo **kod pocztowy**, a po wyborze promień (5/10/25/50 km,
+Arkusz filtrów — w OBU trybach, gier i katalogu — otwiera **wiersz wyboru miejsca**:
+pole na nazwę miejscowości albo **kod pocztowy**, a po jego prawej ikona pinezki
+„Ustaw pinezkę na mojej lokalizacji". Po wyborze dochodzi promień (5/10/25/50 km,
 domyślnie 10).
+
+**Bez nagłówka „Gdzie szukam" i bez akapitu pod nim — 2026-09-14, zgłoszone wprost.**
+Akapit („Postaw pinezkę na swojej lokalizacji albo wpisz miejscowość lub kod pocztowy —
+pokażemy to, co jest w promieniu") tłumaczył słowami dokładnie to, co robi kontrolka pod
+nim: pole mówi „Miejscowość albo kod pocztowy" swoim placeholderem, a pinezka niesie
+`title`/`aria-label`. Sam nagłówek też nie niósł nic ponad to, co widać — a razem
+zajmowały dwa rzędy nad pierwszą rzeczą do dotknięcia, na samej górze arkusza.
+
+**Pinezka stoi OBOK pola, nie nad nim** (`wariant="ikona"`
+w `PrzyciskMojaLokalizacja.tsx`). Wcześniej była osobnym przyciskiem na całą szerokość
+z podpisem, więc arkusz otwierał się trzema rzędami poświęconymi wyłącznie temu, GDZIE
+szukać. A to są dwie drogi do jednej rzeczy — obok siebie czytają się jako jeden wybór
+(„wpisz albo dotknij pinezki") i zajmują jeden wiersz zamiast dwóch. Wiersz składa sam
+`PrzyciskMojaLokalizacja`, bo to on trzyma stan szukania i komunikat o odmowie zgody,
+a ten musi wypaść POD wierszem, nie obok pola.
 
 **Znowu miasta, a przecież `fields.city` odpadło?** To jest inny mechanizm i dlatego
 działa. Kolumna `fields.city` jest wypełniona w jakichś dwóch procentach, więc filtr po

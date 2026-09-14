@@ -95,34 +95,43 @@ export default function WyborMiejscowosci({
 
   return (
     <div>
-      {/* Pinezka NAD polem: kto jest w swojej okolicy, nie ma czego wpisywać,
-          a nazwa własnej dzielnicy bywa gorszym punktem niż realna pozycja. */}
+      {/* PINEZKA OBOK POLA, NIE NAD NIM — 2026-09-14, zgłoszone wprost.
+          Stała nad polem jako osobny przycisk na całą szerokość z podpisem
+          „Ustaw pinezkę na mojej lokalizacji", więc arkusz filtrów otwierał
+          się trzema rzędami poświęconymi wyłącznie temu, GDZIE szukać: napis
+          sekcji, przycisk, pole. A to są dwie drogi do jednej rzeczy — obok
+          siebie czytają się jako jeden wybór („wpisz albo dotknij pinezki")
+          i zajmują jeden wiersz zamiast dwóch.
+
+          Wiersz składa `PrzyciskMojaLokalizacja` (wariant `ikona`), bo to on
+          trzyma stan szukania i komunikat o odmowie zgody — ten musi wypaść
+          POD wierszem, nie obok pola. */}
       <PrzyciskMojaLokalizacja
-        className="mb-2"
+        wariant="ikona"
         onPozycja={(lat, lng) => {
           setFraza('');
           setPodpowiedzi([]);
           naZmiane({ nazwa: 'Moja lokalizacja', kontekst: '', lat, lng }, promienKm);
         }}
-      />
-
-      <input
-        type="text"
-        value={fraza}
-        onChange={(e) => setFraza(e.target.value)}
-        onKeyDown={(e) => {
-          // Enter nic nie robił — trzeba było kliknąć podpowiedź myszą/palcem.
-          // Zgłoszone wprost z sesji QA. Wybiera pierwszą podpowiedź, tak jak
-          // Enter w wyszukiwarce zwykle wybiera pierwszy wynik.
-          if (e.key !== 'Enter' || podpowiedzi.length === 0) return;
-          e.preventDefault();
-          const m = podpowiedzi[0];
-          setFraza(''); setPodpowiedzi([]); naZmiane(m, promienKm);
-        }}
-        placeholder="Nazwa miejscowości albo kod pocztowy"
-        aria-label="Miejscowość albo kod pocztowy"
-        className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-      />
+      >
+        <input
+          type="text"
+          value={fraza}
+          onChange={(e) => setFraza(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter nic nie robił — trzeba było kliknąć podpowiedź myszą/palcem.
+            // Zgłoszone wprost z sesji QA. Wybiera pierwszą podpowiedź, tak jak
+            // Enter w wyszukiwarce zwykle wybiera pierwszy wynik.
+            if (e.key !== 'Enter' || podpowiedzi.length === 0) return;
+            e.preventDefault();
+            const m = podpowiedzi[0];
+            setFraza(''); setPodpowiedzi([]); naZmiane(m, promienKm);
+          }}
+          placeholder="Miejscowość albo kod pocztowy"
+          aria-label="Miejscowość albo kod pocztowy"
+          className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+        />
+      </PrzyciskMojaLokalizacja>
       {fraza.trim().length >= 2 && (
         <div className="mt-2 space-y-1">
           {szuka && <p className="px-1 text-xs text-slate-400">Szukam…</p>}
