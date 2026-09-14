@@ -96,7 +96,9 @@ użytkownikach.
 
 ### Plan (koszt: 0 zł na start)
 1. **Supabase: drugi projekt `bojo-dev`** (darmowy tier) jako baza dev/staging. Migracje
-   i nowe funkcje testujemy najpierw tam.
+   i nowe funkcje testujemy najpierw tam. Procedura krok po kroku (paczki migracji,
+   buckety, Auth, zmienne na Vercelu) →
+   [baza-danych.md](./baza-danych.md#osobna-baza-dev--preview).
 2. **Vercel: Preview Deployments już działają** — każdy branch/PR dostaje własny URL.
    Trzeba ustawić **osobne zmienne środowiskowe**: `Production` → Supabase produkcyjny,
    `Preview` → `bojo-dev`.

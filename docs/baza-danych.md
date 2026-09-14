@@ -1,6 +1,6 @@
 # Baza danych
 
-135 migracji (`001`–`140`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+145 migracji (`001`–`147`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -365,35 +365,126 @@ nie jest migracją, tylko jej pierwszą trzecią.
 
 ## Osobna baza (dev / preview)
 
-Domyślnie preview na Vercelu korzysta z **produkcyjnej** bazy — wygodne, ale każdy test
-zostawia ślad w prawdziwych danych. Żeby to rozdzielić, stawia się drugi projekt Supabase:
+Domyślnie każdy deploy podglądowy z Vercela (`Preview`) i praca lokalna uderzają
+w **produkcyjną** bazę — wygodne, ale każde kliknięcie w niesprawdzonej gałęzi zostawia
+ślad w prawdziwych danych, a każda migracja testowana „na żywo" jest testowana na
+użytkownikach. Rozdzielenie polega na drugim projekcie Supabase, wspólnym dla
+**pracy lokalnej i wszystkich preview**; produkcja (`bojo.pl`) zostaje na swoim.
 
-**Projekt już istnieje — nie zakładać nowego.** `BojoDev` jest w tej samej organizacji,
-dziś ze statusem `INACTIVE` (trzeba go wybudzić przy pierwszym użyciu). Poniższe kroki
-(migracje, boiska, buckety, konta testowe, URL Configuration, zmienne na Vercelu) trzeba
-i tak przejść — projekt istnieje jako powłoka, nie jako gotowe do użycia środowisko.
+Osobna baza dla KAŻDEGO preview (tzw. branch database) nie wchodzi w grę przy ręcznych
+migracjach: nie ma migratora, który postawiłby schemat na żądanie przy deployu. Jedna
+baza dev dla wszystkich podglądów to świadomy kompromis — jej stan jest wspólny, więc
+scenariusz z jednego PR-a widać w drugim.
 
-1. **Wybudź `BojoDev`** albo, jeśli naprawdę potrzebny jest inny projekt, załóż nowy
-   w tej samej organizacji. Zapisz hasło do bazy.
-2. **Migracje po kolei** — SQL Editor, od `001` do najnowszej. Kolejność ma znaczenie
-   (późniejsze zakładają wcześniejsze). Nie da się tego pominąć: nie ma migratora,
-   który zrobi to sam.
-3. **Boiska** — `supabase/seed.sql` (5 sztuk, na szybko) albo `seed-orliki.sql`
-   (pełniejszy zestaw). Bez tego mapa i pickery będą puste.
-4. **Buckety w Storage** — utwórz `covers` i `avatars`, oba **publiczne**. Kod ich nie
-   tworzy; przy braku okładki i awatary rzucą błędem przy uploadzie.
-5. **Konta testowe** — `supabase/seed-test-users.sql`, potem `seed_test_data.sql`.
-   Konta organizatorów muszą istnieć: albo zaloguj się nimi raz w apce wskazującej
-   na tę bazę, albo dopisz je do skryptu z kontami.
-6. **Auth → URL Configuration** — Site URL na adres preview, a w Redirect URLs wildcard
-   dla podglądów Vercela, inaczej logowanie odbije na złą domenę:
-   `https://<projekt>-*-<team>.vercel.app/**`
-7. **Vercel → Settings → Environment Variables** — `NEXT_PUBLIC_SUPABASE_URL`
-   i `NEXT_PUBLIC_SUPABASE_ANON_KEY` z nowego projektu, zaznaczone **tylko dla Preview**
-   (Production zostawia stare). Po zmianie **przebuduj** preview — zmienne wchodzą
-   przy buildzie.
+### Krok po kroku
 
-Od tego momentu preview pisze do własnej bazy, a `bojo.pl` zostaje nietknięte.
+**1. Projekt Supabase.** W tej samej organizacji stoi już `BojoDev` — ze statusem
+`INACTIVE`, czyli trzeba go wybudzić (Dashboard → projekt → *Restore*). Sprawdź to,
+zanim założysz nowy: dwa projekty dev to dwa zestawy kluczy do pomylenia. Region ten sam
+co produkcja. Hasło do bazy zapisz od razu — panel pokazuje je jeden raz.
+
+**2. Schemat — cztery paczki z `supabase/bundles/`.** SQL Editor → New query → wklej
+całość → Run, w kolejności `01` → `02` → `03` → `04`. Paczki generuje
+`node scripts/build-db-bundles.mjs` i **są w repo**, więc da się je otworzyć na GitHubie
+i skopiować bez klonowania. `03` ma ponad 12 tysięcy linii; jeśli edytor się zakrztusi,
+tnij ją na pół po granicy pliku migracji (komentarze `-- 0NN_nazwa.sql`), nigdy w środku
+instrukcji.
+
+Rozszerzenia (`pgcrypto`, `postgis`, `pg_trgm`, `pg_net`) zakładają same migracje —
+nic nie trzeba klikać w *Database → Extensions*.
+
+**3. Sprawdź, czy schemat jest kompletny.** `supabase/zapytania/stan-migracji.sql`
+wypisuje migracje, których w bazie brakuje (brakujące na górze). Pusta lista braków =
+schemat zgodny z repo. To jedyny wiarygodny test — „Run" bez czerwonego komunikatu
+znaczy tylko tyle, że ostatnia instrukcja przeszła.
+
+**4. Buckety w Storage.** Utwórz ręcznie `covers` i `avatars`, oba **publiczne**.
+Polityki dostępu przychodzą z migracji (`006` i dalej), ale samych bucketów nie tworzy
+ani migracja, ani kod — bez nich upload okładki meczu i awatara kończy się błędem.
+
+**5. Dane.** Paczka `04-seedy.sql` wnosi już boiska (`seed-orliki.sql`), konta testowe
+(`test1..test10@example.com`, hasło `test1234`), konta organizatorów zakładane hasłem
+oraz wydarzenia (`seed_test_data.sql`, `seed_test_groups.sql`, `seed_test_jan.sql`).
+Reszta seedów z „Dane testowe" niżej jest opcjonalna i wkleja się tak samo.
+
+**6. Auth → Providers.** Włącz **Email**. W dev wyłącz *Confirm email* — świeży projekt
+nie ma podpiętego SMTP, a wbudowany nadawca ma limit kilku maili na godzinę; bez tego
+konta założone przez rejestrację nie potwierdzą się nigdy. Google OAuth jest opcjonalny:
+wymaga własnego klienta w Google Cloud albo dopisania adresu
+`https://<ref-dev>.supabase.co/auth/v1/callback` do listy *Authorized redirect URIs*
+istniejącego. Do klikania wystarczą konta na hasło.
+
+**7. Auth → URL Configuration.** Bez tego logowanie odbija na złą domenę i wygląda jak
+zepsute. Site URL: `http://localhost:3000`. Redirect URLs (wildcardy Supabase rozumie):
+
+```
+http://localhost:3000/**
+https://bojo-app-git-*-<team>.vercel.app/**
+https://bojo-app-*-<team>.vercel.app/**
+```
+
+`<team>` to segment z adresu, który Vercel wypisuje przy deployu podglądowym — skopiuj
+go stamtąd, nie zgaduj. Dwa wzorce, bo Vercel nadaje podglądowi adres od nazwy gałęzi
+(`-git-`) i drugi, od skrótu builda.
+
+**8. Vercel → Settings → Environment Variables.** Tu jest jedyna pułapka tej
+procedury: zmienna w Vercelu ma JEDNĄ wartość i listę środowisk, więc nie da się
+„dopisać wartości dla Preview" do istniejącego wpisu. Kolejność:
+
+1. `NEXT_PUBLIC_SUPABASE_URL` i `NEXT_PUBLIC_SUPABASE_ANON_KEY`, które dziś mają
+   zaznaczone wszystkie środowiska, **edytuj tak, żeby zostało samo `Production`**,
+2. dopiero potem **dodaj nowe wpisy o tych samych nazwach** z kluczami z `BojoDev`
+   i zaznacz `Preview` + `Development`.
+
+Odwrotna kolejność kończy się błędem o duplikacie nazwy albo — gorzej — nadpisaniem
+wartości produkcyjnej.
+
+**9. Przebuduj podgląd.** `NEXT_PUBLIC_*` wchodzą do paczki **przy buildzie**, więc
+deploye zrobione przed zmianą dalej trzymają stary klucz. Vercel → Deployments →
+*Redeploy* na dowolnym PR-owym deployu.
+
+**10. Lokalnie.** `frontend/.env.local` (Next czyta env z katalogu, w którym startuje,
+czyli `frontend/`; plik jest w `.gitignore`):
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<ref-dev>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon z BojoDev>
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+### Co zostaje na produkcji — świadomie
+
+- **Sekrety w GitHub Actions** (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+  `SUPABASE_DB_URL_RO`) — workflowy `enrich-*`, `import-*` i `sql.yml` pracują na
+  KATALOGU BOISK, a ten ma sens tylko produkcyjny. Przestawienie ich na dev nie daje nic,
+  a kosztuje: wzbogacanie przestaje trafiać tam, gdzie ludzie patrzą.
+- **`wdroz-funkcje.yml`** ma `PROJECT_REF` produkcyjny na sztywno. Na `BojoDev` funkcje
+  brzegowe po prostu nie istnieją, a tabele `konfiguracja_push` i `konfiguracja_poczty`
+  są puste — push i maile **milczą i nic się przez to nie psuje** (wyzwalacz czyta adres
+  z tabeli i przy pustej nie robi nic). Chcąc sprawdzić push na dev, trzeba wdrożyć
+  funkcje z podmienionym `--project-ref` i uzupełnić obie tabele.
+- **`NEXT_PUBLIC_SITE_URL` na Preview** zostaje nieustawione, czyli kod wraca do
+  `https://bojo.pl`. W przeglądarce linki do udostępnienia i tak biorą
+  `window.location.origin` (`lib/groupShare.ts`, `lib/guestClaim.ts`), więc dotyczy to
+  wyłącznie `sitemap`/`robots`/OG — a podglądy Vercela i tak lecą z nagłówkiem
+  `X-Robots-Tag: noindex`.
+
+### Sprawdzenie, że rozdzielenie działa
+
+1. Otwórz podgląd z dowolnego PR-a, DevTools → Network: zapytania mają lecieć na
+   `<ref-dev>.supabase.co`, nie na produkcyjny adres.
+2. Zaloguj się kontem `test1@example.com` / `test1234` — konto istnieje TYLKO w dev,
+   więc udane logowanie samo w sobie jest dowodem.
+3. Załóż mecz w podglądzie i sprawdź, że `bojo.pl/wydarzenia` go nie pokazuje.
+
+### Utrzymanie: migracja idzie do DWÓCH baz
+
+Od tej pory nowa migracja uruchamiana jest najpierw na `BojoDev` (tam wychodzi błąd
+w SQL, który ma wyjść przed produkcją), a po merge'u na produkcji. Baza dev, która
+została w tyle, jest gorsza niż jej brak: PR wygląda na zepsuty, choć zepsuty jest
+tylko schemat podglądu. Po dodaniu migracji uruchom też
+`node scripts/build-db-bundles.mjs` i zacommituj paczki — inaczej następne stawianie
+bazy od zera pominie twój plik.
 
 ---
 
