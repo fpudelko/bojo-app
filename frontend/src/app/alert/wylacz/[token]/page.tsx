@@ -14,7 +14,7 @@ import WylaczAlertClient from './WylaczAlertClient';
  *
  * DZIAŁA BEZ LOGOWANIA, bo taki jest cały sens: link przychodzi do skrzynki,
  * która JEST dowodem tożsamości. Token jest jednorazowo wygenerowanym uuid
- * (`game_alerts.wylacz_token`, migracja `148`) i nie daje nic poza tą jedną
+ * (`game_alerts.wylacz_token`, migracja `149`) i nie daje nic poza tą jedną
  * operacją — wyłączenie leci przez funkcję `wylacz_alert_tokenem()`
  * (`SECURITY DEFINER`), która umie wyłącznie ustawić `is_active = false`.
  * Asercje w `supabase/test/rls.sql` pilnują, że tokenem nie da się ani

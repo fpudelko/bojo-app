@@ -53,6 +53,14 @@ istniejącą już od `001` — na świeżej bazie odtworzenie schematu było nie
 Atrapy Supabase (schemat `auth`, `storage`, pgcrypto, domyślne uprawnienia
 `anon`/`authenticated`) siedzą w `supabase/test/shim.sql`.
 
+**Ten sam przebieg puszcza też WSZYSTKIE SEEDY SCENARIUSZOWE** (`[TEST]`, `[TEST-G]`,
+`[TEST-J]`, `[REG]`, `[TAK]`, `[DWA]`, `[PRZED]`) — od 2026-09-14, wcześniej tylko
+`seed_regresja.sql`. Seed, którego nikt nie uruchamia, gnije tak samo jak migracja:
+`seed_test_jan.sql` wstawiał `to_char(…)` do kolumny typu `time` i wywracał się na
+`column "event_time" is of type time without time zone`, co wyszło dopiero przy
+stawianiu bazy dev. **Dopisujesz seed → dopisz go do `baza-testowa.sh`**, inaczej
+sprawdza go wyłącznie człowiek wklejający do SQL Editora, czyli w praktyce nikt.
+
 **Ten sam przebieg wykonuje TESTY REGUŁ DOSTĘPU** — `supabase/test/rls.sql`.
 Zakłada mecz prywatny przypięty do ekipy i sprawdza, kto co widzi, przełączając
 się na prawdziwe role (`SET ROLE anon`/`authenticated`) i podstawiając tożsamość

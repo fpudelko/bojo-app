@@ -2029,7 +2029,7 @@ krawędzi). Napis idzie za filtrami, bo alert naprawdę je przejmuje (`domyslneZ
 **„Powiadom o takich meczach"** przy ustawionych filtrach, **„Powiadom o nowych meczach"**
 przy pustych, **„Damy znać o nowym meczu"** (biała, z `BellRing`), gdy alert już jest.
 
-### Alert: dwa czasy, kanały i wyłącznik z maila — od 2026-09-14 (migracja `148`)
+### Alert: dwa czasy, kanały i wyłącznik z maila — od 2026-09-14 (migracja `149`)
 
 **ALERT JEST DOMYŚLNIE BEZTERMINOWY** (decyzja właściciela). Ma to jeden warunek, bez
 którego zamienia się w spam: musi dać się wyłączyć **z samej wiadomości, bez
@@ -2047,7 +2047,7 @@ jest dokładnie jedna operacja. Asercje w `supabase/test/rls.sql` pilnują, że 
 da się ani przeczytać cudzego alertu, ani nic w nim nadpisać, i że drugie kliknięcie
 w ten sam link jest nieszkodliwe.
 
-**DWA RÓŻNE „KIEDY" — dziś w oknie został JEDEN.** Migracja `148` dołożyła alertowi
+**DWA RÓŻNE „KIEDY" — dziś w oknie został JEDEN.** Migracja `149` dołożyła alertowi
 porę dnia meczu (`godzina_od`/`godzina_do`) obok dni tygodnia, czyli drugi wymiar
 „kiedy ma być MECZ", osobny od „jak długo ma żyć ALERT" (`expires_at`). Rozdzielenie ich
 nazwą sekcji było słuszne, ale samo pytanie wypadło z okna tego samego dnia — patrz
@@ -2078,7 +2078,7 @@ na **nazwany przycisk**, gdy data się zgadza co do dnia; dopiero cokolwiek inne
 na własnym terminie (`alertKoniec.test.ts`). Wybrany dzień liczy się **cały** (23:59:59,
 nie północ: „do 30 września" znaczy, że 30 września alert jeszcze działa).
 
-**Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `148`) zostają w bazie
+**Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `149`) zostają w bazie
 i w funkcji brzegowej nietknięte** — okno po prostu przestało o nie pytać i zapisuje
 odpowiednio `[]` / `NULL`. Gdyby ten wymiar wrócił, wróci jako część FILTRÓW, wspólna
 dla listy i alertu, a nie jako druga, osobna kopia pytania o termin.

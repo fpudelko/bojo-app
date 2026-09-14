@@ -1180,7 +1180,7 @@ SELECT _oczekuj('remis w lidze dozwolony BEZ karnych — zwycięzca NULL',
                 (SELECT count(*) FROM turniej_mecze
                   WHERE id = :T_MECZ_LIGA::uuid AND status = 'zakonczony' AND zwyciezca_id IS NULL), 1);
 
--- ── ALERT: wyłącznik z maila (migracja 148) ──────────────────────────────────
+-- ── ALERT: wyłącznik z maila (migracja 149) ──────────────────────────────────
 -- Nowa ścieżka dostępu dla `anon`: funkcja `wylacz_alert_tokenem()`. Jest
 -- SECURITY DEFINER, czyli omija RLS z definicji — więc jedyne, co stoi między
 -- cudzym alertem a wyłączeniem go, to nieodgadywalność tokenu ORAZ to, że

@@ -1,6 +1,6 @@
 # Baza danych
 
-135 migracji (`001`–`140`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+147 migracji (`001`–`149`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -125,7 +125,7 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `player_match_stats` | `014` | Statystyki per mecz |
 | `rate_limits` | `016` | Limity (m.in. usuwanie konta) |
 | `field_outreach` | `020` | CRM kontaktu z obiektami |
-| `game_alerts` | `025`, `148` | Alerty o grach w okolicy. Od `148`: `expires_at` (NULL = bezterminowo, wartość domyślna), `godzina_od`/`godzina_do` (para albo oba NULL, pilnuje `CHECK`), `kanal_email`, `wylacz_token` (sekret z linku „nie chcę więcej”). **Dwa różne czasy w jednej tabeli**: `expires_at` mówi, jak długo żyje ALERT, a godziny — o jakich MECZACH powiadamiać. Interfejs nazywa je osobno, bo zlanie ich w jedno „kiedy” jest najkrótszą drogą do tego, żeby nikt nie wiedział, co ustawia |
+| `game_alerts` | `025`, `149` | Alerty o grach w okolicy. Od `149`: `expires_at` (NULL = bezterminowo, wartość domyślna), `godzina_od`/`godzina_do` (para albo oba NULL, pilnuje `CHECK`), `kanal_email`, `wylacz_token` (sekret z linku „nie chcę więcej”). **Dwa różne czasy w jednej tabeli**: `expires_at` mówi, jak długo żyje ALERT, a godziny — o jakich MECZACH powiadamiać. Interfejs nazywa je osobno, bo zlanie ich w jedno „kiedy” jest najkrótszą drogą do tego, żeby nikt nie wiedział, co ustawia |
 | `notifications` | `025` | Powiadomienia in-app. `claim_token` (`084`) — dla typu `niepotwierdzony_wpis_goscia`, link do przejęcia wpisu |
 | `event_comments` | `026` | Komentarze pod meczem |
 | `field_comments` | `063` | Komentarze pod obiektem z katalogu boisk — osobne od `event_comments`, bo przeżywają pojedynczy mecz |
@@ -139,7 +139,7 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `team_proposals` | `059` | Propozycje składów od uczestników |
 | `team_proposal_picks` | `059` | Przypisania graczy w propozycji |
 | `team_proposal_votes` | `059` | Poparcia propozycji |
-| `tournaments` i 5 tabel `tournament_*` | `029` | **MARTWE** — dawny „BOJO Cup", zastąpiony modułem niżej. Kod usunięty z frontu; tabele kasuje osobna migracja `149`, uruchamiana świadomie, gdy nowy moduł zastąpi go w całości |
+| `tournaments` i 5 tabel `tournament_*` | `029` | **MARTWE** — dawny „BOJO Cup", zastąpiony modułem niżej. Kod usunięty z frontu; tabele kasuje osobna migracja `151`, uruchamiana świadomie, gdy nowy moduł zastąpi go w całości |
 | `event_delegates` | `089` | Delegowanie uprawnień organizatora (`can_edit`/`can_manage_squad`/`can_manage_payments`) — patrz `090` niżej |
 | `push_subscriptions` | `102` | Subskrypcje web-push, jedna na przeglądarkę. Każdy widzi i kasuje wyłącznie swoje |
 | `konfiguracja_push` | `102` | Adres funkcji `send-push` i sekret wyzwalacza. RLS bez polityk — przez API nieczytelna |
@@ -168,7 +168,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 |---|---|
 | `011_advanced_event_features` | Drużyny, wyniki, płatności, statystyki |
 | `025_game_alerts` | Alerty + tabela `notifications` + RPC `get_nearby_events` |
-| `148_alert_czas_kanaly_i_wylaczanie` | Alert dostaje własny czas życia (`expires_at`, NULL = bezterminowo), porę dnia meczu (`godzina_od`/`godzina_do`, parami albo wcale), wybór kanału mailowego (`kanal_email`) i `wylacz_token`. Promień poszerzony do 1–100 km, bo suwak filtrów sięga tyle od `PROMIENIE_SUWAK_KM`. Funkcja `wylacz_alert_tokenem()` (`SECURITY DEFINER`) wyłącza alert linkiem z maila, bez logowania |
+| `149_alert_czas_kanaly_i_wylaczanie` | Alert dostaje własny czas życia (`expires_at`, NULL = bezterminowo), porę dnia meczu (`godzina_od`/`godzina_do`, parami albo wcale), wybór kanału mailowego (`kanal_email`) i `wylacz_token`. Promień poszerzony do 1–100 km, bo suwak filtrów sięga tyle od `PROMIENIE_SUWAK_KM`. Funkcja `wylacz_alert_tokenem()` (`SECURITY DEFINER`) wyłącza alert linkiem z maila, bez logowania |
 | `033_contact_visibility` | Telefony i e-maile boisk **ukryte domyślnie**, egzekwowane w DB |
 | `041_join_code` | Kod dołączenia + `require_approval` |
 | `043_player_stats_fn` | RPC `get_player_stats` (poprawki w `045`, `055`) |
@@ -247,6 +247,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `143_zegar_kolejki_rezerwy` | **Kolejka rezerwowa nie miała zegara.** `sync_reserve_claim()` (`118`/`130`/`135`) jest wołane wyłącznie czyimś kliknięciem — wejściem na stronę meczu, wypisaniem się kogoś, odpuszczeniem oferty. Gdy oferta wygasała i nikt nie otwierał strony, kolejka STAWAŁA: wygasła oferta stała dalej, następna osoba nie dostawała niczego, a po starcie meczu funkcja wychodzi natychmiast, więc taka oferta nie wygasała już NIGDY. Sprawdzone zapytaniami na bazie (audyt 2026-09-12, ustalenie `S-1` w `docs/przeplyw-organizatora.md`). Nowa `porzadkuj_kolejki_rezerwy()` przegląda aktywne, przyszłe mecze z niepustą rezerwą i woła ISTNIEJĄCĄ `sync_reserve_claim()` — reguła „czy jest wolne miejsce" NIE jest tu powtórzona, żeby nie rozjechała się przy pierwszej zmianie. Zadanie `bojo-kolejka-rezerwy` co 15 minut — dolny limit okna oferty (`events_reserve_claim_minutes_check`) to 15 min, więc rzadsze zadanie czyniłoby kontrolkę w kreatorze nieprawdziwą. Testy: `supabase/test/kolejka-zegar.sql` |
 | `144_przypomnienie_zna_zamkniete_zapisy` | **Przypomnienie dzień przed meczem nie wiedziało o zamkniętych zapisach ani o rezerwie.** `wyslij_przypomnienia()` (`129`) powstała przed zamykaniem zapisów (`141`) i mówiła organizatorowi „brakuje 11 (3/14)" na meczu, który sam zamknął słowami „gramy w tym składzie" — a dwie osoby czekające na rezerwie były przy tym niewidzialne. Trzy warianty zamiast dwóch, dla obu bloków (organizator gra / nie gra): „zapisy zamknięte (N/M)" bez „brakuje"; „brakuje N (W/M) · K osób czeka na rezerwie" gdy ktoś czeka; „brakuje N (W/M)" bez zmian, gdy rezerwa pusta. Nowy pomocnik odmiany `odmien_czeka_na_rezerwie()`, wzorem `odmien_nie_oddalo()` z `131` (ta sama reguła 12–14). Blok C („po meczu") nietknięty. Testy: rozszerzony `supabase/test/przypomnienia.sql` |
 | `142_notatka_odwolania` | **Okno „Odwołać mecz?" mówiło, KTO dostanie powiadomienie, ale organizator nie miał gdzie napisać DLACZEGO ani co dalej.** Jedyną drogą było „Odwołaj i wyślij wiadomość" — osobna wiadomość na czacie, którą widzi tylko ten, kto tam zajrzy; kto dostał wyłącznie dzwonek, push albo maila, widział gołe „Organizator odwołał ten mecz". Nowa kolumna `events.notatka_odwolania` — treść dołączona do WSZYSTKICH kanałów, które i tak już wychodzą przy odwołaniu, nie nowy kanał: dzwonek (`powiadom_o_odwolaniu()`, `070`) dopisuje ją do `body`, więc push (czyta ten sam `body`, `102`) dostaje ją za darmo; `wyslij_mail_do_konta()` (`140`) i `wyslij_mail_do_goscia()` (`133`/`137`) dokładają pole `notatka` w ładunku do funkcji brzegowej `powiadom-goscia`, WYŁĄCZNIE dla powodu odwołania (`mecz_odwolany` / `odwolanie`) — pozostałe trzy powody z `140` (zmiana terminu, zmiana warunków, przywrócenie) nie mają z notatką nic wspólnego, nawet gdyby kolumna akurat coś niosła. `cancelEvent()` (`lib/events.ts`) ZAWSZE nadpisuje kolumnę, także na `null` przy pustym polu — inaczej drugie odwołanie tego samego meczu, bez nowej notatki, wysłałoby ludziom treść sprzed tygodnia jako aktualną. `restoreEvent()` zeruje ją jawnie przy przywróceniu, a wyzwalacz `wyczysc_notatke_po_przywroceniu()` robi to samo w bazie jako sieć bezpieczeństwa dla ścieżek z pominięciem aplikacji. Ta sama notatka trafia też na czat przy „Odwołaj i wyślij wiadomość" (`tekstOdwolania()` w `lib/eventShare.ts`) i do czerwonego banera „Mecz odwołany" na stronie meczu — cztery miejsca, jeden tekst. Testy: `supabase/test/notatka-odwolania.sql` |
+| `148_kasowanie_meczu_z_prosba` | **Mecz z nierozpatrzoną prośbą o dołączenie nie dawał się usunąć — i to REGRESJA, nie nowy błąd.** `powiadom_o_odrzuceniu_prosby()` wisi na `BEFORE DELETE ON event_participants`; przy `DELETE FROM events` kaskada odpala go już PO zniknięciu wiersza meczu, więc wstawiane powiadomienie łamało `notifications_event_id_fkey` i wywracało całe kasowanie. Osłonę `IF NOT FOUND THEN RETURN OLD` dołożyła `116`, a `135` zdjęła ją po cichu, biorąc ciało funkcji z `076` (wersji sprzed `116`) po to, by dołożyć warunek `auth.uid()`. To jest ta klasa pułapki, której `CREATE OR REPLACE FUNCTION` nie pokazuje w diffie: nadpisujesz całą funkcję, a nie widzisz, co w niej było. `148` łączy oba warunki. Testy: `supabase/test/kasowanie-meczu.sql` sprawdza obie strony naraz — kasowanie meczu przechodzi ORAZ odrzucenie pojedynczej prośby dalej powiadamia; bez tej drugiej asercji „naprawą" byłoby wyłączenie powiadomienia |
 | `126_szukanie_bez_ogonkow` | `fields.szukaj_norm` — kolumna GENEROWANA (nazwa + adres, małymi literami, bez polskich ogonków) plus indeks GIN po trigramach (`pg_trgm`). Szukanie boisk robiło `ilike '%<fraza>%'` na `name`/`address`, a Postgres porównuje znak po znaku: „poznan" NIE jest zgodne z „Poznań". Nikt nie pisze ogonków w szukajce na telefonie, więc wpisanie miasta zwracało ZERO wyników przy 38 tysiącach obiektów w katalogu. `translate()`, nie `unaccent()`: `unaccent()` nie jest IMMUTABLE, więc nie wolno go użyć w kolumnie generowanej ani zaindeksować bez własnej funkcji-owijki; `translate()` jest immutable i nie wymaga rozszerzenia. Mapowanie MUSI być identyczne z `foldText()` w `frontend/src/lib/searchText.ts` — filtr lokalny w `VenueExplorer` przepuszcza dalej to, co znajdzie serwer, więc rozjazd którejkolwiek strony wycina wyniki. Wielkie litery są w mapowaniu mimo `lower()` przed nim, bo `lower()` zależy od locale bazy. `searchExplorerFields()` ma wyjście awaryjne na stare `or(...)`, gdy kolumny jeszcze nie ma (migracje puszcza się ręcznie) |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
@@ -267,7 +268,7 @@ powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 | `set_event_teams_published` | Publikacja składów. `SECURITY DEFINER` + `can_manage_squad()` od `090` (wcześniej `SECURITY INVOKER` z `organizer_id` wpisanym wprost w `WHERE`) |
 | `generate_join_code` | Kod dołączenia do meczu |
 | `add_group_creator_as_member` | Trigger — twórca grupy zostaje członkiem |
-| `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | **Martwe** — dawny „BOJO Cup" (`029`), kasowane migracją `149` razem z tabelami |
+| `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | **Martwe** — dawny „BOJO Cup" (`029`), kasowane migracją `151` razem z tabelami |
 | `czy_organizator_turnieju`, `czy_zarzadza_turniejem`, `czy_zarzadza_druzynami`, `czy_kapitan_druzyny` | Nowy moduł turniejowy (`145`) — funkcje pomocnicze do polityk RLS, wzorem `can_edit_event()`/`czy_czlonek_grupy()` |
 | `dolacz_do_druzyny_kodem` | Jedyna droga wejścia do drużyny turniejowej (`/t/[kod]`): kapitanat, przypisanie do wolnego wpisu składu albo dopisanie nowego — jedna transakcja (`SECURITY DEFINER`, `145`) |
 | `turniej_kontakty` | Telefon i e-mail kapitanów — wyłącznie dla zarządzających turniejem, bo kolumny są odebrane grantem (`SECURITY DEFINER`, `145`) |
@@ -353,6 +354,12 @@ Kolejny numer + krótka nazwa: `058_nazwa_zmiany.sql`. W nagłówku komentarz m�
 Dodając kolumnę do tabeli, która ma politykę RLS na `UPDATE`, sprawdź, czy polityka
 obejmuje nową kolumnę.
 
+**`CREATE TABLE IF NOT EXISTS` nie gwarantuje KOLUMN.** Gdy tabela o tej nazwie już
+jest — cudza, z quickstartu, z ręcznego eksperymentu — `CREATE` po cichu nic nie robi
+i pierwsze odwołanie do twojej kolumny kończy się `column … does not exist`. Tabelę
+tworzoną migracją dopełniaj więc blokiem `ALTER TABLE … ADD COLUMN IF NOT EXISTS`
+(wzorzec: `005_profiles.sql`) — na bazie, która ma kolumny od zawsze, to pusty przebieg.
+
 **Migracja ma przeżyć drugie uruchomienie.** Nie dlatego, że ktoś lubi klikać dwa
 razy, tylko dlatego, że przerwany przebieg zostawia bazę w połowie drogi i jedynym
 narzędziem naprawy jest ten sam plik (patrz „Migracja przerwana w połowie"). W praktyce:
@@ -366,35 +373,172 @@ nie jest migracją, tylko jej pierwszą trzecią.
 
 ## Osobna baza (dev / preview)
 
-Domyślnie preview na Vercelu korzysta z **produkcyjnej** bazy — wygodne, ale każdy test
-zostawia ślad w prawdziwych danych. Żeby to rozdzielić, stawia się drugi projekt Supabase:
+Domyślnie każdy deploy podglądowy z Vercela (`Preview`) i praca lokalna uderzają
+w **produkcyjną** bazę — wygodne, ale każde kliknięcie w niesprawdzonej gałęzi zostawia
+ślad w prawdziwych danych, a każda migracja testowana „na żywo" jest testowana na
+użytkownikach. Rozdzielenie polega na drugim projekcie Supabase, wspólnym dla
+**pracy lokalnej i wszystkich preview**; produkcja (`bojo.pl`) zostaje na swoim.
 
-**Projekt już istnieje — nie zakładać nowego.** `BojoDev` jest w tej samej organizacji,
-dziś ze statusem `INACTIVE` (trzeba go wybudzić przy pierwszym użyciu). Poniższe kroki
-(migracje, boiska, buckety, konta testowe, URL Configuration, zmienne na Vercelu) trzeba
-i tak przejść — projekt istnieje jako powłoka, nie jako gotowe do użycia środowisko.
+Osobna baza dla KAŻDEGO preview (tzw. branch database) nie wchodzi w grę przy ręcznych
+migracjach: nie ma migratora, który postawiłby schemat na żądanie przy deployu. Jedna
+baza dev dla wszystkich podglądów to świadomy kompromis — jej stan jest wspólny, więc
+scenariusz z jednego PR-a widać w drugim.
 
-1. **Wybudź `BojoDev`** albo, jeśli naprawdę potrzebny jest inny projekt, załóż nowy
-   w tej samej organizacji. Zapisz hasło do bazy.
-2. **Migracje po kolei** — SQL Editor, od `001` do najnowszej. Kolejność ma znaczenie
-   (późniejsze zakładają wcześniejsze). Nie da się tego pominąć: nie ma migratora,
-   który zrobi to sam.
-3. **Boiska** — `supabase/seed.sql` (5 sztuk, na szybko) albo `seed-orliki.sql`
-   (pełniejszy zestaw). Bez tego mapa i pickery będą puste.
-4. **Buckety w Storage** — utwórz `covers` i `avatars`, oba **publiczne**. Kod ich nie
-   tworzy; przy braku okładki i awatary rzucą błędem przy uploadzie.
-5. **Konta testowe** — `supabase/seed-test-users.sql`, potem `seed_test_data.sql`.
-   Konta organizatorów muszą istnieć: albo zaloguj się nimi raz w apce wskazującej
-   na tę bazę, albo dopisz je do skryptu z kontami.
-6. **Auth → URL Configuration** — Site URL na adres preview, a w Redirect URLs wildcard
-   dla podglądów Vercela, inaczej logowanie odbije na złą domenę:
-   `https://<projekt>-*-<team>.vercel.app/**`
-7. **Vercel → Settings → Environment Variables** — `NEXT_PUBLIC_SUPABASE_URL`
-   i `NEXT_PUBLIC_SUPABASE_ANON_KEY` z nowego projektu, zaznaczone **tylko dla Preview**
-   (Production zostawia stare). Po zmianie **przebuduj** preview — zmienne wchodzą
-   przy buildzie.
+### Krok po kroku
 
-Od tego momentu preview pisze do własnej bazy, a `bojo.pl` zostaje nietknięte.
+**1. Projekt Supabase.** W tej samej organizacji stoi już `BojoDev` — ze statusem
+`INACTIVE`, czyli trzeba go wybudzić (Dashboard → projekt → *Restore*). Sprawdź to,
+zanim założysz nowy: dwa projekty dev to dwa zestawy kluczy do pomylenia. Region ten sam
+co produkcja. Hasło do bazy zapisz od razu — panel pokazuje je jeden raz.
+
+**2. Schemat — cztery paczki z `supabase/bundles/`.** SQL Editor → New query → wklej
+całość → Run, w kolejności `01` → `02` → `03` → `04`. Paczki generuje
+`node scripts/build-db-bundles.mjs` i **są w repo**, więc da się je otworzyć na GitHubie
+i skopiować bez klonowania. `03` ma ponad 12 tysięcy linii; jeśli edytor się zakrztusi,
+tnij ją na pół po granicy pliku migracji (komentarze `-- 0NN_nazwa.sql`), nigdy w środku
+instrukcji.
+
+Rozszerzenia (`pgcrypto`, `postgis`, `pg_trgm`, `pg_net`) zakładają same migracje —
+nic nie trzeba klikać w *Database → Extensions*.
+
+> **`column "is_admin" does not exist` przy paczce `01`** znaczy, że w projekcie
+> BYŁA JUŻ tabela `profiles` — najczęściej z quickstartu Supabase „User Management
+> Starter" (`id`, `username`, `full_name`, `avatar_url`, `website`). `CREATE TABLE
+> IF NOT EXISTS` w `005` przechodzi wtedy bez słowa, a pierwsza polityka wywraca się
+> na kolumnie, której cudza tabela nie ma. Dziś `005` dokłada swoje kolumny jawnie
+> (`ADD COLUMN IF NOT EXISTS`), więc paczka przechodzi także na takim projekcie.
+> Na bazie, gdzie starter zostawił WIĘCEJ niż kolumny (własne polityki, wyzwalacz
+> `handle_new_user`), czystsze jest `DROP TABLE profiles CASCADE;` i paczka `01`
+> od początku — **wyłącznie na świeżej bazie dev**, na produkcji `profiles` trzyma
+> konta i awatary.
+>
+> **Drugi objaw tej samej przyczyny, przy paczce `02`:** `null value in column
+> "first_name" of relation "profiles" violates not-null constraint`. To backfill
+> z migracji `022` (wiersz w `profiles` dla każdego konta z `auth.users`) trafiający
+> na CUDZE kolumny `NOT NULL` bez wartości domyślnej — czyli tabelę po innej,
+> starszej aplikacji, nie po quickstarcie. `ADD COLUMN IF NOT EXISTS` tego nie
+> ratuje: nasze kolumny dochodzą, ale cudzy `NOT NULL` dalej blokuje wstawienie.
+>
+> Na projekcie, który ma być kopią produkcji, odpowiedzią jest CZYSTA KARTKA, nie
+> łatanie kolumna po kolumnie — kasuje cały schemat `public` (**tylko baza dev!**),
+> po czym paczki idą od `01`:
+>
+> ```sql
+> drop schema public cascade;
+> create schema public;
+> grant usage on schema public to anon, authenticated, service_role;
+> grant all   on schema public to postgres, anon, authenticated, service_role;
+> ```
+>
+> Konta w `auth.users` to przeżywają — `auth` jest osobnym schematem. Gdy cudzej
+> tabeli trzeba jednak oszczędzić, minimalne wyjście to zdjęcie `NOT NULL` z kolumn,
+> których nasze migracje nie znają:
+>
+> ```sql
+> select 'alter table public.profiles alter column ' || quote_ident(column_name)
+>        || ' drop not null;'
+> from information_schema.columns
+> where table_schema = 'public' and table_name = 'profiles'
+>   and is_nullable = 'NO' and column_default is null and column_name <> 'id';
+> ```
+>
+> — uruchom wynik, potem paczkę `02` od początku.
+
+**3. Sprawdź, czy schemat jest kompletny.** `supabase/zapytania/stan-migracji.sql`
+wypisuje migracje, których w bazie brakuje (brakujące na górze). Pusta lista braków =
+schemat zgodny z repo. To jedyny wiarygodny test — „Run" bez czerwonego komunikatu
+znaczy tylko tyle, że ostatnia instrukcja przeszła.
+
+**4. Buckety w Storage.** Utwórz ręcznie `covers` i `avatars`, oba **publiczne**.
+Polityki dostępu przychodzą z migracji (`006` i dalej), ale samych bucketów nie tworzy
+ani migracja, ani kod — bez nich upload okładki meczu i awatara kończy się błędem.
+
+**5. Dane.** Paczka `04-seedy.sql` wnosi już boiska (`seed-orliki.sql`), konta testowe
+(`test1..test10@example.com`, hasło `test1234`), konta organizatorów zakładane hasłem
+oraz wydarzenia (`seed_test_data.sql`, `seed_test_groups.sql`, `seed_test_jan.sql`).
+Reszta seedów z „Dane testowe" niżej jest opcjonalna i wkleja się tak samo.
+
+**6. Auth → Providers.** Włącz **Email**. W dev wyłącz *Confirm email* — świeży projekt
+nie ma podpiętego SMTP, a wbudowany nadawca ma limit kilku maili na godzinę; bez tego
+konta założone przez rejestrację nie potwierdzą się nigdy. Google OAuth jest opcjonalny:
+wymaga własnego klienta w Google Cloud albo dopisania adresu
+`https://<ref-dev>.supabase.co/auth/v1/callback` do listy *Authorized redirect URIs*
+istniejącego. Do klikania wystarczą konta na hasło.
+
+**7. Auth → URL Configuration.** Bez tego logowanie odbija na złą domenę i wygląda jak
+zepsute. Site URL: `http://localhost:3000`. Redirect URLs (wildcardy Supabase rozumie):
+
+```
+http://localhost:3000/**
+https://bojo-app-git-*-franciszek-pudelkos-projects.vercel.app/**
+https://bojo-app-*-franciszek-pudelkos-projects.vercel.app/**
+```
+
+Dwa wzorce, bo Vercel nadaje podglądowi DWA adresy: jeden od nazwy gałęzi
+(`bojo-app-git-claude-dev-env-2c8b68-…` — nazwa bywa skracana i domykana skrótem,
+więc gwiazdka jest konieczna) i drugi od skrótu builda. Ogon
+`franciszek-pudelkos-projects` to slug zespołu z tego konta Vercela; gdyby projekt
+kiedyś przeniósł się do innego, oba wzorce trzeba poprawić — inaczej logowanie
+w podglądzie odbija na produkcję.
+
+**8. Vercel → Settings → Environment Variables.** Tu jest jedyna pułapka tej
+procedury: zmienna w Vercelu ma JEDNĄ wartość i listę środowisk, więc nie da się
+„dopisać wartości dla Preview" do istniejącego wpisu. Kolejność:
+
+1. `NEXT_PUBLIC_SUPABASE_URL` i `NEXT_PUBLIC_SUPABASE_ANON_KEY`, które dziś mają
+   zaznaczone wszystkie środowiska, **edytuj tak, żeby zostało samo `Production`**,
+2. dopiero potem **dodaj nowe wpisy o tych samych nazwach** z kluczami z `BojoDev`
+   i zaznacz `Preview` + `Development`.
+
+Odwrotna kolejność kończy się błędem o duplikacie nazwy albo — gorzej — nadpisaniem
+wartości produkcyjnej.
+
+**9. Przebuduj podgląd.** `NEXT_PUBLIC_*` wchodzą do paczki **przy buildzie**, więc
+deploye zrobione przed zmianą dalej trzymają stary klucz. Vercel → Deployments →
+*Redeploy* na dowolnym PR-owym deployu.
+
+**10. Lokalnie.** `frontend/.env.local` (Next czyta env z katalogu, w którym startuje,
+czyli `frontend/`; plik jest w `.gitignore`):
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<ref-dev>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon z BojoDev>
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+### Co zostaje na produkcji — świadomie
+
+- **Sekrety w GitHub Actions** (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+  `SUPABASE_DB_URL_RO`) — workflowy `enrich-*`, `import-*` i `sql.yml` pracują na
+  KATALOGU BOISK, a ten ma sens tylko produkcyjny. Przestawienie ich na dev nie daje nic,
+  a kosztuje: wzbogacanie przestaje trafiać tam, gdzie ludzie patrzą.
+- **`wdroz-funkcje.yml`** ma `PROJECT_REF` produkcyjny na sztywno. Na `BojoDev` funkcje
+  brzegowe po prostu nie istnieją, a tabele `konfiguracja_push` i `konfiguracja_poczty`
+  są puste — push i maile **milczą i nic się przez to nie psuje** (wyzwalacz czyta adres
+  z tabeli i przy pustej nie robi nic). Chcąc sprawdzić push na dev, trzeba wdrożyć
+  funkcje z podmienionym `--project-ref` i uzupełnić obie tabele.
+- **`NEXT_PUBLIC_SITE_URL` na Preview** zostaje nieustawione, czyli kod wraca do
+  `https://bojo.pl`. W przeglądarce linki do udostępnienia i tak biorą
+  `window.location.origin` (`lib/groupShare.ts`, `lib/guestClaim.ts`), więc dotyczy to
+  wyłącznie `sitemap`/`robots`/OG — a podglądy Vercela i tak lecą z nagłówkiem
+  `X-Robots-Tag: noindex`.
+
+### Sprawdzenie, że rozdzielenie działa
+
+1. Otwórz podgląd z dowolnego PR-a, DevTools → Network: zapytania mają lecieć na
+   `<ref-dev>.supabase.co`, nie na produkcyjny adres.
+2. Zaloguj się kontem `test1@example.com` / `test1234` — konto istnieje TYLKO w dev,
+   więc udane logowanie samo w sobie jest dowodem.
+3. Załóż mecz w podglądzie i sprawdź, że `bojo.pl/wydarzenia` go nie pokazuje.
+
+### Utrzymanie: migracja idzie do DWÓCH baz
+
+Od tej pory nowa migracja uruchamiana jest najpierw na `BojoDev` (tam wychodzi błąd
+w SQL, który ma wyjść przed produkcją), a po merge'u na produkcji. Baza dev, która
+została w tyle, jest gorsza niż jej brak: PR wygląda na zepsuty, choć zepsuty jest
+tylko schemat podglądu. Po dodaniu migracji uruchom też
+`node scripts/build-db-bundles.mjs` i zacommituj paczki — inaczej następne stawianie
+bazy od zera pominie twój plik.
 
 ---
 
@@ -405,7 +549,23 @@ Od tego momentu preview pisze do własnej bazy, a `bojo.pl` zostaje nietknięte.
 | `supabase/seed_test_data.sql` | 25 wydarzeń pokrywających wszystkie kombinacje ustawień (w tym oferty z rezerwy i propozycje składów). Bezpieczny do wielokrotnego użycia — czyści po markerze `[TEST]` w opisie |
 | `supabase/seed-test-users.sql` | Konta `test1..test10@example.com`, hasło `test1234` |
 
-Oba uruchamiane ręcznie w SQL Editor.
+Uruchamiane ręcznie w SQL Editor — albo, w komplecie, paczką `supabase/bundles/04-seedy.sql`.
+
+**Paczka `04` niesie WSZYSTKIE seedy scenariuszowe**, nie trzy podstawowe: boiska
+(orliki, siatkówka plażowa, obiekty na wynajem), konta, a potem `[TEST]`, `[TEST-G]`,
+`[TEST-J]`, `[REG]`, `[TAK]`, `[DWA]` i `[PRZED]`. Baza dev ma pozwalać przejść
+aplikację w całości, a markery trzymają scenariusze rozłącznie — `wyczysc-testowe.sql`
+dalej sprząta po każdym z osobna, a niepotrzebną sekcję da się z paczki wyciąć.
+
+**`scripts/baza-testowa.sh` uruchamia dziś każdy z tych seedów** (do 2026-09-14 tylko
+`seed_regresja.sql`), więc CI wywraca się, gdy któryś przestanie się aplikować. Powód
+jest ten sam, co przy migracjach: seed, którego nikt nie uruchamia, gnije po cichu.
+Kosztowało to `seed_test_jan.sql`, który wstawiał `to_char(…)` do kolumny typu `time`
+i wywalał się na `column "event_time" is of type time without time zone but expression
+is of type text` — wyszło dopiero przy stawianiu bazy dev, miesiące po fakcie. Seedy
+boisk dostały przy tej okazji `ON CONFLICT (id) DO NOTHING`: bez tego drugie uruchomienie
+paczki `04` (najzwyklejsza rzecz — dołożyć brakujący scenariusz) padało na kluczu głównym
+`fields`, zanim doszło do wydarzeń.
 
 **Seedy sprawdzają schemat, zanim cokolwiek zapiszą.** `seed_test_data.sql`,
 `seed_regresja.sql` i `seed_przedpremiera.sql` zaczynają od sprawdzenia po jednym

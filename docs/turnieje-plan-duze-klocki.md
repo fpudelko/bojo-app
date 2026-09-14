@@ -48,7 +48,7 @@ nie kolidują ze starymi. Sprzątanie starego modułu rozpada się na dwa niezal
   `lib/tournamentLabels.ts`, `components/tournament/Countdown.tsx`, typy `Tournament*`, flaga
   `SHOW_CUP`, jej wzmianki (`Header.tsx`, `AnnouncementBar.tsx`, `robots.ts`, `check-docs.mjs`),
   trzy wzorce zrzutów.
-- **Tabele kasuje osobna migracja** `149_zegnaj_stary_turniej.sql`, uruchamiana świadomie, gdy
+- **Tabele kasuje osobna migracja** `151_zegnaj_stary_turniej.sql`, uruchamiana świadomie, gdy
   nowy moduł już działa.
 
 Nowe trasy siedzą pod `/turnieje` (liczba mnoga, jak `/wydarzenia`/`/grupy`) — `/turniej/[id]`
@@ -221,7 +221,7 @@ sędziów do wynajęcia.
 1. **Terminarz** (migracja 146) — grupy, areny, mecze, generator, przesuwanie terminarza.
 2. **Rozgrywka na żywo** (migracja 147) — zdarzenia, konsola prowadzącego, propagacja drabinki.
 3. **Tabela i statystyki** (bez migracji) — tabela, drabinka na telefonie, klasyfikacje.
-4. **Domknięcie i odmrożenie** (migracje 148, 149) — ogłoszenia, BLIK, „zamień w ekipę”,
+4. **Domknięcie i odmrożenie** (migracje 150, 151) — ogłoszenia, BLIK, „zamień w ekipę”,
    kasowanie starego modułu, `SHOW_TURNIEJE = true`.
 
 Dolna nawigacja (Mecze·Szukaj·＋·Rozmowy·Ekipy) zostaje **nietknięta** — wejście przez `/profil`,
@@ -248,7 +248,7 @@ stan „niezapisane”), build wywalający się na Vercelu (`window.location.sea
 
 ## 18. Decyzje — zatwierdzone 2026-09-13
 
-1. **Stary moduł turniejowy znika** — front w Etapie 0, tabele migracją `149` w Etapie 4.
+1. **Stary moduł turniejowy znika** — front w Etapie 0, tabele migracją `151` w Etapie 4.
 2. **Polskie nazwy tabel** (`turnieje`, `turniej_*`).
 3. **Ściana logowania** na składach i statystykach (RLS, nie UI).
 4. **MVP wybiera prowadzący** (v1), bez głosowania graczy.

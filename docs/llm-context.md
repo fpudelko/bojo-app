@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-14 · migracja `148` · 64 tabele
+**Stan na:** 2026-09-14 · migracja `149` · 64 tabele
 
 ---
 
@@ -413,7 +413,7 @@ terminu (`do:2026-09-30`), więc wchodzi do adresu bez drugiego pola; zepsuta da
 zachowuje się jak brak filtra, a nie jak „nic nie pasuje". `components/ui/WyborKiedy.tsx`
 stoi w obu arkuszach i w oknie alertu, a `wygasaZKiedy()`/`kiedyZWygasniecia()` mapują
 wybór na `expires_at` i z powrotem. Kolumny `days_of_week`, `godzina_od`/`godzina_do`
-z migracji `148` zostają w bazie nietknięte — okno przestało o nie pytać. Testy:
+z migracji `149` zostają w bazie nietknięte — okno przestało o nie pytać. Testy:
 `alertKoniec.test.ts`, `eventFilters.test.ts`, `szukaj-domyslnie-mecze.klikalnosc.spec.ts`.
 
 ### 2026-09-14 — Alert o meczach: pora dnia, czas życia i wyłącznik z maila
@@ -439,7 +439,7 @@ w ogóle je obsługuje, i mówi wprost, co trzeba zrobić, gdy nie — na iPhoni
 do ekranu głównego. Alert o nowym meczu da się teraz wyciszyć w ustawieniach powiadomień
 jak każde inne. Miejsce i promień wybiera się tymi samymi kontrolkami co w filtrach.
 
-MECHANIKA: migracja `148` dokłada do `game_alerts` kolumny `expires_at` (NULL =
+MECHANIKA: migracja `149` dokłada do `game_alerts` kolumny `expires_at` (NULL =
 bezterminowo), `godzina_od`/`godzina_do` (parami albo wcale, pilnuje `CHECK`),
 `kanal_email` i `wylacz_token`, oraz poszerza promień do 1–100 km. Wyłączanie linkiem
 robi `wylacz_alert_tokenem()` (`SECURITY DEFINER`, dostępna dla `anon`) — nie polityka
@@ -483,6 +483,26 @@ swój przystanek, więc stare adresy nie przestawiają promienia. Miejsca użyci
 `components/map/VenueExplorer.tsx` (suwak tylko przy braku miejscowości) oraz
 `app/wydarzenia/EventsListView.tsx`. Lokalne stałe `RADIUS_MIN`/`RADIUS_MAX` (1–20,
 liniowo) usunięte z obu widoków. Testy: `promienSuwaka.test.ts`.
+### 2026-09-14 — Mecz z czekającą prośbą znowu da się usunąć
+
+PROBLEM: organizator, który włączył „Wymagaj akceptacji" i miał choćby jedną
+nierozpatrzoną prośbę o dołączenie, NIE MÓGŁ usunąć swojego meczu. Kliknięcie „Usuń"
+nie robiło nic — mecz zostawał na liście, a jedyna informacja o przyczynie szła do
+konsoli przeglądarki jako błąd klucza obcego. Nie było obejścia w interfejsie:
+odrzucenie wszystkich czekających próśb najpierw działało, ale nikt nie miał powodu
+zgadywać takiego związku.
+
+ROZWIĄZANIE BOJO: usunięcie meczu działa niezależnie od tego, kto na nim czeka. Osoba
+z nierozpatrzoną prośbą nie dostaje przy tym „Organizator nie przyjął Twojej prośby",
+bo nikt jej nie odrzucił — o zniknięciu meczu mówi osobne powiadomienie `mecz_usuniety`.
+Odrzucenie POJEDYNCZEJ prośby powiadamia dalej, bez zmian.
+
+MECHANIKA: migracja `148` — `powiadom_o_odrzuceniu_prosby()` (wyzwalacz `BEFORE DELETE`
+na `event_participants`) wychodzi bez zapisu, gdy wiersza meczu już nie ma, czyli gdy
+DELETE przyszedł kaskadą z `events`. Osłonę wprowadziła `116`, a `135` zdjęła ją po cichu,
+biorąc ciało funkcji z `076`. Regresję pilnuje teraz `supabase/test/kasowanie-meczu.sql`
+uruchamiany przez `scripts/baza-testowa.sh`, czyli w CI.
+
 
 ### 2026-09-14 — Arkusz filtrów: mniej napisów, sport czytany pod ikonami
 
@@ -709,31 +729,4 @@ wzorcem. Karta „Zaproś znajomych" ma zaczep `data-zapros-znajomych` zamiast l
 kształcie drzewa. `PowtorzZHistorii.tsx` usunięty. Linki do profilu
 w `StatystykiGrupy.tsx`. Testy: `poMeczuCard.test.tsx`, `statystykiGrupy.test.tsx`,
 `eventFeatures.test.ts`, `zaprosZnajomychPanel.test.tsx`.
-
-### 2026-09-13 — Odmowa lokalizacji mówi, gdzie ją naprawdę odblokować
-
-PROBLEM: przycisk „Użyj mojej lokalizacji GPS" w Bojo (okno alertu o nowych meczach, oba
-arkusze filtrów, sortowanie „Najbliżej mnie") na każdą odmowę odpowiadał jednym zdaniem:
-„Zezwól w ustawieniach przeglądarki (ikona kłódki przy adresie)". Tymczasem przeglądarka
-zgłasza ten sam kod błędu w trzech różnych sytuacjach, a tylko w jednej z nich ta rada
-prowadzi do celu. Gdy lokalizację blokuje telefon (uprawnienie aplikacji przeglądarki),
-ustawienia strony pokazują „zezwól" i człowiek, który CHCIAŁ udostępnić lokalizację, krąży
-między ekranami, na których wszystko jest już włączone. Gdy pytanie zostało zamknięte bez
-odpowiedzi, blokady nie ma wcale i wystarczyłoby nacisnąć drugi raz — ale komunikat kazał
-szukać ustawień.
-
-ROZWIĄZANIE BOJO: Bojo rozpoznaje, KTO odmówił, i podaje instrukcję pasującą do tej
-przyczyny. Blokada zapamiętana przez przeglądarkę odsyła do ustawień strony. Blokada na
-poziomie telefonu odsyła do ustawień systemu i wprost mówi, że przeglądarka nie jest tu
-winna (Android: Ustawienia → Aplikacje → przeglądarka → Uprawnienia; iPhone: Ustawienia →
-Prywatność → Usługi lokalizacji). Zamknięte pytanie namawia na ponowne naciśnięcie
-przycisku. Gdy przeglądarka nie pozwala tego ustalić, komunikat wymienia oba miejsca
-zamiast zgadywać jedno. Każdy wariant nadal przypomina o drodze ręcznej: wpisaniu miasta.
-
-MECHANIKA: `rodzajOdmowy()` w `frontend/src/lib/geo.ts` pyta Permissions API PO błędzie
-`PERMISSION_DENIED` i zestawia stan uprawnienia dla strony z faktem nieotrzymania pozycji:
-`denied` → `denied`, `granted` → `denied-system` (blokuje system), `prompt` →
-`denied-dismissed`, brak API lub wyjątek → `denied-nieznane`. Rozpoznanie siedzi
-w helperze, więc obejmuje wszystkie wywołania `getCurrentLocation()` naraz.
-`__tests__/odmowaLokalizacji.test.ts` pilnuje rozpoznania i treści komunikatów.
 

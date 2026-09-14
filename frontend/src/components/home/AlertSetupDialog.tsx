@@ -58,7 +58,7 @@ interface Props {
  *   1. **Kiedy** — jak długo powiadamiać (`expires_at`),
  *   2. **Czym dać znać** — mail, push, SMS.
  *
- * Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `148`) zostają
+ * Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `149`) zostają
  * w bazie i w funkcji brzegowej nietknięte — okno po prostu przestało o nie
  * pytać. Gdyby wróciły, wrócą jako część FILTRÓW, wspólne dla listy i alertu,
  * a nie jako druga, osobna kopia pytania o termin.

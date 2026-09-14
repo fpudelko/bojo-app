@@ -79,7 +79,18 @@ for (const [i, part] of parts.entries()) {
 // --- Seedy ------------------------------------------------------------------
 // Kolejność ma znaczenie: boiska → konta → wydarzenia (te ostatnie odwołują się
 // do kont po e-mailu i wywalą się z wyjątkiem, jeśli konta nie istnieją).
-const seedFiles = ['seed-orliki.sql', 'seed-test-users.sql', 'seed_test_data.sql', 'seed_test_groups.sql', 'seed_test_jan.sql'];
+// Katalog boisk + konta idą PRZED wydarzeniami: seedy scenariuszowe szukają kont
+// po e-mailu i przypinają mecze do obiektów po nazwie.
+const seedyBoisk = ['seed-orliki.sql', 'seed-beach-volleyball.sql', 'seed-rental-venues.sql'];
+const seedyKont  = ['seed-test-users.sql'];
+// WSZYSTKIE seedy scenariuszowe, nie tylko trzy podstawowe. Baza dev ma pozwalać
+// przejść aplikację w całości, a każdy z tych plików pokrywa inny obszar; osobne
+// markery ([TEST], [TEST-G], [TEST-J], [REG], [TAK], [DWA], [PRZED]) trzymają je
+// rozłącznie, więc `wyczysc-testowe.sql` dalej sprząta po każdym z osobna.
+const seedyScenariuszy = [
+  'seed_test_data.sql', 'seed_test_groups.sql', 'seed_test_jan.sql',
+  'seed_regresja.sql', 'seed_taktyka.sql', 'seed_dwa_konta.sql', 'seed_przedpremiera.sql',
+];
 
 // Konta organizatorów zakładane hasłem, bo świeży projekt nie ma jeszcze
 // skonfigurowanego Google OAuth, a seed_test_data.sql ich wymaga.
@@ -147,21 +158,28 @@ const seedHead = banner('BOJO — seedy (boiska, konta, wydarzenia testowe)', [
   '  1. boiska (seed-orliki.sql)',
   '  2. konta testowe test1..test10@example.com, hasło test1234',
   '  3. konta organizatorów (hasło test1234) — tylko dla bazy deweloperskiej',
-  '  4. 25 wydarzeń testowych pokrywających przepływy aplikacji',
-  '  5. 4 grupy + 11 meczów prywatnych (seed_test_groups.sql)',
-  '  6. 19 wydarzeń dla Jana — wyniki, historia, komentarze (seed_test_jan.sql)',
+  '  4. 25 wydarzeń testowych pokrywających przepływy aplikacji  [TEST]',
+  '  5. 4 grupy + 11 meczów prywatnych                            [TEST-G]',
+  '  6. 19 wydarzeń dla Jana — wyniki, historia, komentarze       [TEST-J]',
+  '  7. 43 scenariusze regresyjne (R01…R43)                       [REG]',
+  '  8. 12 scenariuszy zakładki „Taktyka" (T01…T12)               [TAK]',
+  '  9. 12 scenariuszy pod dwa realne konta (D01…D12)             [DWA]',
+  ' 10. 7 stanów startowych sesji przedpremierowej (P1…P7)        [PRZED]',
   '',
   'Bezpieczny do wielokrotnego uruchamiania: istniejące konta są pomijane,',
-  'a wydarzenia oznaczone [TEST] kasowane i tworzone od nowa.',
+  'a wydarzenia kasowane po swoim markerze i tworzone od nowa.',
+  '',
+  'Nie chcesz kompletu? Każdą sekcję da się wyciąć — pliki są rozdzielone',
+  'nagłówkiem z nazwą, a markery trzymają scenariusze rozłącznie.',
   '',
   'Plik generowany: node scripts/build-db-bundles.mjs — nie edytuj ręcznie.',
 ]);
 
 const seedsDir = join(root, 'supabase');
 const seedBody =
-  concatFiles(seedsDir, seedFiles.slice(0, 2)) +
+  concatFiles(seedsDir, [...seedyBoisk, ...seedyKont]) +
   devOrganizers +
-  concatFiles(seedsDir, seedFiles.slice(2));  // wydarzenia + grupy — wymagają kont powyżej
+  concatFiles(seedsDir, seedyScenariuszy);  // wymagają kont i boisk powyżej
 
 writeFileSync(join(outDir, '04-seedy.sql'), seedHead + seedBody);
 console.log('04-seedy.sql: boiska + konta + wydarzenia testowe');

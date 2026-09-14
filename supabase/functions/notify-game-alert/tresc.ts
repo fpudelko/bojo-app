@@ -135,7 +135,7 @@ export interface Kontakt {
   odpowiedzNa: string;
   /**
    * Link „nie chcę więcej takich wiadomości", działający BEZ logowania
-   * (`/alert/wylacz/<token>`, migracja `148`).
+   * (`/alert/wylacz/<token>`, migracja `149`).
    *
    * Nie jest ozdobą ani wymogiem formalnym: od 2026-09-14 alert domyślnie nie
    * wygasa, a mail czyta się w skrzynce, często na innym urządzeniu i długo po

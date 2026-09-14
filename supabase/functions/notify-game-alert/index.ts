@@ -86,7 +86,7 @@ serve(async (req) => {
 
   const matching = (alerts ?? []).filter((a: any) => {
     if (a.user_id === event.organizer_id) return false; // skip organizer
-    // WYGASŁY ALERT NIE POWIADAMIA (migracja `148`). `expires_at` jest NULL
+    // WYGASŁY ALERT NIE POWIADAMIA (migracja `149`). `expires_at` jest NULL
     // dla alertów bezterminowych, czyli domyślnych — te nie gasną nigdy
     // i wyłącza się je linkiem z maila.
     if (a.expires_at && new Date(a.expires_at).getTime() < teraz) return false;
@@ -143,7 +143,7 @@ serve(async (req) => {
   if (resendKey) {
     for (const alert of matching) {
       try {
-        // KANAŁ MAILA JEST WYBOREM (migracja `148`). Powiadomienie w aplikacji
+        // KANAŁ MAILA JEST WYBOREM (migracja `149`). Powiadomienie w aplikacji
         // idzie zawsze — dzwonek to historia, nie kanał przerywający dzień —
         // ale maila dostaje tylko ten, kto go chce.
         if (alert.kanal_email === false) continue;

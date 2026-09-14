@@ -43,7 +43,7 @@ export interface AlertInput {
   cityLabel?:  string;
   /** ISO albo `null` = bezterminowo (domyślnie, decyzja właściciela 2026-09-14). */
   expiresAt?:  string | null;
-  /** Para 0–23 albo oba `null` = dowolna pora. Migracja `148` pilnuje, że idą parami. */
+  /** Para 0–23 albo oba `null` = dowolna pora. Migracja `149` pilnuje, że idą parami. */
   godzinaOd?:  number | null;
   godzinaDo?:  number | null;
   kanalEmail?: boolean;
@@ -75,7 +75,7 @@ export async function saveAlert(userId: string, input: AlertInput): Promise<Game
 }
 
 /**
- * Wyłącza alert tokenem z maila, BEZ logowania (migracja `148`).
+ * Wyłącza alert tokenem z maila, BEZ logowania (migracja `149`).
  *
  * Leci przez funkcję `SECURITY DEFINER`, nie przez zwykły `update`: polityka
  * RLS pozwalająca `anon` aktualizować `game_alerts` po tokenie otworzyłaby całą
@@ -121,7 +121,7 @@ export async function geocodeCity(query: string): Promise<{ lat: number; lng: nu
 // w `lib/miejscowosci.ts`) — od 2026-09-14 okno alertu używa tych samych
 // kontrolek co arkusz filtrów, więc własny zakres 3–30 km oznaczałby, że te
 // same kilometry znaczą w dwóch miejscach co innego. Ograniczenie w bazie
-// poszerzyła migracja `148` do 1–100 km.
+// poszerzyła migracja `149` do 1–100 km.
 export const PROMIEN_DOMYSLNY = PROMIEN_DOMYSLNY_KM;
 
 /**
