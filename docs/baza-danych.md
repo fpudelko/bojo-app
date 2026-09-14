@@ -409,6 +409,38 @@ nic nie trzeba klikać w *Database → Extensions*.
 > `handle_new_user`), czystsze jest `DROP TABLE profiles CASCADE;` i paczka `01`
 > od początku — **wyłącznie na świeżej bazie dev**, na produkcji `profiles` trzyma
 > konta i awatary.
+>
+> **Drugi objaw tej samej przyczyny, przy paczce `02`:** `null value in column
+> "first_name" of relation "profiles" violates not-null constraint`. To backfill
+> z migracji `022` (wiersz w `profiles` dla każdego konta z `auth.users`) trafiający
+> na CUDZE kolumny `NOT NULL` bez wartości domyślnej — czyli tabelę po innej,
+> starszej aplikacji, nie po quickstarcie. `ADD COLUMN IF NOT EXISTS` tego nie
+> ratuje: nasze kolumny dochodzą, ale cudzy `NOT NULL` dalej blokuje wstawienie.
+>
+> Na projekcie, który ma być kopią produkcji, odpowiedzią jest CZYSTA KARTKA, nie
+> łatanie kolumna po kolumnie — kasuje cały schemat `public` (**tylko baza dev!**),
+> po czym paczki idą od `01`:
+>
+> ```sql
+> drop schema public cascade;
+> create schema public;
+> grant usage on schema public to anon, authenticated, service_role;
+> grant all   on schema public to postgres, anon, authenticated, service_role;
+> ```
+>
+> Konta w `auth.users` to przeżywają — `auth` jest osobnym schematem. Gdy cudzej
+> tabeli trzeba jednak oszczędzić, minimalne wyjście to zdjęcie `NOT NULL` z kolumn,
+> których nasze migracje nie znają:
+>
+> ```sql
+> select 'alter table public.profiles alter column ' || quote_ident(column_name)
+>        || ' drop not null;'
+> from information_schema.columns
+> where table_schema = 'public' and table_name = 'profiles'
+>   and is_nullable = 'NO' and column_default is null and column_name <> 'id';
+> ```
+>
+> — uruchom wynik, potem paczkę `02` od początku.
 
 **3. Sprawdź, czy schemat jest kompletny.** `supabase/zapytania/stan-migracji.sql`
 wypisuje migracje, których w bazie brakuje (brakujące na górze). Pusta lista braków =
