@@ -3719,9 +3719,22 @@ i `/g/[code]`).
 drużyny (`turniej_zawodnicy`) czyta wyłącznie zalogowany, egzekwowane w RLS, nie w UI
 (patrz [domena.md](./domena.md#turniej-ściana-logowania-i-uprawnienia)).
 
-Kolejne etapy (terminarz generowany automatycznie, konsola prowadzącego z wynikiem
-na żywo, tabela i statystyki, ogłoszenia, „zamień drużynę w ekipę") dochodzą
-w osobnych PR-ach — plan już je rozpisuje co do pliku i funkcji.
+**Etap 1 (migracja `146`) — zbudowane:** generator terminarza, czyste funkcje w
+`lib/turniejFormat.ts` (losowanie grup, „każdy z każdym", drabinka pucharowa z wolnymi
+losami, rozstawienie na arenach i w czasie, szacunek czasu trwania — patrz
+[domena.md](./domena.md#turniej-terminarz-i-drabinka-146)); funkcje sięgające do bazy
+w `lib/turniejMecze.ts`. Na `/turnieje/[id]` doszła zakładka **Terminarz** (lista meczów,
+komponent `components/turnieje/KartaMeczu.tsx` — reużywany dalej przy drabince i stronie
+drużyny). W panelu doszła zakładka **Terminarz**, łącząca w JEDNYM ekranie zarządzanie
+arenami, losowanie grup (dla formatu „Grupy → puchar") i generowanie/podgląd/zapis
+terminarza oraz jego przesuwanie o N minut — świadome odejście od trzech osobnych
+zakładek (Losowanie/Terminarz/Areny) z pierwotnego rozpisania w
+[turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md), żeby nie mnożyć
+zakładek w pasku, który już ma cztery pozycje.
+
+Kolejne etapy (konsola prowadzącego z wynikiem na żywo, tabela i statystyki, ogłoszenia,
+„zamień drużynę w ekipę") dochodzą w osobnych PR-ach — plan już je rozpisuje co do
+pliku i funkcji.
 
 ---
 

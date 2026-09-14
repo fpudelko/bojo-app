@@ -12,12 +12,14 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { getTurniej, uprawnieniaTurnieju, getMojaOsobe, przyjmujeZgloszenia } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
+import { getMecze, getAreny } from '@/lib/turniejMecze';
 import { STATUS_TURNIEJU, STATUS_DRUZYNY, odmienZawodnikow } from '@/lib/turniejEtykiety';
 import { linkDojazdu } from '@/lib/utils';
 import { sportEmoji } from '@/lib/sports';
-import type { Turniej, TurniejDruzyna, TurniejOsoba } from '@/types';
+import KartaMeczu from '@/components/turnieje/KartaMeczu';
+import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena } from '@/types';
 
-type Zakladka = 'info' | 'druzyny';
+type Zakladka = 'info' | 'druzyny' | 'terminarz';
 
 function SciankaLogowania({ nazwaDruzyny }: { nazwaDruzyny: string }) {
   const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '';
@@ -84,11 +86,13 @@ export default function TurniejClient() {
   const [turniej, setTurniej] = useState<Turniej | null>(null);
   const [druzyny, setDruzyny] = useState<TurniejDruzyna[]>([]);
   const [osoba, setOsoba] = useState<TurniejOsoba | null>(null);
+  const [mecze, setMecze] = useState<TurniejMecz[]>([]);
+  const [areny, setAreny] = useState<TurniejArena[]>([]);
   const [ladowanie, setLadowanie] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   const tabParam = searchParams.get('tab');
-  const zakladka: Zakladka = tabParam === 'druzyny' ? 'druzyny' : 'info';
+  const zakladka: Zakladka = tabParam === 'druzyny' ? 'druzyny' : tabParam === 'terminarz' ? 'terminarz' : 'info';
 
   useEffect(() => {
     let aktualne = true;
@@ -98,13 +102,17 @@ export default function TurniejClient() {
         if (!aktualne) return;
         if (!t) { setNotFound(true); setLadowanie(false); return; }
         setTurniej(t);
-        const [d, o] = await Promise.all([
+        const [d, o, m, a] = await Promise.all([
           user ? getDruzynyZeSkladem(id) : getDruzyny(id),
           user ? getMojaOsobe(id, user.id) : Promise.resolve(null),
+          getMecze(id),
+          getAreny(id),
         ]);
         if (!aktualne) return;
         setDruzyny(d);
         setOsoba(o);
+        setMecze(m);
+        setAreny(a);
       })
       .catch(() => { if (aktualne) setNotFound(true); })
       .finally(() => { if (aktualne) setLadowanie(false); });
@@ -133,6 +141,9 @@ export default function TurniejClient() {
   }
 
   const uprawnienia = uprawnieniaTurnieju(turniej, osoba, user?.id);
+  const druzynyPoId = new Map(druzyny.map((d) => [d.id, d.nazwa]));
+  const meczePoId = new Map(mecze.map((m) => [m.id, m]));
+  const arenyPoId = new Map(areny.map((a) => [a.id, a.nazwa]));
   const status = STATUS_TURNIEJU[turniej.status];
   const dojazd = linkDojazdu({ lat: turniej.lat, lng: turniej.lng, adres: turniej.miejsceAdres });
   let dataLabel = turniej.dataStartu;
@@ -163,7 +174,7 @@ export default function TurniejClient() {
           )}
         </div>
         <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
-          {(['info', 'druzyny'] as Zakladka[]).map((z) => (
+          {(['info', 'druzyny', 'terminarz'] as Zakladka[]).map((z) => (
             <button
               key={z}
               onClick={() => router.push(`/turnieje/${id}?tab=${z}`)}
@@ -172,7 +183,7 @@ export default function TurniejClient() {
                 zakladka === z ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800',
               ].join(' ')}
             >
-              {z === 'info' ? 'Info' : `Drużyny (${druzyny.length})`}
+              {z === 'info' ? 'Info' : z === 'druzyny' ? `Drużyny (${druzyny.length})` : 'Terminarz'}
             </button>
           ))}
         </div>
@@ -249,6 +260,27 @@ export default function TurniejClient() {
               </div>
             )}
           </div>
+        )}
+
+        {zakladka === 'terminarz' && (
+          mecze.length === 0 ? (
+            <p className="py-10 text-center text-sm text-slate-400">
+              {uprawnienia.mozeEdytowac ? 'Terminarz jeszcze nie jest wygenerowany.' : 'Terminarz jeszcze nie jest gotowy.'}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {mecze.map((m) => (
+                <KartaMeczu
+                  key={m.id}
+                  mecz={m}
+                  druzynyPoId={druzynyPoId}
+                  meczePoId={meczePoId}
+                  arenyPoId={arenyPoId}
+                  przygaszona={m.status === 'walkower' && !m.zaplanowanyAt}
+                />
+              ))}
+            </div>
+          )
         )}
       </main>
     </div>

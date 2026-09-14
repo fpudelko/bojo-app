@@ -40,13 +40,19 @@ export function celPowiadomienia(n: AppNotification): string | null {
     const naTablice = n.type === 'wiadomosc_w_grupie' || n.type === 'ogloszenie_w_grupie';
     return naTablice ? `/grupy/${n.groupId}?tab=tablica` : `/grupy/${n.groupId}`;
   }
-  // Turniej (145). Dwa typy proszą ORGANIZATORA o decyzję — prowadzą wprost
-  // do panelu, nie na publiczną stronę turnieju, którą i tak zna na pamięć.
-  // Reszta (dziś: decyzja o zgłoszeniu widziana przez kapitana) prowadzi
-  // na zakładkę Drużyny — tam kapitan widzi status i uzupełnia skład.
+  // Turniej (145/146). Dwa typy proszą ORGANIZATORA o decyzję — prowadzą
+  // wprost do panelu, nie na publiczną stronę turnieju, którą i tak zna na
+  // pamięć. Terminarz (146) prowadzi na zakładkę Terminarz — tam widać plan
+  // meczów, którego dotyczy powiadomienie. Reszta (dziś: decyzja o zgłoszeniu
+  // widziana przez kapitana) prowadzi na zakładkę Drużyny.
   if (n.turniejId) {
-    const doPanelu = n.type === 'turniej_zgloszenie_druzyny' || n.type === 'turniej_kapitan_przejal';
-    return doPanelu ? `/turnieje/${n.turniejId}/panel` : `/turnieje/${n.turniejId}?tab=druzyny`;
+    if (n.type === 'turniej_zgloszenie_druzyny' || n.type === 'turniej_kapitan_przejal') {
+      return `/turnieje/${n.turniejId}/panel`;
+    }
+    if (n.type === 'turniej_terminarz_gotowy' || n.type === 'turniej_zmiana_terminu') {
+      return `/turnieje/${n.turniejId}?tab=terminarz`;
+    }
+    return `/turnieje/${n.turniejId}?tab=druzyny`;
   }
   return TYP_NA_TRASE[n.type] ?? null;
 }

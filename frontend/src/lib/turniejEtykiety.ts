@@ -4,7 +4,7 @@
 // starym modułem — to jest ich duchowy następca, inny kształt danych).
 
 import { withCount } from './plural';
-import type { DruzynaStatus, MeczFaza, TurniejFormat, TurniejStatus, Turniej } from '@/types';
+import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej } from '@/types';
 
 export const STATUS_TURNIEJU: Record<TurniejStatus, { label: string; ton: string }> = {
   szkic:            { label: 'W przygotowaniu', ton: 'bg-slate-100 text-slate-600' },
@@ -29,6 +29,16 @@ export const STATUS_DRUZYNY: Record<DruzynaStatus, { label: string; ton: string 
   wycofana:  { label: 'Wycofana',           ton: 'bg-slate-100 text-slate-600' },
 };
 
+export const STATUS_MECZU: Record<MeczStatus, { label: string; ton: string }> = {
+  zaplanowany: { label: 'Zaplanowany', ton: 'bg-slate-100 text-slate-500' },
+  // Zielony jak licznik meczów w dolnej nawigacji: to STAN, nie zdarzenie
+  // wymagające reakcji — nie błękit (zajęty przez „wymaga akceptacji").
+  trwa:        { label: 'Na żywo',     ton: 'bg-primary-50 text-primary-700' },
+  zakonczony:  { label: 'Zakończony',  ton: 'bg-slate-100 text-slate-500' },
+  walkower:    { label: 'Walkower',    ton: 'bg-slate-100 text-slate-500' },
+  odwolany:    { label: 'Odwołany',    ton: 'bg-red-50 text-red-600' },
+};
+
 export const FORMAT_LABEL: Record<TurniejFormat, string> = {
   grupy_puchar: 'Grupy → puchar',
   puchar:       'Puchar',
@@ -44,6 +54,7 @@ export const FORMAT_OPIS: Record<TurniejFormat, string> = {
 export const FAZA_LABEL: Record<MeczFaza, string> = {
   grupa:        'Faza grupowa',
   liga:         'Liga',
+  '1/32':       '1/32 finału',
   '1/16':       '1/16 finału',
   '1/8':        '1/8 finału',
   cwierc:       'Ćwierćfinał',

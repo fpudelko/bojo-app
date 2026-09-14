@@ -30,7 +30,7 @@ describe('kompletność map etykiet', () => {
   });
 
   it('FAZA_LABEL pokrywa wszystkie fazy meczu', () => {
-    const fazy: MeczFaza[] = ['grupa', 'liga', '1/16', '1/8', 'cwierc', 'polfinal', 'o_3_miejsce', 'final'];
+    const fazy: MeczFaza[] = ['grupa', 'liga', '1/32', '1/16', '1/8', 'cwierc', 'polfinal', 'o_3_miejsce', 'final'];
     fazy.forEach((f) => expect(FAZA_LABEL[f]).toBeTruthy());
   });
 });

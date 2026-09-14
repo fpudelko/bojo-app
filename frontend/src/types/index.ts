@@ -643,6 +643,7 @@ export type DruzynaStatus =
 export type MeczFaza =
   | 'grupa'
   | 'liga'
+  | '1/32'
   | '1/16'
   | '1/8'
   | 'cwierc'
@@ -827,6 +828,8 @@ export interface TurniejMecz {
   zwyciezcaId?: string;
   mvpZawodnikId?: string;
   notatka?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TurniejZdarzenie {

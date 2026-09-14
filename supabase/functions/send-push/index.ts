@@ -47,10 +47,15 @@ function adresPowiadomienia(dane: Record<string, unknown>): string {
     const naTablice = typ === 'wiadomosc_w_grupie' || typ === 'ogloszenie_w_grupie';
     return naTablice ? `/grupy/${dane.group_id}?tab=tablica` : `/grupy/${dane.group_id}`;
   }
-  // Turniej (145) — lustro gałęzi `celPowiadomienia()` w `lib/notifications.ts`.
+  // Turniej (145/146) — lustro gałęzi `celPowiadomienia()` w `lib/notifications.ts`.
   if (dane.turniej_id) {
-    const doPanelu = typ === 'turniej_zgloszenie_druzyny' || typ === 'turniej_kapitan_przejal';
-    return doPanelu ? `/turnieje/${dane.turniej_id}/panel` : `/turnieje/${dane.turniej_id}?tab=druzyny`;
+    if (typ === 'turniej_zgloszenie_druzyny' || typ === 'turniej_kapitan_przejal') {
+      return `/turnieje/${dane.turniej_id}/panel`;
+    }
+    if (typ === 'turniej_terminarz_gotowy' || typ === 'turniej_zmiana_terminu') {
+      return `/turnieje/${dane.turniej_id}?tab=terminarz`;
+    }
+    return `/turnieje/${dane.turniej_id}?tab=druzyny`;
   }
   return '/';
 }

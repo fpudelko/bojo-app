@@ -195,6 +195,10 @@ export async function setWpisowe(id: string, oplacone: boolean): Promise<void> {
   );
 }
 
+export async function ustawGrupeDruzyny(id: string, grupaId: string | null): Promise<void> {
+  await zaktualizujJedenWiersz('turniej_druzyny', id, { grupa_id: grupaId }, 'Nie udało się przypisać drużyny do grupy');
+}
+
 export async function updateDruzyne(id: string, dane: Partial<ZgloszenieDruzyny>): Promise<void> {
   const zmiany: Record<string, unknown> = {};
   if (dane.nazwa !== undefined) zmiany.nazwa = validateName(dane.nazwa, 'Nazwa drużyny', 40);

@@ -843,4 +843,226 @@ SELECT _oczekuj('drugi wolny wpis zostaje faktycznie wolny',
                 (SELECT count(*) FROM turniej_zawodnicy
                   WHERE id = :'wolny_wpis_2'::uuid AND user_id IS NULL), 1);
 
+-- ---------------------------------------------------------------------------
+-- Fixture: terminarz (grupy, areny, mecze) — migracja 146.
+-- Reużywa TURNIEJ/T_DRUZYNA1/T_DRUZYNA2/T_ORGANIZATOR/T_PROWADZACY z sekcji
+-- wyżej. Nowa tożsamość T_SEDZIA sprawdza trzecią, najwęższą drogę do
+-- prowadzenia meczu: `prowadzacy_id` wpisany na JEDNYM meczu, bez żadnego
+-- uprawnienia w `turniej_osoby`.
+-- ---------------------------------------------------------------------------
+\set T_SEDZIA '''eeeeeeee-0000-4000-8000-000000000005'''
+\set T_GRUPA  '''ffffffff-0000-4000-8000-000000000005'''
+\set T_MECZ1  '''ffffffff-0000-4000-8000-000000000006'''
+
+INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data) VALUES
+  (:T_SEDZIA::uuid, 'rls-turniej-sedzia@example.com', now(), '{"display_name":"Sylwia Sędzia"}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+
+SELECT _sekcja('Turniej: grupy i areny — czyta kazdy, zarzadza organizator (migracja 146)');
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+INSERT INTO turniej_grupy (id, turniej_id, nazwa) VALUES (:T_GRUPA::uuid, :TURNIEJ::uuid, 'A');
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('obcy nie dopisze grupy do cudzego turnieju', format(
+  'INSERT INTO turniej_grupy (turniej_id, nazwa) VALUES (%L, %L)', :TURNIEJ, 'B'));
+RESET ROLE;
+
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('niezalogowany czyta grupy turnieju',
+                (SELECT count(*) FROM turniej_grupy WHERE turniej_id = :TURNIEJ::uuid), 1);
+-- Wyzwalacz `utworz_domyslna_arene` (146) odpalił się przy INSERCIE turnieju
+-- w sekcji 145, a więc zanim ta migracja w ogóle istniała jako plik — to
+-- migracje „od zera" w jednym przebiegu sprawiają, że fixture wyżej już
+-- korzysta z reguł tej migracji.
+SELECT _oczekuj('każdy nowy turniej dostał domyślną arenę „Boisko 1"',
+                (SELECT count(*) FROM turniej_areny
+                  WHERE turniej_id = :TURNIEJ::uuid AND nazwa = 'Boisko 1'), 1);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('obcy nie dopisze areny do cudzego turnieju', format(
+  'INSERT INTO turniej_areny (turniej_id, nazwa) VALUES (%L, %L)', :TURNIEJ, 'Boisko 2'));
+DELETE FROM turniej_areny WHERE turniej_id = :TURNIEJ::uuid;
+RESET ROLE;
+SELECT _oczekuj('obcy nie skasował domyślnej areny — USING filtruje do zera wierszy',
+                (SELECT count(*) FROM turniej_areny WHERE turniej_id = :TURNIEJ::uuid), 1);
+
+SELECT _sekcja('Turniej: kto prowadzi mecz (migracja 146)');
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+INSERT INTO turniej_mecze (id, turniej_id, numer, grupa_id, druzyna_a_id, druzyna_b_id)
+VALUES (:T_MECZ1::uuid, :TURNIEJ::uuid, 1, :T_GRUPA::uuid, :T_DRUZYNA1::uuid, :T_DRUZYNA2::uuid);
+RESET ROLE;
+SELECT _oczekuj('organizator wstawił mecz fazy grupowej',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :T_MECZ1::uuid), 1);
+
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('niezalogowany czyta terminarz',
+                (SELECT count(*) FROM turniej_mecze WHERE turniej_id = :TURNIEJ::uuid), 1);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('obcy nie wstawi meczu do cudzego turnieju', format(
+  'INSERT INTO turniej_mecze (turniej_id, numer) VALUES (%L, 99)', :TURNIEJ));
+UPDATE turniej_mecze SET status = 'trwa' WHERE id = :T_MECZ1::uuid;
+DELETE FROM turniej_mecze WHERE id = :T_MECZ1::uuid;
+RESET ROLE;
+SELECT _oczekuj('obcy nie prowadzi ani nie kasuje cudzego meczu — bez zmian',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :T_MECZ1::uuid AND status = 'zaplanowany'), 1);
+
+-- Prowadzący ogólny (moze_prowadzic z sekcji 145, bez moze_edytowac) prowadzi
+-- KAŻDY mecz turnieju — to jest różnica wobec T_SEDZIA niżej.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+UPDATE turniej_mecze SET status = 'trwa', rozpoczety_at = now() WHERE id = :T_MECZ1::uuid;
+RESET ROLE;
+SELECT _oczekuj('prowadzący ogólny (moze_prowadzic) rozpoczął mecz',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :T_MECZ1::uuid AND status = 'trwa'), 1);
+
+-- Organizator oddaje TEN JEDEN mecz sędziemu bez żadnego uprawnienia w
+-- turniej_osoby — najwęższa droga z nagłówka §4 migracji 146.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+UPDATE turniej_mecze SET prowadzacy_id = :T_SEDZIA::uuid WHERE id = :T_MECZ1::uuid;
+RESET ROLE;
+
+-- NIE `_oczekuj_odmowe`: to znów USING filtrujące do zera wierszy, nie
+-- naruszenie WITH CHECK — ten sam wzorzec, co „obcy nie przyjął cudzej
+-- drużyny" w sekcji 145 wyżej.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+UPDATE turniej_mecze SET status = 'zakonczony' WHERE id = :T_MECZ1::uuid;
+RESET ROLE;
+SELECT _oczekuj('obcy nadal nie prowadzi meczu, mimo że ma już prowadzacy_id — bez zmian',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :T_MECZ1::uuid AND status = 'trwa'), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_SEDZIA, false);
+UPDATE turniej_mecze SET status = 'zakonczony', wynik_a = 3, wynik_b = 1,
+       zwyciezca_id = :T_DRUZYNA1::uuid, zakonczony_at = now()
+ WHERE id = :T_MECZ1::uuid;
+RESET ROLE;
+SELECT _oczekuj('sędzia przypisany DO TEGO JEDNEGO meczu zakończył go',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :T_MECZ1::uuid AND status = 'zakonczony'
+                    AND zwyciezca_id = :T_DRUZYNA1::uuid), 1);
+
+SELECT _sekcja('Turniej: zapisz_terminarz i propagacja zwycięzcy w drabince (migracja 146)');
+
+-- Osobny, samodzielny turniej pucharowy: trzy drużyny, czyli jeden wolny los
+-- w pierwszej rundzie. Sprawdza dokładnie ten mechanizm, który dwukrotna
+-- ręczna weryfikacja tej migracji złapała jako błąd: wolny los ma dać
+-- drużynie miejsce w finale BEZ czyjegokolwiek dodatkowego kliknięcia.
+\set TD_TURNIEJ  '''ffffffff-0000-4000-8000-00000000000e'''
+\set TD_A        '''ffffffff-0000-4000-8000-00000000000f'''
+\set TD_B        '''ffffffff-0000-4000-8000-000000000010'''
+\set TD_C        '''ffffffff-0000-4000-8000-000000000011'''
+\set TD_POLFINAL '''ffffffff-0000-4000-8000-000000000012'''
+\set TD_BYE      '''ffffffff-0000-4000-8000-000000000013'''
+\set TD_FINAL    '''ffffffff-0000-4000-8000-000000000014'''
+
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, format, status, data_startu)
+VALUES (:TD_TURNIEJ::uuid, :T_ORGANIZATOR::uuid, 'Turniej drabinkowy do testów RLS', 'piłka nożna', 'puchar', 'zapisy', CURRENT_DATE + 10);
+INSERT INTO turniej_druzyny (id, turniej_id, nazwa, status) VALUES
+  (:TD_A::uuid, :TD_TURNIEJ::uuid, 'Drabinka A', 'przyjeta'),
+  (:TD_B::uuid, :TD_TURNIEJ::uuid, 'Drabinka B', 'przyjeta'),
+  (:TD_C::uuid, :TD_TURNIEJ::uuid, 'Drabinka C', 'przyjeta');
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie zapisze terminarza cudzego turnieju', format(
+  'SELECT zapisz_terminarz(%L::uuid, %L::jsonb)', :TD_TURNIEJ, '[]'));
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT zapisz_terminarz(:TD_TURNIEJ::uuid, jsonb_build_array(
+  jsonb_build_object('id', :TD_POLFINAL, 'numer', 1, 'faza', 'polfinal',
+    'druzynaAId', :TD_A, 'druzynaBId', :TD_B, 'status', 'zaplanowany',
+    'zaplanowanyAt', (now() + interval '1 hour')::text),
+  jsonb_build_object('id', :TD_BYE, 'numer', 2, 'faza', 'polfinal',
+    'druzynaAId', :TD_C, 'status', 'walkower',
+    'zwyciezcaId', :TD_C, 'walkowerDla', :TD_C,
+    'zaplanowanyAt', (now() + interval '1 hour')::text),
+  jsonb_build_object('id', :TD_FINAL, 'numer', 3, 'faza', 'final',
+    'zrodloAMeczId', :TD_POLFINAL, 'zrodloATyp', 'zwyciezca',
+    'zrodloBMeczId', :TD_BYE, 'zrodloBTyp', 'zwyciezca', 'status', 'zaplanowany',
+    'zaplanowanyAt', (now() + interval '3 hours')::text)
+));
+RESET ROLE;
+SELECT _oczekuj('WOLNY LOS: finał od razu poznał drużynę z meczu-widmo',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :TD_FINAL::uuid AND druzyna_b_id = :TD_C::uuid), 1);
+SELECT _oczekuj('finał jeszcze nie zna zwycięzcy półfinału (ten dopiero się odbędzie)',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :TD_FINAL::uuid AND druzyna_a_id IS NULL), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+UPDATE turniej_mecze SET status = 'zakonczony', wynik_a = 2, wynik_b = 0, zwyciezca_id = :TD_A::uuid
+ WHERE id = :TD_POLFINAL::uuid;
+RESET ROLE;
+SELECT _oczekuj('PROPAGACJA: zwycięzca półfinału wskoczył do finału przez wyzwalacz',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :TD_FINAL::uuid AND druzyna_a_id = :TD_A::uuid), 1);
+
+-- `zapisz_terminarz` nie wolno nadpisać, gdy jakikolwiek mecz już wyszedł
+-- poza `zaplanowany` — inaczej „wygeneruj ponownie" skasowałoby wynik.
+-- Sprawdzamy to jako organizator (ma pełne uprawnienia) — inaczej test
+-- niczego by nie dowodził o TEJ konkretnej blokadzie, tylko znów o RLS.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('nie da się nadpisać terminarza z rozegranym meczem', format(
+  'SELECT zapisz_terminarz(%L::uuid, %L::jsonb)', :TD_TURNIEJ, '[]'));
+RESET ROLE;
+SELECT _oczekuj('terminarz z rozegranym meczem NIE został nadpisany — 3 mecze zostają',
+                (SELECT count(*) FROM turniej_mecze WHERE turniej_id = :TD_TURNIEJ::uuid), 3);
+
+SELECT _sekcja('Turniej: przesun_terminarz (migracja 146)');
+
+SELECT zaplanowany_at AS td_final_przed FROM turniej_mecze WHERE id = :TD_FINAL::uuid \gset
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie przesunie terminarza cudzego turnieju', format(
+  'SELECT przesun_terminarz(%L::uuid, %L::uuid, 15)', :TD_TURNIEJ, :TD_FINAL));
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT przesun_terminarz(:TD_TURNIEJ::uuid, :TD_FINAL::uuid, 20);
+RESET ROLE;
+SELECT _oczekuj('finał (jedyny wciąż zaplanowany mecz) przesunięty dokładnie o 20 minut',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :TD_FINAL::uuid
+                    AND zaplanowany_at = :'td_final_przed'::timestamptz + interval '20 minutes'), 1);
+SELECT _oczekuj('rozegrany półfinał NIE ruszony przesunięciem — dotyczy tylko `zaplanowany`',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :TD_POLFINAL::uuid AND status = 'zakonczony'
+                    AND zaplanowany_at = :'td_final_przed'::timestamptz - interval '2 hours'), 1);
+
+-- Osobno: mecz bez ustalonej godziny nie ma OD CZEGO liczyć przesunięcia —
+-- odróżnione (146) od „nie znaleziono meczu", bo oba przypadki dają wcześniej
+-- to samo `v_od IS NULL`, a to dwa różne komunikaty dla organizatora.
+\set TD_BEZ_GODZINY '''ffffffff-0000-4000-8000-000000000015'''
+INSERT INTO turniej_mecze (id, turniej_id, numer, faza)
+VALUES (:TD_BEZ_GODZINY::uuid, :TD_TURNIEJ::uuid, 4, 'final');
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('mecz bez ustalonej godziny — nie da się liczyć przesunięcia od niego', format(
+  'SELECT przesun_terminarz(%L::uuid, %L::uuid, 15)', :TD_TURNIEJ, :TD_BEZ_GODZINY));
+RESET ROLE;
+
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ RLS: wszystkie asercje przeszły.'; END $$;

@@ -244,6 +244,20 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     nazwa: 'Ktoś przejął drużynę',
     opis: 'Drużyna, którą dopisałeś ręcznie, ma teraz swojego kapitana',
   },
+  // Terminarz (migracja 146). Ta sama waga co `zmiana_terminu` dla zwykłego
+  // meczu: zmienia plan na konkretny dzień, więc `wazne`.
+  {
+    typ: 'turniej_terminarz_gotowy',
+    nazwa: 'Terminarz turnieju gotowy',
+    opis: 'Organizator ułożył plan meczów — sprawdź, kiedy gracie',
+    wazne: true,
+  },
+  {
+    typ: 'turniej_zmiana_terminu',
+    nazwa: 'Zmiana terminarza turnieju',
+    opis: 'Organizator przesunął godziny meczów Twojego turnieju',
+    wazne: true,
+  },
 ];
 
 /**

@@ -7,6 +7,7 @@ import { ArrowLeft, Copy, Download, Plus, Check, X as XIcon, Trash2, Ban } from 
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import ToggleRow from '@/components/ui/ToggleRow';
+import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
@@ -16,12 +17,23 @@ import {
 } from '@/lib/turnieje';
 import {
   getDruzynyZeSkladem, setStatusDruzyny, dodajDruzyneRecznie, getKontakty, usunDruzyne,
+  ustawGrupeDruzyny,
 } from '@/lib/turniejDruzyny';
-import { odmienZawodnikow } from '@/lib/turniejEtykiety';
-import type { Turniej, TurniejDruzyna, TurniejOsoba } from '@/types';
+import {
+  getGrupy, dodajGrupe, usunGrupe, getAreny, dodajArene, zmienNazweAreny, usunArene,
+  getMecze, zapiszTerminarz, przesunTerminarz,
+} from '@/lib/turniejMecze';
+import {
+  domyslnaLiczbaGrup, rozlosujGrupy, meczeKazdyZKazdym, zbudujDrabinke, ulozHarmonogram,
+  szacunekCzasu, type NowyMecz,
+} from '@/lib/turniejFormat';
+import { odmienZawodnikow, odmienDruzyny } from '@/lib/turniejEtykiety';
+import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz } from '@/types';
 import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
 
-type PanelTab = 'druzyny' | 'ludzie' | 'ustawienia';
+type PanelTab = 'druzyny' | 'ludzie' | 'terminarz' | 'ustawienia';
+
+const LITERY_GRUP = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 const inputCls =
   'w-full border border-slate-300 dark:border-slate-600 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100';
@@ -45,18 +57,32 @@ export default function PanelClient() {
   const [turniej, setTurniej] = useState<Turniej | null>(null);
   const [druzyny, setDruzyny] = useState<TurniejDruzyna[]>([]);
   const [osoby, setOsoby] = useState<TurniejOsoba[]>([]);
+  const [grupy, setGrupy] = useState<TurniejGrupa[]>([]);
+  const [areny, setAreny] = useState<TurniejArena[]>([]);
+  const [mecze, setMecze] = useState<TurniejMecz[]>([]);
   const [ladowanie, setLadowanie] = useState(true);
   const [nowaNazwa, setNowaNazwa] = useState('');
   const [szukajOsoby, setSzukajOsoby] = useState('');
+  const [nowaArenaNazwa, setNowaArenaNazwa] = useState('');
+  const [liczbaGrupWybor, setLiczbaGrupWybor] = useState<number | null>(null);
+  const [podglad, setPodglad] = useState<NowyMecz[] | null>(null);
+  const [przesunMeczId, setPrzesunMeczId] = useState('');
+  const [przesunMinuty, setPrzesunMinuty] = useState(15);
 
   const tabParam = searchParams.get('tab');
-  const zakladka: PanelTab = tabParam === 'ludzie' ? 'ludzie' : tabParam === 'ustawienia' ? 'ustawienia' : 'druzyny';
+  const zakladka: PanelTab =
+    tabParam === 'ludzie' ? 'ludzie' : tabParam === 'ustawienia' ? 'ustawienia' : tabParam === 'terminarz' ? 'terminarz' : 'druzyny';
 
   const wczytaj = async () => {
-    const [t, d, o] = await Promise.all([getTurniej(id), getDruzynyZeSkladem(id), getOsobyTurnieju(id)]);
+    const [t, d, o, g, a, m] = await Promise.all([
+      getTurniej(id), getDruzynyZeSkladem(id), getOsobyTurnieju(id), getGrupy(id), getAreny(id), getMecze(id),
+    ]);
     setTurniej(t);
     setDruzyny(d);
     setOsoby(o);
+    setGrupy(g);
+    setAreny(a);
+    setMecze(m);
   };
 
   useEffect(() => {
@@ -221,6 +247,116 @@ export default function PanelClient() {
   const wTurnieju = druzyny.filter((d) => d.status === 'przyjeta');
   const rezerwa = druzyny.filter((d) => d.status === 'rezerwa');
 
+  const potrzebujeGrup = turniej.format === 'grupy_puchar';
+  const liczbaGrupDomyslna = domyslnaLiczbaGrup(wTurnieju.length);
+
+  const losujGrupy = async () => {
+    const n = liczbaGrupWybor ?? liczbaGrupDomyslna;
+    if (grupy.length > 0) {
+      const wynik = await potwierdz({
+        tytul: 'Wylosować grupy jeszcze raz?',
+        konsekwencje: ['Obecny podział na grupy zniknie', 'Wygenerowany wcześniej terminarz trzeba będzie zrobić od nowa'],
+        potwierdzLabel: 'Losuj ponownie',
+      });
+      if (wynik !== 'tak') return;
+    }
+    try {
+      for (const g of grupy) await usunGrupe(g.id);
+      const podzial = rozlosujGrupy(wTurnieju, n);
+      for (let i = 0; i < podzial.length; i++) {
+        const g = await dodajGrupe(id, LITERY_GRUP[i] ?? `G${i + 1}`);
+        await Promise.all(podzial[i].map((d) => ustawGrupeDruzyny(d.id, g.id)));
+      }
+      setPodglad(null);
+      await wczytaj();
+      toast('Grupy wylosowane');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się wylosować grup', 'error');
+    }
+  };
+
+  const generujPodglad = () => {
+    if (wTurnieju.length < 2) { toast('Potrzeba co najmniej 2 przyjętych drużyn', 'error'); return; }
+    let nowe: NowyMecz[];
+    if (turniej.format === 'liga') {
+      nowe = meczeKazdyZKazdym(wTurnieju.map((d) => d.id), { startNumer: 1 });
+    } else if (turniej.format === 'puchar') {
+      const losowe = rozlosujGrupy(wTurnieju.map((d) => d.id), 1)[0];
+      nowe = zbudujDrabinke(losowe, { startNumer: 1, meczO3Miejsce: turniej.meczO3Miejsce });
+    } else {
+      if (grupy.length === 0) { toast('Najpierw wylosuj grupy', 'error'); return; }
+      let numer = 1;
+      nowe = grupy.flatMap((g) => {
+        const wGrupie = wTurnieju.filter((d) => d.grupaId === g.id).map((d) => d.id);
+        const czesc = meczeKazdyZKazdym(wGrupie, { startNumer: numer, grupaId: g.id });
+        numer += czesc.length;
+        return czesc;
+      });
+    }
+    const ulozone = ulozHarmonogram(nowe, {
+      arenyId: areny.map((a) => a.id),
+      startAt: `${turniej.dataStartu}T${turniej.godzinaStartu}:00`,
+      czasMeczuMin: turniej.czasMeczuMin,
+      przerwaMin: turniej.przerwaMin,
+    });
+    setPodglad(ulozone);
+  };
+
+  const rozpocznijGenerowanie = async () => {
+    if (mecze.length > 0) {
+      const wynik = await potwierdz({
+        tytul: 'Wygenerować terminarz jeszcze raz?',
+        konsekwencje: ['Obecny terminarz zniknie i zostanie zastąpiony nowym', 'To nie zadziała, jeśli którykolwiek mecz już się zaczął'],
+        potwierdzLabel: 'Generuj od nowa',
+      });
+      if (wynik !== 'tak') return;
+    }
+    generujPodglad();
+  };
+
+  const zapiszPodgladTerminarza = async () => {
+    if (!podglad) return;
+    try {
+      await zapiszTerminarz(id, podglad);
+      setPodglad(null);
+      await wczytaj();
+      toast('Terminarz zapisany');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać terminarza', 'error');
+    }
+  };
+
+  const dodajAreneAkcja = async () => {
+    if (nowaArenaNazwa.trim().length < 1) return;
+    try {
+      await dodajArene(id, nowaArenaNazwa.trim(), areny.length + 1);
+      setNowaArenaNazwa('');
+      await wczytaj();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się dodać areny', 'error');
+    }
+  };
+
+  const usunAreneAkcja = async (arenaId: string) => {
+    try { await usunArene(arenaId); await wczytaj(); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się usunąć areny', 'error'); }
+  };
+
+  const przesunAkcja = async () => {
+    if (!przesunMeczId) return;
+    try {
+      await przesunTerminarz(id, przesunMeczId, przesunMinuty);
+      await wczytaj();
+      toast('Terminarz przesunięty');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się przesunąć terminarza', 'error');
+    }
+  };
+
+  const druzynyPoId = new Map(druzyny.map((d) => [d.id, d.nazwa]));
+  const meczePoId = new Map(mecze.map((m) => [m.id, m]));
+  const arenyPoId = new Map(areny.map((a) => [a.id, a.nazwa]));
+
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header />
@@ -232,7 +368,7 @@ export default function PanelClient() {
           <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">Panel — {turniej.nazwa}</h1>
         </div>
         <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
-          {(['druzyny', 'ludzie', 'ustawienia'] as PanelTab[]).map((z) => (
+          {(['druzyny', 'ludzie', 'terminarz', 'ustawienia'] as PanelTab[]).map((z) => (
             <button
               key={z}
               onClick={() => router.push(`/turnieje/${id}/panel?tab=${z}`)}
@@ -338,6 +474,124 @@ export default function PanelClient() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {zakladka === 'terminarz' && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold text-slate-500">Areny</h2>
+              {areny.map((a) => (
+                <div key={a.id} className="flex items-center gap-2 rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5">
+                  <input
+                    defaultValue={a.nazwa}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      if (v && v !== a.nazwa) zmienNazweAreny(a.id, v).then(wczytaj);
+                    }}
+                    className={`${inputCls} py-1.5`}
+                  />
+                  <button onClick={() => usunAreneAkcja(a.id)} className="shrink-0 text-slate-400 hover:text-red-500" aria-label="Usuń arenę"><XIcon className="h-4 w-4" /></button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <input value={nowaArenaNazwa} onChange={(e) => setNowaArenaNazwa(e.target.value)} placeholder="Nazwa nowej areny" className={inputCls} />
+                <Button size="sm" onClick={dodajAreneAkcja} disabled={nowaArenaNazwa.trim().length < 1} className="shrink-0 inline-flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" /> Dodaj
+                </Button>
+              </div>
+            </div>
+
+            {potrzebujeGrup && (
+              <div className="space-y-2 border-t border-slate-100 dark:border-slate-700 pt-4">
+                <h2 className="text-sm font-semibold text-slate-500">Grupy</h2>
+                {grupy.length === 0 ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      value={liczbaGrupWybor ?? liczbaGrupDomyslna}
+                      onChange={(e) => setLiczbaGrupWybor(Number(e.target.value) || 1)}
+                      className={`${inputCls} w-20`}
+                    />
+                    <Button size="sm" onClick={losujGrupy} disabled={wTurnieju.length < 2}>Losuj grupy</Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {grupy.map((g) => (
+                      <div key={g.id} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
+                        <p className="text-xs font-semibold text-slate-400">Grupa {g.nazwa}</p>
+                        <p className="text-sm text-ink">
+                          {odmienDruzyny(wTurnieju.filter((d) => d.grupaId === g.id).length)}:{' '}
+                          {wTurnieju.filter((d) => d.grupaId === g.id).map((d) => d.nazwa).join(', ') || '—'}
+                        </p>
+                      </div>
+                    ))}
+                    <button onClick={losujGrupy} className="text-sm font-medium text-primary-600">Losuj ponownie</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-3 border-t border-slate-100 dark:border-slate-700 pt-4">
+              <h2 className="text-sm font-semibold text-slate-500">Terminarz</h2>
+
+              {podglad ? (
+                <div className="space-y-3">
+                  {(() => {
+                    const szac = szacunekCzasu(podglad, { liczbaAren: Math.max(1, areny.length), czasMeczuMin: turniej.czasMeczuMin, przerwaMin: turniej.przerwaMin });
+                    return (
+                      <p className="text-sm text-slate-600 dark:text-slate-300">
+                        Podgląd: {szac.liczbaMeczow} meczów do rozegrania, ok. {szac.liczbaFal} fal ({szac.czasCalkowityMin} min).
+                      </p>
+                    );
+                  })()}
+                  <div className="space-y-2">
+                    {podglad.map((m) => (
+                      <div key={m.id} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm">
+                        <span className="text-xs text-slate-400">M{m.numer}</span>{' '}
+                        <span className="text-ink">{druzynyPoId.get(m.druzynaAId ?? '') ?? (m.zrodloAMeczId ? 'TBD' : '—')}</span>
+                        {' vs '}
+                        <span className="text-ink">{druzynyPoId.get(m.druzynaBId ?? '') ?? (m.zrodloBMeczId ? 'TBD' : '—')}</span>
+                        {m.zaplanowanyAt && <span className="ml-2 text-xs text-slate-400">{new Date(m.zaplanowanyAt).toLocaleString('pl-PL')}</span>}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={zapiszPodgladTerminarza}>Zapisz terminarz</Button>
+                    <Button size="sm" variant="outline" onClick={() => setPodglad(null)}>Anuluj</Button>
+                  </div>
+                </div>
+              ) : (
+                <Button size="sm" onClick={rozpocznijGenerowanie} disabled={wTurnieju.length < 2}>
+                  {mecze.length > 0 ? 'Wygeneruj terminarz od nowa' : 'Wygeneruj terminarz'}
+                </Button>
+              )}
+
+              {mecze.length > 0 && !podglad && (
+                <div className="space-y-2 pt-2">
+                  {mecze.map((m) => (
+                    <KartaMeczu key={m.id} mecz={m} druzynyPoId={druzynyPoId} meczePoId={meczePoId} arenyPoId={arenyPoId} />
+                  ))}
+                  <div className="flex flex-wrap items-end gap-2 pt-2">
+                    <div>
+                      <label className="block text-xs text-slate-500">Przesuń od meczu</label>
+                      <select value={przesunMeczId} onChange={(e) => setPrzesunMeczId(e.target.value)} className={`${inputCls} py-1.5`}>
+                        <option value="">Wybierz…</option>
+                        {mecze.filter((m) => m.status === 'zaplanowany').map((m) => (
+                          <option key={m.id} value={m.id}>M{m.numer}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500">O ile minut</label>
+                      <input type="number" value={przesunMinuty} onChange={(e) => setPrzesunMinuty(Number(e.target.value) || 0)} className={`${inputCls} w-24 py-1.5`} />
+                    </div>
+                    <Button size="sm" variant="outline" onClick={przesunAkcja} disabled={!przesunMeczId}>Przesuń</Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

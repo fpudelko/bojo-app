@@ -849,7 +849,7 @@ milknie po cichu tak samo jak przy `event_participants`.
 **Role — pięć, nie jedna etykieta.** Organizator (`turnieje.organizator_id`, zawsze pełne
 uprawnienia, nawet bez wiersza w `turniej_osoby`), współorganizator (`moze_edytowac`),
 prowadzący (`moze_prowadzic` — ogólny, LUB `turniej_mecze.prowadzacy_id` — punktowy na
-jeden mecz, od Etapu 2), kapitan (`turniej_druzyny.kapitan_id`, zarządza WŁASNYM składem),
+jeden mecz, `146`), kapitan (`turniej_druzyny.kapitan_id`, zarządza WŁASNYM składem),
 zawodnik. `mozeEdytowac` jest nadzbiorem pozostałych dwóch przełączników — dokładnie jak
 przy delegatach meczu (`089`) i uprawnieniach w grupie (`092`); ten sam powód: uprawnieniami
 zarządza wyłącznie organizator, nie inny współorganizator, inaczej powstaje niekontrolowany
@@ -872,3 +872,41 @@ pojemności zdublowana w trzech funkcjach `lib/events.ts`. Podwójne przypisanie
 osoby do dwóch wolnych wpisów w tym samym turnieju zamyka dodatkowo indeks unikalny
 `(turniej_id, user_id)` — działa niezależnie od tego, którą z dwóch dróg (RPC albo surowy
 `UPDATE` na tabeli) ktoś spróbuje wejść.
+
+## Turniej: terminarz i drabinka (146)
+
+Generator terminarza (kto z kim, w jakiej kolejności, na której arenie) to WYŁĄCZNIE
+czyste funkcje w `lib/turniejFormat.ts` (`rozlosujGrupy`, `meczeKazdyZKazdym`,
+`zbudujDrabinke`, `ulozHarmonogram`, `szacunekCzasu`) — baza (`zapisz_terminarz()`)
+tylko PRZYJMUJE gotowy plan i pilnuje jego integralności. Ten sam podział jak przy
+generatorze terminarza serii (`073`): logika bez efektów ubocznych jest testowalna bez
+mockowania Supabase.
+
+**Mecze drabinki odwołują się do SIEBIE NAWZAJEM, zanim którykolwiek istnieje w bazie.**
+Ćwierćfinał M3 niesie `zrodlo_a_mecz_id` wskazujący na półfinał M9, który dopiero
+powstanie w tym samym zapisie. Rozwiązanie: identyfikatory meczów nadaje PRZEGLĄDARKA
+(`crypto.randomUUID()`, albo wstrzyknięty generator w testach) i `zapisz_terminarz()`
+wstawia całą partię JEDNYM wielorzędowym `INSERT ... SELECT FROM jsonb_array_elements()`
+— PostgreSQL sprawdza klucze obce dopiero PO zakończeniu całego INSERT-u, więc wzajemne
+odwołania w jednej partii są poprawne. Ten sam wzorzec co samoreferencyjne relacje
+gdzie indziej w bazie (np. `events.recurring_event_id`), tylko rozciągnięty na WIELE
+wierszy naraz.
+
+**Wolne losy (drabinka niebędąca potęgą dwójki) wchodzą od razu jako `walkower`, nie
+`zaplanowany`** — drużyna awansuje bez gry, stąd też kolumna `walkower_dla`. Propagacja
+zwycięzcy do kolejnej rundy siedzi w `propaguj_zwyciezce_dla()`, WOŁANEJ WPROST przez
+`zapisz_terminarz()` dla każdego świeżo wstawionego meczu innego niż `zaplanowany` — nie
+przez wyzwalacz `AFTER UPDATE`. Pierwsza wersja tej migracji próbowała odpalić propagację
+przez „dotknięcie" (`UPDATE ... SET status = status`) świeżo wstawionych wolnych losów,
+żeby zadziałał ten sam wyzwalacz co przy normalnym zakończeniu meczu — złapane RĘCZNYM
+testem przed commitem: między świeżym `INSERT`-em a takim „dotknięciem" `OLD` i `NEW` są
+identyczne, więc własny warunek wyzwalacza („to tylko powtórne dotknięcie, nic nowego do
+zrobienia") blokował propagację przy PIERWSZYM, jedynym wywołaniu. Stąd rozdział: jedna
+funkcja robocza (`propaguj_zwyciezce_dla`, wołana wprost i z wyzwalacza), wyzwalacz
+`propaguj_zwyciezce()` zostaje cienką otoczką reagującą na PRAWDZIWĄ zmianę statusu przy
+zakończeniu meczu na żywo (Etap 2).
+
+**`przesun_terminarz()` odróżnia „nie ma takiego meczu" od „mecz jest, ale bez
+godziny".** Obie sytuacje dają `NULL` z `SELECT zaplanowany_at INTO v_od ...`, więc samo
+sprawdzenie `v_od IS NULL` myliłoby je w jeden komunikat — organizator widziałby „nie
+znaleziono meczu" dla meczu, który realnie istnieje. Rozdzielone przez `FOUND`.
