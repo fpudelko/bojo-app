@@ -114,9 +114,16 @@ test('filtr miejscowości działa też na mecze, nie tylko na katalog', async ({
     .toBeVisible({ timeout: 15_000 });
 
   await page.getByRole('button', { name: /Filtry/i }).filter({ visible: true }).first().click();
-  await expect(page.getByText('Gdzie szukam').filter({ visible: true }).first()).toBeVisible();
-  await page.getByLabel('Miejscowość albo kod pocztowy').filter({ visible: true }).first()
-    .fill('Wrocław');
+  // „Arkusz się otworzył" sprawdzamy po POLU, nie po nagłówku sekcji. Stało tu
+  // `getByText('Gdzie szukam')` — napis zdjęty 2026-09-14 jako powtórzenie tego,
+  // co robi kontrolka pod nim. Test od tego napisu nie zależał: jego treścią
+  // jest to, czy filtr miejscowości działa na mecze, a nie jak się nazywa
+  // sekcja. Pole i tak jest potrzebne w następnej linijce, więc asercja
+  // trzyma się teraz rzeczy, którą scenariusz naprawdę obsługuje — tak samo
+  // jak scenariusz kodu pocztowego wyżej, który nagłówka nigdy nie sprawdzał.
+  const pole = page.getByLabel('Miejscowość albo kod pocztowy').filter({ visible: true }).first();
+  await expect(pole).toBeVisible();
+  await pole.fill('Wrocław');
   await page.getByRole('button', { name: /Wrocław/ }).filter({ visible: true }).first()
     .click({ timeout: 15_000 });
   await page.getByRole('button', { name: /^Pokaż /i }).filter({ visible: true }).first().click();
