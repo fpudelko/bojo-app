@@ -571,7 +571,14 @@ export default function PanelClient() {
               {mecze.length > 0 && !podglad && (
                 <div className="space-y-2 pt-2">
                   {mecze.map((m) => (
-                    <KartaMeczu key={m.id} mecz={m} druzynyPoId={druzynyPoId} meczePoId={meczePoId} arenyPoId={arenyPoId} />
+                    <KartaMeczu
+                      key={m.id}
+                      mecz={m}
+                      druzynyPoId={druzynyPoId}
+                      meczePoId={meczePoId}
+                      arenyPoId={arenyPoId}
+                      onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
+                    />
                   ))}
                   <div className="flex flex-wrap items-end gap-2 pt-2">
                     <div>

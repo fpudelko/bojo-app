@@ -3767,9 +3767,19 @@ zakładek (Losowanie/Terminarz/Areny) z pierwotnego rozpisania w
 [turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md), żeby nie mnożyć
 zakładek w pasku, który już ma cztery pozycje.
 
-Kolejne etapy (konsola prowadzącego z wynikiem na żywo, tabela i statystyki, ogłoszenia,
-„zamień drużynę w ekipę") dochodzą w osobnych PR-ach — plan już je rozpisuje co do
-pliku i funkcji.
+**Etap 2 (migracja `147`) — zbudowane:** rozgrywka na żywo. Nowa trasa
+`/turnieje/[id]/mecz/[meczId]` — publiczny podgląd (wynik, przebieg meczu) dla każdego,
+konsola prowadzącego (start meczu, zapis goli/kartek/punktów albo setów siatkówki,
+„Cofnij ostatnie", zakończenie z karnymi i MVP) dla tego, kto ma prawo prowadzić ten
+mecz (`czyProwadziMecz()` w `lib/turniejMecze.ts` — ta sama funkcja `czy_prowadzi_mecz()`,
+którą sprawdza RLS, wołana wprost, żeby UI i baza nigdy się nie rozjechały). Czyste
+funkcje liczenia wyniku w `lib/turniejWynik.ts` (samobójczy dolicza się przeciwnikowi,
+remis w fazie pucharowej wymaga karnych, sety siatkówki) — patrz
+[domena.md](./domena.md#turniej-rozgrywka-na-żywo-147). Karty meczu na Terminarzu
+(`/turnieje/[id]` i panel) prowadzą teraz do tej strony.
+
+Kolejne etapy (tabela i statystyki, ogłoszenia, „zamień drużynę w ekipę") dochodzą
+w osobnych PR-ach — plan już je rozpisuje co do pliku i funkcji.
 
 ---
 

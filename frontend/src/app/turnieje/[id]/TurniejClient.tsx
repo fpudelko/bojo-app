@@ -277,6 +277,7 @@ export default function TurniejClient() {
                   meczePoId={meczePoId}
                   arenyPoId={arenyPoId}
                   przygaszona={m.status === 'walkower' && !m.zaplanowanyAt}
+                  onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
                 />
               ))}
             </div>

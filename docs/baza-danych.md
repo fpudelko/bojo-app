@@ -153,6 +153,7 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `turniej_grupy` | `146` | Grupy fazy grupowej (Etap 1 — terminarz). `turniej_druzyny.grupa_id` (deklarowany w `145` jako goły `uuid`) dostaje tu domykający FK |
 | `turniej_areny` | `146` | Boiska turnieju — jeden turniej gra zwykle na 2-3 naraz. Wyzwalacz `utworz_domyslna_arene()` zakłada „Boisko 1" przy każdym nowym turnieju (kreator o nie nie pyta) |
 | `turniej_mecze` | `146` | Terminarz. `zrodlo_a_mecz_id`/`zrodlo_b_mecz_id` + `zrodlo_a_typ`/`zrodlo_b_typ` łączą mecze drabinki w drzewo (wzajemne odwołania w JEDNYM wielorzędowym INSERCIE — UUID-y meczów nadaje przeglądarka). Wyzwalacz `propaguj_zwyciezce()` przenosi zwycięzcę/przegranego do kolejnej rundy po `UPDATE ... SET status IN ('zakonczony','walkower')` |
+| `turniej_zdarzenia` | `147` | Gole/kartki/punkty (piłka nożna, koszykówka). Siatkówka/plażówka NIE korzysta z tej tabeli — wynik trzyma się w `turniej_mecze.sety`. Wyzwalacz `trg_zdarzenia_przelicz` (`AFTER INSERT OR DELETE`) przelicza `turniej_mecze.wynik_a`/`wynik_b` przez `przelicz_wynik_meczu()`; samobójczy dolicza się PRZECIWNIKOWI drużyny z `druzyna_id` |
 
 **Tabela `games` (`001`) jest martwa** — powstała w pierwszym schemacie i została
 zastąpiona przez `events` (`002`). Żaden kod jej nie używa.
@@ -272,6 +273,8 @@ powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 | `czy_prowadzi_mecz` | Trzy niezależne drogi do prowadzenia meczu: zarządzający turniejem, `prowadzacy_id` wpisany na TYM meczu, albo `turniej_osoby.moze_prowadzic` ogólnie (`SECURITY DEFINER`, `146`) |
 | `zapisz_terminarz` | Zapisuje cały wygenerowany terminarz naraz (usuwa stary, wielorzędowy INSERT z UUID-ami mecze od klienta). Odmawia, gdy jakikolwiek mecz turnieju jest już poza `zaplanowany` — inaczej „wygeneruj ponownie" kasowałoby wynik (`SECURITY DEFINER`, `146`) |
 | `przesun_terminarz` | Przesuwa wskazany mecz i wszystkie kolejne wciąż-zaplanowane o N minut, powiadamia zawodników z kontem (`SECURITY DEFINER`, `146`) |
+| `przelicz_wynik_meczu` | Sumuje `turniej_zdarzenia` na `wynik_a`/`wynik_b` meczu — wołana wyzwalaczem po każdym dopisaniu/skasowaniu zdarzenia, nigdy ręcznie z klienta (`SECURITY DEFINER`, `147`) |
+| `zakoncz_mecz` | Wyznacza zwycięzcę (albo `NULL` przy remisie w grupie/lidze), zapisuje karne i MVP. Odmawia remisu w fazie pucharowej bez rozstrzygających karnych — inaczej `propaguj_zwyciezce` (146) nie miałby kogo przenieść dalej (`SECURITY DEFINER`, `147`) |
 | `sync_reserve_claim` | Utrzymuje kolejkę ofert zwolnionego miejsca i powiadamia o ofercie (`SECURITY DEFINER`, `062`) |
 | `zglos_brak_pelnej_nazwy` | Wołana z przeglądarki (`supabase.rpc()`) przez świeżo zalogowanego użytkownika bez pełnego imienia i nazwiska — wstawia powiadomienie `uzupelnij_profil`, chyba że już istnieje (`SECURITY DEFINER`, `086`) |
 | `accept_team_proposal` | Przenosi propozycję składów na realne drużyny (`SECURITY DEFINER`) |

@@ -910,3 +910,51 @@ zakończeniu meczu na żywo (Etap 2).
 godziny".** Obie sytuacje dają `NULL` z `SELECT zaplanowany_at INTO v_od ...`, więc samo
 sprawdzenie `v_od IS NULL` myliłoby je w jeden komunikat — organizator widziałby „nie
 znaleziono meczu" dla meczu, który realnie istnieje. Rozdzielone przez `FOUND`.
+
+## Turniej: rozgrywka na żywo (147)
+
+Konsola prowadzącego (`/turnieje/[id]/mecz/[meczId]`) zapisuje zdarzenia w
+`turniej_zdarzenia`; wynik meczu liczy WYŁĄCZNIE baza (`przelicz_wynik_meczu()`,
+wyzwalacz `AFTER INSERT OR DELETE`), nigdy komponent — konsola i ewentualny przyszły
+import wyniku muszą liczyć identycznie, więc licząca funkcja jest jedna.
+
+**Samobójczy dolicza się PRZECIWNIKOWI.** `druzyna_id` na zdarzeniu to drużyna
+pechowego zawodnika (dzięki temu da się pokazać „samobójczy — Jan Kowalski, Drużyna
+A"), ale w liczniku wyniku ten gol dopisuje się DRUGIEJ stronie. Lustro tej reguły
+siedzi w `wynikZeZdarzen()` (`lib/turniejWynik.ts`) — do OPTYMISTYCZNEGO odświeżenia
+konsoli, zanim odpowie serwer; baza i tak liczy jeszcze raz i to jej wynik wygrywa.
+
+**Siatkówka/plażówka NIE korzysta z `turniej_zdarzenia`.** Tam liczy się WYGRANY SET,
+nie pojedynczy punkt — dziesiątki punktów meczu zaśmiecałyby tabelę zdarzeń bez żadnej
+korzyści, i tak nie obiecujemy klasyfikacji strzelców dla tych sportów (patrz
+`turnieje-plan-srednie-klocki.md` §N). Konsola trzyma wynik seta w LOKALNYM stanie
+komponentu i zapisuje go do `turniej_mecze.sety` (z `wynik_recznie = true`) po każdym
+punkcie — świadomie NIE jest to odtwarzalne z jednego źródła prawdy: odświeżenie strony
+w trakcie trwającego seta gubi tylko licznik BIEŻĄCEGO seta (ukończone sety i wynik
+meczu zostają), bo to tanie i wystarczające rozwiązanie wobec realnego ryzyka
+(prowadzący odświeża własny telefon w trakcie seta).
+
+**Karne wyłącznie w fazie pucharowej — `zakoncz_mecz()` tego pilnuje, nie UI.**
+Remis w `grupa`/`liga` jest normalnym wynikiem (`zwyciezca_id = NULL`). Remis w każdej
+innej fazie wymaga karnych, inaczej `propaguj_zwyciezce` (146) nie miałby kogo przenieść
+do kolejnej rundy — funkcja odmawia zakończenia meczu (`RAISE EXCEPTION`), gdy wynik
+jest równy i karne nie rozstrzygają. UI pyta o karne WCZEŚNIEJ (`wymaganeKarne()` w
+`lib/turniejWynik.ts`, ta sama reguła), więc w praktyce wyjątek jest siecią
+bezpieczeństwa, nie ścieżką główną.
+
+**Zdarzenie wolno dopisać/cofnąć TYLKO, gdy mecz jeszcze nie jest rozstrzygnięty** —
+polityki RLS na `turniej_zdarzenia` sprawdzają dodatkowo `status IN ('zaplanowany',
+'trwa')`. Bez tego dopisanie gola PO `zakoncz_mecz()` zmieniłoby wynik bez ponownego
+wyznaczenia zwycięzcy, który liczy się raz, w momencie kończenia meczu — zwycięzca już
+mógł awansować do kolejnej rundy.
+
+**„Cofnij ostatnie" cofa jedno zdarzenie, nie cofa zakończenia meczu.** Świadomie: raz
+zakończony mecz zostaje zakończony w tej iteracji modułu — odtworzenie stanu drabinki
+sprzed propagacji zwycięzcy do kolejnej rundy jest ryzykowne (kolejny mecz mógł już
+korzystać z tej drużyny) i nie ma go w planie. „Cofnij" dotyczy wyłącznie pomyłki przy
+OSTATNIM kliknięciu w trwającym meczu.
+
+**Konsola nie zbiera asysty ani nie wymusza wskazania strzelca.** Pole
+`asysta_zawodnik_id` istnieje w schemacie (pod przyszłe statystyki, Etap 3), ale UI go
+dziś nie wypełnia — wskazanie zawodnika przy golu/kartce jest OPCJONALNE, żeby
+zapisanie zdarzenia w trakcie gry było jednym kliknięciem, nie dwoma wyborami z listy.

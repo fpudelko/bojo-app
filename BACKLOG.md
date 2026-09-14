@@ -452,10 +452,12 @@ Flaga `SHOW_TURNIEJE` (`frontend/src/lib/features.ts`), pięć etapów/PR-ów (f
 zgłoszenia → terminarz → rozgrywka na żywo → tabela i statystyki → domknięcie i
 odmrożenie), migracje `145`–`149`.
 
-**Zrobione: Etap 0 (`145`) i Etap 1 (`146`).** Terminarz — generator w
+**Zrobione: Etap 0 (`145`), Etap 1 (`146`) i Etap 2 (`147`).** Terminarz — generator w
 `lib/turniejFormat.ts`, zakładka Terminarz na `/turnieje/[id]` i w panelu (losowanie
-grup, areny, generowanie/podgląd/zapis terminarza, przesunięcie o N minut). Następny:
-Etap 2 — konsola prowadzącego z wynikiem na żywo.
+grup, areny, generowanie/podgląd/zapis terminarza, przesunięcie o N minut). Rozgrywka na
+żywo — nowa trasa `/turnieje/[id]/mecz/[meczId]` (podgląd publiczny + konsola
+prowadzącego: start meczu, zdarzenia/sety, „Cofnij ostatnie", zakończenie z karnymi
+i MVP), czyste funkcje w `lib/turniejWynik.ts`. Następny: Etap 3 — tabela i statystyki.
 
 ### Świadomie NIE budujemy (zapisane w planie, nie zapomniane)
 - Czatu turniejowego, głosowania graczy na MVP (prowadzący wybiera ręcznie), płatności
