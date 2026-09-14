@@ -21,6 +21,17 @@ import type {
  * ekipy (`getMyGroupEvents()`, `lib/events.ts`), tylko dotąd nikt tego nie mówił
  * wprost. Bez tego zdania „Prywatne" wygląda jak obietnica bez pokrycia: każdy
  * członek grupy i tak zobaczy ten mecz na liście `/grupy/[id]`.
+ *
+ * JEDYNY DZIŚ CZYTELNIK TO KREATOR (`EventVisibilityFields`). Strona meczu
+ * pokazywała to zdanie do 2026-09-13 i przestała: tam tuż nad nim stoją pigułki
+ * „Prywatne"/„Publiczne" i nazwa ekipy, więc zdanie powtarzało własnymi słowami
+ * stan, który widać. W kreatorze żadnej pigułki jeszcze nie ma — decyzja dopiero
+ * zapada i to zdanie jest jedynym miejscem, które mówi, co z niej wyniknie.
+ *
+ * Orzeczenie odmieniane z liczbą: „Zobaczy go 1 członek", ale „Zobaczą go
+ * 3 członkowie". `withCount` odmienia sam rzeczownik i przy jednym członku
+ * zostawiało „Zobaczą go 1 członek ekipy" — zgrzyt widoczny w kreatorze
+ * dokładnie przy najmniejszej ekipie, czyli świeżo założonej.
  */
 export function opisWidocznosciWGrupie(
   visibility: 'public' | 'private',
@@ -31,10 +42,11 @@ export function opisWidocznosciWGrupie(
   const czlonkowie = liczbaCzlonkow != null
     ? withCount(liczbaCzlonkow, 'członek', 'członkowie', 'członków')
     : 'członkowie';
+  const zobacza = liczbaCzlonkow === 1 ? 'Zobaczy' : 'Zobaczą';
   if (visibility === 'private') {
-    return `Prywatny — na liście ekipy „${grupaNazwa}". Zobaczą go ${czlonkowie} ekipy i każdy, kto dostanie link.`;
+    return `Prywatny — na liście ekipy „${grupaNazwa}". ${zobacza} go ${czlonkowie} ekipy i każdy, kto dostanie link.`;
   }
-  return `Publiczny — widoczny dla wszystkich, a dodatkowo na liście ekipy „${grupaNazwa}".`;
+  return `Publiczny — także na liście ekipy „${grupaNazwa}".`;
 }
 
 // ---------------------------------------------------------------------------

@@ -270,7 +270,7 @@ Mechanika (migracja `058`):
 
 | Element | Gdzie |
 |---|---|
-| Okno na decyzję | `events.reserve_claim_minutes` (15 min – 72 h, domyślnie 180 min = 3 h) |
+| Okno na decyzję | `events.reserve_claim_minutes` (15 min – 72 h; nowy mecz zakłada się z 60 min — `DOMYSLNE_MINUTY_REZERWY` w `lib/events.ts`, od 2026-09-13; `DEFAULT` kolumny w bazie i odczyt starych wierszy zostają na 180) |
 | Aktywna oferta | `event_participants.claim_offered_at` |
 | **Odpuścił świadomie** (kliknął „Odpuszczam") | `event_participants.claim_passed` — **wypada z kolejki na stałe** |
 | **Nie zdążył odpowiedzieć** | `event_participants.oferta_wygasla_at` (migracja `135`) — **wraca na koniec kolejki** |
@@ -402,8 +402,21 @@ ludzi" jest „Otwórz dla okolicy" niżej, nie ściganie własnej ekipy. `lib/e
 i `tekstZaczepki()` skasowane jako martwy kod. RPC i typ powiadomienia **zostają w
 bazie** (migracji `097` się nie kasuje po wdrożeniu) — po prostu nic już ich nie wywołuje.
 
-`event_declines` samo w sobie **nie znika** — karmi „Nie gram" (`NieGramButton.tsx`)
-opisane wyżej, niezależnie od usuniętego panelu „kto milczy".
+**Wejście „Nie zagram" na stronie meczu ZDJĘTE 2026-09-13** — a powodem nie był
+nadmiar kontrolek, tylko to, że **odpowiedzi nikt nie oglądał**. `odmow()` pisała
+wiersz do `event_declines`, a `getDeclines()` czytał go WYŁĄCZNIE ten sam przycisk,
+żeby wiedzieć, czy sam już kliknął. Po usunięciu panelu „kto milczy" nie został
+w aplikacji ani jeden widok organizatora nad tą tabelą: pytaliśmy gracza o deklarację
+i chowaliśmy ją przed jedyną osobą, której była potrzebna. Tabela, RLS
+i `lib/eventDeclines.ts` **zostają nietknięte** — gdy powstanie widok „kto odpadł",
+wejście wraca razem z nim (BACKLOG.md). Dziś jedyne żyjące wejście do
+`event_declines` to ✕ przy zaproszeniu (`OdpowiedzJednymKlikiem.tsx`) i ono ma ten
+sam problem z odbiorcą.
+
+Osobno, w tym samym miejscu: `event_player_invites.dismissed_at` — kolumna, na której
+opiera się plakietka „Nie tym razem" w `EventInvitesStatus.tsx` — **nie jest przez nic
+ustawiana**. `dismissInvite()` (`lib/playerInvites.ts`) nie ma ani jednego wywołania,
+więc ten status nie może się pokazać. To samo zaniedbanie, druga tabela.
 
 **„Otwórz dla okolicy".** Gdy prywatnemu meczowi brakuje ludzi, organizator (albo
 delegat z `can_create_events`) jednym kliknięciem zamienia go w publiczny —
@@ -675,9 +688,13 @@ Przypisanie meczu do grupy sprawia, że pojawia się on na liście meczów grupy
 (`getMyGroupEvents()`) — mimo że `events.visibility` samo w sobie mówi tylko
 `private`/`public` i nie ma osobnej trzeciej wartości „widoczne dla grupy". To jest
 **świadomie ustalone zachowanie**, nie luka: prywatny mecz przypięty do grupy jest
-zawsze widoczny dla jej członków, tak samo jak dla organizatora. Kreator meczu i strona
-meczu mówią to wprost pod kartą widoczności (`opisWidocznosciWGrupie()` w
+zawsze widoczny dla jej członków, tak samo jak dla organizatora. Mówi to wprost
+**kreator meczu**, pod kartą widoczności (`opisWidocznosciWGrupie()` w
 `lib/eventFeatures.ts`) — inaczej „Prywatne" wygląda jak obietnica bez pokrycia.
+Strona meczu pokazywała to samo zdanie do 2026-09-13 i przestała: tam nad nim stoją
+pigułki „Prywatne"/„Publiczne" i nazwa ekipy, więc zdanie powtarzało własnymi słowami
+stan, który widać. W kreatorze żadnej pigułki jeszcze nie ma i decyzja dopiero zapada,
+więc tam zostaje.
 Nadal nie ma **prawdziwego** trzeciego poziomu w `events.visibility` (CHECK zostaje
 dwuwartościowy) i nadal nie zaostrzono ogólnej polityki `Events readable by all`
 (`USING (true)`) — `getMyGroupEvents()` w dalszym ciągu działa dzięki tej luźnej

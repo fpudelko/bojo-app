@@ -9,12 +9,13 @@ import { supabase } from '@/lib/supabase';
 function CallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
-  // Domyślnie na stronę główną — tam czeka modal wyboru roli po świeżej
-  // rejestracji (PostSignupRoleModal). `?next=` (brama kreatora, strona
-  // boiska, grupa, dołączanie do meczu) ma pierwszeństwo. Ten sam domyślny
-  // cel deklaruje AuthForm — oba muszą się zgadzać, bo inaczej logowanie
-  // przez Google (idące przez ten callback) ląduje gdzie indziej niż mailem.
-  const next = params.get('next') || '/';
+  // Domyślnie na „Moje gry" — `/moje-gry` jest też na allowliście neutralnych
+  // celów w PostSignupRoleModal, więc modal wyboru roli po świeżej rejestracji
+  // dalej się tam pokazuje. `?next=` (brama kreatora, strona boiska, grupa,
+  // dołączanie do meczu) ma pierwszeństwo. Ten sam domyślny cel deklaruje
+  // AuthForm — oba muszą się zgadzać, bo inaczej logowanie przez Google
+  // (idące przez ten callback) ląduje gdzie indziej niż mailem.
+  const next = params.get('next') || '/moje-gry';
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {

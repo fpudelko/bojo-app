@@ -155,20 +155,12 @@ export default function PoMeczuCard({
         <p className="text-sm text-slate-600 dark:text-slate-400">
           {zadania.length > 0 ? 'Wszystko rozliczone. ' : ''}Powtórzyć mecz za tydzień?
         </p>
+        {/* Bez "Nieobecni" tutaj — zgłoszone wprost: w rzędzie ramowanym
+            pytaniem o powtórkę meczu "kto nie przyszedł" nie pasuje
+            tematycznie. Przycisk zostaje w gałęzi niżej (lista zadań),
+            gdzie kontekst to porządki po meczu, nie zaproszenie na kolejny.
+            `onOznaczNieobecnych` jest tu więc celowo nieużyty. */}
         <div className="mt-3 flex gap-1.5">
-          {onOznaczNieobecnych && (
-            <button
-              type="button"
-              onClick={onOznaczNieobecnych}
-              className={PRZYCISK_CLS}
-            >
-              <UserX className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-              {/* Skrócone z "Kto nie przyszedł" — modal, który się otwiera,
-                  ma pełną nazwę w nagłówku, ten przycisk musi się zmieścić
-                  obok dwóch innych w jednej linii. */}
-              <span className="truncate">Nieobecni</span>
-            </button>
-          )}
           {przyciskWszyscyOddali}
           <button
             type="button"

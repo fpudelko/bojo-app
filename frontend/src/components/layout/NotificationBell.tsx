@@ -221,13 +221,23 @@ function PanelPowiadomien({
                     {/* Odpowiedź WEWNĄTRZ odnośnika, nie obok: cała pozycja
                         panelu jest klikalna, a przycisk obok niej byłby
                         drugim celem w tej samej linii. `OdpowiedzJednymKlikiem`
-                        zatrzymuje zdarzenie, więc kliknięcie „Gram" nie
-                        przenosi na mecz. */}
+                        zatrzymuje zdarzenie, więc sam decyduje, dokąd idzie
+                        kliknięcie.
+
+                        `gramOtwieraMecz` — „Gram" NIE zapisuje stąd (zgłoszone
+                        wprost 2026-09-13). Panel pokazuje jedno zdanie, a zapis
+                        niesie cenę, rolę i to, czy wchodzi się do składu, czy
+                        na rezerwę; przenosimy więc na mecz z otwartym oknem
+                        zapisu i tam zapada decyzja. „Nie gram" zostaje
+                        natychmiastowe: odmowa niczego nie kosztuje i nie ma
+                        czego oglądać. */}
                     {n.eventId && ODPOWIEM_STAD.has(n.type) && wymagaAkcji && (
                       <span className="mt-2 flex justify-end">
                         <OdpowiedzJednymKlikiem
                           eventId={n.eventId}
                           wariant="panel"
+                          gramOtwieraMecz
+                          naPrzejscie={naZamknij}
                           onOdpowiedziano={() => odswiezPoOdpowiedzi(n.id)}
                         />
                       </span>

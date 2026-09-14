@@ -200,7 +200,7 @@ w cyklu życia.
 | # | Ustalenie | Stan |
 |---|---|---|
 | **O-39** | **W całym Bojo nie ma ani jednego przypomnienia opartego o czas.** Wszystkie powiadomienia są reakcją na czyjeś kliknięcie; jedyny `cron.schedule` w repo dotyczy serii, a te są za wyłączoną flagą. Nikt nie dostaje „jutro grasz o 20:00", organizator nie dostaje „jutro mecz, brakuje 2 osób" (ostatni moment, żeby coś z tym zrobić), a po meczu nic nie prosi o wynik ani rozliczenie — dane produkcyjne z fazy 7: 122 rozegrane mecze, 6 zapisanych wyników, 45 nierozliczonych. Przypominanie to jest ta czynność, którą organizator wykonuje ręcznie co tydzień na WhatsAppie. | zrobione (migracja `129`). Infrastruktura była — wstawienie wiersza do `notifications` odpala push (`102`), a ustawienia „czego nie chcę na telefon" (`109`) działają; brakowało wyłącznie zegara. Zadanie `pg_cron` `bojo-przypomnienia` o 16:00 UTC; dwa typy: „jutro grasz" (skład + organizator, z dopiskiem o brakach) i „po meczu" (organizator, tylko gdy jest co domknąć). Testy w `supabase/test/przypomnienia.sql` |
-| **O-40** | **„Powtórz mecz" jest ukryte przed organizatorem, który wraca co tydzień.** Akcja żyje na stronie meczu i przy najbliższym meczu ekipy, ale na `/moje-gry → Historia` — czyli tam, gdzie organizator ląduje w poniedziałek, żeby wrzucić czwartek — nie ma jej wcale. Skoro gry cykliczne są świadomie wyłączone, „Powtórz" jest ich jedynym zamiennikiem. | zrobione. `components/events/PowtorzZHistorii.tsx` — przycisk pod kartą w Historii, tylko przy własnych meczach, z datą wypełnioną z góry; po utworzeniu ląduje w panelu „Mecz gotowy — wyślij link". Świadomie NOWY komponent, nie wspólny z oknem na stronie meczu (regresyjny hot spot) |
+| **O-40** | **„Powtórz mecz" jest ukryte przed organizatorem, który wraca co tydzień.** Akcja żyje na stronie meczu i przy najbliższym meczu ekipy, ale na `/moje-gry → Historia` — czyli tam, gdzie organizator ląduje w poniedziałek, żeby wrzucić czwartek — nie ma jej wcale. Skoro gry cykliczne są świadomie wyłączone, „Powtórz" jest ich jedynym zamiennikiem. | zrobione, potem cofnięte 2026-09-13. `components/events/PowtorzZHistorii.tsx` dodawało przycisk pod KAŻDĄ kartą w Historii; zgłoszone wprost jako powtarzający się bez sensu, skoro te same dwie akcje żyją już na stronie meczu (Ustawienia → „Powtórz mecz", karta „Po meczu" → „Powtórz"). Komponent usunięty |
 | **O-41** | **Baza liczy czas w UTC, mecze są w czasie polskim.** Kilkanaście funkcji porównuje `(event_date + event_time)::timestamp <= now()`; `SHOW timezone` na produkcji zwraca `UTC`, więc mecz o 20:00 jest „rozpoczęty" dopiero o 22:00 czasu polskiego (latem). Skutki dziś drobne (statystyka „zagrane mecze" nie tyka po meczu, oferty z rezerwy chodzą jeszcze dwie godziny), ale KAŻDE nowe zadanie oparte o czas odziedziczy ten błąd. Migracja `073` robi to poprawnie (`AT TIME ZONE 'Europe/Warsaw'`) — reszta nie; migracja `128` też liczy już poprawnie. | zrobione (migracja `130`): `teraz_pl()`/`dzis_pl()` plus poprawka w `sync_reserve_claim` i w wyzwalaczach `079`/`097`. **Funkcje statystyk zostają nietknięte** — tam ta sama poprawka zmieniłaby liczby na profilach graczy, więc należy jej się osobna decyzja, nie doklejenie do migracji o czymś innym |
 
 ---
@@ -328,6 +328,22 @@ o skutkach własnego kliknięcia.
   powiadomień ani w mapie ikon dzwonka**, choć realnie przychodzą od `065`
   i `114`: nie dało się ich wyłączyć nawet dla pusha, a pod dzwonkiem lądowały
   jako szare „Powiadomienie".
+
+### Czwarty zgniły wzorzec: `bramkarze-rezerwacja-okno` (2026-09-13)
+
+Ten sam mechanizm co trzy niżej, znaleziony przy zupełnie innej zmianie. Zrzut
+okna „w polu jest już komplet" łapie też kartę **„Kiedy i gdzie"** pod spodem,
+a `seed_wizualne.sql` liczy datę jako ODSTĘP od dnia uruchomienia — więc
+wzorzec niósł konkretny dzień („Czwartek, 17 września") i nazajutrz meldował
+„zmianę wyglądu", choć nic się nie zmieniło. Przyjęcie takiego wzorca niczego
+nie naprawia: zamraża kolejną datę, która zgnije następnego dnia.
+
+Poprawka jak przy `kreator-krok-1.png`: `mask` na nowym `[data-termin-meczu]`
+(data, godzina i „za 3 h" w karcie „Kiedy i gdzie" — wszystko, co rusza się
+z dnia na dzień), a nie rezygnacja ze zrzutu. Atrybut jest na obu gałęziach
+karty: tej z edycją dla organizatora i tej bez. Pilnuje go `maskiZrzutow.test.ts`,
+który trzyma JAWNĄ listę selektorów — dopisanie maski wymaga świadomej zmiany
+tej listy, więc nie da się jej dodać po cichu ani po cichu usunąć.
 
 ### Dopisane po merge'u (2026-09-09)
 
@@ -519,7 +535,7 @@ Ustalenia mają numery `S-n`.
 | **S-2** | **„Powtórz mecz" po cichu gubi trzy ustawienia organizatora.** `repeatEvent()` przepisuje 32 z 35 pól `EventCreate` — pomija `requireApproval`, `reserveEnabled`, `goalkeeperSlotsReserved`, więc mecz z akceptacją zapisów wraca po powtórce OTWARTY. Piąty, szósty i siódmy przypadek tej samej rodziny (po `groupId`, `minPlayers`, `endTime`, `recurringEventId` — każde naprawiane osobno, po fakcie) | zrobione. Typ `ZrodloPowtorki` w `lib/events.ts` wymusza wymienienie każdego pola `EventCreate` w `repeatEvent()` — pominięcie przestaje się kompilować. Testy: `__tests__/events.test.ts` |
 | **S-4** | **Okno odwołania meczu wie mniej niż okno edycji.** `handleCancel()` liczy odbiorców po swojemu zamiast przez `komuDojdzie()` — mówi „jeśli podała adres" zamiast dokładnego podziału z kolumny `ma_guest_email`, i liczy węższy zbiór (`regulars`+`reserves`) niż faktycznie powiadamia wyzwalacz `070` (wszyscy z kontem, w tym obserwujący i czekający na akceptację) | zrobione. Nowa `konsekwencjeOdwolania()` w `lib/zmianyMeczu.ts`, wołana przez `komuDojdzie()` — ta sama para co w oknie edycji. Testy: `__tests__/zmianyMeczu.test.ts` |
 | **S-5** | **Wiadomość na czat nie mówi ani ilu brakuje, ani że można bez konta.** `eventShareText()` zawsze pokazuje „14 miejsc", nigdy „zostały 2 miejsca" — mimo że to dokładnie to, po co organizator wkleja link na grupę. Argument „zapisujesz się bez konta" (wyzwanie 1-2 ze strategii) nie pada wcale, choć jest uczciwy do złożenia zawsze tam, gdzie pasek dolny i tak pokazuje „Dołącz bez konta" | zrobione. `eventShareText()` przyjmuje opcjonalny `StanUdostepnienia`; bez niego zachowanie bez zmian. Testy: `__tests__/eventShare.test.ts` |
-| **S-6** | **Dwa z trzech wejść „Powtórz" omijają panel „Mecz gotowy — wyślij link".** Tylko `PowtorzZHistorii.tsx` dodaje `?utworzono=1`; okno na stronie meczu i przycisk przy najbliższym meczu ekipy lądują na gołym adresie | zrobione — wszystkie cztery wejścia dodają `?utworzono=1` |
+| **S-6** | **Dwa z trzech wejść „Powtórz" omijają panel „Mecz gotowy — wyślij link".** Tylko `PowtorzZHistorii.tsx` dodaje `?utworzono=1`; okno na stronie meczu i przycisk przy najbliższym meczu ekipy lądują na gołym adresie | zrobione — wszystkie wejścia dodają `?utworzono=1` (dziś trzy: `PowtorzZHistorii.tsx` usunięte 2026-09-13, patrz `O-40`) |
 | **S-7** | **Trzy listy typów powiadomień rozjeżdżają się.** 11 typów wstawianych do bazy nie mają wiersza w ustawieniach push (nie da się ich wyciszyć), 7 nie mają ikony na dzwonku (szare „Powiadomienie"), `event_cancelled` jest martwym kluczem w mapie ikon — to typ dziennika aktywności, nie powiadomienia. Wróciło trzeci raz (po `R-9`/naprawie sześciu ikon w piątej rundzie) | zrobione. Mapa ikon wyjechała do `lib/ikonyPowiadomien.ts`; nowa bramka `typyPowiadomien.test.ts` czyta `supabase/migrations/*.sql` i porównuje trzy listy w obie strony (łapie też martwe klucze) |
 
 Pełny opis i uzasadnienie każdego ustalenia, plan wdrożenia i szkic opisu PR-a

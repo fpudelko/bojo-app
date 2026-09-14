@@ -13,7 +13,6 @@ import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWi
 import { splitMyEvents } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import PowtorzZHistorii from '@/components/events/PowtorzZHistorii';
 import { DoRozliczeniaSection, GroupGamesSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection } from '@/components/home/dashboard/DashboardSections';
 import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo } from '@/lib/recurring';
 import { doRozliczenia } from '@/lib/myEvents';
@@ -376,21 +375,15 @@ function MojeGryContent() {
           ) : (
             <div className="space-y-8">
               <DoRozliczeniaSection items={doRozliczenia(history)} />
-              {/* „Powtórz ten mecz" WYŁĄCZNIE przy meczach, które sam
-                  organizowałem — i wyłącznie tutaj, w Historii. To jest ekran,
-                  na który organizator wchodzi w poniedziałek, żeby wrzucić
-                  czwartek; dotąd musiał stąd otworzyć mecz i szukać akcji
-                  w panelu „Zarządzaj wydarzeniem". Ustalenie `O-40`. */}
+              {/* „Powtórz ten mecz" tu się nie powtarza — na liście historii
+                  robiło się to na KAŻDEJ karcie. Kto chce powtórzyć mecz,
+                  otwiera go i używa akcji „Powtórz mecz" w zakładce
+                  Ustawienia (`EventDetailClient.tsx`) albo przycisku
+                  „Powtórz" w karcie „Po meczu" (`PoMeczuCard.tsx`). Usunięte
+                  po zgłoszeniu z sesji UX 2026-09-13 (cofa `O-40`). */}
               <div className="space-y-3">
                 {history.map(({ event, relation }) => (
-                  <div key={event.id}>
-                    <EventBrowseCard event={event} relation={relation} unreadMessages={unreadByEvent[event.id]} />
-                    {relation.isOrganizer && (
-                      <div className="mt-1 pl-1">
-                        <PowtorzZHistorii event={event} />
-                      </div>
-                    )}
-                  </div>
+                  <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent[event.id]} />
                 ))}
               </div>
             </div>
