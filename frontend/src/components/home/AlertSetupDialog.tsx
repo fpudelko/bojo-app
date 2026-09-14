@@ -1,16 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, MapPin, Loader2, Bell, BellOff, Navigation } from 'lucide-react';
+import { X, Loader2, Bell, BellOff, Mail, Smartphone, Check } from 'lucide-react';
 import {
-  getMyAlert, saveAlert, deleteMyAlert, geocodeCity,
-  PROMIEN_MIN, PROMIEN_MAX, PROMIEN_DOMYSLNY, type AlertInput,
+  getMyAlert, saveAlert, deleteMyAlert,
+  OKRESY_ALERTU, wygasaZa, okresZDaty, PROMIEN_DOMYSLNY, type AlertInput,
 } from '@/lib/alerts';
-import { getCurrentLocation, geoErrorMessage, pozycjaBezPytania } from '@/lib/geo';
+import { pozycjaBezPytania } from '@/lib/geo';
 import { useAuth } from '@/lib/auth';
 import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
+import { SHOW_SMS_FEATURES } from '@/lib/features';
+import { stanPush, wlaczPush, type StanPush } from '@/lib/push';
 import SportChip from '@/components/ui/SportChip';
-import RangeSlider from '@/components/ui/RangeSlider';
+import ToggleRow from '@/components/ui/ToggleRow';
+import WyborMiejscowosci from '@/components/map/WyborMiejscowosci';
+import type { Miejscowosc } from '@/lib/miejscowosci';
 import type { GameAlert } from '@/types';
 import { WARSTWA } from '@/lib/warstwy';
 
@@ -18,6 +22,24 @@ const DAYS = [
   { n: 1, short: 'Pn' }, { n: 2, short: 'Wt' }, { n: 3, short: 'Śr' },
   { n: 4, short: 'Cz' }, { n: 5, short: 'Pt' }, { n: 6, short: 'Sb' }, { n: 7, short: 'Nd' },
 ];
+
+/** Domyślne okno godzinowe po włączeniu filtra pory dnia — popołudnie i wieczór,
+ *  czyli pora, o której gra się w tygodniu po pracy. */
+const GODZINA_OD_DOMYSLNA = 17;
+const GODZINA_DO_DOMYSLNA = 22;
+
+const GODZINY = Array.from({ length: 24 }, (_, i) => i);
+const dwieCyfry = (h: number) => `${String(h).padStart(2, '0')}:00`;
+
+/** Co powiedzieć o pushu w zależności od tego, co ta przeglądarka w ogóle umie.
+ *  Stany biorą się z `stanPush()` — ten sam mechanizm co przełącznik w profilu. */
+const OPIS_PUSHA: Record<StanPush, string> = {
+  wlaczone:           'Powiadomienia na telefon są włączone.',
+  wylaczone:          'Możesz włączyć powiadomienia na telefon.',
+  zablokowane:        'Powiadomienia są zablokowane w ustawieniach przeglądarki — odblokuj je tam, wtedy wrócimy do tego pytania.',
+  'wymaga-instalacji': 'Na iPhonie powiadomienia działają dopiero po dodaniu Bojo do ekranu głównego: Udostępnij → „Dodaj do ekranu początkowego".',
+  nieobslugiwane:     'Ta przeglądarka nie obsługuje powiadomień. Zostaje mail i dzwonek w aplikacji.',
+};
 
 interface Props {
   onClose: () => void;
@@ -29,6 +51,28 @@ interface Props {
   defaultLabel?: string;
 }
 
+/**
+ * Okno alertu o nowych meczach.
+ *
+ * TE SAME KONTROLKI CO ARKUSZ FILTRÓW — 2026-09-14, zgłoszone wprost („ten
+ * widok nie jest potrzebny, niech będzie użyty ten do filtrów"). Okno miało
+ * własny przycisk GPS, własne pole miasta i własny suwak promienia, czyli trzy
+ * kopie rzeczy, które stoją w filtrach — a pytanie jest identyczne: gdzie
+ * i jak daleko. Dziś tym zajmuje się `WyborMiejscowosci`, ten sam komponent
+ * co na `/mapa`, razem z pinezką i suwakiem odległości.
+ *
+ * DWA RÓŻNE „KIEDY", ROZDZIELONE NAZWĄ. Alert ma dwa czasy, które nie mają ze
+ * sobą nic wspólnego, i zlanie ich w jedną sekcję było najprostszą drogą do
+ * tego, żeby nikt nie wiedział, co ustawia:
+ *
+ *   * „Powiadamiaj o meczach" — kiedy ma być MECZ (dni tygodnia, pora dnia),
+ *   * „Jak długo powiadamiać" — jak długo ma żyć ALERT.
+ *
+ * ALERT JEST DOMYŚLNIE BEZTERMINOWY (decyzja właściciela). To dobry wybór dla
+ * kogoś, kto naprawdę czeka na mecz, ale ma jeden warunek: musi dać się
+ * wyłączyć z samej wiadomości, bez logowania. Stąd `wylacz_token` i trasa
+ * `/alert/wylacz/[token]` — bez nich alert bezterminowy jest spamem.
+ */
 export default function AlertSetupDialog({
   onClose, onSaved, defaultSport, defaultRadiusKm, defaultLat, defaultLng, defaultLabel,
 }: Props) {
@@ -37,18 +81,27 @@ export default function AlertSetupDialog({
   const [existing, setExisting] = useState<GameAlert | null>(null);
   const [sport,    setSport]    = useState(defaultSport ?? '');
   const [days,     setDays]     = useState<number[]>([]);
-  const [lat,      setLat]      = useState<number | null>(defaultLat ?? null);
-  const [lng,      setLng]      = useState<number | null>(defaultLng ?? null);
-  const [label,    setLabel]    = useState(defaultLabel ?? '');
-  const [cityInput,setCityInput]= useState('');
-  const [radius,   setRadius]   = useState(defaultRadiusKm ?? PROMIEN_DOMYSLNY);
+  const [miejsce,  setMiejsce]  = useState<Miejscowosc | null>(
+    defaultLat != null && defaultLng != null
+      ? { nazwa: defaultLabel || 'Moja lokalizacja', kontekst: '', lat: defaultLat, lng: defaultLng }
+      : null,
+  );
+  const [promienKm, setPromienKm] = useState(defaultRadiusKm ?? PROMIEN_DOMYSLNY);
 
-  const [gpsLoading,   setGpsLoading]   = useState(false);
-  const [geoLoading,   setGeoLoading]   = useState(false);
-  const [gpsError,     setGpsError]     = useState<string | null>(null);
-  const [saving,       setSaving]       = useState(false);
-  const [deleting,     setDeleting]     = useState(false);
-  const [saved,        setSaved]        = useState(false);
+  const [poraOgraniczona, setPoraOgraniczona] = useState(false);
+  const [godzinaOd, setGodzinaOd] = useState(GODZINA_OD_DOMYSLNA);
+  const [godzinaDo, setGodzinaDo] = useState(GODZINA_DO_DOMYSLNA);
+
+  const [okresDni, setOkresDni] = useState<number | null>(null);
+  const [kanalEmail, setKanalEmail] = useState(true);
+  const [push, setPush] = useState<StanPush | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  const [saving,   setSaving]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [saved,    setSaved]    = useState(false);
+
+  useEffect(() => { stanPush().then(setPush).catch(() => setPush('nieobslugiwane')); }, []);
 
   // Istniejący alert wygrywa z wartościami przyniesionymi z filtrów — to jego
   // edycja, nie zakładanie nowego. Gdy alertu nie ma i nikt nie podał miejsca,
@@ -64,66 +117,48 @@ export default function AlertSetupDialog({
         setExisting(a);
         setSport(a.sport ?? '');
         setDays(a.daysOfWeek);
-        setLat(a.lat);
-        setLng(a.lng);
-        setLabel(a.cityLabel ?? '');
-        setRadius(a.radiusKm);
+        setMiejsce({ nazwa: a.cityLabel || 'Wybrane miejsce', kontekst: '', lat: a.lat, lng: a.lng });
+        setPromienKm(a.radiusKm);
+        setOkresDni(okresZDaty(a.expiresAt));
+        setKanalEmail(a.kanalEmail);
+        if (a.godzinaOd != null && a.godzinaDo != null) {
+          setPoraOgraniczona(true);
+          setGodzinaOd(a.godzinaOd);
+          setGodzinaDo(a.godzinaDo);
+        }
         return;
       }
       if (defaultLat != null) return;
       const poz = await pozycjaBezPytania();
       if (!zywe || !poz) return;
-      setLat(poz.lat);
-      setLng(poz.lng);
-      setLabel('Moja lokalizacja');
+      setMiejsce({ nazwa: 'Moja lokalizacja', kontekst: '', lat: poz.lat, lng: poz.lng });
     })();
     return () => { zywe = false; };
     // `defaultLat` czytane raz, przy otwarciu — okno nie przestawia się w locie.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const hasLocation = lat !== null && lng !== null;
-
-  const handleGps = async () => {
-    setGpsLoading(true);
-    setGpsError(null);
-    const result = await getCurrentLocation();
-    setGpsLoading(false);
-    if (result.ok) {
-      setLat(result.lat);
-      setLng(result.lng);
-      if (!label) setLabel('Moja lokalizacja');
-    } else {
-      setGpsError(geoErrorMessage(result.kind));
-    }
-  };
-
-  const handleGeocode = async () => {
-    if (!cityInput.trim()) return;
-    setGeoLoading(true);
-    const result = await geocodeCity(cityInput.trim());
-    if (result) {
-      setLat(result.lat);
-      setLng(result.lng);
-      setLabel(result.label);
-    }
-    setGeoLoading(false);
-  };
-
   const toggleDay = (n: number) =>
     setDays((prev) => prev.includes(n) ? prev.filter((d) => d !== n) : [...prev, n].sort());
 
   const handleSave = async () => {
-    if (!user || !hasLocation) return;
+    if (!user || !miejsce) return;
     setSaving(true);
     try {
       const input: AlertInput = {
         sport:      sport || undefined,
         daysOfWeek: days,
-        lat:        lat!,
-        lng:        lng!,
-        radiusKm:   radius,
-        cityLabel:  label || undefined,
+        lat:        miejsce.lat,
+        lng:        miejsce.lng,
+        radiusKm:   promienKm,
+        cityLabel:  miejsce.nazwa || undefined,
+        expiresAt:  wygasaZa(okresDni),
+        // Godziny idą PARAMI albo wcale — migracja `148` pilnuje tego także
+        // w bazie, więc rozjazd tutaj skończyłby się odmową zapisu, a nie
+        // cichym zapisaniem połowy filtra.
+        godzinaOd:  poraOgraniczona ? godzinaOd : null,
+        godzinaDo:  poraOgraniczona ? godzinaDo : null,
+        kanalEmail,
       };
       const zapisany = await saveAlert(user.id, input);
       setExisting(zapisany);
@@ -143,13 +178,13 @@ export default function AlertSetupDialog({
     onClose();
   };
 
+  const naglowekSekcji = 'text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2';
+
   return (
     <div className={`fixed inset-0 ${WARSTWA.modal} flex items-end sm:items-center justify-center p-0 sm:p-4`}>
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative z-10 w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden dark:bg-slate-800">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary-700" />
@@ -162,15 +197,10 @@ export default function AlertSetupDialog({
           </button>
         </div>
 
-        <div className="px-5 py-5 space-y-5 overflow-y-auto max-h-[80vh]">
-          {/* Sport */}
+        <div className="px-5 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
+          {/* ── SPORT ── */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Sport</p>
-            {/* Bez ikony „Dowolny sport" — tak samo jak w obu arkuszach
-                filtrów. Tu wybór jest POJEDYNCZY, więc żeby dało się wrócić do
-                „dowolnego", dotknięcie już wybranego sportu go odznacza.
-                Bez tego zniknięcie piątej ikony byłoby pułapką: raz wybrany
-                sport nie dałby się cofnąć inaczej niż zamknięciem okna. */}
+            <p className={naglowekSekcji}>Sport</p>
             <div className="flex flex-wrap gap-2">
               {FOCUS_SPORTS.map((s) => (
                 <SportChip
@@ -187,10 +217,22 @@ export default function AlertSetupDialog({
             </p>
           </div>
 
-          {/* Days of week */}
+          {/* ── GDZIE ── te same kontrolki co w arkuszu filtrów: pole
+              z pinezką, a po wybraniu miejsca suwak promienia. */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              Kiedy <span className="normal-case font-normal text-slate-400">(puste = dowolny dzień)</span>
+            <p className={naglowekSekcji}>Gdzie</p>
+            <WyborMiejscowosci
+              wybrana={miejsce}
+              promienKm={promienKm}
+              naZmiane={(m, km) => { setMiejsce(m); setPromienKm(km); }}
+            />
+          </div>
+
+          {/* ── KIEDY MA BYĆ MECZ ── pierwszy z dwóch „czasów". */}
+          <div>
+            <p className={naglowekSekcji}>
+              Powiadamiaj o meczach{' '}
+              <span className="normal-case font-normal text-slate-400">(puste = dowolny dzień)</span>
             </p>
             <div className="flex gap-2">
               {DAYS.map(({ n, short }) => (
@@ -209,85 +251,129 @@ export default function AlertSetupDialog({
                 </button>
               ))}
             </div>
+
+            <div className="mt-1 rounded-xl border border-slate-200 px-4 dark:border-slate-700">
+              <ToggleRow
+                label="Tylko o określonej porze"
+                desc="Bez tego dostaniesz też mecze o 10 rano"
+                checked={poraOgraniczona}
+                onChange={setPoraOgraniczona}
+              />
+              {poraOgraniczona && (
+                <div className="flex items-center gap-2 pb-3">
+                  <select
+                    value={godzinaOd}
+                    onChange={(e) => setGodzinaOd(Number(e.target.value))}
+                    aria-label="Od godziny"
+                    className="h-11 flex-1 rounded-xl border border-slate-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-800"
+                  >
+                    {GODZINY.map((h) => <option key={h} value={h}>{dwieCyfry(h)}</option>)}
+                  </select>
+                  <span className="shrink-0 text-sm text-slate-400">do</span>
+                  <select
+                    value={godzinaDo}
+                    onChange={(e) => setGodzinaDo(Number(e.target.value))}
+                    aria-label="Do godziny"
+                    className="h-11 flex-1 rounded-xl border border-slate-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-800"
+                  >
+                    {GODZINY.map((h) => <option key={h} value={h}>{dwieCyfry(h)}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Gdzie — miejsce, a zaraz pod nim zasięg. Promień jest dopowiedzeniem
-              do miejsca („15 km OD CZEGO"), więc stoi razem z nim i tylko tu:
-              drugie pytanie o kilometry gdzie indziej w oknie znaczyłoby dla
-              czytającego dwie różne odległości. */}
+          {/* ── JAK DŁUGO ŻYJE ALERT ── drugi „czas", świadomie osobno. */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Gdzie</p>
-
-            {hasLocation ? (
-              <div className="flex items-center gap-2 rounded-xl bg-primary-50 border border-primary-200 px-3 py-2.5 dark:bg-primary-950 dark:border-primary-800">
-                <MapPin className="w-4 h-4 text-primary-600 shrink-0" />
-                <span className="text-sm font-medium text-primary-800 truncate flex-1 dark:text-primary-200">
-                  {label || 'Wybrana lokalizacja'}
-                </span>
+            <p className={naglowekSekcji}>Jak długo powiadamiać</p>
+            <div className="flex flex-wrap gap-2">
+              {OKRESY_ALERTU.map((o) => (
                 <button
-                  onClick={() => { setLat(null); setLng(null); setLabel(''); }}
-                  aria-label="Zmień lokalizację"
-                  className="text-primary-500 hover:text-primary-700 shrink-0"
+                  key={o.etykieta}
+                  type="button"
+                  onClick={() => setOkresDni(o.dni)}
+                  aria-pressed={okresDni === o.dni}
+                  className={[
+                    'rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
+                    okresDni === o.dni
+                      ? 'border-primary-700 bg-primary-50 text-primary-800 dark:bg-primary-950'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300',
+                  ].join(' ')}
                 >
-                  <X className="w-4 h-4" />
+                  {o.etykieta}
                 </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <button
-                  onClick={handleGps}
-                  disabled={gpsLoading}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 py-3 text-sm font-medium text-slate-600 hover:border-primary-400 hover:text-primary-700 transition-colors disabled:opacity-60 dark:border-slate-600 dark:text-slate-300"
-                >
-                  {gpsLoading
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <Navigation className="w-4 h-4" />}
-                  Użyj mojej lokalizacji GPS
-                </button>
+              ))}
+            </div>
+            {okresDni === null && (
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                Alert będzie działał, dopóki go nie wyłączysz — każda wiadomość
+                ma na dole link, który go gasi jednym kliknięciem.
+              </p>
+            )}
+          </div>
 
-                <div className="flex gap-2">
-                  <input
-                    value={cityInput}
-                    onChange={(e) => setCityInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleGeocode()}
-                    placeholder="lub wpisz miasto / dzielnicę…"
-                    className="flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 dark:border-slate-600 dark:bg-slate-800"
-                  />
+          {/* ── CZYM DAĆ ZNAĆ ── */}
+          <div>
+            <p className={naglowekSekcji}>Czym dać znać</p>
+
+            <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+              <Check className="h-4 w-4 shrink-0 text-primary-700" aria-hidden />
+              {/* Dzwonek to historia, nie kanał przerywający dzień — ta sama
+                  doktryna co w `lib/ustawieniaPowiadomien.ts`, więc nie ma tu
+                  przełącznika, który obiecywałby jego wyłączenie. */}
+              Dzwonek w aplikacji — zawsze
+            </div>
+
+            <div className="mt-1 rounded-xl border border-slate-200 px-4 dark:border-slate-700">
+              <ToggleRow
+                label="Mail"
+                desc="Na adres, którym się logujesz"
+                checked={kanalEmail}
+                onChange={setKanalEmail}
+              />
+            </div>
+
+            {/* PUSH NIE MA TU WŁASNEGO PRZEŁĄCZNIKA. Jedzie automatycznie
+                z wiersza w `notifications` (wyzwalacz z migracji `102`),
+                a wyłącza się w ustawieniach powiadomień — per typ, dla całej
+                aplikacji. Drugi przełącznik w tym oknie znaczyłby dwa miejsca
+                na jedną rzecz i pierwszy rozjazd byłby kwestią czasu. Zostaje
+                stan i, gdy się da, jedno kliknięcie włączenia. */}
+            <div className="mt-2 flex items-start gap-2 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
+              <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Powiadomienie na telefon</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  {push ? OPIS_PUSHA[push] : 'Sprawdzam…'}
+                </p>
+                {push === 'wylaczone' && user && (
                   <button
-                    onClick={handleGeocode}
-                    disabled={geoLoading || !cityInput.trim()}
-                    className="px-4 rounded-xl border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                    type="button"
+                    disabled={pushBusy}
+                    onClick={async () => {
+                      setPushBusy(true);
+                      try { await wlaczPush(user.id); setPush(await stanPush()); }
+                      catch { setPush(await stanPush()); }
+                      finally { setPushBusy(false); }
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-800 disabled:opacity-60 dark:border-primary-800 dark:bg-primary-950"
                   >
-                    {geoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Szukaj'}
+                    {pushBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
+                    Włącz powiadomienia
                   </button>
-                </div>
-
-                {gpsError && (
-                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    {gpsError}
-                  </p>
                 )}
               </div>
-            )}
+            </div>
 
-            {hasLocation && (
-              <div className="mt-3">
-                <RangeSlider
-                  label="Jak daleko"
-                  min={PROMIEN_MIN}
-                  max={PROMIEN_MAX}
-                  value={radius}
-                  onChange={setRadius}
-                  formatValue={(km) => `${km} km`}
-                  minLabel={`${PROMIEN_MIN} km`}
-                  maxLabel={`${PROMIEN_MAX} km`}
-                />
+            {SHOW_SMS_FEATURES && (
+              <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-500 dark:border-slate-700">
+                <Mail className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                SMS — wkrótce
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer */}
         <div className="px-5 pb-5 pt-3 border-t border-slate-100 space-y-2 dark:border-slate-700">
           {saved ? (
             <div className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-50 text-green-700 font-semibold text-sm">
@@ -296,7 +382,7 @@ export default function AlertSetupDialog({
           ) : (
             <button
               onClick={handleSave}
-              disabled={saving || !hasLocation}
+              disabled={saving || !miejsce}
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-3.5 text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.98] transition-all"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}

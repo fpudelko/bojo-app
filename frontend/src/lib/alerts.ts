@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { GameAlert } from '@/types';
+import { PROMIEN_DOMYSLNY_KM, indeksPromienia, promienZIndeksu } from './miejscowosci';
 
 function toAlert(row: any): GameAlert {
   return {
@@ -13,6 +14,10 @@ function toAlert(row: any): GameAlert {
     cityLabel:   row.city_label ?? undefined,
     isActive:    row.is_active,
     createdAt:   row.created_at,
+    expiresAt:   row.expires_at ?? undefined,
+    godzinaOd:   row.godzina_od ?? undefined,
+    godzinaDo:   row.godzina_do ?? undefined,
+    kanalEmail:  row.kanal_email ?? true,
   };
 }
 
@@ -34,6 +39,12 @@ export interface AlertInput {
   lng:         number;
   radiusKm:    number;
   cityLabel?:  string;
+  /** ISO albo `null` = bezterminowo (domyślnie, decyzja właściciela 2026-09-14). */
+  expiresAt?:  string | null;
+  /** Para 0–23 albo oba `null` = dowolna pora. Migracja `148` pilnuje, że idą parami. */
+  godzinaOd?:  number | null;
+  godzinaDo?:  number | null;
+  kanalEmail?: boolean;
 }
 
 export async function saveAlert(userId: string, input: AlertInput): Promise<GameAlert> {
@@ -50,11 +61,30 @@ export async function saveAlert(userId: string, input: AlertInput): Promise<Game
       lng:          input.lng,
       radius_km:    input.radiusKm,
       city_label:   input.cityLabel ?? null,
+      expires_at:   input.expiresAt ?? null,
+      godzina_od:   input.godzinaOd ?? null,
+      godzina_do:   input.godzinaDo ?? null,
+      kanal_email:  input.kanalEmail ?? true,
     })
     .select()
     .single();
   if (error) throw error;
   return toAlert(data);
+}
+
+/**
+ * Wyłącza alert tokenem z maila, BEZ logowania (migracja `148`).
+ *
+ * Leci przez funkcję `SECURITY DEFINER`, nie przez zwykły `update`: polityka
+ * RLS pozwalająca `anon` aktualizować `game_alerts` po tokenie otworzyłaby całą
+ * tabelę — także `lat`, `lng` i `user_id` — a potrzebna jest dokładnie jedna
+ * operacja. Zwraca `false`, gdy tokenu nie ma albo alert był już wyłączony;
+ * strona nie rozróżnia tych przypadków, bo dla klikającego znaczą to samo.
+ */
+export async function wylaczAlertTokenem(token: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('wylacz_alert_tokenem', { p_token: token });
+  if (error) throw error;
+  return data === true;
 }
 
 export async function deleteMyAlert(id: string): Promise<void> {
@@ -85,12 +115,39 @@ export async function geocodeCity(query: string): Promise<{ lat: number; lng: nu
   }
 }
 
-// Zakres promienia alertu. Suwak w oknie alertu chodzi po tych wartościach,
-// a `domyslneZFiltrow` przycina do nich promień przyniesiony z filtrów listy
-// (te chodzą od 1 km, więc same z siebie potrafią podać wartość spoza skali).
-export const PROMIEN_MIN = 3;
-export const PROMIEN_MAX = 30;
-export const PROMIEN_DOMYSLNY = 15;
+// Promień alertu chodzi po TEJ SAMEJ skali co filtry (`PROMIENIE_SUWAK_KM`
+// w `lib/miejscowosci.ts`) — od 2026-09-14 okno alertu używa tych samych
+// kontrolek co arkusz filtrów, więc własny zakres 3–30 km oznaczałby, że te
+// same kilometry znaczą w dwóch miejscach co innego. Ograniczenie w bazie
+// poszerzyła migracja `148` do 1–100 km.
+export const PROMIEN_DOMYSLNY = PROMIEN_DOMYSLNY_KM;
+
+/** Ile alert ma żyć. `null` = bezterminowo i to jest wartość domyślna. */
+export const OKRESY_ALERTU: { dni: number | null; etykieta: string }[] = [
+  { dni: null, etykieta: 'Bezterminowo' },
+  { dni: 30,   etykieta: 'Przez miesiąc' },
+  { dni: 14,   etykieta: 'Przez 2 tygodnie' },
+  { dni: 7,    etykieta: 'Przez tydzień' },
+];
+
+/** Dni → moment wygaśnięcia. `null` zostaje `null`, czyli bezterminowo. */
+export function wygasaZa(dni: number | null, teraz: Date = new Date()): string | null {
+  if (dni == null) return null;
+  return new Date(teraz.getTime() + dni * 86_400_000).toISOString();
+}
+
+/** Moment wygaśnięcia → liczba dni z `OKRESY_ALERTU`, do wczytania w oknie.
+ *  Nieznany odstęp ląduje na najbliższym okresie, a nie przewraca wyboru. */
+export function okresZDaty(expiresAt: string | null | undefined, teraz: Date = new Date()): number | null {
+  if (!expiresAt) return null;
+  const dni = (new Date(expiresAt).getTime() - teraz.getTime()) / 86_400_000;
+  const zDniami = OKRESY_ALERTU.filter((o) => o.dni != null) as { dni: number; etykieta: string }[];
+  let najlepszy = zDniami[0];
+  for (const o of zDniami) {
+    if (Math.abs(o.dni - dni) < Math.abs(najlepszy.dni - dni)) najlepszy = o;
+  }
+  return najlepszy.dni;
+}
 
 /**
  * Ustawienia, z jakimi otwiera się okno alertu wywołane z pustej listy meczów.
@@ -109,7 +166,10 @@ export function domyslneZFiltrow(filtry: {
   const promien = filtry.radiusKm ?? PROMIEN_DOMYSLNY;
   return {
     sport:    filtry.sports.length === 1 ? filtry.sports[0] : undefined,
-    radiusKm: Math.min(PROMIEN_MAX, Math.max(PROMIEN_MIN, promien)),
+    // Przez skalę suwaka, nie przez `clamp`: filtr mógł mieć 6 km, a to nie
+    // jest żaden przystanek — alert ma wystartować z wartości, którą suwak
+    // w oknie potrafi pokazać.
+    radiusKm: promienZIndeksu(indeksPromienia(promien)),
     lat:      filtry.pozycja?.lat,
     lng:      filtry.pozycja?.lng,
   };

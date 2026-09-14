@@ -1982,6 +1982,65 @@ wyłącznie po zobaczeniu pustki. Wejścia są dziś trzy:
 | **Dół arkusza filtrów** | przy niezerowym podglądzie cichy wiersz „Powiadom mnie o nowych takich meczach"; **przy `Pokaż 0 meczy` pełny przycisk** z nagłówkiem „Nic nie pasuje do tych filtrów" |
 | **Pusty stan listy** | duży przycisk, jak dotąd |
 | **Arkusz filtrów `/mapa` w trybie gier** | to samo co w arkuszu `/wydarzenia` (od 2026-09-13) — tryb gier zadaje dokładnie to samo pytanie „gdzie i w co chcę zagrać" |
+| **Dzwonek w pasku `/mapa`** | od 2026-09-14 — do tej pory na mapie wejście siedziało WYŁĄCZNIE w środku arkusza filtrów, więc żeby dowiedzieć się, że Bojo w ogóle umie dać znać o nowym meczu, trzeba było najpierw otworzyć filtry. Ten sam kształt co dzwonek na `/wydarzenia` |
+
+### Alert: dwa czasy, kanały i wyłącznik z maila — od 2026-09-14 (migracja `148`)
+
+**ALERT JEST DOMYŚLNIE BEZTERMINOWY** (decyzja właściciela). Ma to jeden warunek, bez
+którego zamienia się w spam: musi dać się wyłączyć **z samej wiadomości, bez
+logowania**. Mail czyta się w skrzynce, często na innym urządzeniu i długo po założeniu
+alertu — „wejdź do aplikacji i znajdź okno alertu" nie jest wtedy żadnym wyjściem, tylko
+wyjaśnieniem, dlaczego ktoś oznaczy wiadomość jako spam. Kosztuje to wtedy cały kanał,
+nie jeden alert.
+
+Stąd `game_alerts.wylacz_token` i publiczna trasa **`/alert/wylacz/[token]`**. Strona
+wyłącza alert OD RAZU po wejściu, bez pytania „na pewno?" — kto kliknął „nie chcę więcej
+takich wiadomości", już odpowiedział, a operacja jest odwracalna jednym kliknięciem
+w aplikacji. Wyłączenie leci przez `wylacz_alert_tokenem()` (`SECURITY DEFINER`), nie
+przez politykę RLS dla `anon`: polityka otworzyłaby całą tabelę na `UPDATE`, a potrzebna
+jest dokładnie jedna operacja. Asercje w `supabase/test/rls.sql` pilnują, że tokenem nie
+da się ani przeczytać cudzego alertu, ani nic w nim nadpisać, i że drugie kliknięcie
+w ten sam link jest nieszkodliwe.
+
+**DWA RÓŻNE „KIEDY", ROZDZIELONE NAZWĄ.** Alert ma dwa czasy, które nie mają ze sobą nic
+wspólnego, a zlanie ich w jedną sekcję jest najkrótszą drogą do tego, żeby nikt nie
+wiedział, co ustawia:
+
+| Sekcja w oknie | Co znaczy | Kolumny |
+|---|---|---|
+| **Powiadamiaj o meczach** | kiedy ma być MECZ — dni tygodnia i (nowe) pora dnia | `days_of_week`, `godzina_od`/`godzina_do` |
+| **Jak długo powiadamiać** | jak długo ma żyć ALERT | `expires_at` (NULL = bezterminowo) |
+
+Godziny idą **parami albo wcale** — pilnuje tego `CHECK` w migracji. Sama dolna granica
+dałaby się obronić, ale wtedy dwa pola znaczą trzy różne rzeczy zależnie od tego, które
+jest puste, a filtr, którego nie da się przeczytać na jeden rzut oka, jest gorszy niż
+brak filtra.
+
+**KANAŁY: JEDEN PRZEŁĄCZNIK, NIE TRZY.** Okno pokazuje trzy kanały, ale zapisuje wybór
+tylko dla jednego — i to jest celowe:
+
+- **dzwonek w aplikacji** — zawsze, bez przełącznika. To historia tego, co się wydarzyło,
+  a nie kanał przerywający dzień (doktryna z `lib/ustawieniaPowiadomien.ts`),
+- **push** — jedzie automatycznie z wiersza w `notifications` (wyzwalacz z migracji
+  `102`), a wyłącza się w ustawieniach powiadomień, per typ. Okno alertu pokazuje tylko
+  STAN (`stanPush()`) i, gdy się da, jedno kliknięcie włączenia; **drugiego przełącznika
+  tu nie ma**, bo dwa miejsca na jedną rzecz rozjeżdżają się przy pierwszej zmianie,
+- **mail** — jedyny realny wybór, kolumna `kanal_email`,
+- **SMS** — za `SHOW_SMS_FEATURES`, bramki nie ma.
+
+**ZNALEZIONE PRZY OKAZJI: `game_alert` nie był w żadnej z trzech list powiadomień.**
+Typ wstawia funkcja brzegowa `notify-game-alert`, a `typyPowiadomien.test.ts` skanował
+wyłącznie `supabase/migrations/*.sql` — więc przez rok alert lądował pod szarym dzwonkiem
+z podpisem „Powiadomienie" i **nie dało się go wyłączyć na telefonie**. Dokładnie ta
+klasa błędu, przed którą ostrzega komentarz w tym teście („ochrona, która wygląda jak
+ochrona"), tylko w nowej postaci. Strażnik czyta teraz także `supabase/functions/**`,
+a osobna asercja pilnuje, żeby ktoś nie zawęził go z powrotem do samych migracji.
+
+**Okno alertu używa tych samych kontrolek co arkusz filtrów** (`WyborMiejscowosci`,
+`SportChip`) — miało dotąd własny przycisk GPS, własne pole miasta i własny suwak
+promienia, czyli trzy kopie rzeczy pytających o to samo. Promień chodzi po wspólnej
+skali `PROMIENIE_SUWAK_KM`, a nie po dawnym, węższym zakresie 3–30 km: kto szukał
+w promieniu 1 km, dostawał wcześniej alert na 3 km, czyli o czymś innym, niż prosił.
 
 Wariant zerowy w arkuszu istnieje, bo **podgląd „Pokaż 0 meczy" JEST momentem, w którym
 filtry nic nie wyszukały** — a dotąd trzeba było zamknąć arkusz i zobaczyć pusty stan, żeby

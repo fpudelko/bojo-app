@@ -16,10 +16,12 @@
 // mapa, i `RODZAJE_POWIADOMIEN` — rozjeżdżały się już trzy razy (`R-9`
 // w piątej rundzie audytu naprawiło sześć typów naraz; wróciło z jedenastoma
 // kolejnymi). `__tests__/typyPowiadomien.test.ts` porównuje wszystkie trzy
-// listy z tym, co realnie wstawiają `supabase/migrations/*.sql`, i pada, gdy
-// się rozjadą.
+// listy z tym, co realnie wstawiają `supabase/migrations/*.sql` ORAZ funkcje
+// brzegowe w `supabase/functions/`, i pada, gdy się rozjadą. Te drugie doszły
+// 2026-09-14: `game_alert` wstawia funkcja, nie migracja, i przez to wymykał
+// się strażnikowi — lądował pod szarym dzwonkiem i nie dało się go wyłączyć.
 import {
-  Bell, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, CheckCircle,
+  Bell, BellRing, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, CheckCircle,
   Clock, ClipboardCheck, ListChecks, MapPin, MessageCircle, Repeat, TicketCheck,
   Trash2, UserCog, UserMinus, UserPlus, Users, X, AlertTriangle, type LucideIcon,
 } from 'lucide-react';
@@ -49,6 +51,15 @@ export const IKONY: Record<string, IkonaPowiadomienia> = {
   zaproszenie_na_mecz:         { Ikona: Check,         klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Zaproszenie' },
   reserve_claim_offered:       { Ikona: TicketCheck,   klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Wolne miejsce' },
   ogloszenie_w_grupie:         { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Ogłoszenie' },
+  // Wstawiany przez funkcję brzegową `notify-game-alert`, nie przez migrację —
+  // i dlatego przez rok nie miał ani ikony, ani wiersza w ustawieniach:
+  // strażnik `typyPowiadomien.test.ts` czytał wyłącznie migracje. Dziś czyta
+  // też `supabase/functions`.
+  //
+  // Pomarańczowy zgodnie z konwencją z AGENTS.md: „nowość, o której jeszcze
+  // nie wiesz" — bez konkretnej wiadomości do przeczytania i bez decyzji do
+  // podjęcia. Dokładnie to znaczy alert o nowym meczu w okolicy.
+  game_alert:                  { Ikona: BellRing,      klasa: 'bg-orange-50 text-orange-600',   rodzaj: 'Nowy mecz w okolicy' },
   niepotwierdzony_wpis_goscia: { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Potwierdź' },
   wiadomosc_w_meczu:           { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Wiadomość' },
   wiadomosc_w_grupie:          { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Wiadomość' },

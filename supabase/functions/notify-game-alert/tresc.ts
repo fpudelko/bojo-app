@@ -133,6 +133,17 @@ export interface Kontakt {
   strona: string;
   eventUrl: string;
   odpowiedzNa: string;
+  /**
+   * Link „nie chcę więcej takich wiadomości", działający BEZ logowania
+   * (`/alert/wylacz/<token>`, migracja `148`).
+   *
+   * Nie jest ozdobą ani wymogiem formalnym: od 2026-09-14 alert domyślnie nie
+   * wygasa, a mail czyta się w skrzynce, często na innym urządzeniu i długo po
+   * założeniu alertu. Bez tego linku jedyną drogą wyłączenia jest zalogowanie
+   * się i znalezienie okna alertu — czyli w praktyce oznaczenie wiadomości
+   * jako spam, co kosztuje cały kanał, nie jeden alert.
+   */
+  wylaczUrl: string;
 }
 
 export function doHtml(m: Mail, k: Kontakt): string {
@@ -162,6 +173,10 @@ export function doHtml(m: Mail, k: Kontakt): string {
     Zarządzaj alertami na <a href="${esc(k.strona)}" style="color:${ZIELEN};text-decoration:none;">${esc(domena)}</a><br>
     Coś nie gra? Napisz na <a href="mailto:${esc(k.odpowiedzNa)}" style="color:${ZIELEN};text-decoration:none;">${esc(k.odpowiedzNa)}</a> — czytamy każdą wiadomość.
   </p>
+  <p style="margin:10px 0 0;font-size:13px;line-height:1.5;color:${SZARY};">
+    Nie chcesz więcej takich wiadomości?
+    <a href="${esc(k.wylaczUrl)}" style="color:${SZARY};text-decoration:underline;">Wyłącz alert</a>
+  </p>
 </td></tr>
 </table></td></tr></table></body></html>`;
 }
@@ -170,5 +185,6 @@ export function doTekstu(m: Mail, k: Kontakt): string {
   return `Cześć!\n\nPojawiła się nowa gra pasująca do Twojego alertu:\n\n`
     + `${m.label}\n${m.szczegoly}\n\nZobacz mecz:\n${k.eventUrl}\n\n`
     + `Zarządzaj alertami na ${k.strona}\n`
+    + `Nie chcesz więcej takich wiadomości? Wyłącz alert jednym kliknięciem:\n${k.wylaczUrl}\n\n`
     + `Coś nie gra? Napisz na ${k.odpowiedzNa} — czytamy każdą wiadomość.\n`;
 }

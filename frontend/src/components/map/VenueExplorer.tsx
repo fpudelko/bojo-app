@@ -12,7 +12,7 @@ import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import {
   Bell, BellRing, Check, CalendarCheck, CalendarPlus, Loader2, MapPin, Globe, Search,
-  SlidersHorizontal, Ticket, Wallet, X,
+  SlidersHorizontal, X,
 } from 'lucide-react';
 import { TogglePill } from '@/components/ui/FilterPill';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
@@ -50,10 +50,7 @@ import {
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
 import { foldText, foldedIncludes } from '@/lib/searchText';
 import WyborMiejscowosci from './WyborMiejscowosci';
-import {
-  PROMIEN_DOMYSLNY_KM, PROMIENIE_SUWAK_KM, indeksPromienia, promienZIndeksu,
-  type Miejscowosc,
-} from '@/lib/miejscowosci';
+import { PROMIEN_DOMYSLNY_KM, type Miejscowosc } from '@/lib/miejscowosci';
 import KadrObserwator from './KadrObserwator';
 import GamesMarkersLayer from './GamesMarkersLayer';
 import LocateMeButton from './LocateMeButton';
@@ -482,6 +479,7 @@ function SearchToolbar({
   showGames, onToggleShowGames,
   widok, setWidok,
   liczbaFiltrow, onOpenFilters,
+  alertWlaczony, onOpenAlert,
   wrap,
 }: {
   showGames: boolean;
@@ -490,6 +488,9 @@ function SearchToolbar({
   setWidok: (v: 'lista' | 'mapa') => void;
   liczbaFiltrow: number;
   onOpenFilters: () => void;
+  /** `null` = alertów w ogóle nie pokazujemy (flaga albo tryb obiektów). */
+  alertWlaczony: boolean | null;
+  onOpenAlert: () => void;
   wrap?: boolean;
 }) {
   return (
@@ -512,6 +513,26 @@ function SearchToolbar({
           onChange={setWidok}
           options={[{ value: 'lista', label: 'Lista' }, { value: 'mapa', label: 'Mapa' }] as const}
         />
+
+        {/* DZWONEK ALERTU W PASKU, NIE TYLKO W ARKUSZU FILTRÓW — 2026-09-14,
+            zgłoszone wprost. Wejście do alertu siedziało wyłącznie w środku
+            arkusza, więc żeby dowiedzieć się, że Bojo w ogóle umie dać znać
+            o nowym meczu, trzeba było najpierw otworzyć filtry. Ten sam
+            zabieg i ten sam kształt co na `/wydarzenia`: wypełniony = alert
+            włączony, czyli kształt mówi „stan", a nie „nowe zdarzenie". */}
+        {alertWlaczony !== null && (
+          <button
+            type="button"
+            onClick={onOpenAlert}
+            aria-label={alertWlaczony ? 'Alert o nowych meczach — włączony' : 'Powiadom mnie o nowych meczach'}
+            className={clsx(
+              'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-white shadow-md transition-colors',
+              alertWlaczony ? 'border-primary-700 bg-primary-700 text-white' : 'border-slate-200 text-ink',
+            )}
+          >
+            {alertWlaczony ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+          </button>
+        )}
 
         <button
           type="button"
@@ -712,8 +733,11 @@ export default function VenueExplorer({
   const [gamesRadius, setGamesRadius] = useState<number | null>(null);
   const [gamesMaxPriceGrosze, setGamesMaxPriceGrosze] = useState<number | null>(null);
   const [gamesMinFreeSpots, setGamesMinFreeSpots] = useState(0);
-  const [gamesOnlyFreeSpots, setGamesOnlyFreeSpots] = useState(false);
-  const [gamesOnlyNoCost, setGamesOnlyNoCost] = useState(false);
+  // `gamesOnlyFreeSpots`/`gamesOnlyNoCost` zniknęły 2026-09-14 razem
+  // z pigułkami, które je ustawiały. Zostawienie ich byłoby gorsze niż
+  // usunięcie: nie dawały się już zmienić, więc filtr wisiałby na stałe
+  // na `false` i nikt by nie wiedział, że w ogóle istnieje. To samo pytanie
+  // zadają suwaki „Cena" i „Wolne miejsca".
   const [gamesUserPos, setGamesUserPos] = useState<{ lat: number; lng: number } | null>(null);
 
   // ALERT O NOWYM MECZU — to samo wejście co w arkuszu filtrów na
@@ -745,8 +769,6 @@ export default function VenueExplorer({
   );
   const [draftGamesMinFreeSpots, setDraftGamesMinFreeSpots] = useState(gamesMinFreeSpots);
   const [draftOnlyGamesToday, setDraftOnlyGamesToday] = useState(onlyGamesToday);
-  const [draftGamesOnlyFreeSpots, setDraftGamesOnlyFreeSpots] = useState(gamesOnlyFreeSpots);
-  const [draftGamesOnlyNoCost, setDraftGamesOnlyNoCost] = useState(gamesOnlyNoCost);
 
   const openSheet = () => {
     setDraftTypes(venueTypes);
@@ -759,8 +781,6 @@ export default function VenueExplorer({
     setDraftGamesRadius(gamesRadius);
     setDraftGamesMaxPricePln(gamesMaxPriceGrosze == null ? null : gamesMaxPriceGrosze / 100);
     setDraftGamesMinFreeSpots(gamesMinFreeSpots);
-    setDraftGamesOnlyFreeSpots(gamesOnlyFreeSpots);
-    setDraftGamesOnlyNoCost(gamesOnlyNoCost);
     setSheetOpen(true);
   };
 
@@ -770,8 +790,6 @@ export default function VenueExplorer({
     setGamesDate(draftGamesDate);
     setGamesMaxPriceGrosze(draftGamesMaxPricePln == null ? null : draftGamesMaxPricePln * 100);
     setGamesMinFreeSpots(draftGamesMinFreeSpots);
-    setGamesOnlyFreeSpots(draftGamesOnlyFreeSpots);
-    setGamesOnlyNoCost(draftGamesOnlyNoCost);
     // Wybrana miejscowość jest już punktem — pytanie o zgodę na lokalizację
     // byłoby wtedy pytaniem o coś, czego nie użyjemy.
     const needsGeo = !draftMiejscowosc && draftGamesRadius != null && !gamesUserPos;
@@ -796,8 +814,6 @@ export default function VenueExplorer({
     setDraftGamesRadius(null);
     setDraftGamesMaxPricePln(null);
     setDraftGamesMinFreeSpots(0);
-    setDraftGamesOnlyFreeSpots(false);
-    setDraftGamesOnlyNoCost(false);
   };
 
   // Instancja Leafleta wyciągnięta z MapContainera — potrzebna
@@ -1197,16 +1213,18 @@ export default function VenueExplorer({
    *  w arkuszu nie ruszało licznika ani o jeden mecz. Zgłoszone wprost.
    *  Podgląd obiektów miał to poprawione (patrz `previewFieldsCount`), tryb
    *  gier został z błędem, bo liczył z innego miejsca. */
-  const filtrujGry = useCallback((
-    sporty: string[], tylkoWolne: boolean, tylkoZaDarmo: boolean,
-  ) => filtrujGryMapy(
+  // `tylkoWolne`/`tylkoZaDarmo` na sztywno `false`: pigułki, które je
+  // ustawiały, zniknęły 2026-09-14 jako powtórzenie suwaków „Cena"
+  // i „Wolne miejsca". Argumenty zostają w `filtrujGryMapy`, bo to wspólna
+  // funkcja `lib/eventFilters.ts` — tu po prostu nie mamy ich czym ustawić.
+  const filtrujGry = useCallback((sporty: string[]) => filtrujGryMapy(
     events.filter((e) => e.status !== 'cancelled' && isEventJoinable(e)),
-    { sporty, tylkoWolne, tylkoZaDarmo, szukaj: search },
+    { sporty, tylkoWolne: false, tylkoZaDarmo: false, szukaj: search },
   ), [events, search]);
 
   const gamesBaseFiltered = useMemo(
-    () => filtrujGry(sports, gamesOnlyFreeSpots, gamesOnlyNoCost),
-    [filtrujGry, sports, gamesOnlyFreeSpots, gamesOnlyNoCost],
+    () => filtrujGry(sports),
+    [filtrujGry, sports],
   );
 
   const gamesDateFiltered = useMemo(() => {
@@ -1241,7 +1259,7 @@ export default function VenueExplorer({
   );
 
   const gamesPreviewCount = useMemo(() => {
-    let list = filtrujGry(draftSports, draftGamesOnlyFreeSpots, draftGamesOnlyNoCost);
+    let list = filtrujGry(draftSports);
     if (draftGamesDate !== 'wszystkie') list = list.filter((e) => matchesDateFilter(e.date, draftGamesDate));
     const withDist = srodekGier
       ? list.map((event) => ({
@@ -1255,7 +1273,7 @@ export default function VenueExplorer({
     rows = filterByMaxPrice(rows, draftGamesMaxPricePln == null ? null : draftGamesMaxPricePln * 100);
     rows = filterByMinFreeSpots(rows, draftGamesMinFreeSpots);
     return rows.length;
-  }, [filtrujGry, draftSports, draftGamesOnlyFreeSpots, draftGamesOnlyNoCost,
+  }, [filtrujGry, draftSports,
       draftGamesDate, draftGamesRadius, draftGamesMaxPricePln, draftGamesMinFreeSpots,
       srodekGier, draftMiejscowosc, draftPromienKm]);
 
@@ -1437,8 +1455,12 @@ export default function VenueExplorer({
   // `SearchToolbar` (ten sam wzorzec co dawne /wydarzenia). Sport dołączył
   // tu razem z przenosinami do arkusza (patrz komentarz przy `draftSports`).
   const liczbaFiltrow = showGames
-    ? [sports.length > 0, gamesOnlyFreeSpots, gamesOnlyNoCost, gamesDate !== 'wszystkie',
-        gamesRadius !== null, gamesMaxPriceGrosze !== null, gamesMinFreeSpots > 0,
+    // Bez `gamesOnlyFreeSpots`/`gamesOnlyNoCost` (pigułki zdjęte 2026-09-14)
+    // i bez `gamesRadius` — promień nie jest już osobnym filtrem, tylko
+    // częścią wyboru miejsca, więc liczenie go drugi raz podbijałoby plakietkę
+    // o jeden za samo wskazanie, gdzie szukać.
+    ? [sports.length > 0, gamesDate !== 'wszystkie',
+        gamesMaxPriceGrosze !== null, gamesMinFreeSpots > 0,
         miejscowosc !== null].filter(Boolean).length
     : [sports.length > 0, venueTypes.length > 0, surfaces.length > 0, onlyGamesToday,
        miejscowosc !== null].filter(Boolean).length;
@@ -1533,12 +1555,12 @@ export default function VenueExplorer({
           </p>
         </section>
 
-        <section className="flex flex-wrap gap-2">
-          <TogglePill label="Wolne miejsca" icon={<Ticket className="h-3.5 w-3.5 shrink-0" />}
-            active={draftGamesOnlyFreeSpots} onClick={() => setDraftGamesOnlyFreeSpots((v) => !v)} />
-          <TogglePill label="Za darmo" icon={<Wallet className="h-3.5 w-3.5 shrink-0" />}
-            active={draftGamesOnlyNoCost} onClick={() => setDraftGamesOnlyNoCost((v) => !v)} />
-        </section>
+        {/* PIGUŁKI „Wolne miejsca" i „Za darmo" ZNIKNĘŁY — 2026-09-14,
+            zgłoszone wprost. Pytały o to samo, co suwaki niżej, tylko zgrubniej:
+            „Wolne miejsca" to suwak „Wolne miejsca" ustawiony na 1, a „Za darmo"
+            to suwak „Cena" ustawiony na 0. Dwie kontrolki na jedno pytanie
+            zawsze kończą się tym, że któraś przestaje odpowiadać za wynik —
+            a tu w dodatku stały nad tymi, które dublowały. */}
 
         <RangeSlider
           label="Kiedy"
@@ -1548,34 +1570,16 @@ export default function VenueExplorer({
           formatValue={(i) => DATE_SLIDER_LABELS[i]}
           minLabel="Dzisiaj" maxLabel="Wszystko"
         />
-        {/* SUWAK ODLEGŁOŚCI TYLKO BEZ WYBRANEJ MIEJSCOWOŚCI — 2026-09-14.
-            Ten arkusz miał DWIE kontrolki odległości naraz, a jedna z nich
-            bywała martwa: `filterByRadius(withDist, draftMiejscowosc ?
-            draftPromienKm : draftGamesRadius)` niżej mówi wprost, że przy
-            wybranej miejscowości liczy się promień spod NIEJ, a ten suwak
-            przestaje cokolwiek robić. Nadal stał na ekranie i dawał się
-            przesuwać — czyli kłamał.
+        {/* SUWAKA ODLEGŁOŚCI TU NIE MA — 2026-09-14, zgłoszone wprost.
+            Promień mieszka wyłącznie POD WYBRANYM MIEJSCEM (`WyborMiejscowosci`),
+            bo tylko tam ma od czego liczyć. Osobny suwak „od Ciebie" pytał
+            o kilometry, zanim ktokolwiek powiedział, skąd je mierzyć —
+            a przy wybranej miejscowości i tak przestawał cokolwiek robić
+            (`filterByRadius` niżej bierze wtedy `draftPromienKm`).
 
-            Dziś jest dokładnie jedna kontrolka odległości, ta która działa:
-            przy wybranej miejscowości promień siedzi pod nią (patrz
-            `WyborMiejscowosci`), bez miejscowości — liczymy od pozycji
-            gracza i pyta o to ten suwak. Skala wspólna dla obu
-            (`PROMIENIE_SUWAK_KM`), więc przełączenie się między nimi nie
-            zmienia znaczenia tych samych kilometrów.
-
-            „Bez limitu" zostaje jako ostatni przystanek ZA setką: promień
-            `null` to jedyny sposób, żeby zobaczyć wszystko, i ucięcie go na
-            100 km byłoby utratą funkcji, nie uproszczeniem. */}
-        {!draftMiejscowosc && (
-          <RangeSlider
-            label="Odległość od Ciebie"
-            min={0} max={PROMIENIE_SUWAK_KM.length} step={1}
-            value={draftGamesRadius == null ? PROMIENIE_SUWAK_KM.length : indeksPromienia(draftGamesRadius)}
-            onChange={(i) => setDraftGamesRadius(i >= PROMIENIE_SUWAK_KM.length ? null : promienZIndeksu(i))}
-            formatValue={(i) => (i >= PROMIENIE_SUWAK_KM.length ? 'Bez limitu' : `do ${promienZIndeksu(i)} km`)}
-            minLabel={`${PROMIENIE_SUWAK_KM[0]} km`} maxLabel="Bez limitu"
-          />
-        )}
+            Pinezka w polu miejsca ustawia „Moją lokalizację" jednym
+            dotknięciem, więc droga „licz od mojej pozycji" nie zginęła —
+            zaczyna się tylko od powiedzenia, gdzie to jest. */}
         <RangeSlider
           label="Cena"
           min={PRICE_MIN} max={PRICE_MAX} step={PRICE_STEP}
@@ -1815,6 +1819,8 @@ export default function VenueExplorer({
             showGames={showGames} onToggleShowGames={toggleShowGames}
             widok={widok} setWidok={setWidok}
             liczbaFiltrow={liczbaFiltrow} onOpenFilters={openSheet}
+            alertWlaczony={SHOW_GAME_ALERTS && showGames ? mojAlert !== null : null}
+            onOpenAlert={otworzAlert}
             wrap
           />
           {showGames && gamesGeoError && (
@@ -2071,6 +2077,8 @@ export default function VenueExplorer({
               showGames={showGames} onToggleShowGames={toggleShowGames}
               widok={widok} setWidok={setWidok}
               liczbaFiltrow={liczbaFiltrow} onOpenFilters={openSheet}
+            alertWlaczony={SHOW_GAME_ALERTS && showGames ? mojAlert !== null : null}
+            onOpenAlert={otworzAlert}
             />
           </div>
           {showGames && gamesGeoError && (

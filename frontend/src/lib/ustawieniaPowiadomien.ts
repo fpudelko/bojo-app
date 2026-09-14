@@ -258,6 +258,22 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     opis: 'Organizator przesunął godziny meczów Twojego turnieju',
     wazne: true,
   },
+  {
+    // Alert o nowym meczu w okolicy (`game_alerts`). WSTAWIA GO FUNKCJA
+    // BRZEGOWA `notify-game-alert`, nie migracja — i właśnie dlatego przez rok
+    // nie było go na tej liście: strażnik `typyPowiadomien.test.ts` czytał
+    // wyłącznie `supabase/migrations/*.sql`. Skutek był dokładnie taki, przed
+    // jakim ostrzega nagłówek tego pliku: push o alercie przychodził i NIE
+    // DAŁO SIĘ GO WYŁĄCZYĆ na telefonie. Robi się to ważne od 2026-09-14,
+    // bo alert jest domyślnie bezterminowy.
+    //
+    // NA KOŃCU LISTY, bo kolejność w tym pliku jest treścią: od rzeczy
+    // wymagających reakcji TERAZ po czystą informację. Alert nie prosi
+    // o żadną decyzję — mówi tylko, że coś się pojawiło.
+    typ: 'game_alert',
+    nazwa: 'Nowy mecz w okolicy',
+    opis: 'Pojawił się mecz pasujący do Twojego alertu',
+  },
 ];
 
 /**

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { clsx } from 'clsx';
 import {
   Bell, BellRing, List, LocateFixed, MailOpen, Map as MapIcon, Navigation, Plus,
-  Search, SlidersHorizontal, Ticket, Users, Wallet, X,
+  Search, SlidersHorizontal, Users, X,
 } from 'lucide-react';
 import { getPublicEvents } from '@/lib/events';
 import type { EventItem, GameAlert } from '@/types';
@@ -15,7 +15,6 @@ import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import { domyslneZFiltrow, getMyAlert } from '@/lib/alerts';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
-import { TogglePill } from '@/components/ui/FilterPill';
 import SportChip from '@/components/ui/SportChip';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
@@ -838,20 +837,11 @@ export default function EventsListView({ widzianoWczesniej }: {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <TogglePill
-              label="Wolne miejsca"
-              icon={<Ticket className="h-3.5 w-3.5 shrink-0" />}
-              active={onlyFreeSpots}
-              onClick={() => setOnlyFreeSpots((v) => !v)}
-            />
-            <TogglePill
-              label="Za darmo"
-              icon={<Wallet className="h-3.5 w-3.5 shrink-0" />}
-              active={onlyNoCost}
-              onClick={() => setOnlyNoCost((v) => !v)}
-            />
-          </div>
+          {/* PIGUŁKI „Wolne miejsca" i „Za darmo" ZNIKNĘŁY — 2026-09-14,
+              zgłoszone wprost. Pytały o to samo co suwaki tuż niżej, tylko
+              zgrubniej: „Wolne miejsca" to suwak „Wolne miejsca" na 1,
+              a „Za darmo" to suwak „Cena" na 0. Ten sam zabieg co w arkuszu
+              na `/mapa`. */}
 
           <RangeSlider
             label="Kiedy"

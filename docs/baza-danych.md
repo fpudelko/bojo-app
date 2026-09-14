@@ -125,7 +125,7 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `player_match_stats` | `014` | Statystyki per mecz |
 | `rate_limits` | `016` | Limity (m.in. usuwanie konta) |
 | `field_outreach` | `020` | CRM kontaktu z obiektami |
-| `game_alerts` | `025` | Alerty o grach w okolicy |
+| `game_alerts` | `025`, `148` | Alerty o grach w okolicy. Od `148`: `expires_at` (NULL = bezterminowo, wartość domyślna), `godzina_od`/`godzina_do` (para albo oba NULL, pilnuje `CHECK`), `kanal_email`, `wylacz_token` (sekret z linku „nie chcę więcej”). **Dwa różne czasy w jednej tabeli**: `expires_at` mówi, jak długo żyje ALERT, a godziny — o jakich MECZACH powiadamiać. Interfejs nazywa je osobno, bo zlanie ich w jedno „kiedy” jest najkrótszą drogą do tego, żeby nikt nie wiedział, co ustawia |
 | `notifications` | `025` | Powiadomienia in-app. `claim_token` (`084`) — dla typu `niepotwierdzony_wpis_goscia`, link do przejęcia wpisu |
 | `event_comments` | `026` | Komentarze pod meczem |
 | `field_comments` | `063` | Komentarze pod obiektem z katalogu boisk — osobne od `event_comments`, bo przeżywają pojedynczy mecz |
@@ -168,6 +168,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 |---|---|
 | `011_advanced_event_features` | Drużyny, wyniki, płatności, statystyki |
 | `025_game_alerts` | Alerty + tabela `notifications` + RPC `get_nearby_events` |
+| `148_alert_czas_kanaly_i_wylaczanie` | Alert dostaje własny czas życia (`expires_at`, NULL = bezterminowo), porę dnia meczu (`godzina_od`/`godzina_do`, parami albo wcale), wybór kanału mailowego (`kanal_email`) i `wylacz_token`. Promień poszerzony do 1–100 km, bo suwak filtrów sięga tyle od `PROMIENIE_SUWAK_KM`. Funkcja `wylacz_alert_tokenem()` (`SECURITY DEFINER`) wyłącza alert linkiem z maila, bez logowania |
 | `033_contact_visibility` | Telefony i e-maile boisk **ukryte domyślnie**, egzekwowane w DB |
 | `041_join_code` | Kod dołączenia + `require_approval` |
 | `043_player_stats_fn` | RPC `get_player_stats` (poprawki w `045`, `055`) |

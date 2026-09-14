@@ -509,6 +509,13 @@ const TRASY: Array<[nazwa: string, adres: string]> = [
   ['boiska-pilka-nozna',   '/boiska/pilka-nozna'],
   ['boisko-nieznane',      '/boisko/nie-ma-takiego-boiska'],
   ['gracz-nieznany',       '/gracz/00000000-0000-4000-8000-000000000000'],
+  // `/alert/wylacz/[token]` ŚWIADOMIE TU NIE MA, mimo zasady „dodajesz trasę
+  // w src/app → dopisz ją do TRASY". Ta strona wykonuje zapytanie od razu po
+  // wejściu i pokazuje jeden z trzech stanów zależnie od wyniku, a ten
+  // przemiał robi `goto` + zrzut bez czekania na cokolwiek. Zrzut łapałby raz
+  // „Wyłączam…", raz stan końcowy — czyli meldowałby zmianę wyglądu przy
+  // każdym przebiegu, niezależnie od tego, czy ktokolwiek coś zmienił. To ten
+  // sam rodzaj gnijącego wzorca co daty z seeda (patrz AGENTS.md).
   ['turnieje',             '/turnieje'],
   ['turnieje-nowe',        '/turnieje/nowe'],
   ['turniej-nieznany',     '/turnieje/00000000-0000-4000-8000-000000000000'],

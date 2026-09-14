@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import SportChip from '@/components/ui/SportChip';
-import { domyslneZFiltrow, PROMIEN_MIN, PROMIEN_MAX, PROMIEN_DOMYSLNY } from '@/lib/alerts';
+import { domyslneZFiltrow, PROMIEN_DOMYSLNY } from '@/lib/alerts';
+import { PROMIENIE_SUWAK_KM } from '@/lib/miejscowosci';
 
 afterEach(cleanup);
 
@@ -25,13 +26,28 @@ describe('domyslneZFiltrow — okno alertu nie pyta o to, co już powiedziały f
     expect(domyslneZFiltrow({ sports: [], radiusKm: null, pozycja: null }).sport).toBeUndefined();
   });
 
-  it('promień z filtrów wchodzi wprost', () => {
-    expect(domyslneZFiltrow({ sports: [], radiusKm: 8, pozycja: null }).radiusKm).toBe(8);
+  it('promień z filtrów trafia na najbliższy przystanek skali, nie między dwa', () => {
+    // Od 2026-09-14 okno alertu używa TEJ SAMEJ skali co filtry
+    // (`PROMIENIE_SUWAK_KM`), więc 8 km — które przystankiem nie jest —
+    // siada na 7, a nie zostaje wartością, której suwak nie umie pokazać.
+    expect(domyslneZFiltrow({ sports: [], radiusKm: 8, pozycja: null }).radiusKm).toBe(7);
+    expect(domyslneZFiltrow({ sports: [], radiusKm: 10, pozycja: null }).radiusKm).toBe(10);
   });
 
-  it('filtr chodzi od 1 km, suwak alertu od 3 — wartość spoza skali jest przycinana, nie przenoszona', () => {
-    expect(domyslneZFiltrow({ sports: [], radiusKm: 1, pozycja: null }).radiusKm).toBe(PROMIEN_MIN);
-    expect(domyslneZFiltrow({ sports: [], radiusKm: 99, pozycja: null }).radiusKm).toBe(PROMIEN_MAX);
+  it('cały zakres filtrów mieści się w alercie — nic już nie jest przycinane', () => {
+    // Dawniej alert miał własny, węższy zakres 3–30 km i wartości spoza niego
+    // przycinał: kto szukał w promieniu 1 km, dostawał alert na 3 km, czyli
+    // o czymś innym, niż prosił. Skala jest teraz wspólna, więc oba skraje
+    // przechodzą bez zmiany.
+    expect(domyslneZFiltrow({ sports: [], radiusKm: 1, pozycja: null }).radiusKm).toBe(1);
+    expect(domyslneZFiltrow({ sports: [], radiusKm: 100, pozycja: null }).radiusKm).toBe(100);
+  });
+
+  it('promień alertu zawsze jest przystankiem skali suwaka', () => {
+    for (const km of [1, 4, 8, 13, 33, 99, 500]) {
+      const wynik = domyslneZFiltrow({ sports: [], radiusKm: km, pozycja: null }).radiusKm;
+      expect(PROMIENIE_SUWAK_KM).toContain(wynik);
+    }
   });
 
   it('bez promienia w filtrach — wartość domyślna, nie zero', () => {
