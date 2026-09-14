@@ -1065,4 +1065,119 @@ SELECT _oczekuj_wyjatek('mecz bez ustalonej godziny — nie da się liczyć prze
   'SELECT przesun_terminarz(%L::uuid, %L::uuid, 15)', :TD_TURNIEJ, :TD_BEZ_GODZINY));
 RESET ROLE;
 
+-- ---------------------------------------------------------------------------
+-- Fixture: rozgrywka na żywo (zdarzenia, zakończenie meczu) — migracja 147.
+-- T_MECZ1 z sekcji 146 jest już `zakonczony` — nowy mecz T_MECZ2 w TURNIEJU,
+-- faza `final`, żeby przetestować regułę „remis w drabince wymaga karnych".
+-- ---------------------------------------------------------------------------
+\set T_MECZ2 '''ffffffff-0000-4000-8000-000000000016'''
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+INSERT INTO turniej_mecze (id, turniej_id, numer, faza, druzyna_a_id, druzyna_b_id, status)
+VALUES (:T_MECZ2::uuid, :TURNIEJ::uuid, 2, 'final', :T_DRUZYNA1::uuid, :T_DRUZYNA2::uuid, 'trwa');
+RESET ROLE;
+
+SELECT _sekcja('Turniej: zdarzenia meczowe (migracja 147)');
+
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('niezalogowany czyta zdarzenia (na razie zero)',
+                (SELECT count(*) FROM turniej_zdarzenia WHERE mecz_id = :T_MECZ2::uuid), 0);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('obcy nie dopisze zdarzenia do cudzego meczu', format(
+  'INSERT INTO turniej_zdarzenia (mecz_id, druzyna_id, typ) VALUES (%L, %L, %L)',
+  :T_MECZ2, :T_DRUZYNA1, 'gol'));
+RESET ROLE;
+
+-- Prowadzący ogólny (moze_prowadzic z sekcji 145) dopisuje gola i samobójczego.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+INSERT INTO turniej_zdarzenia (mecz_id, druzyna_id, typ) VALUES (:T_MECZ2::uuid, :T_DRUZYNA1::uuid, 'gol');
+INSERT INTO turniej_zdarzenia (mecz_id, druzyna_id, typ) VALUES (:T_MECZ2::uuid, :T_DRUZYNA1::uuid, 'samobojczy');
+RESET ROLE;
+SELECT _oczekuj('SAMOBÓJCZY DOLICZA SIĘ PRZECIWNIKOWI: 1:1 po golu i samobójczym drużyny 1',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :T_MECZ2::uuid AND wynik_a = 1 AND wynik_b = 1), 1);
+
+-- T_SEDZIA jest prowadzącym TYLKO meczu T_MECZ1 (146) — na T_MECZ2 nie ma żadnych uprawnień.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_SEDZIA, false);
+SELECT _oczekuj_odmowe('sędzia przypisany do INNEGO meczu nie dopisze zdarzenia tutaj', format(
+  'INSERT INTO turniej_zdarzenia (mecz_id, druzyna_id, typ) VALUES (%L, %L, %L)',
+  :T_MECZ2, :T_DRUZYNA2, 'gol'));
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+DELETE FROM turniej_zdarzenia WHERE mecz_id = :T_MECZ2::uuid AND typ = 'samobojczy';
+RESET ROLE;
+SELECT _oczekuj('obcy nie cofnął zdarzenia — bez zmian',
+                (SELECT count(*) FROM turniej_zdarzenia WHERE mecz_id = :T_MECZ2::uuid AND typ = 'samobojczy'), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+DELETE FROM turniej_zdarzenia WHERE mecz_id = :T_MECZ2::uuid AND typ = 'samobojczy';
+RESET ROLE;
+SELECT _oczekuj('COFNIJ OSTATNIE: po skasowaniu samobójczego wynik wraca do 1:0',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :T_MECZ2::uuid AND wynik_a = 1 AND wynik_b = 0), 1);
+
+SELECT _sekcja('Turniej: zakoncz_mecz (migracja 147)');
+
+-- Wyrównujemy na 1:1, żeby przetestować regułę „remis w fazie pucharowej
+-- wymaga karnych" (T_MECZ2 ma fazę 'final').
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+INSERT INTO turniej_zdarzenia (mecz_id, druzyna_id, typ) VALUES (:T_MECZ2::uuid, :T_DRUZYNA2::uuid, 'gol');
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie zakończy cudzego meczu', format(
+  'SELECT zakoncz_mecz(%L::uuid)', :T_MECZ2));
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+SELECT _oczekuj_wyjatek('remis w finale bez karnych nie kończy meczu', format(
+  'SELECT zakoncz_mecz(%L::uuid)', :T_MECZ2));
+SELECT zakoncz_mecz(:T_MECZ2::uuid, 4, 2);
+RESET ROLE;
+SELECT _oczekuj('remis w finale rozstrzygnięty karnymi — zwycięzca drużyna 1',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :T_MECZ2::uuid AND status = 'zakonczony'
+                    AND zwyciezca_id = :T_DRUZYNA1::uuid AND karne_a = 4 AND karne_b = 2), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+SELECT _oczekuj_odmowe('nie da się dopisać zdarzenia do już zakończonego meczu', format(
+  'INSERT INTO turniej_zdarzenia (mecz_id, druzyna_id, typ) VALUES (%L, %L, %L)',
+  :T_MECZ2, :T_DRUZYNA1, 'gol'));
+DELETE FROM turniej_zdarzenia WHERE mecz_id = :T_MECZ2::uuid;
+SELECT _oczekuj_wyjatek('nie da się zakończyć już zakończonego meczu drugi raz', format(
+  'SELECT zakoncz_mecz(%L::uuid)', :T_MECZ2));
+RESET ROLE;
+SELECT _oczekuj('nie da się cofnąć zdarzenia z już zakończonego meczu — bez zmian',
+                (SELECT count(*) FROM turniej_zdarzenia WHERE mecz_id = :T_MECZ2::uuid), 2);
+
+-- Remis dozwolony w lidze/grupie — żaden istniejący mecz w tym pliku nie ma
+-- jeszcze fazy 'grupa'/'liga', stąd osobny mikro-fixture.
+\set T_MECZ_LIGA '''ffffffff-0000-4000-8000-000000000017'''
+INSERT INTO turniej_mecze (id, turniej_id, numer, faza, druzyna_a_id, druzyna_b_id, status)
+VALUES (:T_MECZ_LIGA::uuid, :TURNIEJ::uuid, 3, 'liga', :T_DRUZYNA1::uuid, :T_DRUZYNA2::uuid, 'trwa');
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+INSERT INTO turniej_zdarzenia (mecz_id, druzyna_id, typ) VALUES
+  (:T_MECZ_LIGA::uuid, :T_DRUZYNA1::uuid, 'gol'),
+  (:T_MECZ_LIGA::uuid, :T_DRUZYNA2::uuid, 'gol');
+SELECT zakoncz_mecz(:T_MECZ_LIGA::uuid);
+RESET ROLE;
+SELECT _oczekuj('remis w lidze dozwolony BEZ karnych — zwycięzca NULL',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :T_MECZ_LIGA::uuid AND status = 'zakonczony' AND zwyciezca_id IS NULL), 1);
+
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ RLS: wszystkie asercje przeszły.'; END $$;
