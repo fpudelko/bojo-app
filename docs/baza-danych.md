@@ -5,6 +5,7 @@
 
 ---
 
+
 ## ⚠️ Migracje uruchamia się RĘCZNIE
 
 Pliki w `supabase/migrations/` trzeba **wkleić do Supabase → SQL Editor**, kolejno wg
