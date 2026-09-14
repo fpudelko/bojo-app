@@ -133,7 +133,9 @@ test('filtr miejscowości działa też na mecze, nie tylko na katalog', async ({
   await pole.fill('Wrocław');
   await page.getByRole('button', { name: /Wrocław/ }).filter({ visible: true }).first()
     .click({ timeout: 15_000 });
-  await page.getByRole('button', { name: /^Pokaż /i }).filter({ visible: true }).first().click();
+  // `^Pokaż \d+ mecz`, nie samo `^Pokaż `: pusty stan listy ma własne wyjścia,
+  // a lokator ma trafiać wyłącznie w przycisk ZATWIERDZAJĄCY arkusz.
+  await page.getByRole('button', { name: /^Pokaż \d+ mecz/i }).filter({ visible: true }).first().click();
 
   await page.waitForTimeout(1500);
   expect(new URL(page.url()).searchParams.get('m')).toBe('Wrocław');

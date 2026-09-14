@@ -81,7 +81,17 @@ test('gołe /mapa pokazuje otwarte mecze w liście, nie katalog boisk', async ({
   // które przy widoku całego kraju i tak zlewają się w skupiska.
   await expect(page.getByText('Wolne miejsca')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('8/14 graczy')).toBeVisible();
-  await expect(page.getByText('Komplet pojutrze')).toBeVisible();
+
+  // MECZ Z KOMPLETEM NIE WCHODZI NA LISTĘ — od 2026-09-14, kiedy filtr „Wolne
+  // miejsca" dostał domyślną wartość 1 (zgłoszone wprost). To jest stanowisko
+  // aplikacji, a nie filtr nałożony przez człowieka: wyszukiwarka meczów
+  // odpowiada na „w co mogę zagrać", więc domyślnie pokazuje mecze, do których
+  // da się wejść. Komplety wracają jednym dotknięciem „−" w arkuszu filtrów,
+  // a przy pustej liście — odsyłaczem „Pokaż też mecze z kompletem".
+  //
+  // Asercja jest tu po to, żeby ta decyzja nie odwróciła się po cichu:
+  // zmiana domyślnej wartości z powrotem na 0 zapali ten test.
+  await expect(page.getByText('Komplet pojutrze')).toHaveCount(0);
 
   await expect(widoczny(page, 'Gry')).toHaveAttribute('aria-checked', 'true');
   await expect(widoczny(page, 'Lista')).toHaveAttribute('aria-checked', 'true');

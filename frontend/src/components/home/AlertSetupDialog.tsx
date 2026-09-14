@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, Bell, BellOff, Mail, Smartphone, Check } from 'lucide-react';
+import { X, Loader2, Bell, BellOff, Mail, MapPin, Smartphone, Check } from 'lucide-react';
 import {
   getMyAlert, saveAlert, deleteMyAlert,
-  OKRESY_ALERTU, wygasaZa, okresZDaty, PROMIEN_DOMYSLNY, type AlertInput,
+  koniecDnia, dataWygasniecia, najwczesniejszyKoniec, PROMIEN_DOMYSLNY, type AlertInput,
 } from '@/lib/alerts';
 import { pozycjaBezPytania } from '@/lib/geo';
 import { useAuth } from '@/lib/auth';
@@ -92,7 +92,8 @@ export default function AlertSetupDialog({
   const [godzinaOd, setGodzinaOd] = useState(GODZINA_OD_DOMYSLNA);
   const [godzinaDo, setGodzinaDo] = useState(GODZINA_DO_DOMYSLNA);
 
-  const [okresDni, setOkresDni] = useState<number | null>(null);
+  /** `''` = bezterminowo (domyślnie). Inaczej `YYYY-MM-DD` z pola daty. */
+  const [koniec, setKoniec] = useState('');
   const [kanalEmail, setKanalEmail] = useState(true);
   const [push, setPush] = useState<StanPush | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
@@ -119,7 +120,7 @@ export default function AlertSetupDialog({
         setDays(a.daysOfWeek);
         setMiejsce({ nazwa: a.cityLabel || 'Wybrane miejsce', kontekst: '', lat: a.lat, lng: a.lng });
         setPromienKm(a.radiusKm);
-        setOkresDni(okresZDaty(a.expiresAt));
+        setKoniec(dataWygasniecia(a.expiresAt));
         setKanalEmail(a.kanalEmail);
         if (a.godzinaOd != null && a.godzinaDo != null) {
           setPoraOgraniczona(true);
@@ -152,7 +153,7 @@ export default function AlertSetupDialog({
         lng:        miejsce.lng,
         radiusKm:   promienKm,
         cityLabel:  miejsce.nazwa || undefined,
-        expiresAt:  wygasaZa(okresDni),
+        expiresAt:  koniec ? koniecDnia(koniec) : null,
         // Godziny idą PARAMI albo wcale — migracja `148` pilnuje tego także
         // w bazie, więc rozjazd tutaj skończyłby się odmową zapisu, a nie
         // cichym zapisaniem połowy filtra.
@@ -179,6 +180,17 @@ export default function AlertSetupDialog({
   };
 
   const naglowekSekcji = 'text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2';
+
+  // BEZ MIEJSCA NIE DA SIĘ ZAPISAĆ — I TO MUSI BYĆ NAPISANE, 2026-09-14,
+  // zgłoszone wprost („użytkownik nie wie, dlaczego nie może dodać alertu, jak
+  // nie wybierze miasta"). Przycisk był po prostu wyszarzony, a wyszarzony
+  // przycisk bez powodu czyta się jak zepsuta aplikacja, nie jak brakujące
+  // pole — zwłaszcza że brakujące pole jest wtedy o pół ekranu wyżej.
+  //
+  // Powód jest prawdziwy, nie formalny: alert dopasowuje mecze po ODLEGŁOŚCI
+  // od punktu (`lat`/`lng` + `radius_km`), więc bez punktu nie ma od czego
+  // liczyć promienia, który stoi tuż obok.
+  const brakMiejsca = !miejsce;
 
   return (
     <div className={`fixed inset-0 ${WARSTWA.modal} flex items-end sm:items-center justify-center p-0 sm:p-4`}>
@@ -220,12 +232,25 @@ export default function AlertSetupDialog({
           {/* ── GDZIE ── te same kontrolki co w arkuszu filtrów: pole
               z pinezką, a po wybraniu miejsca suwak promienia. */}
           <div>
-            <p className={naglowekSekcji}>Gdzie</p>
+            <p className={naglowekSekcji}>
+              Gdzie{' '}
+              <span className="normal-case font-normal text-slate-400">(wymagane)</span>
+            </p>
             <WyborMiejscowosci
               wybrana={miejsce}
               promienKm={promienKm}
               naZmiane={(m, km) => { setMiejsce(m); setPromienKm(km); }}
             />
+            {brakMiejsca && (
+              <p className="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+                <span>
+                  Bez tego nie damy rady szukać: alert wyłapuje mecze po
+                  odległości od wskazanego punktu. Wpisz miejscowość albo
+                  dotknij pinezki, żeby użyć swojej lokalizacji.
+                </span>
+              </p>
+            )}
           </div>
 
           {/* ── KIEDY MA BYĆ MECZ ── pierwszy z dwóch „czasów". */}
@@ -283,31 +308,49 @@ export default function AlertSetupDialog({
             </div>
           </div>
 
-          {/* ── JAK DŁUGO ŻYJE ALERT ── drugi „czas", świadomie osobno. */}
+          {/* ── JAK DŁUGO ŻYJE ALERT ── drugi „czas", świadomie osobno.
+
+              SUBTELNY SELEKTOR DATY ZAMIAST CZTERECH OPCJI — 2026-09-14,
+              zgłoszone wprost. Cztery pigułki zajmowały dwa rzędy na pytanie,
+              które dla większości ma jedną odpowiedź (bezterminowo, i to jest
+              domyślne). Kto naprawdę chce ograniczyć alert, ma w głowie DATĘ
+              („do końca sezonu", „do wyjazdu"), nie liczbę dni — pigułki
+                kazały mu ją przeliczyć na tydzień/dwa/miesiąc samodzielnie.
+
+              Domyślny stan to więc JEDNO ZDANIE plus cichy odsyłacz. Pole daty
+              pojawia się dopiero po dotknięciu, czyli u kogoś, kto naprawdę
+              chce je wypełnić. */}
           <div>
             <p className={naglowekSekcji}>Jak długo powiadamiać</p>
-            <div className="flex flex-wrap gap-2">
-              {OKRESY_ALERTU.map((o) => (
+            {koniec ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={koniec}
+                  min={najwczesniejszyKoniec()}
+                  onChange={(e) => setKoniec(e.target.value)}
+                  aria-label="Alert działa do dnia"
+                  className="h-11 flex-1 rounded-xl border border-slate-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-800"
+                />
                 <button
-                  key={o.etykieta}
                   type="button"
-                  onClick={() => setOkresDni(o.dni)}
-                  aria-pressed={okresDni === o.dni}
-                  className={[
-                    'rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
-                    okresDni === o.dni
-                      ? 'border-primary-700 bg-primary-50 text-primary-800 dark:bg-primary-950'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300',
-                  ].join(' ')}
+                  onClick={() => setKoniec('')}
+                  className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
                 >
-                  {o.etykieta}
+                  Bez końca
                 </button>
-              ))}
-            </div>
-            {okresDni === null && (
-              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                Alert będzie działał, dopóki go nie wyłączysz — każda wiadomość
-                ma na dole link, który go gasi jednym kliknięciem.
+              </div>
+            ) : (
+              <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                Alert działa, dopóki go nie wyłączysz — każda wiadomość ma na
+                dole link, który go gasi jednym kliknięciem.{' '}
+                <button
+                  type="button"
+                  onClick={() => setKoniec(najwczesniejszyKoniec())}
+                  className="font-medium text-primary-700 underline underline-offset-2 hover:text-primary-800"
+                >
+                  Ustaw datę końca
+                </button>
               </p>
             )}
           </div>
@@ -380,14 +423,25 @@ export default function AlertSetupDialog({
               <Bell className="w-4 h-4" /> Alert zapisany!
             </div>
           ) : (
-            <button
-              onClick={handleSave}
-              disabled={saving || !miejsce}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-3.5 text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.98] transition-all"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
-              {existing ? 'Zaktualizuj alert' : 'Zapisz alert'}
-            </button>
+            <>
+              {/* Wskaźnik, nie powtórzenie: pełne wyjaśnienie stoi przy samym
+                  polu, tutaj zostaje jedno zdanie mówiące, gdzie go szukać —
+                  bo to tutaj ktoś odkrywa, że przycisk nie działa. */}
+              {brakMiejsca && (
+                <p className="text-center text-xs font-medium text-amber-700 dark:text-amber-400">
+                  Wybierz najpierw miejsce ↑
+                </p>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={saving || brakMiejsca}
+                title={brakMiejsca ? 'Najpierw wskaż miejsce — alert szuka meczów w promieniu od niego' : undefined}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-3.5 text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.98] transition-all"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                {existing ? 'Zaktualizuj alert' : 'Zapisz alert'}
+              </button>
+            </>
           )}
 
           {existing && !saved && (

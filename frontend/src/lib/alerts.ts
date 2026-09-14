@@ -122,31 +122,46 @@ export async function geocodeCity(query: string): Promise<{ lat: number; lng: nu
 // poszerzyła migracja `148` do 1–100 km.
 export const PROMIEN_DOMYSLNY = PROMIEN_DOMYSLNY_KM;
 
-/** Ile alert ma żyć. `null` = bezterminowo i to jest wartość domyślna. */
-export const OKRESY_ALERTU: { dni: number | null; etykieta: string }[] = [
-  { dni: null, etykieta: 'Bezterminowo' },
-  { dni: 30,   etykieta: 'Przez miesiąc' },
-  { dni: 14,   etykieta: 'Przez 2 tygodnie' },
-  { dni: 7,    etykieta: 'Przez tydzień' },
-];
+/**
+ * KONIEC ALERTU JAKO DATA, NIE JAKO JEDEN Z CZTERECH OKRESÓW — 2026-09-14,
+ * zgłoszone wprost („niech będzie jako selektor daty subtelny, a nie 4 opcje").
+ *
+ * Cztery pigułki („Bezterminowo / Miesiąc / 2 tygodnie / Tydzień") zajmowały
+ * dwa rzędy na pytanie, które dla większości ma jedną odpowiedź: alert jest
+ * domyślnie bezterminowy. Kto naprawdę chce go ograniczyć, zwykle ma w głowie
+ * DATĘ („do końca sezonu", „do wyjazdu"), a nie liczbę dni — i wtedy liczenie
+ * „to dziś plus ile?" robił człowiek, zamiast kalendarza.
+ *
+ * Poniżej para przeliczników między tym, co widzi człowiek (`YYYY-MM-DD`
+ * w `<input type="date">`) a tym, co trzyma baza (`timestamptz`).
+ */
 
-/** Dni → moment wygaśnięcia. `null` zostaje `null`, czyli bezterminowo. */
-export function wygasaZa(dni: number | null, teraz: Date = new Date()): string | null {
-  if (dni == null) return null;
-  return new Date(teraz.getTime() + dni * 86_400_000).toISOString();
+/** `YYYY-MM-DD` → koniec TEGO dnia w strefie przeglądarki.
+ *
+ *  Koniec, nie północ: „do 30 września" znaczy dla człowieka, że 30 września
+ *  alert jeszcze działa. Północ ucinałaby cały ostatni dzień, czyli dokładnie
+ *  ten, który ktoś właśnie wskazał palcem. */
+export function koniecDnia(data: string): string | null {
+  const [r, m, d] = data.split('-').map(Number);
+  if (!r || !m || !d) return null;
+  return new Date(r, m - 1, d, 23, 59, 59, 999).toISOString();
 }
 
-/** Moment wygaśnięcia → liczba dni z `OKRESY_ALERTU`, do wczytania w oknie.
- *  Nieznany odstęp ląduje na najbliższym okresie, a nie przewraca wyboru. */
-export function okresZDaty(expiresAt: string | null | undefined, teraz: Date = new Date()): number | null {
-  if (!expiresAt) return null;
-  const dni = (new Date(expiresAt).getTime() - teraz.getTime()) / 86_400_000;
-  const zDniami = OKRESY_ALERTU.filter((o) => o.dni != null) as { dni: number; etykieta: string }[];
-  let najlepszy = zDniami[0];
-  for (const o of zDniami) {
-    if (Math.abs(o.dni - dni) < Math.abs(najlepszy.dni - dni)) najlepszy = o;
-  }
-  return najlepszy.dni;
+/** Moment wygaśnięcia z bazy → `YYYY-MM-DD` do pola daty. `null`/pusto =
+ *  bezterminowo, czyli puste pole. */
+export function dataWygasniecia(expiresAt: string | null | undefined): string {
+  if (!expiresAt) return '';
+  const d = new Date(expiresAt);
+  if (Number.isNaN(d.getTime())) return '';
+  const dwie = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dwie(d.getMonth() + 1)}-${dwie(d.getDate())}`;
+}
+
+/** Najwcześniejsza data, jaką ma sens wybrać — jutro. Alert kończący się dziś
+ *  byłby alertem, który nie zdąży o niczym powiadomić. */
+export function najwczesniejszyKoniec(teraz: Date = new Date()): string {
+  const d = new Date(teraz.getFullYear(), teraz.getMonth(), teraz.getDate() + 1);
+  return dataWygasniecia(d.toISOString());
 }
 
 /**

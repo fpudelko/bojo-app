@@ -149,12 +149,6 @@ export function filterByRadius(rows: EventRow[], radiusKm: number | null): Event
   return rows.filter((r) => r.distance != null && r.distance <= radiusKm);
 }
 
-/** Cena w groszach; null = bez limitu. */
-export function filterByMaxPrice(rows: EventRow[], maxPriceGrosze: number | null): EventRow[] {
-  if (maxPriceGrosze == null) return rows;
-  return rows.filter((r) => (r.event.costGrosze ?? 0) <= maxPriceGrosze);
-}
-
 /** Minimalna liczba wolnych miejsc; 0 = brak ograniczenia. */
 export function filterByMinFreeSpots(rows: EventRow[], minSpots: number): EventRow[] {
   if (minSpots <= 0) return rows;

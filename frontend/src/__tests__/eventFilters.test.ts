@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  dayGroup, daysFromToday, eventDay, filterByRadius, filterByMaxPrice, filterByMinFreeSpots,
+  dayGroup, daysFromToday, eventDay, filterByRadius, filterByMinFreeSpots,
   freeSpots, groupByDay, matchesDateFilter, multiLabel, sortEvents, startKey, toggleInArray,
   type EventRow, etykietaSkladu } from '@/lib/eventFilters';
 import type { EventItem } from '@/types';
@@ -217,29 +217,6 @@ describe('groupByDay', () => {
 
   it('pusta lista daje zero sekcji', () => {
     expect(groupByDay([], SRODA)).toEqual([]);
-  });
-});
-
-describe('filterByMaxPrice', () => {
-  it('bez limitu zwraca wszystko bez zmian', () => {
-    const rows = [row(ev({ date: '2026-08-05', costGrosze: 5000 }))];
-    expect(filterByMaxPrice(rows, null)).toEqual(rows);
-  });
-
-  it('granica jest domknięta — dokładnie na limicie zostaje', () => {
-    const rows = [
-      row(ev({ date: '2026-08-05', costGrosze: 1000 })),
-      row(ev({ date: '2026-08-06', costGrosze: 1001 })),
-    ];
-    expect(filterByMaxPrice(rows, 1000).map((r) => r.event.costGrosze)).toEqual([1000]);
-  });
-
-  it('mecz za darmo przechodzi limit 0', () => {
-    const rows = [
-      row(ev({ date: '2026-08-05', costGrosze: 0 })),
-      row(ev({ date: '2026-08-06', costGrosze: 1 })),
-    ];
-    expect(filterByMaxPrice(rows, 0).map((r) => r.event.costGrosze)).toEqual([0]);
   });
 });
 

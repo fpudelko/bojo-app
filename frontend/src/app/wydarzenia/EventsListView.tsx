@@ -18,6 +18,7 @@ import { EventBrowseCard } from '@/components/EventBrowseCard';
 import SportChip from '@/components/ui/SportChip';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
+import Stepper from '@/components/ui/Stepper';
 import { PROMIENIE_SUWAK_KM, indeksPromienia, promienZIndeksu } from '@/lib/miejscowosci';
 import PrzyciskMojaLokalizacja from '@/components/ui/PrzyciskMojaLokalizacja';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
@@ -31,7 +32,7 @@ import { foldText, foldedIncludes } from '@/lib/searchText';
 import { plural } from '@/lib/plural';
 import { distanceKm, getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import {
-  DAY_GROUP_LABEL, filterByMaxPrice, filterByMinFreeSpots, filterByRadius, groupByDay,
+  DAY_GROUP_LABEL, filterByMinFreeSpots, filterByRadius, groupByDay,
   matchesDateFilter, multiLabel, sortEvents,
   type DateFilter, type EventRow, type SortBy,
 } from '@/lib/eventFilters';
@@ -65,11 +66,13 @@ const DATE_SLIDER_LABELS = ['Dzisiaj', 'Jutro', 'Ten tydzień', 'Ten miesiąc', 
 // RADIUS_MIN/RADIUS_MAX (1–20 km, liniowo) zniknęły 2026-09-14 — suwak
 // odległości chodzi po skali `PROMIENIE_SUWAK_KM` z `lib/miejscowosci.ts`,
 // wspólnej dla obu arkuszy filtrów.
-const PRICE_MIN = 0;
-const PRICE_MAX = 100;
-const PRICE_STEP = 5;
+// PRICE_MIN/MAX/STEP zniknęły 2026-09-14 razem z filtrem ceny — uzasadnienie
+// przy `minFreeSpots` niżej.
+// Wolne miejsca: domyślnie 1, w górę do 99. Dawne `14` (skład 7v7) odcinało
+// pytanie „szukamy miejsca dla ośmiu" na większych meczach.
 const MIN_SPOTS_MIN = 0;
-const MIN_SPOTS_MAX = 14;
+const MIN_SPOTS_MAX = 99;
+const MIN_SPOTS_DOMYSLNIE = 1;
 
 const PAGE_SIZE = 20;
 
@@ -122,10 +125,20 @@ export default function EventsListView({ widzianoWczesniej }: {
   const [sports, setSports] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>('wszystkie');
   const [radiusKm, setRadiusKm] = useState<number | null>(null);
-  const [maxPriceGrosze, setMaxPriceGrosze] = useState<number | null>(null);
-  const [minFreeSpots, setMinFreeSpots] = useState(0);
-  const [onlyFreeSpots, setOnlyFreeSpots] = useState(false);
-  const [onlyNoCost, setOnlyNoCost] = useState(false);
+  // WOLNE MIEJSCA: domyślnie 1 — 2026-09-14, zgłoszone wprost. `1` znaczy
+  // „pokaż mecze, do których da się wejść", czyli to, po co ktoś otwiera listę
+  // meczów; `0` (dowolna liczba, z kompletami) zostaje o jedno dotknięcie „−"
+  // niżej, a pusty stan mówi o tym wprost.
+  const [minFreeSpots, setMinFreeSpots] = useState(MIN_SPOTS_DOMYSLNIE);
+  // FILTR CENY ZNIKNĄŁ (zgłoszone wprost). Pytał o górny limit w złotych,
+  // a mecze w Bojo są albo za darmo, albo za kilkanaście złotych od osoby —
+  // suwak 0–100 zł rozstrzygał wybór, którego nikt nie ma. Cena stoi na karcie
+  // meczu i to wystarcza. `filterByMaxPrice` odeszło razem z nim
+  // z `lib/eventFilters.ts`: helper bez wywołania to martwy kod.
+  //
+  // `onlyFreeSpots`/`onlyNoCost` odeszły przy tej samej okazji. Były już
+  // martwe: żadna kontrolka ich nie ustawiała, więc wisiały na stałe
+  // na `false`, a `liczbaFiltrow` i `hasFilters` liczyły je co render.
   const [sortBy, setSortBy] = useState<SortBy>(SORT_DOMYSLNY);
 
   // Mobile-only przełącznik lista/mapa (D9) — desktop zawsze pokazuje listę,
@@ -186,25 +199,22 @@ export default function EventsListView({ widzianoWczesniej }: {
    *  jakaś jest, więc „1 filtr" na czystym ekranie byłoby kłamstwem. */
   const liczbaFiltrow = [
     sports.length > 0,
-    onlyFreeSpots,
-    onlyNoCost,
     dateFilter !== 'wszystkie',
     radiusKm !== null,
-    maxPriceGrosze !== null,
-    minFreeSpots > 0,
+    // Od ODCHYLENIA OD DOMYŚLNEJ JEDYNKI, nie od zera: domyślne „co najmniej
+    // jedno wolne miejsce" jest stanowiskiem aplikacji („pokazujemy mecze, do
+    // których da się wejść"), tak samo jak to, że lista nie pokazuje meczów
+    // z przeszłości. Plakietka ma mówić „coś USTAWIŁEŚ".
+    minFreeSpots !== MIN_SPOTS_DOMYSLNIE,
     sortBy !== SORT_DOMYSLNY,
   ].filter(Boolean).length;
   const [draftDate, setDraftDate] = useState<DateFilter>(dateFilter);
   const [draftRadius, setDraftRadius] = useState<number | null>(radiusKm);
-  const [draftMaxPricePln, setDraftMaxPricePln] = useState<number | null>(
-    maxPriceGrosze == null ? null : maxPriceGrosze / 100,
-  );
   const [draftMinFreeSpots, setDraftMinFreeSpots] = useState(minFreeSpots);
 
   const openSheet = () => {
     setDraftDate(dateFilter);
     setDraftRadius(radiusKm);
-    setDraftMaxPricePln(maxPriceGrosze == null ? null : maxPriceGrosze / 100);
     setDraftMinFreeSpots(minFreeSpots);
     setSheetOpen(true);
   };
@@ -234,7 +244,6 @@ export default function EventsListView({ widzianoWczesniej }: {
   const applyDraft = async () => {
     setGeoError(null);
     setDateFilter(draftDate);
-    setMaxPriceGrosze(draftMaxPricePln == null ? null : draftMaxPricePln * 100);
     setMinFreeSpots(draftMinFreeSpots);
     const needsGeo = draftRadius != null && !userPos;
     if (!needsGeo) {
@@ -256,8 +265,7 @@ export default function EventsListView({ widzianoWczesniej }: {
   const clearDraft = () => {
     setDraftDate('wszystkie');
     setDraftRadius(null);
-    setDraftMaxPricePln(null);
-    setDraftMinFreeSpots(0);
+    setDraftMinFreeSpots(MIN_SPOTS_DOMYSLNIE);
   };
 
   /** Baza filtrowania wspólna dla wyniku realnego i podglądu w modalu — bez
@@ -270,12 +278,6 @@ export default function EventsListView({ widzianoWczesniej }: {
       const wanted = sports.includes('piłka nożna') ? [...sports, 'futsal'] : sports;
       list = list.filter((e) => wanted.includes(e.sport));
     }
-    if (onlyFreeSpots) {
-      list = list.filter((e) => (e.participantsCount ?? 0) < (e.maxPlayers ?? 0));
-    }
-    if (onlyNoCost) {
-      list = list.filter((e) => (e.costGrosze ?? 0) <= 0);
-    }
     if (q) {
       list = list.filter((e) =>
         foldedIncludes(e.title, q) ||
@@ -285,7 +287,7 @@ export default function EventsListView({ widzianoWczesniej }: {
       );
     }
     return list;
-  }, [allEvents, sports, onlyFreeSpots, onlyNoCost, query]);
+  }, [allEvents, sports, query]);
 
   const filtered = useMemo(() => {
     if (dateFilter === 'wszystkie') return baseForPreview;
@@ -305,15 +307,19 @@ export default function EventsListView({ widzianoWczesniej }: {
   }, [filtered, userPos]);
 
   const radiusFiltered = useMemo(() => filterByRadius(withDistance, radiusKm), [withDistance, radiusKm]);
-  const priceFiltered = useMemo(() => filterByMaxPrice(radiusFiltered, maxPriceGrosze), [radiusFiltered, maxPriceGrosze]);
-  const spotsFiltered = useMemo(() => filterByMinFreeSpots(priceFiltered, minFreeSpots), [priceFiltered, minFreeSpots]);
+  const spotsFiltered = useMemo(() => filterByMinFreeSpots(radiusFiltered, minFreeSpots), [radiusFiltered, minFreeSpots]);
   const sorted = useMemo(() => sortEvents(spotsFiltered, sortBy), [spotsFiltered, sortBy]);
+  /** Ile meczów odsiał SAM filtr wolnych miejsc. Domyślna jedynka chowa
+   *  komplety, nie podbijając `liczbaFiltrow` ani `hasFilters` (to stan
+   *  domyślny, nie wybór człowieka) — więc bez tej liczby pusty stan mówiłby
+   *  „nie ma teraz otwartych gier w okolicy" w chwili, gdy są, tylko pełne. */
+  const ukryteKomplety = radiusFiltered.length - spotsFiltered.length;
 
   // Licznik wraca do początku przy każdej zmianie filtrów — inaczej po
   // zawężeniu listy zostawałby "Pokaż więcej" dla wyników, których już nie ma.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [sports, dateFilter, radiusKm, maxPriceGrosze, minFreeSpots, onlyFreeSpots, onlyNoCost, query, sortBy]);
+  }, [sports, dateFilter, radiusKm, minFreeSpots, query, sortBy]);
 
   const visible = sorted.slice(0, visibleCount);
 
@@ -326,7 +332,7 @@ export default function EventsListView({ widzianoWczesniej }: {
   );
 
   const hasFilters = sports.length > 0 || dateFilter !== 'wszystkie' || radiusKm !== null
-    || maxPriceGrosze !== null || minFreeSpots > 0 || !!query || onlyFreeSpots || onlyNoCost;
+    || minFreeSpots !== MIN_SPOTS_DOMYSLNIE || !!query;
 
   // ALERT O NOWYM MECZU. Pusta lista to jedyne miejsce w apce, gdzie człowiek
   // powiedział dokładnie, czego szuka, i dostał „nie ma". Od 2026-09-12 to już
@@ -362,11 +368,8 @@ export default function EventsListView({ widzianoWczesniej }: {
     setSports([]);
     setDateFilter('wszystkie');
     setRadiusKm(null);
-    setMaxPriceGrosze(null);
-    setMinFreeSpots(0);
+    setMinFreeSpots(MIN_SPOTS_DOMYSLNIE);
     setQuery('');
-    setOnlyFreeSpots(false);
-    setOnlyNoCost(false);
     setSortBy('termin');
   };
 
@@ -386,10 +389,9 @@ export default function EventsListView({ widzianoWczesniej }: {
         }))
       : list.map((event) => ({ event }));
     let rows = filterByRadius(withDist, draftRadius);
-    rows = filterByMaxPrice(rows, draftMaxPricePln == null ? null : draftMaxPricePln * 100);
     rows = filterByMinFreeSpots(rows, draftMinFreeSpots);
     return rows;
-  }, [baseForPreview, draftDate, draftRadius, draftMaxPricePln, draftMinFreeSpots, userPos]);
+  }, [baseForPreview, draftDate, draftRadius, draftMinFreeSpots, userPos]);
 
 
   const jestNowe = (event: EventItem) => (
@@ -515,7 +517,9 @@ export default function EventsListView({ widzianoWczesniej }: {
         <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
           <span className="mb-4 text-5xl">⚽</span>
           <p className="text-base font-bold text-slate-700 dark:text-slate-300">
-            {hasFilters ? 'Brak meczów' : 'Nie ma teraz otwartych gier w okolicy'}
+            {ukryteKomplety > 0
+              ? (ukryteKomplety === 1 ? 'Jedyny mecz w okolicy ma komplet' : 'Wszystkie mecze w okolicy mają komplet')
+              : hasFilters ? 'Brak meczów' : 'Nie ma teraz otwartych gier w okolicy'}
           </p>
           {/* Pusty stan ma prowadzić dalej, a nie tylko stwierdzać brak.
               Komu dokąd:
@@ -526,7 +530,9 @@ export default function EventsListView({ widzianoWczesniej }: {
                   meczem bez ludzi — czyli najgorszym pierwszym wrażeniem);
                 - z ekipą → własny mecz, bo ma kogo na niego zaprosić. */}
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {hasFilters
+            {ukryteKomplety > 0
+              ? 'Możesz je obejrzeć i zapisać się na listę rezerwową.'
+              : hasFilters
               ? 'Zmień filtr albo wrzuć własny mecz.'
               : mamEkipe === false
                 ? 'Grasz ze stałą ekipą? Wejdź do niej kodem od kolegów — mecze ekipy zobaczysz w „Grupy".'
@@ -561,6 +567,20 @@ export default function EventsListView({ widzianoWczesniej }: {
                 Powiadom mnie, gdy się pojawi
               </button>
             )
+          )}
+
+          {/* Odsyłacz pokazuje się tylko wtedy, gdy naprawdę jest co pokazać
+              (`ukryteKomplety > 0`), a nie „gdy filtr stoi na 1". Filtr stoi na
+              1 domyślnie, więc bez tego warunku obiecywałby komplety także tam,
+              gdzie nie ma żadnych meczów. */}
+          {ukryteKomplety > 0 && (
+            <button
+              type="button"
+              onClick={() => { setMinFreeSpots(0); setDraftMinFreeSpots(0); }}
+              className="mt-4 text-sm font-semibold text-primary-700 underline"
+            >
+              Zobacz też mecze z kompletem
+            </button>
           )}
 
           {hasFilters && (
@@ -891,27 +911,16 @@ export default function EventsListView({ widzianoWczesniej }: {
               />
             )}
           </div>
-          <RangeSlider
-            label="Cena"
-            min={PRICE_MIN}
-            max={PRICE_MAX}
-            step={PRICE_STEP}
-            value={draftMaxPricePln ?? PRICE_MAX}
-            onChange={(pln) => setDraftMaxPricePln(pln >= PRICE_MAX ? null : pln)}
-            formatValue={(pln) => (pln >= PRICE_MAX ? 'Bez limitu' : pln === 0 ? 'Za darmo' : `do ${pln} zł`)}
-            minLabel="Za darmo"
-            maxLabel="Bez limitu"
-          />
-          <RangeSlider
+          {/* SUWAKA „Cena" TU NIE MA — 2026-09-14, uzasadnienie przy
+              `minFreeSpots` wyżej. */}
+          <Stepper
             label="Wolne miejsca"
             min={MIN_SPOTS_MIN}
             max={MIN_SPOTS_MAX}
-            step={1}
             value={draftMinFreeSpots}
             onChange={setDraftMinFreeSpots}
             formatValue={(n) => (n === 0 ? 'Dowolna liczba' : `co najmniej ${n}`)}
-            minLabel="Dowolna liczba"
-            maxLabel="14+"
+            hint="Zejdź do zera, żeby zobaczyć też mecze z kompletem."
           />
 
           {/* Alert na dole arkusza, bo dopiero tu wiadomo, czego ktoś szuka.

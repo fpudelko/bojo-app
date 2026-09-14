@@ -370,6 +370,41 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-14 — Wyszukiwarka meczów: mniej kontrolek, czytelniejszy alert
+
+PROBLEM: pasek wyszukiwarki meczów łamał się na telefonie na dwa wiersze, bo mieścił
+przełącznik trybu, podpisany przełącznik „Lista | Mapa", dzwonek alertu i ikonę filtrów.
+Dzwonek nie mówił, co się stanie po dotknięciu, a stał obok DRUGIEGO dzwonka
+(powiadomienia), który znaczy coś innego. W arkuszu filtrów suwak „Cena" pytał o górny
+limit w złotych, choć mecze w Bojo są albo za darmo, albo za kilkanaście złotych od
+osoby, a suwak „Wolne miejsca" kazał trafiać palcem w konkretną liczbę na osi przez cały
+ekran. W oknie alertu pytanie „jak długo powiadamiać" zajmowało dwa rzędy czterema
+pigułkami, a przycisk zapisu był wyszarzony bez podania powodu, gdy nikt nie wskazał
+miejsca — wyglądało to na zepsutą aplikację, nie na brakujące pole.
+
+ROZWIĄZANIE BOJO: przełącznik „Lista | Mapa" niesie dziś ikony zamiast napisów, a wejście
+do alertu jest podpisanym przyciskiem nakładającym się na listę meczów („Powiadom
+o takich meczach", a gdy alert już działa — „Damy znać o nowym meczu"). Filtr ceny
+zniknął. „Wolne miejsca" ustawia się przyciskami − i +, domyślnie na 1 i w górę do 99,
+czyli wyszukiwarka domyślnie pokazuje mecze, do których da się wejść; komplety wracają
+jednym dotknięciem „−", a pusta lista mówi o tym wprost odsyłaczem „Zobacz też mecze
+z kompletem". W oknie alertu „jak długo powiadamiać" to jedno zdanie („alert działa,
+dopóki go nie wyłączysz") z cichym odsyłaczem „Ustaw datę końca", który odsłania zwykły
+kalendarz. Gdy nie wskazano miejsca, Bojo pisze wprost, dlaczego nie da się zapisać:
+alert wyłapuje mecze po odległości od punktu, więc bez punktu nie ma od czego liczyć.
+
+MECHANIKA: `SegmentedToggle` przyjmuje `icon` w obu opcjach (nazwa dostępna zostaje
+z `label`). Przycisk alertu na `/mapa` to nakładka `absolute bottom-0` nad listą,
+z odstępem `calc(var(--bottom-nav-h) + 0.75rem)`. Nowy `components/ui/Stepper.tsx`
+zastępuje suwak wolnych miejsc w obu arkuszach (`VenueExplorer.tsx`,
+`wydarzenia/EventsListView.tsx`); `MIN_SPOTS_DOMYSLNIE = 1`, a licznik aktywnych filtrów
+liczy tę pozycję dopiero przy odchyleniu od jedynki. `filterByMaxPrice()` usunięte
+z `lib/eventFilters.ts` razem z filtrem ceny, tak samo martwe `onlyFreeSpots`/
+`onlyNoCost`. Koniec alertu trzymają `koniecDnia()` / `dataWygasniecia()` /
+`najwczesniejszyKoniec()` w `lib/alerts.ts` — wybrany dzień liczy się cały (23:59:59),
+`min` pola daty stoi na jutrze. Testy: `alertKoniec.test.ts`,
+`szukaj-domyslnie-mecze.klikalnosc.spec.ts`.
+
 ### 2026-09-14 — Alert o meczach: pora dnia, czas życia i wyłącznik z maila
 
 PROBLEM: alert o nowych meczach w okolicy miał jeden wymiar czasu — dni tygodnia. Nie
@@ -690,25 +725,4 @@ MECHANIKA: `rodzajOdmowy()` w `frontend/src/lib/geo.ts` pyta Permissions API PO 
 `denied-dismissed`, brak API lub wyjątek → `denied-nieznane`. Rozpoznanie siedzi
 w helperze, więc obejmuje wszystkie wywołania `getCurrentLocation()` naraz.
 `__tests__/odmowaLokalizacji.test.ts` pilnuje rozpoznania i treści komunikatów.
-
-### 2026-09-12 — Każde powiadomienie ma ikonę i da się je wyciszyć
-
-PROBLEM: Bojo prowadzi trzy osobne listy typów powiadomień — co realnie wstawia baza,
-jaką ikonę pokazuje dzwonek, i co da się wyciszyć w ustawieniach pusha — i te trzy listy
-rozjeżdżały się już trzykrotnie. Jedenaście typów (m.in. „komplet składu", „zwolniło się
-miejsce", „zapis przyjęty", „usunięto Cię ze składu", „mecz usunięty") nie miało wiersza
-w ustawieniach, więc nie dało się ich wyłączyć na telefonie. Siedem innych nie miało ikony
-i lądowało pod szarym dzwonkiem z podpisem „Powiadomienie" — dokładnie tam, gdzie ikona
-przestaje cokolwiek nieść, mimo że realnie przychodzą.
-
-ROZWIĄZANIE BOJO: wszystkie 27 typów powiadomień, jakie baza faktycznie wysyła, mają dziś
-własną ikonę na dzwonku i własny wiersz w ustawieniach „czego nie chcę na telefon".
-Znaleziony przy okazji martwy klucz (typ, którego baza nigdy nie wysyła jako powiadomienie)
-został usunięty z mapy ikon. Nowy test porównuje trzy listy automatycznie przy każdej
-zmianie, więc rozjazd nie wróci po raz czwarty bez zauważenia.
-
-MECHANIKA: mapa ikon przeniesiona z `NotificationBell.tsx` do `lib/ikonyPowiadomien.ts`.
-`__tests__/typyPowiadomien.test.ts` czyta `supabase/migrations/*.sql`, wyciąga wartość
-`type` z każdego `INSERT INTO notifications` i porównuje ją z `lib/ikonyPowiadomien.ts`
-oraz `lib/ustawieniaPowiadomien.ts` w obie strony.
 

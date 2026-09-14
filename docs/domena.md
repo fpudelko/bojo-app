@@ -85,9 +85,10 @@ grupy, która wcześniej szła inline w JSX);
 (zaproszenia na mecz, patrz [funkcje.md](./funkcje.md#zaproszenia-na-mecz));
 `lib/eventFilters.ts#filterByRadius` (filtr promienia na `/wydarzenia` — wiersz bez
 policzonej odległości wypada, bo promień bez tego nic by nie znaczył);
-`lib/eventFilters.ts#filterByMaxPrice`/`#filterByMinFreeSpots` (suwaki Cena/Wolne miejsca
-w modalu filtrów, `/wydarzenia` i tryb gier na `/mapa` — patrz
+`lib/eventFilters.ts#filterByMinFreeSpots` (stepper „Wolne miejsca" w modalu filtrów,
+`/wydarzenia` i tryb gier na `/mapa`, domyślnie 1 — patrz
 [funkcje.md](./funkcje.md#układ-wydarzenia--filtry-sortowanie-sekcje-dzienne));
+`filterByMaxPrice` odeszło 2026-09-14 razem z filtrem ceny;
 `lib/eventFilters.ts#multiLabel`/`#toggleInArray` (etykieta dropdownu multi-select i
 przełącznik wartości w tablicy — współdzielone przez sportowy dropdown na `/wydarzenia`
 i `/mapa`); `DateFilter` w tym samym pliku ma dziś `'miesiac'` zamiast `'weekend'`
