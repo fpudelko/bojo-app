@@ -86,6 +86,26 @@ export function matchWhenLabel(date: string, time?: string): string {
 }
 
 /**
+ * „do 18:30" / „do jutra, 18:30" / „do pojutrza, 18:30" / „do 16.09, 18:30" —
+ * kompaktowa etykieta TERMINU (np. oferty zwolnionego miejsca z rezerwy),
+ * pomyślana do pokazania KAŻDEMU patrzącemu na kolejkę, nie tylko osobie,
+ * której dotyczy — stąd bez nazwy dnia tygodnia: „do niedzieli"/„do środy"
+ * wymagałoby mapy odmian jak `dzienTygodniaWBierniku`, a i tak zdarzyłoby się
+ * rzadziej niż samo „jutro"/„pojutrze" przy oknie ofert do 72 h.
+ */
+export function krotkiTermin(d: Date): string {
+  const godzina = format(d, 'HH:mm');
+  if (d.getTime() <= Date.now()) return 'czas minął';
+  const dzis = new Date(); dzis.setHours(0, 0, 0, 0);
+  const dzien = new Date(d); dzien.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((dzien.getTime() - dzis.getTime()) / 86_400_000);
+  if (diffDays <= 0) return `do ${godzina}`;
+  if (diffDays === 1) return `do jutra, ${godzina}`;
+  if (diffDays === 2) return `do pojutrza, ${godzina}`;
+  return `do ${format(d, 'd.MM')}, ${godzina}`;
+}
+
+/**
  * „sobota, 30 sierpnia · za 3 dni" — pełny opis wybranej daty, do postawienia
  * POD polem `<input type="date">` w kreatorze i w edycji meczu.
  *

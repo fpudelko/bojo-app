@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isUpcoming, isEventJoinable, timeUntil, matchWhenLabel, minutesUntilStart, dzienTygodniaWBierniku } from '@/lib/eventDates';
+import { isUpcoming, isEventJoinable, timeUntil, matchWhenLabel, minutesUntilStart, dzienTygodniaWBierniku, krotkiTermin } from '@/lib/eventDates';
 import type { EventItem } from '@/types';
 
 function fakeEvent(overrides: Partial<EventItem> = {}): EventItem {
@@ -109,5 +109,34 @@ describe('dzienTygodniaWBierniku', () => {
   it('zostawia bez zmian dni, gdzie mianownik = biernik', () => {
     expect(dzienTygodniaWBierniku(new Date(2026, 8, 7))).toBe('poniedziałek');
     expect(dzienTygodniaWBierniku(new Date(2026, 8, 10))).toBe('czwartek');
+  });
+});
+
+describe('krotkiTermin', () => {
+  it('dziś — sama godzina, bez daty', () => {
+    const za2h = new Date(Date.now() + 2 * 3600_000);
+    expect(krotkiTermin(za2h)).toBe(`do ${String(za2h.getHours()).padStart(2, '0')}:${String(za2h.getMinutes()).padStart(2, '0')}`);
+  });
+
+  it('jutro — słowo „jutra", nie odmieniona nazwa dnia', () => {
+    const jutroTaSamaGodzina = new Date();
+    jutroTaSamaGodzina.setDate(jutroTaSamaGodzina.getDate() + 1);
+    expect(krotkiTermin(jutroTaSamaGodzina)).toMatch(/^do jutra, \d{2}:\d{2}$/);
+  });
+
+  it('pojutrze', () => {
+    const pojutrze = new Date();
+    pojutrze.setDate(pojutrze.getDate() + 2);
+    expect(krotkiTermin(pojutrze)).toMatch(/^do pojutrza, \d{2}:\d{2}$/);
+  });
+
+  it('dalej niż pojutrze — data dzień.miesiąc, nie nazwa dnia tygodnia', () => {
+    const zaTydzien = new Date();
+    zaTydzien.setDate(zaTydzien.getDate() + 7);
+    expect(krotkiTermin(zaTydzien)).toMatch(/^do \d{1,2}\.\d{2}, \d{2}:\d{2}$/);
+  });
+
+  it('termin, który już minął', () => {
+    expect(krotkiTermin(new Date(Date.now() - 60_000))).toBe('czas minął');
   });
 });

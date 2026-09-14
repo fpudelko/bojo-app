@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  kolejkaRezerwy, pozycjaWKolejce, pozycjaPoZapisie, czekaNaOferte, pominietyWKolejce,
+  kolejkaRezerwy, pozycjaWKolejce, pozycjaPoZapisie, czekaNaOferte, pominietyWKolejce, terminOferty,
 } from '@/lib/kolejkaRezerwy';
 import type { EventParticipant } from '@/types';
 
@@ -181,5 +181,19 @@ describe('czekaNaOferte — kto realnie dostanie ofertę', () => {
     // Odpuścił albo czeka na akceptację — organizator nie ma tu nic do zrobienia.
     expect(pominietyWKolejce(wpis({ id: 'g', isGuest: true, userId: undefined, claimPassed: true }))).toBe(false);
     expect(pominietyWKolejce(wpis({ id: 'g', isGuest: true, userId: undefined, pendingApproval: true }))).toBe(false);
+  });
+});
+
+describe('terminOferty — deadline widoczny dla KAŻDEGO patrzącego na kolejkę', () => {
+  // Dotąd liczył to WYŁĄCZNIE baner „jesteś następny" we własnym widoku
+  // gracza (`EventDetailClient.tsx`) — reszta rezerwy i organizator widzieli
+  // gołą etykietkę „czeka na decyzję" bez terminu (audyt S-1, druga część).
+  it('liczy termin z czasu oferty + okna z ustawień meczu', () => {
+    const oferta = wpis({ id: 'a', claimOfferedAt: '2026-09-01T10:00:00Z' });
+    expect(terminOferty(oferta, 180)?.toISOString()).toBe('2026-09-01T13:00:00.000Z');
+  });
+
+  it('null, gdy nie ma aktywnej oferty', () => {
+    expect(terminOferty(wpis({ id: 'a' }), 180)).toBeNull();
   });
 });
