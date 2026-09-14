@@ -4,6 +4,11 @@
 -- GPS przybliżone — zweryfikować przed produkcją
 -- ============================================================
 
+-- Powtórne uruchomienie NIE jest błędem: paczka `04-seedy.sql` wkleja ten plik
+-- razem z resztą seedów i człowiek uruchamia ją drugi raz choćby po to, żeby
+-- dołożyć brakujący scenariusz. Bez `ON CONFLICT` cała paczka wywracała się
+-- wtedy na `duplicate key value violates unique constraint "fields_pkey"`,
+-- czyli na katalogu boisk — jeszcze zanim doszła do wydarzeń.
 INSERT INTO fields (
   id, name, address, lat, lng,
   sport, available, surface, is_indoor,
@@ -488,4 +493,5 @@ INSERT INTO fields (
   'Orlik w Stęszewie zarządzany przez Urząd MiG.',
   NULL, false, false, false, true,
   2, 'orlik', 'public', NULL, '62-060', true, 'good'
-);
+)
+ON CONFLICT (id) DO NOTHING;

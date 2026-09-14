@@ -4,6 +4,11 @@
 -- GPS i dane kontaktowe zweryfikowane czerwiec 2025
 -- ============================================================
 
+-- Powtórne uruchomienie NIE jest błędem: paczka `04-seedy.sql` wkleja ten plik
+-- razem z resztą seedów i człowiek uruchamia ją drugi raz choćby po to, żeby
+-- dołożyć brakujący scenariusz. Bez `ON CONFLICT` cała paczka wywracała się
+-- wtedy na `duplicate key value violates unique constraint "fields_pkey"`,
+-- czyli na katalogu boisk — jeszcze zanim doszła do wydarzeń.
 INSERT INTO fields (
   id, name, address, lat, lng,
   sport, available, surface, is_indoor,
@@ -300,7 +305,8 @@ INSERT INTO fields (
   false, NULL, NULL, true,
   2, 'volleyball_beach', 'public',
   NULL, '64-320', true, 'good'
-);
+)
+ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
 -- Rezerwacje — field_outreach z booking_url
@@ -354,4 +360,5 @@ VALUES
    NULL, NULL, 0),
 
   ('bb000016-0000-0000-0000-000000000016', 'umowiony', 'brak',
-   NULL, NULL, 0);
+   NULL, NULL, 0)
+ON CONFLICT (field_id) DO NOTHING;

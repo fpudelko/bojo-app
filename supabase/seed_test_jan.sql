@@ -169,8 +169,17 @@ BEGIN
 
   -- ---- 6. Zaczyna się za 2 godziny ----------------------------------
   INSERT INTO events (organizer_id, organizer_name, sport, field_name, event_date, event_time, max_players, visibility, title, description)
+  -- Data i godzina liczone z JEDNEGO znacznika czasu. Stało tu
+  -- `to_char(now() + interval '2 hours', 'HH24:MI')`, co dawało TEKST, a
+  -- `events.event_time` jest typu `time` — Postgres nie rzutuje tekstu na czas
+  -- przy wstawianiu i cały seed wywracał się na `column "event_time" is of
+  -- type time without time zone but expression is of type text`. Drugi błąd
+  -- siedział obok: `CURRENT_DATE` z godziną liczoną od `now()` po północy
+  -- ustawia mecz 22 godziny w PRZESZŁOŚĆ — czyli dokładnie odwrotnie, niż mówi
+  -- opis. Dlatego data i godzina idą z tego samego wyrażenia.
   VALUES (jan, jan_name, 'piłka nożna', 'Boisko Malta',
-          CURRENT_DATE, to_char(now() + interval '2 hours', 'HH24:MI'), 10, 'public',
+          (now() + interval '2 hours')::date,
+          date_trunc('minute', now() + interval '2 hours')::time, 10, 'public',
     'Dzisiejsze granie na Malcie',
     '[TEST-J] Mecz zaczyna się DZIŚ za około 2 godziny. Sprawdź formatowanie daty („dziś, 19:30" zamiast pełnej daty) i czy nadal da się dołączyć.')
   RETURNING id INTO eid;

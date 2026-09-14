@@ -85,12 +85,37 @@ psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/seed-test-users.sql"
 # Konta osobowe, których seedy oczekują w auth.users.
 psql -q -v ON_ERROR_STOP=1 -d bojo <<'SQL'
 INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data)
-VALUES (extensions.gen_random_uuid(), 'franekks@gmail.com', now(), '{"display_name":"Franek P."}'::jsonb),
-       (extensions.gen_random_uuid(), 'j4n.brz0@gmail.com', now(), '{"display_name":"Jan Brzos"}'::jsonb)
+VALUES (extensions.gen_random_uuid(), 'franekks@gmail.com',          now(), '{"display_name":"Franek P."}'::jsonb),
+       (extensions.gen_random_uuid(), 'franciszekpudelko@gmail.com', now(), '{"display_name":"Franciszek P."}'::jsonb),
+       (extensions.gen_random_uuid(), 'j4n.brz0@gmail.com',          now(), '{"display_name":"Jan Brzos"}'::jsonb)
 ON CONFLICT (email) DO NOTHING;
 SQL
 
-for seed in seed_regresja.sql; do
+# Boiska — seedy scenariuszowe przypinają mecze do obiektów po nazwie, a część
+# widoków (mapa, pickery) bez katalogu jest pusta.
+for seed in seed-orliki.sql seed-beach-volleyball.sql seed-rental-venues.sql; do
+  echo "→ Boiska: $seed"
+  if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/$seed" 2>"$DANE/blad"; then
+    echo "✗ SEED BOISK PADŁ: $seed" >&2
+    sed 's/^/    /' "$DANE/blad" >&2
+    exit 1
+  fi
+done
+
+# WSZYSTKIE seedy scenariuszowe, nie tylko `seed_regresja`.
+#
+# Do 2026-09-14 przebieg puszczał jeden seed, a pozostałe sprawdzał wyłącznie
+# człowiek wklejający je do SQL Editora — czyli w praktyce nikt, dopóki czegoś
+# nie potrzebował. `seed_test_jan.sql` wywracał się przez to na
+# `to_char(...)` wstawianym do kolumny `time` i wyszło to dopiero przy
+# stawianiu bazy dev. Seed, którego nikt nie uruchamia, gnije tak samo jak
+# migracja — a kosztuje dokładnie tyle, co te kilka sekund niżej.
+#
+# Kolejność ma znaczenie: `seed_test_data` zakłada konta (wyżej), reszta
+# dokłada się niezależnie, każdy pod swoim markerem.
+for seed in seed_test_data.sql seed_test_groups.sql seed_test_jan.sql \
+            seed_regresja.sql seed_taktyka.sql seed_dwa_konta.sql \
+            seed_przedpremiera.sql; do
   echo "→ Seed: $seed"
   if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/$seed" 2>"$DANE/blad"; then
     echo "✗ SEED PADŁ: $seed" >&2
@@ -150,6 +175,14 @@ sed -n 's/^psql:[^ ]* NOTICE:  //p' "$DANE/blad" || true
 echo "→ Testy notatki organizatora przy odwołaniu (migracja 142)…"
 if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/notatka-odwolania.sql" 2>"$DANE/blad"; then
   echo "✗ TESTY NOTATKI ODWOŁANIA PADŁY" >&2
+  sed 's/^/    /' "$DANE/blad" >&2
+  exit 1
+fi
+sed -n 's/^psql:[^ ]* NOTICE:  //p' "$DANE/blad" || true
+
+echo "→ Testy kasowania meczu (migracja 148)…"
+if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/test/kasowanie-meczu.sql" 2>"$DANE/blad"; then
+  echo "✗ TESTY KASOWANIA MECZU PADŁY" >&2
   sed 's/^/    /' "$DANE/blad" >&2
   exit 1
 fi

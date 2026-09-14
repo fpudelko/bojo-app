@@ -1,6 +1,6 @@
 # Baza danych
 
-145 migracji (`001`–`147`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+146 migracji (`001`–`148`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
@@ -246,6 +246,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `143_zegar_kolejki_rezerwy` | **Kolejka rezerwowa nie miała zegara.** `sync_reserve_claim()` (`118`/`130`/`135`) jest wołane wyłącznie czyimś kliknięciem — wejściem na stronę meczu, wypisaniem się kogoś, odpuszczeniem oferty. Gdy oferta wygasała i nikt nie otwierał strony, kolejka STAWAŁA: wygasła oferta stała dalej, następna osoba nie dostawała niczego, a po starcie meczu funkcja wychodzi natychmiast, więc taka oferta nie wygasała już NIGDY. Sprawdzone zapytaniami na bazie (audyt 2026-09-12, ustalenie `S-1` w `docs/przeplyw-organizatora.md`). Nowa `porzadkuj_kolejki_rezerwy()` przegląda aktywne, przyszłe mecze z niepustą rezerwą i woła ISTNIEJĄCĄ `sync_reserve_claim()` — reguła „czy jest wolne miejsce" NIE jest tu powtórzona, żeby nie rozjechała się przy pierwszej zmianie. Zadanie `bojo-kolejka-rezerwy` co 15 minut — dolny limit okna oferty (`events_reserve_claim_minutes_check`) to 15 min, więc rzadsze zadanie czyniłoby kontrolkę w kreatorze nieprawdziwą. Testy: `supabase/test/kolejka-zegar.sql` |
 | `144_przypomnienie_zna_zamkniete_zapisy` | **Przypomnienie dzień przed meczem nie wiedziało o zamkniętych zapisach ani o rezerwie.** `wyslij_przypomnienia()` (`129`) powstała przed zamykaniem zapisów (`141`) i mówiła organizatorowi „brakuje 11 (3/14)" na meczu, który sam zamknął słowami „gramy w tym składzie" — a dwie osoby czekające na rezerwie były przy tym niewidzialne. Trzy warianty zamiast dwóch, dla obu bloków (organizator gra / nie gra): „zapisy zamknięte (N/M)" bez „brakuje"; „brakuje N (W/M) · K osób czeka na rezerwie" gdy ktoś czeka; „brakuje N (W/M)" bez zmian, gdy rezerwa pusta. Nowy pomocnik odmiany `odmien_czeka_na_rezerwie()`, wzorem `odmien_nie_oddalo()` z `131` (ta sama reguła 12–14). Blok C („po meczu") nietknięty. Testy: rozszerzony `supabase/test/przypomnienia.sql` |
 | `142_notatka_odwolania` | **Okno „Odwołać mecz?" mówiło, KTO dostanie powiadomienie, ale organizator nie miał gdzie napisać DLACZEGO ani co dalej.** Jedyną drogą było „Odwołaj i wyślij wiadomość" — osobna wiadomość na czacie, którą widzi tylko ten, kto tam zajrzy; kto dostał wyłącznie dzwonek, push albo maila, widział gołe „Organizator odwołał ten mecz". Nowa kolumna `events.notatka_odwolania` — treść dołączona do WSZYSTKICH kanałów, które i tak już wychodzą przy odwołaniu, nie nowy kanał: dzwonek (`powiadom_o_odwolaniu()`, `070`) dopisuje ją do `body`, więc push (czyta ten sam `body`, `102`) dostaje ją za darmo; `wyslij_mail_do_konta()` (`140`) i `wyslij_mail_do_goscia()` (`133`/`137`) dokładają pole `notatka` w ładunku do funkcji brzegowej `powiadom-goscia`, WYŁĄCZNIE dla powodu odwołania (`mecz_odwolany` / `odwolanie`) — pozostałe trzy powody z `140` (zmiana terminu, zmiana warunków, przywrócenie) nie mają z notatką nic wspólnego, nawet gdyby kolumna akurat coś niosła. `cancelEvent()` (`lib/events.ts`) ZAWSZE nadpisuje kolumnę, także na `null` przy pustym polu — inaczej drugie odwołanie tego samego meczu, bez nowej notatki, wysłałoby ludziom treść sprzed tygodnia jako aktualną. `restoreEvent()` zeruje ją jawnie przy przywróceniu, a wyzwalacz `wyczysc_notatke_po_przywroceniu()` robi to samo w bazie jako sieć bezpieczeństwa dla ścieżek z pominięciem aplikacji. Ta sama notatka trafia też na czat przy „Odwołaj i wyślij wiadomość" (`tekstOdwolania()` w `lib/eventShare.ts`) i do czerwonego banera „Mecz odwołany" na stronie meczu — cztery miejsca, jeden tekst. Testy: `supabase/test/notatka-odwolania.sql` |
+| `148_kasowanie_meczu_z_prosba` | **Mecz z nierozpatrzoną prośbą o dołączenie nie dawał się usunąć — i to REGRESJA, nie nowy błąd.** `powiadom_o_odrzuceniu_prosby()` wisi na `BEFORE DELETE ON event_participants`; przy `DELETE FROM events` kaskada odpala go już PO zniknięciu wiersza meczu, więc wstawiane powiadomienie łamało `notifications_event_id_fkey` i wywracało całe kasowanie. Osłonę `IF NOT FOUND THEN RETURN OLD` dołożyła `116`, a `135` zdjęła ją po cichu, biorąc ciało funkcji z `076` (wersji sprzed `116`) po to, by dołożyć warunek `auth.uid()`. To jest ta klasa pułapki, której `CREATE OR REPLACE FUNCTION` nie pokazuje w diffie: nadpisujesz całą funkcję, a nie widzisz, co w niej było. `148` łączy oba warunki. Testy: `supabase/test/kasowanie-meczu.sql` sprawdza obie strony naraz — kasowanie meczu przechodzi ORAZ odrzucenie pojedynczej prośby dalej powiadamia; bez tej drugiej asercji „naprawą" byłoby wyłączenie powiadomienia |
 | `126_szukanie_bez_ogonkow` | `fields.szukaj_norm` — kolumna GENEROWANA (nazwa + adres, małymi literami, bez polskich ogonków) plus indeks GIN po trigramach (`pg_trgm`). Szukanie boisk robiło `ilike '%<fraza>%'` na `name`/`address`, a Postgres porównuje znak po znaku: „poznan" NIE jest zgodne z „Poznań". Nikt nie pisze ogonków w szukajce na telefonie, więc wpisanie miasta zwracało ZERO wyników przy 38 tysiącach obiektów w katalogu. `translate()`, nie `unaccent()`: `unaccent()` nie jest IMMUTABLE, więc nie wolno go użyć w kolumnie generowanej ani zaindeksować bez własnej funkcji-owijki; `translate()` jest immutable i nie wymaga rozszerzenia. Mapowanie MUSI być identyczne z `foldText()` w `frontend/src/lib/searchText.ts` — filtr lokalny w `VenueExplorer` przepuszcza dalej to, co znajdzie serwer, więc rozjazd którejkolwiek strony wycina wyniki. Wielkie litery są w mapowaniu mimo `lower()` przed nim, bo `lower()` zależy od locale bazy. `searchExplorerFields()` ma wyjście awaryjne na stare `or(...)`, gdy kolumny jeszcze nie ma (migracje puszcza się ręcznie) |
 
 **Powiadomienia mogą powstawać wyłącznie z wyzwalaczy albo z wąsko uprawnionych
@@ -409,6 +410,38 @@ nic nie trzeba klikać w *Database → Extensions*.
 > `handle_new_user`), czystsze jest `DROP TABLE profiles CASCADE;` i paczka `01`
 > od początku — **wyłącznie na świeżej bazie dev**, na produkcji `profiles` trzyma
 > konta i awatary.
+>
+> **Drugi objaw tej samej przyczyny, przy paczce `02`:** `null value in column
+> "first_name" of relation "profiles" violates not-null constraint`. To backfill
+> z migracji `022` (wiersz w `profiles` dla każdego konta z `auth.users`) trafiający
+> na CUDZE kolumny `NOT NULL` bez wartości domyślnej — czyli tabelę po innej,
+> starszej aplikacji, nie po quickstarcie. `ADD COLUMN IF NOT EXISTS` tego nie
+> ratuje: nasze kolumny dochodzą, ale cudzy `NOT NULL` dalej blokuje wstawienie.
+>
+> Na projekcie, który ma być kopią produkcji, odpowiedzią jest CZYSTA KARTKA, nie
+> łatanie kolumna po kolumnie — kasuje cały schemat `public` (**tylko baza dev!**),
+> po czym paczki idą od `01`:
+>
+> ```sql
+> drop schema public cascade;
+> create schema public;
+> grant usage on schema public to anon, authenticated, service_role;
+> grant all   on schema public to postgres, anon, authenticated, service_role;
+> ```
+>
+> Konta w `auth.users` to przeżywają — `auth` jest osobnym schematem. Gdy cudzej
+> tabeli trzeba jednak oszczędzić, minimalne wyjście to zdjęcie `NOT NULL` z kolumn,
+> których nasze migracje nie znają:
+>
+> ```sql
+> select 'alter table public.profiles alter column ' || quote_ident(column_name)
+>        || ' drop not null;'
+> from information_schema.columns
+> where table_schema = 'public' and table_name = 'profiles'
+>   and is_nullable = 'NO' and column_default is null and column_name <> 'id';
+> ```
+>
+> — uruchom wynik, potem paczkę `02` od początku.
 
 **3. Sprawdź, czy schemat jest kompletny.** `supabase/zapytania/stan-migracji.sql`
 wypisuje migracje, których w bazie brakuje (brakujące na górze). Pusta lista braków =
@@ -515,7 +548,23 @@ bazy od zera pominie twój plik.
 | `supabase/seed_test_data.sql` | 25 wydarzeń pokrywających wszystkie kombinacje ustawień (w tym oferty z rezerwy i propozycje składów). Bezpieczny do wielokrotnego użycia — czyści po markerze `[TEST]` w opisie |
 | `supabase/seed-test-users.sql` | Konta `test1..test10@example.com`, hasło `test1234` |
 
-Oba uruchamiane ręcznie w SQL Editor.
+Uruchamiane ręcznie w SQL Editor — albo, w komplecie, paczką `supabase/bundles/04-seedy.sql`.
+
+**Paczka `04` niesie WSZYSTKIE seedy scenariuszowe**, nie trzy podstawowe: boiska
+(orliki, siatkówka plażowa, obiekty na wynajem), konta, a potem `[TEST]`, `[TEST-G]`,
+`[TEST-J]`, `[REG]`, `[TAK]`, `[DWA]` i `[PRZED]`. Baza dev ma pozwalać przejść
+aplikację w całości, a markery trzymają scenariusze rozłącznie — `wyczysc-testowe.sql`
+dalej sprząta po każdym z osobna, a niepotrzebną sekcję da się z paczki wyciąć.
+
+**`scripts/baza-testowa.sh` uruchamia dziś każdy z tych seedów** (do 2026-09-14 tylko
+`seed_regresja.sql`), więc CI wywraca się, gdy któryś przestanie się aplikować. Powód
+jest ten sam, co przy migracjach: seed, którego nikt nie uruchamia, gnije po cichu.
+Kosztowało to `seed_test_jan.sql`, który wstawiał `to_char(…)` do kolumny typu `time`
+i wywalał się na `column "event_time" is of type time without time zone but expression
+is of type text` — wyszło dopiero przy stawianiu bazy dev, miesiące po fakcie. Seedy
+boisk dostały przy tej okazji `ON CONFLICT (id) DO NOTHING`: bez tego drugie uruchomienie
+paczki `04` (najzwyklejsza rzecz — dołożyć brakujący scenariusz) padało na kluczu głównym
+`fields`, zanim doszło do wydarzeń.
 
 **Seedy sprawdzają schemat, zanim cokolwiek zapiszą.** `seed_test_data.sql`,
 `seed_regresja.sql` i `seed_przedpremiera.sql` zaczynają od sprawdzenia po jednym
