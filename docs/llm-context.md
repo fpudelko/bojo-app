@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-14 · migracja `147` · 64 tabele
+**Stan na:** 2026-09-14 · migracja `148` · 64 tabele
 
 ---
 
@@ -370,6 +370,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-14 — Mecz z czekającą prośbą znowu da się usunąć
+
+PROBLEM: organizator, który włączył „Wymagaj akceptacji" i miał choćby jedną
+nierozpatrzoną prośbę o dołączenie, NIE MÓGŁ usunąć swojego meczu. Kliknięcie „Usuń"
+nie robiło nic — mecz zostawał na liście, a jedyna informacja o przyczynie szła do
+konsoli przeglądarki jako błąd klucza obcego. Nie było obejścia w interfejsie:
+odrzucenie wszystkich czekających próśb najpierw działało, ale nikt nie miał powodu
+zgadywać takiego związku.
+
+ROZWIĄZANIE BOJO: usunięcie meczu działa niezależnie od tego, kto na nim czeka. Osoba
+z nierozpatrzoną prośbą nie dostaje przy tym „Organizator nie przyjął Twojej prośby",
+bo nikt jej nie odrzucił — o zniknięciu meczu mówi osobne powiadomienie `mecz_usuniety`.
+Odrzucenie POJEDYNCZEJ prośby powiadamia dalej, bez zmian.
+
+MECHANIKA: migracja `148` — `powiadom_o_odrzuceniu_prosby()` (wyzwalacz `BEFORE DELETE`
+na `event_participants`) wychodzi bez zapisu, gdy wiersza meczu już nie ma, czyli gdy
+DELETE przyszedł kaskadą z `events`. Osłonę wprowadziła `116`, a `135` zdjęła ją po cichu,
+biorąc ciało funkcji z `076`. Regresję pilnuje teraz `supabase/test/kasowanie-meczu.sql`
+uruchamiany przez `scripts/baza-testowa.sh`, czyli w CI.
+
+
 ### 2026-09-14 — Arkusz filtrów: mniej napisów, sport czytany pod ikonami
 
 PROBLEM: arkusz filtrów na mapie i liście meczów otwierał się trzema rzędami
@@ -674,32 +695,4 @@ wymienienie każdego pola w `repeatEvent()`. `lib/zmianyMeczu.ts` — nowa
 argument `StanUdostepnienia` (wolne miejsca, rezerwa, zapisy zamknięte); bez niego
 zachowanie jest identyczne jak dotąd. Testy: `__tests__/events.test.ts`,
 `__tests__/zmianyMeczu.test.ts`, `__tests__/eventShare.test.ts`.
-
-### 2026-09-12 — Kolejka rezerwowa i przypomnienia przestają czekać na kliknięcie
-
-PROBLEM: (1) Gdy zwolniło się miejsce, Bojo proponowało je pierwszej osobie z listy
-rezerwowej — ale odświeżenie tej oferty zależało WYŁĄCZNIE od tego, czy ktokolwiek
-akurat otworzył stronę meczu. Jeśli oferta wygasła (domyślnie po 3 h) i nikt nie wszedł
-na stronę, wygasła oferta stała dalej w nieskończoność: następna osoba z kolejki nie
-dostawała niczego, a organizator grał w niepełnym składzie mając chętnego na ławce. Po
-starcie meczu taka oferta nie wygasała już nigdy. (2) Przypomnienie dzień przed meczem
-nie wiedziało nic o zamkniętych zapisach: organizator, który wieczorem zamknął zapisy
-przy 10 z 14 osób mówiąc „gramy w tym składzie", dostawał następnego dnia „brakuje 4" —
-aplikacja kłóciła się z jego własną decyzją. Dwie osoby czekające na liście rezerwowej
-były przy tym całkowicie niewidoczne w treści przypomnienia.
-
-ROZWIĄZANIE BOJO: Kolejka rezerwowa ma teraz własny zegar — co 15 minut Bojo sprawdza
-samo, czy jakaś oferta wygasła, i jeśli tak, przekazuje miejsce dalej i powiadamia obie
-strony, bez czyjegokolwiek kliknięcia. Przypomnienie dzień przed meczem rozróżnia dziś
-trzy stany organizatora: zapisy zamknięte (bez wzmianki o brakujących), brakuje ludzi
-i ktoś czeka na rezerwie (z liczbą czekających), albo brakuje ludzi i rezerwa jest pusta
-(bez zmian względem wcześniejszego zachowania).
-
-MECHANIKA: migracja `143` — funkcja `porzadkuj_kolejki_rezerwy()` (woła istniejącą
-`sync_reserve_claim()` dla aktywnych, przyszłych meczów z niepustą rezerwą, nie powtarza
-jej reguł) plus zadanie `pg_cron` `bojo-kolejka-rezerwy` co 15 minut. Migracja `144` —
-`wyslij_przypomnienia()` (`129`/`131`) dostaje kolumnę `events.zapisy_zamkniete` (`141`)
-i liczbę czekających w kolejce do treści dla organizatora, nowy pomocnik odmiany
-`odmien_czeka_na_rezerwie()` wzorem `odmien_nie_oddalo()` z `131`. Testy:
-`supabase/test/kolejka-zegar.sql` (nowy), rozszerzony `supabase/test/przypomnienia.sql`.
 

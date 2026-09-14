@@ -5,6 +5,11 @@
 -- GPS przybliżone (fix_coords.py dokona weryfikacji)
 -- ============================================================
 
+-- Powtórne uruchomienie NIE jest błędem: paczka `04-seedy.sql` wkleja ten plik
+-- razem z resztą seedów i człowiek uruchamia ją drugi raz choćby po to, żeby
+-- dołożyć brakujący scenariusz. Bez `ON CONFLICT` cała paczka wywracała się
+-- wtedy na `duplicate key value violates unique constraint "fields_pkey"`,
+-- czyli na katalogu boisk — jeszcze zanim doszła do wydarzeń.
 INSERT INTO fields (
   id, name, address, lat, lng,
   sport, available, surface, is_indoor,
@@ -157,7 +162,8 @@ INSERT INTO fields (
   true, true, true, true,
   1, 'other', 'public',
   'Nowe Miasto', '61-139', true, 'good'
-);
+)
+ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
 -- Outreach
@@ -172,4 +178,5 @@ VALUES
   ('cc000005-0000-0000-0000-000000000005', 'umowiony', 'telefon',       0),
   ('cc000006-0000-0000-0000-000000000006', 'umowiony', 'email',         0),
   ('cc000007-0000-0000-0000-000000000007', 'umowiony', 'zewnetrzny',    1),
-  ('cc000008-0000-0000-0000-000000000008', 'umowiony', 'email',         0);
+  ('cc000008-0000-0000-0000-000000000008', 'umowiony', 'email',         0)
+ON CONFLICT (field_id) DO NOTHING;
