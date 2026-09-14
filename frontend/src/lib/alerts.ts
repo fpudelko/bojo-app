@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import type { GameAlert } from '@/types';
+import { endOfWeek } from 'date-fns';
 import { PROMIEN_DOMYSLNY_KM, indeksPromienia, promienZIndeksu } from './miejscowosci';
+import { dataZKiedy, type DateFilter } from './eventFilters';
 
 function toAlert(row: any): GameAlert {
   return {
@@ -162,6 +164,47 @@ export function dataWygasniecia(expiresAt: string | null | undefined): string {
 export function najwczesniejszyKoniec(teraz: Date = new Date()): string {
   const d = new Date(teraz.getFullYear(), teraz.getMonth(), teraz.getDate() + 1);
   return dataWygasniecia(d.toISOString());
+}
+
+/**
+ * TEN SAM WYBÓR „KIEDY" CO W FILTRACH, TYLKO O CZYM INNYM — 2026-09-14,
+ * zgłoszone wprost. W arkuszu filtrów cztery przyciski znaczą „mecze w tym
+ * oknie"; w oknie alertu — „tak długo powiadamiaj". Kształt jest ten sam
+ * (`components/ui/WyborKiedy.tsx`), bo w obu razach człowiek wskazuje ten sam
+ * odcinek czasu do przodu; różni się tylko to, co się z nim robi.
+ *
+ * Brak wyboru (`wszystkie`) znaczy w alercie BEZTERMINOWO i to zostaje
+ * wartością domyślną.
+ */
+export function wygasaZKiedy(filter: DateFilter, teraz: Date = new Date()): string | null {
+  const koniecZa = (dni: number) => {
+    const d = new Date(teraz.getFullYear(), teraz.getMonth(), teraz.getDate() + dni, 23, 59, 59, 999);
+    return d.toISOString();
+  };
+  const data = dataZKiedy(filter);
+  if (data) return koniecDnia(data);
+  switch (filter) {
+    case 'dzisiaj':  return koniecZa(0);
+    // Trzy dni licząc z dzisiejszym, tak samo jak filtr — inaczej ta sama
+    // etykieta znaczyłaby w dwóch miejscach dwie różne rzeczy.
+    case 'trzy-dni': return koniecZa(2);
+    case 'tydzien':  return koniecDnia(dataWygasniecia(endOfWeek(teraz, { weekStartsOn: 1 }).toISOString()));
+    default:         return null;
+  }
+}
+
+/** Odwrotnie: moment wygaśnięcia z bazy → wartość dla `WyborKiedy`. Wpada na
+ *  nazwany przycisk, gdy data zgadza się co do dnia z tym, co by wyliczył —
+ *  inaczej ląduje na własnym terminie, zamiast zgubić wybór. */
+export function kiedyZWygasniecia(expiresAt: string | null | undefined, teraz: Date = new Date()): DateFilter {
+  if (!expiresAt) return 'wszystkie';
+  const data = dataWygasniecia(expiresAt);
+  if (!data) return 'wszystkie';
+  for (const f of ['dzisiaj', 'trzy-dni', 'tydzien'] as const) {
+    const wyliczone = wygasaZKiedy(f, teraz);
+    if (wyliczone && dataWygasniecia(wyliczone) === data) return f;
+  }
+  return `do:${data}`;
 }
 
 /**

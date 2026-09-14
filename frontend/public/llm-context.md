@@ -370,7 +370,7 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-09-14 — Wyszukiwarka meczów: mniej kontrolek, czytelniejszy alert
+### 2026-09-14 — Wyszukiwarka meczów: mniej kontrolek, prostszy alert
 
 PROBLEM: pasek wyszukiwarki meczów łamał się na telefonie na dwa wiersze, bo mieścił
 przełącznik trybu, podpisany przełącznik „Lista | Mapa", dzwonek alertu i ikonę filtrów.
@@ -378,9 +378,12 @@ Dzwonek nie mówił, co się stanie po dotknięciu, a stał obok DRUGIEGO dzwonk
 (powiadomienia), który znaczy coś innego. W arkuszu filtrów suwak „Cena" pytał o górny
 limit w złotych, choć mecze w Bojo są albo za darmo, albo za kilkanaście złotych od
 osoby, a suwak „Wolne miejsca" kazał trafiać palcem w konkretną liczbę na osi przez cały
-ekran. W oknie alertu pytanie „jak długo powiadamiać" zajmowało dwa rzędy czterema
-pigułkami, a przycisk zapisu był wyszarzony bez podania powodu, gdy nikt nie wskazał
-miejsca — wyglądało to na zepsutą aplikację, nie na brakujące pole.
+ekran. Filtr „Kiedy" był pięciopozycyjnym suwakiem, w którym „Jutro" wykluczało
+DZISIAJ, czyli mecz za dwie godziny, a „Ten miesiąc" pod koniec miesiąca znaczyło co
+innego niż na jego początku. Okno alertu pytało o sport, miejsce, promień, dni tygodnia
+i porę dnia — czyli o to samo, co człowiek przed chwilą ustawił w filtrach, tyle że
+drugi raz i w innych kontrolkach; a przycisk zapisu był wyszarzony bez podania powodu,
+gdy nikt nie wskazał miejsca.
 
 ROZWIĄZANIE BOJO: przełącznik „Lista | Mapa" niesie dziś ikony zamiast napisów, a wejście
 do alertu jest podpisanym przyciskiem nakładającym się na listę meczów („Powiadom
@@ -388,10 +391,13 @@ o takich meczach", a gdy alert już działa — „Damy znać o nowym meczu"). F
 zniknął. „Wolne miejsca" ustawia się przyciskami − i +, domyślnie na 1 i w górę do 99,
 czyli wyszukiwarka domyślnie pokazuje mecze, do których da się wejść; komplety wracają
 jednym dotknięciem „−", a pusta lista mówi o tym wprost odsyłaczem „Zobacz też mecze
-z kompletem". W oknie alertu „jak długo powiadamiać" to jedno zdanie („alert działa,
-dopóki go nie wyłączysz") z cichym odsyłaczem „Ustaw datę końca", który odsłania zwykły
-kalendarz. Gdy nie wskazano miejsca, Bojo pisze wprost, dlaczego nie da się zapisać:
-alert wyłapuje mecze po odległości od punktu, więc bez punktu nie ma od czego liczyć.
+z kompletem". „Kiedy" to cztery przyciski w jednej linii — Dzisiaj, 3 dni, Tydzień
+i Termin, który odsłania kalendarz „do kiedy"; brak wyboru znaczy wszystkie terminy,
+a dotknięcie wybranego odznacza go. Okno alertu pyta już tylko o dwie rzeczy: jak długo
+powiadamiać (te same cztery przyciski, brak wyboru = bezterminowo) i czym dać znać
+(dzwonek, mail, powiadomienie na telefon, SMS). Filtry pokazuje wierszem do
+przeczytania, zamiast pytać o nie drugi raz. Gdy nie wiadomo, gdzie szukać, Bojo pisze
+wprost dlaczego i daje przycisk „Użyj mojej lokalizacji".
 
 MECHANIKA: `SegmentedToggle` przyjmuje `icon` w obu opcjach (nazwa dostępna zostaje
 z `label`). Przycisk alertu na `/mapa` to nakładka `absolute bottom-0` nad listą,
@@ -402,8 +408,13 @@ liczy tę pozycję dopiero przy odchyleniu od jedynki. `filterByMaxPrice()` usun
 z `lib/eventFilters.ts` razem z filtrem ceny, tak samo martwe `onlyFreeSpots`/
 `onlyNoCost`. Koniec alertu trzymają `koniecDnia()` / `dataWygasniecia()` /
 `najwczesniejszyKoniec()` w `lib/alerts.ts` — wybrany dzień liczy się cały (23:59:59),
-`min` pola daty stoi na jutrze. Testy: `alertKoniec.test.ts`,
-`szukaj-domyslnie-mecze.klikalnosc.spec.ts`.
+`min` pola daty stoi na jutrze. `DateFilter` jest jednym stringiem także dla własnego
+terminu (`do:2026-09-30`), więc wchodzi do adresu bez drugiego pola; zepsuta data
+zachowuje się jak brak filtra, a nie jak „nic nie pasuje". `components/ui/WyborKiedy.tsx`
+stoi w obu arkuszach i w oknie alertu, a `wygasaZKiedy()`/`kiedyZWygasniecia()` mapują
+wybór na `expires_at` i z powrotem. Kolumny `days_of_week`, `godzina_od`/`godzina_do`
+z migracji `148` zostają w bazie nietknięte — okno przestało o nie pytać. Testy:
+`alertKoniec.test.ts`, `eventFilters.test.ts`, `szukaj-domyslnie-mecze.klikalnosc.spec.ts`.
 
 ### 2026-09-14 — Alert o meczach: pora dnia, czas życia i wyłącznik z maila
 

@@ -4,32 +4,20 @@ import { useState, useEffect } from 'react';
 import { X, Loader2, Bell, BellOff, Mail, MapPin, Smartphone, Check } from 'lucide-react';
 import {
   getMyAlert, saveAlert, deleteMyAlert,
-  koniecDnia, dataWygasniecia, najwczesniejszyKoniec, PROMIEN_DOMYSLNY, type AlertInput,
+  wygasaZKiedy, kiedyZWygasniecia, PROMIEN_DOMYSLNY, type AlertInput,
 } from '@/lib/alerts';
 import { pozycjaBezPytania } from '@/lib/geo';
 import { useAuth } from '@/lib/auth';
-import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
+import { sportLabel } from '@/lib/sports';
 import { SHOW_SMS_FEATURES } from '@/lib/features';
 import { stanPush, wlaczPush, type StanPush } from '@/lib/push';
-import SportChip from '@/components/ui/SportChip';
 import ToggleRow from '@/components/ui/ToggleRow';
-import WyborMiejscowosci from '@/components/map/WyborMiejscowosci';
+import WyborKiedy from '@/components/ui/WyborKiedy';
+import PrzyciskMojaLokalizacja from '@/components/ui/PrzyciskMojaLokalizacja';
+import type { DateFilter } from '@/lib/eventFilters';
 import type { Miejscowosc } from '@/lib/miejscowosci';
 import type { GameAlert } from '@/types';
 import { WARSTWA } from '@/lib/warstwy';
-
-const DAYS = [
-  { n: 1, short: 'Pn' }, { n: 2, short: 'Wt' }, { n: 3, short: 'Śr' },
-  { n: 4, short: 'Cz' }, { n: 5, short: 'Pt' }, { n: 6, short: 'Sb' }, { n: 7, short: 'Nd' },
-];
-
-/** Domyślne okno godzinowe po włączeniu filtra pory dnia — popołudnie i wieczór,
- *  czyli pora, o której gra się w tygodniu po pracy. */
-const GODZINA_OD_DOMYSLNA = 17;
-const GODZINA_DO_DOMYSLNA = 22;
-
-const GODZINY = Array.from({ length: 24 }, (_, i) => i);
-const dwieCyfry = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
 /** Co powiedzieć o pushu w zależności od tego, co ta przeglądarka w ogóle umie.
  *  Stany biorą się z `stanPush()` — ten sam mechanizm co przełącznik w profilu. */
@@ -54,24 +42,31 @@ interface Props {
 /**
  * Okno alertu o nowych meczach.
  *
- * TE SAME KONTROLKI CO ARKUSZ FILTRÓW — 2026-09-14, zgłoszone wprost („ten
- * widok nie jest potrzebny, niech będzie użyty ten do filtrów"). Okno miało
- * własny przycisk GPS, własne pole miasta i własny suwak promienia, czyli trzy
- * kopie rzeczy, które stoją w filtrach — a pytanie jest identyczne: gdzie
- * i jak daleko. Dziś tym zajmuje się `WyborMiejscowosci`, ten sam komponent
- * co na `/mapa`, razem z pinezką i suwakiem odległości.
+ * DWA PYTANIA, NIE SIEDEM — 2026-09-14, zgłoszone wprost: „jak klikam
+ * «powiadom mnie o takich meczach», to filtry już są, zostaje tylko kwestia
+ * czy mailowo, czy SMS, czy notyfikacja i w jakim czasie. Resztę wywal,
+ * w sensie filtry".
  *
- * DWA RÓŻNE „KIEDY", ROZDZIELONE NAZWĄ. Alert ma dwa czasy, które nie mają ze
- * sobą nic wspólnego, i zlanie ich w jedną sekcję było najprostszą drogą do
- * tego, żeby nikt nie wiedział, co ustawia:
+ * Okno pytało wcześniej o sport, miejsce, promień, dni tygodnia i porę dnia —
+ * czyli o to samo, co człowiek przed chwilą ustawił w filtrach, tyle że
+ * drugi raz i w innych kontrolkach. Wejście do alertu prowadzi WPROST
+ * z wyników tych filtrów (`domyslneZFiltrow`), więc odpowiedź już jest;
+ * pytanie o nią jeszcze raz to nie „upewnienie się", tylko praca do wykonania
+ * ponownie. Dziś filtry są POKAZANE (wiersz podsumowania, do przeczytania),
+ * a wypełnia się wyłącznie:
  *
- *   * „Powiadamiaj o meczach" — kiedy ma być MECZ (dni tygodnia, pora dnia),
- *   * „Jak długo powiadamiać" — jak długo ma żyć ALERT.
+ *   1. **Kiedy** — jak długo powiadamiać (`expires_at`),
+ *   2. **Czym dać znać** — mail, push, SMS.
  *
- * ALERT JEST DOMYŚLNIE BEZTERMINOWY (decyzja właściciela). To dobry wybór dla
- * kogoś, kto naprawdę czeka na mecz, ale ma jeden warunek: musi dać się
- * wyłączyć z samej wiadomości, bez logowania. Stąd `wylacz_token` i trasa
- * `/alert/wylacz/[token]` — bez nich alert bezterminowy jest spamem.
+ * Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `148`) zostają
+ * w bazie i w funkcji brzegowej nietknięte — okno po prostu przestało o nie
+ * pytać. Gdyby wróciły, wrócą jako część FILTRÓW, wspólne dla listy i alertu,
+ * a nie jako druga, osobna kopia pytania o termin.
+ *
+ * ALERT JEST DOMYŚLNIE BEZTERMINOWY (decyzja właściciela) — brak wyboru
+ * w „Kiedy" znaczy właśnie to. Warunek jest jeden: musi dać się wyłączyć
+ * z samej wiadomości, bez logowania. Stąd `wylacz_token` i trasa
+ * `/alert/wylacz/[token]`.
  */
 export default function AlertSetupDialog({
   onClose, onSaved, defaultSport, defaultRadiusKm, defaultLat, defaultLng, defaultLabel,
@@ -79,8 +74,7 @@ export default function AlertSetupDialog({
   const { user } = useAuth();
 
   const [existing, setExisting] = useState<GameAlert | null>(null);
-  const [sport,    setSport]    = useState(defaultSport ?? '');
-  const [days,     setDays]     = useState<number[]>([]);
+  const [sport] = useState(defaultSport ?? '');
   const [miejsce,  setMiejsce]  = useState<Miejscowosc | null>(
     defaultLat != null && defaultLng != null
       ? { nazwa: defaultLabel || 'Moja lokalizacja', kontekst: '', lat: defaultLat, lng: defaultLng }
@@ -88,12 +82,7 @@ export default function AlertSetupDialog({
   );
   const [promienKm, setPromienKm] = useState(defaultRadiusKm ?? PROMIEN_DOMYSLNY);
 
-  const [poraOgraniczona, setPoraOgraniczona] = useState(false);
-  const [godzinaOd, setGodzinaOd] = useState(GODZINA_OD_DOMYSLNA);
-  const [godzinaDo, setGodzinaDo] = useState(GODZINA_DO_DOMYSLNA);
-
-  /** `''` = bezterminowo (domyślnie). Inaczej `YYYY-MM-DD` z pola daty. */
-  const [koniec, setKoniec] = useState('');
+  const [kiedy, setKiedy] = useState<DateFilter>('wszystkie');
   const [kanalEmail, setKanalEmail] = useState(true);
   const [push, setPush] = useState<StanPush | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
@@ -116,17 +105,10 @@ export default function AlertSetupDialog({
       if (!zywe) return;
       if (a) {
         setExisting(a);
-        setSport(a.sport ?? '');
-        setDays(a.daysOfWeek);
         setMiejsce({ nazwa: a.cityLabel || 'Wybrane miejsce', kontekst: '', lat: a.lat, lng: a.lng });
         setPromienKm(a.radiusKm);
-        setKoniec(dataWygasniecia(a.expiresAt));
+        setKiedy(kiedyZWygasniecia(a.expiresAt));
         setKanalEmail(a.kanalEmail);
-        if (a.godzinaOd != null && a.godzinaDo != null) {
-          setPoraOgraniczona(true);
-          setGodzinaOd(a.godzinaOd);
-          setGodzinaDo(a.godzinaDo);
-        }
         return;
       }
       if (defaultLat != null) return;
@@ -139,26 +121,25 @@ export default function AlertSetupDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const toggleDay = (n: number) =>
-    setDays((prev) => prev.includes(n) ? prev.filter((d) => d !== n) : [...prev, n].sort());
-
   const handleSave = async () => {
     if (!user || !miejsce) return;
     setSaving(true);
     try {
       const input: AlertInput = {
         sport:      sport || undefined,
-        daysOfWeek: days,
+        // Dni tygodnia i pora dnia zostały wyjęte z okna (patrz nagłówek
+        // komponentu). Pusta tablica znaczy w `notify-game-alert` „dowolny
+        // dzień", a `null`/`null` — „dowolna pora"; edycja starego alertu
+        // z ustawionymi godzinami wyzeruje je świadomie, bo inaczej okno
+        // pokazywałoby jedno, a baza trzymała drugie.
+        daysOfWeek: [],
         lat:        miejsce.lat,
         lng:        miejsce.lng,
         radiusKm:   promienKm,
         cityLabel:  miejsce.nazwa || undefined,
-        expiresAt:  koniec ? koniecDnia(koniec) : null,
-        // Godziny idą PARAMI albo wcale — migracja `148` pilnuje tego także
-        // w bazie, więc rozjazd tutaj skończyłby się odmową zapisu, a nie
-        // cichym zapisaniem połowy filtra.
-        godzinaOd:  poraOgraniczona ? godzinaOd : null,
-        godzinaDo:  poraOgraniczona ? godzinaDo : null,
+        expiresAt:  wygasaZKiedy(kiedy),
+        godzinaOd:  null,
+        godzinaDo:  null,
         kanalEmail,
       };
       const zapisany = await saveAlert(user.id, input);
@@ -183,13 +164,14 @@ export default function AlertSetupDialog({
 
   // BEZ MIEJSCA NIE DA SIĘ ZAPISAĆ — I TO MUSI BYĆ NAPISANE, 2026-09-14,
   // zgłoszone wprost („użytkownik nie wie, dlaczego nie może dodać alertu, jak
-  // nie wybierze miasta"). Przycisk był po prostu wyszarzony, a wyszarzony
-  // przycisk bez powodu czyta się jak zepsuta aplikacja, nie jak brakujące
-  // pole — zwłaszcza że brakujące pole jest wtedy o pół ekranu wyżej.
+  // nie wybierze miasta"). Powód jest prawdziwy, nie formalny: alert dopasowuje
+  // mecze po ODLEGŁOŚCI od punktu (`lat`/`lng` + `radius_km`), więc bez punktu
+  // nie ma od czego liczyć promienia.
   //
-  // Powód jest prawdziwy, nie formalny: alert dopasowuje mecze po ODLEGŁOŚCI
-  // od punktu (`lat`/`lng` + `radius_km`), więc bez punktu nie ma od czego
-  // liczyć promienia, który stoi tuż obok.
+  // Odkąd okno nie ma własnego pola miejscowości, brak punktu znaczy, że nie
+  // było go też w filtrach — więc jedyne wyjście dostępne STĄD to lokalizacja
+  // urządzenia. Reszta dzieje się w filtrach i okno mówi to wprost, zamiast
+  // wyszarzyć przycisk bez słowa wyjaśnienia.
   const brakMiejsca = !miejsce;
 
   return (
@@ -210,147 +192,58 @@ export default function AlertSetupDialog({
         </div>
 
         <div className="px-5 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
-          {/* ── SPORT ── */}
-          <div>
-            <p className={naglowekSekcji}>Sport</p>
-            <div className="flex flex-wrap gap-2">
-              {FOCUS_SPORTS.map((s) => (
-                <SportChip
-                  key={s}
-                  emoji={sportEmoji(s)}
-                  label={sportLabel(s)}
-                  selected={sport === s}
-                  onClick={() => setSport((cur) => (cur === s ? '' : s))}
-                />
-              ))}
+          {/* ── CZEGO SZUKAMY ── do PRZECZYTANIA, nie do wypełnienia. Wartości
+              przychodzą z filtrów (`domyslneZFiltrow`), więc okno pokazuje je
+              zamiast pytać o nie drugi raz. Wiersz zostaje, bo alert bez tego
+              byłby obietnicą bez treści: nie wiadomo, czego ma pilnować. */}
+          {!brakMiejsca && (
+            <div className="flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-ink">
+                  {sport ? sportLabel(sport) : 'Dowolny sport'} · {miejsce.nazwa}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  W promieniu {promienKm} km · z Twoich filtrów
+                </p>
+              </div>
             </div>
-            <p className="mt-2 text-sm font-medium text-ink">
-              {sport === '' ? 'Dowolny sport' : sportLabel(sport)}
-            </p>
-          </div>
+          )}
 
-          {/* ── GDZIE ── te same kontrolki co w arkuszu filtrów: pole
-              z pinezką, a po wybraniu miejsca suwak promienia. */}
-          <div>
-            <p className={naglowekSekcji}>
-              Gdzie{' '}
-              <span className="normal-case font-normal text-slate-400">(wymagane)</span>
-            </p>
-            <WyborMiejscowosci
-              wybrana={miejsce}
-              promienKm={promienKm}
-              naZmiane={(m, km) => { setMiejsce(m); setPromienKm(km); }}
-            />
-            {brakMiejsca && (
-              <p className="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
-                <span>
-                  Bez tego nie damy rady szukać: alert wyłapuje mecze po
-                  odległości od wskazanego punktu. Wpisz miejscowość albo
-                  dotknij pinezki, żeby użyć swojej lokalizacji.
-                </span>
+          {brakMiejsca && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 dark:border-amber-800 dark:bg-amber-950">
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                Nie wiemy jeszcze, gdzie szukać
               </p>
-            )}
-          </div>
-
-          {/* ── KIEDY MA BYĆ MECZ ── pierwszy z dwóch „czasów". */}
-          <div>
-            <p className={naglowekSekcji}>
-              Powiadamiaj o meczach{' '}
-              <span className="normal-case font-normal text-slate-400">(puste = dowolny dzień)</span>
-            </p>
-            <div className="flex gap-2">
-              {DAYS.map(({ n, short }) => (
-                <button
-                  key={n}
-                  onClick={() => toggleDay(n)}
-                  aria-pressed={days.includes(n)}
-                  className={[
-                    'flex-1 py-2 rounded-xl text-xs font-semibold transition-colors border',
-                    days.includes(n)
-                      ? 'bg-primary-700 text-white border-primary-700'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-primary-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300',
-                  ].join(' ')}
-                >
-                  {short}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-1 rounded-xl border border-slate-200 px-4 dark:border-slate-700">
-              <ToggleRow
-                label="Tylko o określonej porze"
-                desc="Bez tego dostaniesz też mecze o 10 rano"
-                checked={poraOgraniczona}
-                onChange={setPoraOgraniczona}
+              <p className="mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+                Alert wyłapuje mecze po odległości od konkretnego punktu, więc
+                bez niego nie ma od czego liczyć. Użyj swojej lokalizacji albo
+                zamknij to okno i wskaż miejscowość w filtrach.
+              </p>
+              <PrzyciskMojaLokalizacja
+                className="mt-3"
+                etykieta="Użyj mojej lokalizacji"
+                onPozycja={(lat, lng) =>
+                  setMiejsce({ nazwa: 'Moja lokalizacja', kontekst: '', lat, lng })}
               />
-              {poraOgraniczona && (
-                <div className="flex items-center gap-2 pb-3">
-                  <select
-                    value={godzinaOd}
-                    onChange={(e) => setGodzinaOd(Number(e.target.value))}
-                    aria-label="Od godziny"
-                    className="h-11 flex-1 rounded-xl border border-slate-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-800"
-                  >
-                    {GODZINY.map((h) => <option key={h} value={h}>{dwieCyfry(h)}</option>)}
-                  </select>
-                  <span className="shrink-0 text-sm text-slate-400">do</span>
-                  <select
-                    value={godzinaDo}
-                    onChange={(e) => setGodzinaDo(Number(e.target.value))}
-                    aria-label="Do godziny"
-                    className="h-11 flex-1 rounded-xl border border-slate-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-800"
-                  >
-                    {GODZINY.map((h) => <option key={h} value={h}>{dwieCyfry(h)}</option>)}
-                  </select>
-                </div>
-              )}
             </div>
-          </div>
+          )}
 
-          {/* ── JAK DŁUGO ŻYJE ALERT ── drugi „czas", świadomie osobno.
-
-              SUBTELNY SELEKTOR DATY ZAMIAST CZTERECH OPCJI — 2026-09-14,
-              zgłoszone wprost. Cztery pigułki zajmowały dwa rzędy na pytanie,
-              które dla większości ma jedną odpowiedź (bezterminowo, i to jest
-              domyślne). Kto naprawdę chce ograniczyć alert, ma w głowie DATĘ
-              („do końca sezonu", „do wyjazdu"), nie liczbę dni — pigułki
-                kazały mu ją przeliczyć na tydzień/dwa/miesiąc samodzielnie.
-
-              Domyślny stan to więc JEDNO ZDANIE plus cichy odsyłacz. Pole daty
-              pojawia się dopiero po dotknięciu, czyli u kogoś, kto naprawdę
-              chce je wypełnić. */}
+          {/* ── JAK DŁUGO POWIADAMIAĆ ── ten sam kształt co „Kiedy" w filtrach,
+              o czym innym: tam odcinek czasu wybiera MECZE, tu długość życia
+              alertu. Brak wyboru = bezterminowo, czyli stan domyślny. */}
           <div>
             <p className={naglowekSekcji}>Jak długo powiadamiać</p>
-            {koniec ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={koniec}
-                  min={najwczesniejszyKoniec()}
-                  onChange={(e) => setKoniec(e.target.value)}
-                  aria-label="Alert działa do dnia"
-                  className="h-11 flex-1 rounded-xl border border-slate-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-800"
-                />
-                <button
-                  type="button"
-                  onClick={() => setKoniec('')}
-                  className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
-                >
-                  Bez końca
-                </button>
-              </div>
-            ) : (
-              <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            <WyborKiedy
+              wartosc={kiedy}
+              naZmiane={setKiedy}
+              label="Do kiedy"
+              podpisWszystkich="Bezterminowo"
+            />
+            {kiedy === 'wszystkie' && (
+              <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                 Alert działa, dopóki go nie wyłączysz — każda wiadomość ma na
-                dole link, który go gasi jednym kliknięciem.{' '}
-                <button
-                  type="button"
-                  onClick={() => setKoniec(najwczesniejszyKoniec())}
-                  className="font-medium text-primary-700 underline underline-offset-2 hover:text-primary-800"
-                >
-                  Ustaw datę końca
-                </button>
+                dole link, który go gasi jednym kliknięciem.
               </p>
             )}
           </div>
@@ -423,25 +316,15 @@ export default function AlertSetupDialog({
               <Bell className="w-4 h-4" /> Alert zapisany!
             </div>
           ) : (
-            <>
-              {/* Wskaźnik, nie powtórzenie: pełne wyjaśnienie stoi przy samym
-                  polu, tutaj zostaje jedno zdanie mówiące, gdzie go szukać —
-                  bo to tutaj ktoś odkrywa, że przycisk nie działa. */}
-              {brakMiejsca && (
-                <p className="text-center text-xs font-medium text-amber-700 dark:text-amber-400">
-                  Wybierz najpierw miejsce ↑
-                </p>
-              )}
-              <button
-                onClick={handleSave}
-                disabled={saving || brakMiejsca}
-                title={brakMiejsca ? 'Najpierw wskaż miejsce — alert szuka meczów w promieniu od niego' : undefined}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-3.5 text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.98] transition-all"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
-                {existing ? 'Zaktualizuj alert' : 'Zapisz alert'}
-              </button>
-            </>
+            <button
+              onClick={handleSave}
+              disabled={saving || brakMiejsca}
+              title={brakMiejsca ? 'Najpierw wskaż miejsce — alert szuka meczów w promieniu od niego' : undefined}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-3.5 text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.98] transition-all"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+              {existing ? 'Zaktualizuj alert' : 'Zapisz alert'}
+            </button>
           )}
 
           {existing && !saved && (

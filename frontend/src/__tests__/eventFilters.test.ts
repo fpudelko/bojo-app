@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  dayGroup, daysFromToday, eventDay, filterByRadius, filterByMinFreeSpots,
+  dayGroup, daysFromToday, etykietaKiedy, dataZKiedy, eventDay, filterByRadius, filterByMinFreeSpots,
   freeSpots, groupByDay, matchesDateFilter, multiLabel, sortEvents, startKey, toggleInArray,
   type EventRow, etykietaSkladu } from '@/lib/eventFilters';
 import type { EventItem } from '@/types';
@@ -53,11 +53,21 @@ describe('matchesDateFilter', () => {
     expect(matchesDateFilter('nonsens', 'wszystkie', SRODA)).toBe(true);
   });
 
-  it('„dzisiaj" i „jutro" łapią dokładnie jeden dzień', () => {
+  it('„dzisiaj" łapie dokładnie jeden dzień', () => {
     expect(matchesDateFilter('2026-08-05', 'dzisiaj', SRODA)).toBe(true);
     expect(matchesDateFilter('2026-08-06', 'dzisiaj', SRODA)).toBe(false);
-    expect(matchesDateFilter('2026-08-06', 'jutro', SRODA)).toBe(true);
-    expect(matchesDateFilter('2026-08-07', 'jutro', SRODA)).toBe(false);
+  });
+
+  it('„najbliższe 3 dni" LICZY DZISIAJ jako pierwszy z nich', () => {
+    // Sedno zamiany dawnego „Jutro" na ten zakres: „w ciągu trzech dni" znaczy
+    // dla człowieka dziś, jutro i pojutrze. Dawne „Jutro" wykluczało DZISIAJ,
+    // czyli mecz za dwie godziny — najwęższa możliwa odpowiedź na pytanie,
+    // które zadaje się, chcąc zagrać jak najszybciej.
+    expect(matchesDateFilter('2026-08-05', 'trzy-dni', SRODA)).toBe(true);  // dziś
+    expect(matchesDateFilter('2026-08-06', 'trzy-dni', SRODA)).toBe(true);  // jutro
+    expect(matchesDateFilter('2026-08-07', 'trzy-dni', SRODA)).toBe(true);  // pojutrze
+    expect(matchesDateFilter('2026-08-08', 'trzy-dni', SRODA)).toBe(false); // czwarty dzień
+    expect(matchesDateFilter('2026-08-04', 'trzy-dni', SRODA)).toBe(false); // wczoraj
   });
 
   it('„ten tydzień" obejmuje dziś i resztę tygodnia, ale nie przeszłość', () => {
@@ -67,12 +77,19 @@ describe('matchesDateFilter', () => {
     expect(matchesDateFilter('2026-08-10', 'tydzien', SRODA)).toBe(false); // następny tydzień
   });
 
-  it('„ten miesiąc" obejmuje resztę bieżącego miesiąca, ale nie przeszłość ani inny miesiąc', () => {
-    expect(matchesDateFilter('2026-08-05', 'miesiac', SRODA)).toBe(true);  // dziś
-    expect(matchesDateFilter('2026-08-31', 'miesiac', SRODA)).toBe(true);  // koniec miesiąca
-    expect(matchesDateFilter('2026-08-01', 'miesiac', SRODA)).toBe(false); // ten sam miesiąc, ale przeszłość
-    expect(matchesDateFilter('2026-09-01', 'miesiac', SRODA)).toBe(false); // kolejny miesiąc
-    expect(matchesDateFilter('2026-07-31', 'miesiac', SRODA)).toBe(false); // poprzedni miesiąc
+  it('własny termin „do:" domyka się na wybranym dniu WŁĄCZNIE', () => {
+    // Kalendarz pyta „do kiedy", a nie „przed kiedy": dzień wskazany palcem
+    // ma jeszcze wejść.
+    expect(matchesDateFilter('2026-08-20', 'do:2026-08-20', SRODA)).toBe(true);
+    expect(matchesDateFilter('2026-08-21', 'do:2026-08-20', SRODA)).toBe(false);
+    expect(matchesDateFilter('2026-08-05', 'do:2026-08-20', SRODA)).toBe(true);  // dziś
+    expect(matchesDateFilter('2026-08-04', 'do:2026-08-20', SRODA)).toBe(false); // wczoraj
+  });
+
+  it('zepsuta data w wartości filtra NIE wycina całej listy', () => {
+    // Filtr siedzi w adresie, więc trafi tam kiedyś śmieć. Pusta lista bez
+    // powodu jest gorsza niż filtr, który w takiej chwili nic nie zawęża.
+    expect(matchesDateFilter('2026-08-20', 'do:nonsens', SRODA)).toBe(true);
   });
 
   it('odrzuca niepoprawną datę przy każdym filtrze innym niż „wszystkie"', () => {
@@ -314,5 +331,30 @@ describe('etykietaSkladu — skład na pinezce mapy', () => {
     // `participantsCount` wypełniają wyłącznie zapytania listowe. Bez tego
     // warunku pinezka rysowałaby „undefined/14".
     expect(etykietaSkladu({ maxPlayers: 14, participantsCount: undefined })).toBeNull();
+  });
+});
+
+describe('podpisy „Kiedy"', () => {
+  it('nazywa stan domyślny, który nie ma własnego przycisku', () => {
+    // Cztery przyciski to cztery ZAWĘŻENIA; „wszystkie terminy" jest tym, co
+    // zostaje po odznaczeniu i musi dać się przeczytać, bo inaczej nie wiadomo,
+    // czy filtr działa.
+    expect(etykietaKiedy('wszystkie')).toBe('Wszystkie terminy');
+  });
+
+  it('rozwija skróty z przycisków w pełne zdanie', () => {
+    expect(etykietaKiedy('dzisiaj')).toBe('Tylko dzisiaj');
+    expect(etykietaKiedy('trzy-dni')).toBe('Najbliższe 3 dni');
+    expect(etykietaKiedy('tydzien')).toBe('Ten tydzień');
+  });
+
+  it('własny termin pokazuje datę po polsku, bez zera wiodącego w dniu', () => {
+    expect(etykietaKiedy('do:2026-09-07')).toBe('Do 7.09.2026');
+  });
+
+  it('dataZKiedy wyciąga datę tylko z własnego terminu', () => {
+    expect(dataZKiedy('do:2026-09-07')).toBe('2026-09-07');
+    expect(dataZKiedy('tydzien')).toBeNull();
+    expect(dataZKiedy('wszystkie')).toBeNull();
   });
 });

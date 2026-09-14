@@ -19,6 +19,7 @@ import SportChip from '@/components/ui/SportChip';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
 import Stepper from '@/components/ui/Stepper';
+import WyborKiedy from '@/components/ui/WyborKiedy';
 import { PROMIENIE_SUWAK_KM, indeksPromienia, promienZIndeksu } from '@/lib/miejscowosci';
 import PrzyciskMojaLokalizacja from '@/components/ui/PrzyciskMojaLokalizacja';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
@@ -61,8 +62,8 @@ const SORT_DOMYSLNY: SortBy = 'termin';
 
 // Cztery suwaki modala filtrów — zakresy ustalone raz, żeby nie były dowolnością
 // przy każdej zmianie. Skrajna prawa pozycja = brak ograniczenia (D2/D3 planu).
-const DATE_SLIDER_VALUES: DateFilter[] = ['dzisiaj', 'jutro', 'tydzien', 'miesiac', 'wszystkie'];
-const DATE_SLIDER_LABELS = ['Dzisiaj', 'Jutro', 'Ten tydzień', 'Ten miesiąc', 'Wszystko'];
+// DATE_SLIDER_VALUES/LABELS zniknęły 2026-09-14 — „Kiedy" to dziś cztery
+// przyciski w jednej linii (`components/ui/WyborKiedy.tsx`), nie suwak.
 // RADIUS_MIN/RADIUS_MAX (1–20 km, liniowo) zniknęły 2026-09-14 — suwak
 // odległości chodzi po skali `PROMIENIE_SUWAK_KM` z `lib/miejscowosci.ts`,
 // wspólnej dla obu arkuszy filtrów.
@@ -863,17 +864,7 @@ export default function EventsListView({ widzianoWczesniej }: {
               a „Za darmo" to suwak „Cena" na 0. Ten sam zabieg co w arkuszu
               na `/mapa`. */}
 
-          <RangeSlider
-            label="Kiedy"
-            min={0}
-            max={4}
-            step={1}
-            value={DATE_SLIDER_VALUES.indexOf(draftDate)}
-            onChange={(i) => setDraftDate(DATE_SLIDER_VALUES[i])}
-            formatValue={(i) => DATE_SLIDER_LABELS[i]}
-            minLabel="Dzisiaj"
-            maxLabel="Wszystko"
-          />
+          <WyborKiedy wartosc={draftDate} naZmiane={setDraftDate} />
           <div>
             {/* Skala NARASTAJĄCA, wspólna z arkuszem na `/mapa`
                 (`PROMIENIE_SUWAK_KM`) — uzasadnienie przy samej tablicy

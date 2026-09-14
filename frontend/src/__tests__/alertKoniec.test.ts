@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { koniecDnia, dataWygasniecia, najwczesniejszyKoniec } from '@/lib/alerts';
+import {
+  koniecDnia, dataWygasniecia, najwczesniejszyKoniec, wygasaZKiedy, kiedyZWygasniecia,
+} from '@/lib/alerts';
 
 describe('koniec alertu jako data', () => {
   it('wybrany dzień liczy się CAŁY — koniec, nie północ', () => {
@@ -48,5 +50,47 @@ describe('koniec alertu jako data', () => {
   it('niepełna data nie daje „Invalid Date" w bazie', () => {
     expect(koniecDnia('')).toBeNull();
     expect(koniecDnia('2026-09')).toBeNull();
+  });
+});
+
+describe('„Kiedy" jako czas życia alertu', () => {
+  // Środa, 5 sierpnia 2026.
+  const SRODA = new Date(2026, 7, 5, 14, 0);
+
+  it('brak wyboru znaczy BEZTERMINOWO, a nie „dziś"', () => {
+    expect(wygasaZKiedy('wszystkie', SRODA)).toBeNull();
+    expect(kiedyZWygasniecia(null, SRODA)).toBe('wszystkie');
+  });
+
+  it('„dzisiaj" gaśnie na koniec dzisiejszego dnia', () => {
+    const iso = wygasaZKiedy('dzisiaj', SRODA)!;
+    expect(dataWygasniecia(iso)).toBe('2026-08-05');
+    expect(new Date(iso).getHours()).toBe(23);
+  });
+
+  it('„3 dni" liczy DZISIAJ jako pierwszy — tak samo jak filtr', () => {
+    // Gdyby liczyło od jutra, ta sama etykieta znaczyłaby w filtrach i w alercie
+    // dwie różne rzeczy, a nikt by tego nie zauważył poza brakującym alertem.
+    expect(dataWygasniecia(wygasaZKiedy('trzy-dni', SRODA)!)).toBe('2026-08-07');
+  });
+
+  it('„tydzień" sięga do niedzieli tego tygodnia, nie do siedmiu dni', () => {
+    expect(dataWygasniecia(wygasaZKiedy('tydzien', SRODA)!)).toBe('2026-08-09');
+  });
+
+  it('własny termin przechodzi wprost', () => {
+    expect(dataWygasniecia(wygasaZKiedy('do:2026-12-24', SRODA)!)).toBe('2026-12-24');
+  });
+
+  it('odczyt wraca na NAZWANY przycisk, gdy data się zgadza', () => {
+    // Bez tego edycja alertu założonego na „tydzień" pokazywałaby własny termin,
+    // czyli inny przycisk niż ten, który kliknięto przy zakładaniu.
+    for (const f of ['dzisiaj', 'trzy-dni', 'tydzien'] as const) {
+      expect(kiedyZWygasniecia(wygasaZKiedy(f, SRODA), SRODA)).toBe(f);
+    }
+  });
+
+  it('data spoza przycisków ląduje na własnym terminie, a nie gubi wyboru', () => {
+    expect(kiedyZWygasniecia(wygasaZKiedy('do:2026-12-24', SRODA), SRODA)).toBe('do:2026-12-24');
   });
 });

@@ -17,8 +17,8 @@ import {
 import { TogglePill } from '@/components/ui/FilterPill';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
 import FilterSheet from '@/components/ui/FilterSheet';
-import RangeSlider from '@/components/ui/RangeSlider';
 import Stepper from '@/components/ui/Stepper';
+import WyborKiedy from '@/components/ui/WyborKiedy';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { useMyInvites } from '@/lib/useMyInvites';
@@ -161,8 +161,8 @@ const GAMES_SPORT_OPTIONS = FOCUS_SPORTS.map((value) => ({ value, label: sportLa
 
 // Te same zakresy suwaków co na /wydarzenia (D3 planu) — jeden zestaw wartości,
 // żeby tryb gier na mapie i lista miały identyczną semantykę filtrów.
-const DATE_SLIDER_VALUES: DateFilter[] = ['dzisiaj', 'jutro', 'tydzien', 'miesiac', 'wszystkie'];
-const DATE_SLIDER_LABELS = ['Dzisiaj', 'Jutro', 'Ten tydzień', 'Ten miesiąc', 'Wszystko'];
+// DATE_SLIDER_VALUES/LABELS zniknęły 2026-09-14 — „Kiedy" to dziś cztery
+// przyciski w jednej linii (`components/ui/WyborKiedy.tsx`), nie suwak.
 // RADIUS_MIN/RADIUS_MAX (1–20 km, liniowo) zniknęły 2026-09-14 — suwak
 // odległości chodzi po skali `PROMIENIE_SUWAK_KM` z `lib/miejscowosci.ts`,
 // wspólnej dla obu arkuszy filtrów.
@@ -1614,14 +1614,7 @@ export default function VenueExplorer({
             zawsze kończą się tym, że któraś przestaje odpowiadać za wynik —
             a tu w dodatku stały nad tymi, które dublowały. */}
 
-        <RangeSlider
-          label="Kiedy"
-          min={0} max={4} step={1}
-          value={DATE_SLIDER_VALUES.indexOf(draftGamesDate)}
-          onChange={(i) => setDraftGamesDate(DATE_SLIDER_VALUES[i])}
-          formatValue={(i) => DATE_SLIDER_LABELS[i]}
-          minLabel="Dzisiaj" maxLabel="Wszystko"
-        />
+        <WyborKiedy wartosc={draftGamesDate} naZmiane={setDraftGamesDate} />
         {/* SUWAKA ODLEGŁOŚCI TU NIE MA — 2026-09-14, zgłoszone wprost.
             Promień mieszka wyłącznie POD WYBRANYM MIEJSCEM (`WyborMiejscowosci`),
             bo tylko tam ma od czego liczyć. Osobny suwak „od Ciebie" pytał

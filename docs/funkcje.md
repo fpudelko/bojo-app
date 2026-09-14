@@ -1920,7 +1920,7 @@ etykieta wartości nad nim, opisy skrajów pod spodem; reużywany też w trybie 
 
 | Kontrolka | Zakres | Domyślnie |
 |---|---|---|
-| Kiedy *(suwak)* | Dzisiaj / Jutro / Ten tydzień / Ten miesiąc / Wszystko (5 pozycji) | Wszystko |
+| Kiedy *(cztery przyciski w jednej linii)* | Dzisiaj / 3 dni / Tydzień / Termin *(kalendarz „do kiedy")* | brak wyboru = Wszystkie terminy |
 | Odległość *(suwak)* | skala `PROMIENIE_SUWAK_KM`, 1–100 km | Bez limitu |
 | Wolne miejsca *(stepper)* | 0–99, krok 1 | **1** |
 
@@ -1941,8 +1941,28 @@ lista meczów mówi o tym wprost i daje odsyłacz **„Zobacz też mecze z kompl
 nie widać — czyli ta sama cisza co przy filtrze, który nie działa, tylko odwrócona.
 Pilnuje tego `szukaj-domyslnie-mecze.klikalnosc.spec.ts`: mecz 10/10 ma NIE wejść na listę.
 
-„Kiedy" nie ma już opcji „Weekend" (zastąpiona „Ten miesiąc" — `matchesDateFilter`
-case `'miesiac'`, `isSameMonth()` z `date-fns`).
+**„Kiedy" to cztery przyciski w JEDNEJ linii, nie suwak — od 2026-09-14, zgłoszone
+wprost.** Suwak miał pięć pozycji i kazał szukać wartości ruchem, zamiast pokazać
+wszystkie naraz. Dawne „Jutro" było przy tym najwęższą możliwą odpowiedzią — wykluczało
+DZISIAJ, czyli mecz za dwie godziny — a „Ten miesiąc" pod koniec miesiąca znaczyło co
+innego niż na jego początku. Zastąpiły je: **Dzisiaj**, **3 dni** (licząc z dzisiejszym:
+„w ciągu trzech dni" znaczy dziś, jutro i pojutrze), **Tydzień** (`isSameWeek`,
+`weekStartsOn: 1`) i **Termin** — ten odsłania `<input type="date">` z `min` na jutrze
+i filtruje „do tego dnia WŁĄCZNIE".
+
+Piątego przycisku „Wszystko" nie ma: **brak wyboru znaczy wszystkie terminy**, a
+dotknięcie wybranego odznacza go i wraca do tego stanu — ta sama zasada co przy ikonach
+sportów, z tym samym podpisem pod rzędem (`etykietaKiedy()`), bo skróty „3 dni"
+i „Termin" muszą się gdzieś rozwinąć w zdanie. Bez tego odznaczania brak „Wszystko" byłby
+pułapką: dałoby się zawęzić, ale nie cofnąć.
+
+Wartość jest **jednym stringiem**, także dla własnego terminu (`do:2026-09-30`) —
+wchodzi do adresu, porównuje się przez `===` i nie wymaga drugiego pola, które mogłoby
+się z nim rozjechać. Zepsuta data w tej wartości zachowuje się jak „wszystkie terminy",
+nie jak „nic nie pasuje": filtr siedzi w adresie, więc kiedyś trafi tam śmieć, a pusta
+lista bez powodu jest gorsza niż filtr, który w takiej chwili nic nie zawęża.
+Komponent: `components/ui/WyborKiedy.tsx`, ten sam w obu arkuszach **i w oknie alertu**
+(patrz niżej).
 
 **Modal filtrów działa na szkicu, nie na żywym stanie** (styl Booking: wybierz kilka
 rzeczy, potem zatwierdź). Otwarcie kopiuje bieżące `dateFilter`/`radiusKm`/
@@ -2027,28 +2047,41 @@ jest dokładnie jedna operacja. Asercje w `supabase/test/rls.sql` pilnują, że 
 da się ani przeczytać cudzego alertu, ani nic w nim nadpisać, i że drugie kliknięcie
 w ten sam link jest nieszkodliwe.
 
-**DWA RÓŻNE „KIEDY", ROZDZIELONE NAZWĄ.** Alert ma dwa czasy, które nie mają ze sobą nic
-wspólnego, a zlanie ich w jedną sekcję jest najkrótszą drogą do tego, żeby nikt nie
-wiedział, co ustawia:
+**DWA RÓŻNE „KIEDY" — dziś w oknie został JEDEN.** Migracja `148` dołożyła alertowi
+porę dnia meczu (`godzina_od`/`godzina_do`) obok dni tygodnia, czyli drugi wymiar
+„kiedy ma być MECZ", osobny od „jak długo ma żyć ALERT" (`expires_at`). Rozdzielenie ich
+nazwą sekcji było słuszne, ale samo pytanie wypadło z okna tego samego dnia — patrz
+sekcję niżej. W bazie i w funkcji brzegowej obie kolumny zostają nietknięte.
 
-| Sekcja w oknie | Co znaczy | Kolumny |
-|---|---|---|
-| **Powiadamiaj o meczach** | kiedy ma być MECZ — dni tygodnia i (nowe) pora dnia | `days_of_week`, `godzina_od`/`godzina_do` |
-| **Jak długo powiadamiać** | jak długo ma żyć ALERT | `expires_at` (NULL = bezterminowo) |
+### Okno alertu pyta o DWIE rzeczy, nie o siedem — od 2026-09-14
 
-**„Jak długo powiadamiać" to SELEKTOR DATY, nie cztery okresy** — od 2026-09-14,
-zgłoszone wprost. Cztery pigułki („Bezterminowo / Przez miesiąc / Przez 2 tygodnie /
-Przez tydzień") zajmowały dwa rzędy na pytanie, które dla większości ma jedną odpowiedź:
-bezterminowo, i to jest domyślne. Kto naprawdę chce alert ograniczyć, ma w głowie DATĘ
-(„do końca sezonu", „do wyjazdu") — pigułki kazały mu ją przeliczyć na tydzień/dwa/
-miesiąc samodzielnie. Domyślny stan to więc jedno zdanie plus cichy odsyłacz **„Ustaw
-datę końca"**; `<input type="date">` pojawia się dopiero po dotknięciu, z `min` na
-JUTRZE (alert kończący się dziś nie zdąży o niczym powiadomić) i wyjściem „Bez końca".
-Przeliczniki `koniecDnia()` / `dataWygasniecia()` / `najwczesniejszyKoniec()`
-w `lib/alerts.ts` — wybrany dzień liczy się **cały** (23:59:59, nie północ: „do 30
-września" znaczy, że 30 września alert jeszcze działa), a zamiana jest odwracalna, żeby
-edycja alertu nie przesuwała jego końca o dzień przy każdym otwarciu okna
-(`alertKoniec.test.ts`).
+Zgłoszone wprost: *„jak klikam «powiadom mnie o takich meczach», to filtry już są,
+zostaje tylko kwestia czy mailowo, czy SMS, czy notyfikacja i w jakim czasie. Resztę
+wywal, w sensie filtry."*
+
+Okno pytało o sport, miejsce, promień, dni tygodnia i porę dnia — czyli o to samo, co
+człowiek przed chwilą ustawił w filtrach, tyle że drugi raz i w innych kontrolkach.
+Wejście do alertu prowadzi WPROST z wyników tych filtrów (`domyslneZFiltrow`), więc
+odpowiedź już jest; pytanie o nią jeszcze raz to nie „upewnienie się", tylko praca do
+wykonania ponownie.
+
+| Sekcja | Co robi |
+|---|---|
+| Wiersz podsumowania | **do przeczytania, nie do wypełnienia**: „Piłka nożna · Wrocław", „W promieniu 25 km · z Twoich filtrów". Zostaje, bo alert bez tego byłby obietnicą bez treści — nie wiadomo, czego ma pilnować |
+| **Jak długo powiadamiać** | ten sam `WyborKiedy` co w filtrach (Dzisiaj / 3 dni / Tydzień / Termin), tylko o czym innym: tam odcinek czasu wybiera MECZE, tu długość życia alertu. Brak wyboru = **Bezterminowo**, czyli stan domyślny |
+| **Czym dać znać** | dzwonek (zawsze) / mail (`kanal_email`) / push (stan + włącznik) / SMS za flagą |
+
+Przeliczniki `wygasaZKiedy()` / `kiedyZWygasniecia()` w `lib/alerts.ts` mapują wybór na
+`expires_at` i z powrotem — „3 dni" liczy DZISIAJ jako pierwszy, dokładnie tak jak filtr,
+bo inaczej ta sama etykieta znaczyłaby w dwóch miejscach dwie różne rzeczy. Odczyt wraca
+na **nazwany przycisk**, gdy data się zgadza co do dnia; dopiero cokolwiek innego ląduje
+na własnym terminie (`alertKoniec.test.ts`). Wybrany dzień liczy się **cały** (23:59:59,
+nie północ: „do 30 września" znaczy, że 30 września alert jeszcze działa).
+
+**Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `148`) zostają w bazie
+i w funkcji brzegowej nietknięte** — okno po prostu przestało o nie pytać i zapisuje
+odpowiednio `[]` / `NULL`. Gdyby ten wymiar wrócił, wróci jako część FILTRÓW, wspólna
+dla listy i alertu, a nie jako druga, osobna kopia pytania o termin.
 
 **Bez wskazanego miejsca alertu nie da się zapisać — i jest to NAPISANE.** Zgłoszone
 wprost: „użytkownik nie wie, dlaczego nie może dodać alertu, jak nie wybierze miasta".
@@ -2056,10 +2089,12 @@ Przycisk był po prostu wyszarzony, a wyszarzony przycisk bez powodu czyta się 
 zepsuta aplikacja, nie jak brakujące pole — zwłaszcza że brakujące pole jest wtedy o pół
 ekranu wyżej. Powód jest prawdziwy, nie formalny: alert dopasowuje mecze po ODLEGŁOŚCI
 od punktu (`lat`/`lng` + `radius_km`), więc bez punktu nie ma od czego liczyć promienia.
-Dziś nagłówek sekcji mówi „Gdzie *(wymagane)*", pod kontrolką stoi pełne wyjaśnienie
-z podpowiedzią „dotknij pinezki, żeby użyć swojej lokalizacji", a nad wyszarzonym
-przyciskiem — jedno zdanie kierujące w górę („Wybierz najpierw miejsce ↑"). Wskaźnik,
-nie powtórzenie: wyjaśnienie jest w jednym miejscu, przy polu, które je naprawia.
+Odkąd okno nie ma własnego pola miejscowości (patrz wyżej), brak punktu znaczy, że nie
+było go też w filtrach — więc jedyne wyjście dostępne STĄD to lokalizacja urządzenia.
+Okno pokazuje wtedy bursztynowy blok „Nie wiemy jeszcze, gdzie szukać" z powodem
+(„alert wyłapuje mecze po odległości od konkretnego punktu") i przyciskiem **„Użyj mojej
+lokalizacji"**, a obok mówi wprost, że drugą drogą jest wskazanie miejscowości
+w filtrach. Nigdy sam wyszarzony przycisk bez słowa wyjaśnienia.
 
 Godziny idą **parami albo wcale** — pilnuje tego `CHECK` w migracji. Sama dolna granica
 dałaby się obronić, ale wtedy dwa pola znaczą trzy różne rzeczy zależnie od tego, które
