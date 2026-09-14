@@ -352,6 +352,12 @@ Kolejny numer + krótka nazwa: `058_nazwa_zmiany.sql`. W nagłówku komentarz m�
 Dodając kolumnę do tabeli, która ma politykę RLS na `UPDATE`, sprawdź, czy polityka
 obejmuje nową kolumnę.
 
+**`CREATE TABLE IF NOT EXISTS` nie gwarantuje KOLUMN.** Gdy tabela o tej nazwie już
+jest — cudza, z quickstartu, z ręcznego eksperymentu — `CREATE` po cichu nic nie robi
+i pierwsze odwołanie do twojej kolumny kończy się `column … does not exist`. Tabelę
+tworzoną migracją dopełniaj więc blokiem `ALTER TABLE … ADD COLUMN IF NOT EXISTS`
+(wzorzec: `005_profiles.sql`) — na bazie, która ma kolumny od zawsze, to pusty przebieg.
+
 **Migracja ma przeżyć drugie uruchomienie.** Nie dlatego, że ktoś lubi klikać dwa
 razy, tylko dlatego, że przerwany przebieg zostawia bazę w połowie drogi i jedynym
 narzędziem naprawy jest ten sam plik (patrz „Migracja przerwana w połowie"). W praktyce:
@@ -392,6 +398,17 @@ instrukcji.
 
 Rozszerzenia (`pgcrypto`, `postgis`, `pg_trgm`, `pg_net`) zakładają same migracje —
 nic nie trzeba klikać w *Database → Extensions*.
+
+> **`column "is_admin" does not exist` przy paczce `01`** znaczy, że w projekcie
+> BYŁA JUŻ tabela `profiles` — najczęściej z quickstartu Supabase „User Management
+> Starter" (`id`, `username`, `full_name`, `avatar_url`, `website`). `CREATE TABLE
+> IF NOT EXISTS` w `005` przechodzi wtedy bez słowa, a pierwsza polityka wywraca się
+> na kolumnie, której cudza tabela nie ma. Dziś `005` dokłada swoje kolumny jawnie
+> (`ADD COLUMN IF NOT EXISTS`), więc paczka przechodzi także na takim projekcie.
+> Na bazie, gdzie starter zostawił WIĘCEJ niż kolumny (własne polityki, wyzwalacz
+> `handle_new_user`), czystsze jest `DROP TABLE profiles CASCADE;` i paczka `01`
+> od początku — **wyłącznie na świeżej bazie dev**, na produkcji `profiles` trzyma
+> konta i awatary.
 
 **3. Sprawdź, czy schemat jest kompletny.** `supabase/zapytania/stan-migracji.sql`
 wypisuje migracje, których w bazie brakuje (brakujące na górze). Pusta lista braków =
