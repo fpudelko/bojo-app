@@ -505,6 +505,33 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon z BojoDev>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
+### Stały adres dev: gałąź `dev`
+
+Podglądy Vercela są per PR, więc adres zmienia się z każdą gałęzią i znika po
+merge'u. Do klikania „tego, co jest na produkcji, ale na bazie testowej" potrzeba
+JEDNEGO adresu, który się nie zmienia:
+
+```
+https://bojo-app-git-dev-franciszek-pudelkos-projects.vercel.app
+```
+
+Stoi za tym gałąź `dev`, którą workflow `.github/workflows/srodowisko-dev.yml`
+przesuwa na aktualnego mastera po każdym merge'u. Kod jest tam **identyczny** jak
+na `bojo.pl` — różni się wyłącznie baza, bo Vercel traktuje `dev` jak każdą inną
+gałąź, czyli buduje ją ze zmiennymi środowiska `Preview` (projekt `BojoDev`).
+
+Dwie konsekwencje, o które łatwo się potknąć:
+
+- **Na `dev` się nie commituje.** To etykieta na commicie mastera, nie gałąź
+  robocza: następny merge zmiata z niej wszystko `--force`. Własna zmiana idzie
+  przez PR, jak każda inna.
+- **Adres `dev` jest już objęty wildcardem** z kroku 7 (`bojo-app-git-*-…`), więc
+  logowanie działa tam bez dodatkowej konfiguracji.
+
+Workflow pcha tokenem `GITHUB_TOKEN`, a taki push **nie uruchamia workflowów**
+(ograniczenie GitHuba przeciw pętlom) — CI nie liczy tego samego commita drugi
+raz, a Vercel i tak dostaje własnego webhooka i buduje podgląd.
+
 ### Co zostaje na produkcji — świadomie
 
 - **Sekrety w GitHub Actions** (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,

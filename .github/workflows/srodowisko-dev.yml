@@ -1,0 +1,67 @@
+name: Środowisko dev
+
+# Przesuwa gałąź `dev` na aktualnego mastera po każdym merge'u.
+#
+# PO CO: podglądy Vercela są per PR, więc adres zmienia się z każdą gałęzią
+# i znika po merge'u. Do klikania „tego, co jest na produkcji, ale na bazie
+# testowej" potrzeba JEDNEGO adresu, który się nie zmienia —
+# `bojo-app-git-dev-…vercel.app`. Kod tam jest identyczny jak na `bojo.pl`,
+# różni się wyłącznie baza: zmienne dla środowiska `Preview` wskazują projekt
+# `BojoDev` (patrz docs/baza-danych.md, „Osobna baza (dev / preview)").
+#
+# DLACZEGO OSOBNA GAŁĄŹ, A NIE „PREVIEW Z MASTERA": Vercel buduje podgląd
+# z gałęzi, a master ma jedno przeznaczenie — produkcję. Gałąź `dev` jest tylko
+# etykietą na tym samym commicie, więc nie ma czego utrzymywać: nikt na nią nie
+# commituje, nie ma osobnej historii i nie ma jak się rozjechać.
+#
+# `--force` jest tu poprawny i nie niszczy niczyjej pracy: `dev` jest gałęzią
+# WYŁĄCZNIE odtwarzaną z mastera. Gdyby ktoś dopchnął na nią commit, następny
+# merge do mastera go zmiecie — i o to chodzi. Chcesz swoją gałąź? Zrób PR-a.
+#
+# Push robiony tokenem `GITHUB_TOKEN` NIE uruchamia workflowów (celowe
+# ograniczenie GitHuba przeciw pętlom), więc CI nie liczy tego samego commita
+# drugi raz. Vercel dostaje webhooka niezależnie od tego i buduje podgląd.
+
+on:
+  push:
+    branches: [master]
+    # Zapytania diagnostyczne nie zmieniają aplikacji — nie ma czego odświeżać.
+    paths-ignore:
+      - 'supabase/zapytania/**'
+  workflow_dispatch:
+
+# Dwa merge'e pod rząd: liczy się ostatni. Bez tego dwa przebiegi ścigałyby się
+# o tę samą gałąź i `dev` mógłby zostać na starszym commicie.
+concurrency:
+  group: srodowisko-dev
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  przesun:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Przesuń gałąź dev na mastera
+        run: |
+          set -euo pipefail
+          git push --force origin "${GITHUB_SHA}:refs/heads/dev"
+          echo "dev → ${GITHUB_SHA}"
+
+      - name: Gdzie to zobaczyć
+        run: |
+          {
+            echo "### Środowisko dev odświeżone ✅"
+            echo ""
+            echo "Kod: \`${GITHUB_SHA}\` (ten sam co na produkcji po tym merge'u)."
+            echo "Baza: projekt \`BojoDev\` — zmienne \`Preview\` w Vercelu."
+            echo ""
+            echo "Adres: https://bojo-app-git-dev-franciszek-pudelkos-projects.vercel.app"
+            echo ""
+            echo "Build trwa jeszcze chwilę po tym kroku — Vercel dostaje własnego webhooka."
+          } >> "$GITHUB_STEP_SUMMARY"
