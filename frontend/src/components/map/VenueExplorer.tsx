@@ -50,7 +50,10 @@ import {
 import { POLSKA, POLSKA_ZOOM, fieldPin, clusterDivIcon } from './mapIcons';
 import { foldText, foldedIncludes } from '@/lib/searchText';
 import WyborMiejscowosci from './WyborMiejscowosci';
-import { PROMIEN_DOMYSLNY_KM, type Miejscowosc } from '@/lib/miejscowosci';
+import {
+  PROMIEN_DOMYSLNY_KM, PROMIENIE_SUWAK_KM, indeksPromienia, promienZIndeksu,
+  type Miejscowosc,
+} from '@/lib/miejscowosci';
 import KadrObserwator from './KadrObserwator';
 import GamesMarkersLayer from './GamesMarkersLayer';
 import LocateMeButton from './LocateMeButton';
@@ -162,8 +165,9 @@ const GAMES_SPORT_OPTIONS = FOCUS_SPORTS.map((value) => ({ value, label: sportLa
 // żeby tryb gier na mapie i lista miały identyczną semantykę filtrów.
 const DATE_SLIDER_VALUES: DateFilter[] = ['dzisiaj', 'jutro', 'tydzien', 'miesiac', 'wszystkie'];
 const DATE_SLIDER_LABELS = ['Dzisiaj', 'Jutro', 'Ten tydzień', 'Ten miesiąc', 'Wszystko'];
-const RADIUS_MIN = 1;
-const RADIUS_MAX = 20;
+// RADIUS_MIN/RADIUS_MAX (1–20 km, liniowo) zniknęły 2026-09-14 — suwak
+// odległości chodzi po skali `PROMIENIE_SUWAK_KM` z `lib/miejscowosci.ts`,
+// wspólnej dla obu arkuszy filtrów.
 const PRICE_MIN = 0;
 const PRICE_MAX = 100;
 const PRICE_STEP = 5;
@@ -1544,14 +1548,34 @@ export default function VenueExplorer({
           formatValue={(i) => DATE_SLIDER_LABELS[i]}
           minLabel="Dzisiaj" maxLabel="Wszystko"
         />
-        <RangeSlider
-          label="Odległość"
-          min={RADIUS_MIN} max={RADIUS_MAX} step={1}
-          value={draftGamesRadius ?? RADIUS_MAX}
-          onChange={(km) => setDraftGamesRadius(km >= RADIUS_MAX ? null : km)}
-          formatValue={(km) => (km >= RADIUS_MAX ? 'Bez limitu' : `do ${km} km`)}
-          minLabel={`${RADIUS_MIN} km`} maxLabel="Bez limitu"
-        />
+        {/* SUWAK ODLEGŁOŚCI TYLKO BEZ WYBRANEJ MIEJSCOWOŚCI — 2026-09-14.
+            Ten arkusz miał DWIE kontrolki odległości naraz, a jedna z nich
+            bywała martwa: `filterByRadius(withDist, draftMiejscowosc ?
+            draftPromienKm : draftGamesRadius)` niżej mówi wprost, że przy
+            wybranej miejscowości liczy się promień spod NIEJ, a ten suwak
+            przestaje cokolwiek robić. Nadal stał na ekranie i dawał się
+            przesuwać — czyli kłamał.
+
+            Dziś jest dokładnie jedna kontrolka odległości, ta która działa:
+            przy wybranej miejscowości promień siedzi pod nią (patrz
+            `WyborMiejscowosci`), bez miejscowości — liczymy od pozycji
+            gracza i pyta o to ten suwak. Skala wspólna dla obu
+            (`PROMIENIE_SUWAK_KM`), więc przełączenie się między nimi nie
+            zmienia znaczenia tych samych kilometrów.
+
+            „Bez limitu" zostaje jako ostatni przystanek ZA setką: promień
+            `null` to jedyny sposób, żeby zobaczyć wszystko, i ucięcie go na
+            100 km byłoby utratą funkcji, nie uproszczeniem. */}
+        {!draftMiejscowosc && (
+          <RangeSlider
+            label="Odległość od Ciebie"
+            min={0} max={PROMIENIE_SUWAK_KM.length} step={1}
+            value={draftGamesRadius == null ? PROMIENIE_SUWAK_KM.length : indeksPromienia(draftGamesRadius)}
+            onChange={(i) => setDraftGamesRadius(i >= PROMIENIE_SUWAK_KM.length ? null : promienZIndeksu(i))}
+            formatValue={(i) => (i >= PROMIENIE_SUWAK_KM.length ? 'Bez limitu' : `do ${promienZIndeksu(i)} km`)}
+            minLabel={`${PROMIENIE_SUWAK_KM[0]} km`} maxLabel="Bez limitu"
+          />
+        )}
         <RangeSlider
           label="Cena"
           min={PRICE_MIN} max={PRICE_MAX} step={PRICE_STEP}

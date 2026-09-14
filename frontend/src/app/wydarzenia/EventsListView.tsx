@@ -19,6 +19,7 @@ import { TogglePill } from '@/components/ui/FilterPill';
 import SportChip from '@/components/ui/SportChip';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
+import { PROMIENIE_SUWAK_KM, indeksPromienia, promienZIndeksu } from '@/lib/miejscowosci';
 import PrzyciskMojaLokalizacja from '@/components/ui/PrzyciskMojaLokalizacja';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
@@ -62,8 +63,9 @@ const SORT_DOMYSLNY: SortBy = 'termin';
 // przy każdej zmianie. Skrajna prawa pozycja = brak ograniczenia (D2/D3 planu).
 const DATE_SLIDER_VALUES: DateFilter[] = ['dzisiaj', 'jutro', 'tydzien', 'miesiac', 'wszystkie'];
 const DATE_SLIDER_LABELS = ['Dzisiaj', 'Jutro', 'Ten tydzień', 'Ten miesiąc', 'Wszystko'];
-const RADIUS_MIN = 1;
-const RADIUS_MAX = 20;
+// RADIUS_MIN/RADIUS_MAX (1–20 km, liniowo) zniknęły 2026-09-14 — suwak
+// odległości chodzi po skali `PROMIENIE_SUWAK_KM` z `lib/miejscowosci.ts`,
+// wspólnej dla obu arkuszy filtrów.
 const PRICE_MIN = 0;
 const PRICE_MAX = 100;
 const PRICE_STEP = 5;
@@ -863,15 +865,23 @@ export default function EventsListView({ widzianoWczesniej }: {
             maxLabel="Wszystko"
           />
           <div>
+            {/* Skala NARASTAJĄCA, wspólna z arkuszem na `/mapa`
+                (`PROMIENIE_SUWAK_KM`) — uzasadnienie przy samej tablicy
+                w `lib/miejscowosci.ts`. Dotąd suwak chodził liniowo 1–20 km,
+                więc „dalej niż 20" znaczyło od razu „bez limitu": między
+                sąsiednim osiedlem a całą Polską nie było nic.
+
+                „Bez limitu" zostaje ostatnim przystankiem ZA setką — promień
+                `null` to jedyny sposób, żeby zobaczyć wszystko. */}
             <RangeSlider
               label="Odległość"
-              min={RADIUS_MIN}
-              max={RADIUS_MAX}
+              min={0}
+              max={PROMIENIE_SUWAK_KM.length}
               step={1}
-              value={draftRadius ?? RADIUS_MAX}
-              onChange={(km) => setDraftRadius(km >= RADIUS_MAX ? null : km)}
-              formatValue={(km) => (km >= RADIUS_MAX ? 'Bez limitu' : `do ${km} km`)}
-              minLabel={`${RADIUS_MIN} km`}
+              value={draftRadius == null ? PROMIENIE_SUWAK_KM.length : indeksPromienia(draftRadius)}
+              onChange={(i) => setDraftRadius(i >= PROMIENIE_SUWAK_KM.length ? null : promienZIndeksu(i))}
+              formatValue={(i) => (i >= PROMIENIE_SUWAK_KM.length ? 'Bez limitu' : `do ${promienZIndeksu(i)} km`)}
+              minLabel={`${PROMIENIE_SUWAK_KM[0]} km`}
               maxLabel="Bez limitu"
             />
             {/* Promień jest liczony OD CZEGOŚ, a tym czymś jest pozycja gracza

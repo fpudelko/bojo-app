@@ -370,6 +370,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-14 — Suwak odległości z narastającą podziałką, jeden zamiast dwóch
+
+PROBLEM: promień wyszukiwania wokół miejscowości wybierało się z czterech wartości
+(5, 10, 25, 50 km), więc między 10 a 25 km nie istniał żaden wybór. Tam, gdzie promień
+był suwakiem (lista meczów), chodził liniowo od 1 do 20 km — a „dalej niż 20" znaczyło
+od razu „bez limitu", czyli między sąsiednim osiedlem a całą Polską nie było nic.
+Osobno: arkusz filtrów na mapie pokazywał suwak „Odległość" RAZEM z promieniem pod
+wybraną miejscowością, choć przy wybranej miejscowości ten pierwszy nie robił już nic —
+stał na ekranie, dawał się przesuwać i nie zmieniał wyników.
+
+ROZWIĄZANIE BOJO: promień to jeden suwak od 1 do 100 km, z podziałką gęstą na dole
+i rzadką u góry. Kilometry nie są równo ważne: różnica między 2 a 3 km decyduje, czy
+idzie się pieszo, a między 80 a 90 km nie znaczy nic. Dlatego 50 km wypada wyraźnie
+po prawej stronie suwaka, a nie w połowie, i cały realny zakres decyzji (1–10 km)
+dostaje trzecią część długości zamiast jednej dziesiątej. Kontrolka odległości jest
+dokładnie jedna i zawsze ta, która działa: przy wybranej miejscowości promień siedzi
+pod nią, bez miejscowości — liczy się od pozycji gracza i pyta o to suwak „Odległość
+od Ciebie". „Bez limitu" zostaje jako ostatni przystanek za setką.
+
+MECHANIKA: `PROMIENIE_SUWAK_KM` w `lib/miejscowosci.ts` (1, 2, 3, 5, 7, 10, 15, 20, 25,
+30, 40, 50, 65, 80, 100) plus `indeksPromienia()` i `promienZIndeksu()`; suwak
+`RangeSlider` chodzi po indeksie tablicy, nie po kilometrach. Wartość spoza skali
+(stary link, zapisany filtr) trafia na najbliższy przystanek, a przy remisie na
+NIŻSZY — filtr nie ma poszerzać się sam. Wszystkie cztery dawne wartości pigułek mają
+swój przystanek, więc stare adresy nie przestawiają promienia. Miejsca użycia:
+`components/map/WyborMiejscowosci.tsx` (promień pod miejscowością),
+`components/map/VenueExplorer.tsx` (suwak tylko przy braku miejscowości) oraz
+`app/wydarzenia/EventsListView.tsx`. Lokalne stałe `RADIUS_MIN`/`RADIUS_MAX` (1–20,
+liniowo) usunięte z obu widoków. Testy: `promienSuwaka.test.ts`.
+
 ### 2026-09-14 — Arkusz filtrów: mniej napisów, sport czytany pod ikonami
 
 PROBLEM: arkusz filtrów na mapie i liście meczów otwierał się trzema rzędami
@@ -674,32 +704,4 @@ wymienienie każdego pola w `repeatEvent()`. `lib/zmianyMeczu.ts` — nowa
 argument `StanUdostepnienia` (wolne miejsca, rezerwa, zapisy zamknięte); bez niego
 zachowanie jest identyczne jak dotąd. Testy: `__tests__/events.test.ts`,
 `__tests__/zmianyMeczu.test.ts`, `__tests__/eventShare.test.ts`.
-
-### 2026-09-12 — Kolejka rezerwowa i przypomnienia przestają czekać na kliknięcie
-
-PROBLEM: (1) Gdy zwolniło się miejsce, Bojo proponowało je pierwszej osobie z listy
-rezerwowej — ale odświeżenie tej oferty zależało WYŁĄCZNIE od tego, czy ktokolwiek
-akurat otworzył stronę meczu. Jeśli oferta wygasła (domyślnie po 3 h) i nikt nie wszedł
-na stronę, wygasła oferta stała dalej w nieskończoność: następna osoba z kolejki nie
-dostawała niczego, a organizator grał w niepełnym składzie mając chętnego na ławce. Po
-starcie meczu taka oferta nie wygasała już nigdy. (2) Przypomnienie dzień przed meczem
-nie wiedziało nic o zamkniętych zapisach: organizator, który wieczorem zamknął zapisy
-przy 10 z 14 osób mówiąc „gramy w tym składzie", dostawał następnego dnia „brakuje 4" —
-aplikacja kłóciła się z jego własną decyzją. Dwie osoby czekające na liście rezerwowej
-były przy tym całkowicie niewidoczne w treści przypomnienia.
-
-ROZWIĄZANIE BOJO: Kolejka rezerwowa ma teraz własny zegar — co 15 minut Bojo sprawdza
-samo, czy jakaś oferta wygasła, i jeśli tak, przekazuje miejsce dalej i powiadamia obie
-strony, bez czyjegokolwiek kliknięcia. Przypomnienie dzień przed meczem rozróżnia dziś
-trzy stany organizatora: zapisy zamknięte (bez wzmianki o brakujących), brakuje ludzi
-i ktoś czeka na rezerwie (z liczbą czekających), albo brakuje ludzi i rezerwa jest pusta
-(bez zmian względem wcześniejszego zachowania).
-
-MECHANIKA: migracja `143` — funkcja `porzadkuj_kolejki_rezerwy()` (woła istniejącą
-`sync_reserve_claim()` dla aktywnych, przyszłych meczów z niepustą rezerwą, nie powtarza
-jej reguł) plus zadanie `pg_cron` `bojo-kolejka-rezerwy` co 15 minut. Migracja `144` —
-`wyslij_przypomnienia()` (`129`/`131`) dostaje kolumnę `events.zapisy_zamkniete` (`141`)
-i liczbę czekających w kolejce do treści dla organizatora, nowy pomocnik odmiany
-`odmien_czeka_na_rezerwie()` wzorem `odmien_nie_oddalo()` z `131`. Testy:
-`supabase/test/kolejka-zegar.sql` (nowy), rozszerzony `supabase/test/przypomnienia.sql`.
 

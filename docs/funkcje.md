@@ -3044,8 +3044,32 @@ pinezki".
 
 Arkusz filtrów — w OBU trybach, gier i katalogu — otwiera **wiersz wyboru miejsca**:
 pole na nazwę miejscowości albo **kod pocztowy**, a po jego prawej ikona pinezki
-„Ustaw pinezkę na mojej lokalizacji". Po wyborze dochodzi promień (5/10/25/50 km,
-domyślnie 10).
+„Ustaw pinezkę na mojej lokalizacji". Po wyborze dochodzi **suwak promienia**
+(domyślnie 10 km).
+
+**Suwak zamiast czterech pigułek, ze skalą NARASTAJĄCĄ — 2026-09-14, zgłoszone
+wprost.** Promień wybierało się dotąd z czterech wartości (5/10/25/50 km), więc między
+10 a 25 km nie było nic. Dziś to suwak, ale chodzi po INDEKSIE tablicy
+`PROMIENIE_SUWAK_KM` (`lib/miejscowosci.ts`), nie po kilometrach:
+`1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50, 65, 80, 100`.
+
+Powodem jest to, że kilometry nie są równo ważne. Różnica między 2 a 3 km decyduje,
+czy idzie się pieszo; między 80 a 90 km nie znaczy nic. Liniowy suwak 1–100 oddawał
+pierwszej dziesiątce — czyli całemu realnemu zakresowi decyzji — jedną dziesiątą
+długości. Na tej skali 50 km wypada na jedenastej z piętnastu pozycji, czyli wyraźnie
+po prawej, a środek suwaka to 20 km. Pilnuje tego `promienSuwaka.test.ts`, łącznie
+z regułą remisu: 6 km leży między 5 a 7 i wygrywa **niższy** przystanek, żeby filtr
+nie poszerzał się sam.
+
+**Jedna kontrolka odległości, nie dwie.** Arkusz gier na `/mapa` pokazywał suwak
+„Odległość" RAZEM z promieniem pod wybraną miejscowością, a `filterByRadius(withDist,
+draftMiejscowosc ? draftPromienKm : draftGamesRadius)` mówi wprost, że przy wybranej
+miejscowości ten pierwszy przestaje cokolwiek robić. Stał na ekranie i dawał się
+przesuwać, czyli kłamał. Dziś pokazuje się wyłącznie przy braku miejscowości, pod
+nazwą „Odległość od Ciebie" — wtedy liczy od pozycji gracza i działa. Skala jest
+wspólna dla obu, więc przełączenie między nimi nie zmienia znaczenia tych samych
+kilometrów. Ta sama skala stoi w arkuszu na `/wydarzenia`, gdzie zastąpiła liniowe
+1–20 km.
 
 **Bez nagłówka „Gdzie szukam" i bez akapitu pod nim — 2026-09-14, zgłoszone wprost.**
 Akapit („Postaw pinezkę na swojej lokalizacji albo wpisz miejscowość lub kod pocztowy —
