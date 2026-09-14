@@ -48,7 +48,7 @@ function LoginInner() {
   const { user, loading } = useAuth();
 
   useEffect(() => {
-    if (!loading && user) router.replace(next || '/');
+    if (!loading && user) router.replace(next || '/moje-gry');
   }, [user, loading, next, router]);
 
   if (loading || user) {

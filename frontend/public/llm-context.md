@@ -370,6 +370,38 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-13 — Akcje przy swoim wierszu; zarządzanie graczami w liście składu
+
+PROBLEM: karta z terminem i miejscem meczu miała pod spodem rząd trzech przycisków
+z podpisami — „Nawiguj", „O boisku" i „Do kalendarza". Na telefonie nie mieściły się
+w jednej linii, więc łamały się na dwa rzędy, a układ 2+1 sugerował hierarchię, której
+nie ma. Wszystkie trzy stały pod obydwoma wierszami karty, choć każdy dotyczy tylko
+jednego z nich. Do tego nazwa boiska — rzecz, w którą człowiek i tak chce kliknąć —
+nie była klikalna, a jej rolę pełnił osobny przycisk „O boisku" obok. Osobno:
+organizator dostawał na dole strony meczu kartę „Zarządzanie graczami", która
+wypisywała skład drugi raz, tylko po to, żeby doczepić do nazwisk „Usuń" i „Na
+rezerwę" — więc widział każdego gracza dwukrotnie i musiał przewijać między dwiema
+listami tych samych osób.
+
+ROZWIĄZANIE BOJO: każda akcja stoi przy wierszu, którego dotyczy. Przy dacie ikona
+kalendarza (pobiera termin jako plik `.ics`), przy miejscu ikona nawigacji (Mapy
+Google). Nazwa obiektu z katalogu jest teraz odnośnikiem — podkreślonym, w kolorze
+linku, ze strzałką — i prowadzi na stronę boiska, więc osobny przycisk „O boisku"
+zniknął. Miejsce spoza katalogu nie ma strony, więc zostaje zwykłym tekstem, ale
+ikona dojazdu stoi przy nim tak samo. Przyciski „Usuń" i „Na rezerwę" organizator ma
+przy graczu w liście składu, a osobna karta „Zarządzanie graczami" zniknęła.
+
+MECHANIKA: karta „Kiedy i gdzie" w `app/wydarzenia/[id]/EventDetailClient.tsx` —
+dwa wiersze `flex items-start`, każdy z ikoną akcji o polu dotyku 44 px (WCAG 2.5.5)
+i własnym `aria-label`/`title` przy 20-pikselowej ikonie. Odnośnik do boiska prowadzi
+na `/boisko/[id]` i zapisuje powrót przez `zapiszPowrot()`. Zniknął warunek na
+`joinBarVisible`, który ściemniał „Nawiguj”, gdy na ekranie stał zielony „Dołącz do
+meczu" — ikona nie konkuruje wagą z niczym, więc nie ma czym sterować. Akcje
+zarządzania (`handleRemovePlayer`, `handleCofnijNaRezerwe`) renderują się w gałęzi
+listy składu dla `isOwner || canManageSquad` przed startem meczu, z pominięciem
+samego organizatora (`p.userId !== event.organizerId`); wiersz ma `flex-wrap`
+i `sm:flex-nowrap`, żeby na wąskim telefonie przyciski schodziły do drugiej linii.
+
 ### 2026-09-13 — Strona meczu i kreator przestają powtarzać oraz pytać w próżnię
 
 PROBLEM: dolny pasek gracza w składzie mówił „Jesteś w składzie", a zaraz pod spodem
@@ -693,32 +725,3 @@ w oknie potwierdzenia — `OpcjeNotatki` w `components/ui/OknoPotwierdzenia.tsx`
 `tekstOdwolania()` w `lib/eventShare.ts`. Asercje w `supabase/test/notatka-odwolania.sql`
 i `frontend/src/__tests__/mailePowiadomien.test.ts`.
 
-### 2026-09-11 — Maile Bojo wyglądają jak narzędzie, a nie jak notatka
-
-PROBLEM: Bojo wysyłało maile wyłącznie jako goły tekst. Odbiorca dostawał ścianę zdań
-z wklejonymi adresami URL, bez nagłówka i bez wyróżnionej akcji, a Gmail podkreślał
-na niebiesko przypadkowe fragmenty — w tym nazwę ulicy z pola „miejsce" — bo sam zgadywał,
-co jest odnośnikiem. Te maile są pierwszym kontaktem z Bojo dla gościa bez konta
-i pierwszą wiadomością po założeniu konta, więc działały przeciwko organizatorowi, który
-przyprowadził ludzi. Osobno: obrazek podglądu linku (Open Graph) podpisywał się
-technicznym adresem Vercela zamiast domeną `bojo.pl` — a to jest dokładnie to, co widzi
-kilkanaście osób, gdy organizator wkleja link do meczu na czacie.
-
-ROZWIĄZANIE BOJO: każdy mail wychodzi w dwóch wersjach naraz — graficznej i tekstowej.
-Wersja graficzna ma nagłówek z marką, kartę meczu (tytuł, data, miejsce, koszt) wyróżnioną
-zieloną krawędzią, jeden przycisk akcji na pełną szerokość ekranu telefonu oraz stopkę
-z domeną `bojo.pl` i zaproszeniem do odpowiedzi. Wersja tekstowa niesie tę samą treść dla
-czytników ekranu, klientów z wyłączonymi obrazkami i filtrów antyspamowych. Podpis
-na obrazku podglądu linku pokazuje domenę kanoniczną.
-
-MECHANIKA: `supabase/functions/powiadom-goscia/tresc.ts` — jedno źródło treści jako lista
-bloków (`akapit`, `mecz`, `lista`, `przycisk`, `link`, `drobne`), z którego `doTekstu()`
-i `doHtml()` składają obie wersje; dwa równoległe szablony rozjechałyby się przy pierwszej
-poprawce. Plik jest czysty (bez `Deno`), więc testuje go Vitest —
-`frontend/src/__tests__/mailePowiadomien.test.ts` sprawdza, że każdy z trzynastu powodów
-ma obie wersje, że HTML niesie każde zdanie z tekstu, że tytuł meczu od użytkownika wychodzi
-zescapowany i że w stopce nie ma adresu `vercel.app`. `powiadom-goscia/index.ts` zostaje
-samą wysyłką (Resend, `html` + `text`). `frontend/src/app/opengraph-image.tsx` liczy domenę
-z `NEXT_PUBLIC_SITE_URL` z tym samym fallbackiem co `layout.tsx`, `robots.ts` i `sitemap.ts`.
-Osobno, poza repo: maile logowania (reset hasła, magic link) idą od 2026-09-11 przez Resend
-jako custom SMTP w Supabase.
