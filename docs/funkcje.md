@@ -2049,6 +2049,27 @@ zmienia się pod palcem i przeżywa odświeżenie, adres przyniesiony z zewnątr
 ustawia filtry, a wylogowany klikający „Powiadom mnie" niesie na logowanie
 i filtry, i powód.
 
+**Właścicielem adresu jest JEDEN egzemplarz listy — `zarzadzaAdresem`.**
+`EventsListView` renderuje się także jako **tło ekranu logowania**
+(`components/auth/LoginBackdrop.tsx`), więc efekt synchronizujący filtry
+przepisywał adres `/logowanie` i zjadał jego własne parametry: `mode=rejestracja`
+(przycisk „Dołącz" w pasku przestawał otwierać zakładanie konta), a także `next`
+i `powod` — czyli całą drogę powrotną po zalogowaniu, w tym świeżo dodany zamiar
+alertu. Prop `zarzadzaAdresem` bramkuje oba efekty (odczyt i zapis) i jest
+**domyślnie WYŁĄCZONY**: pomyłka w tę stronę kosztuje utratę funkcji na jednym
+ekranie, a w drugą — psuje logowanie. Włącza go wyłącznie `EventsListClient`.
+To ta sama granica, którą ten komponent rysuje już przy znaczniku „widziano
+listę": tło ekranu logowania nie jest wizytą na liście i nie jest jej adresem.
+
+Warte zapamiętania, bo mówi coś o narzędziach: **złapały to zrzuty ekranu, nie
+scenariusz zachowania.** `rejestracja-formularz` pokazał formularz LOGOWANIA —
+a zadanie ze zrzutami z założenia „nigdy nie świeci na czerwono" i czyta się
+jak informacja o wyglądzie. Własny scenariusz alertu przechodził, bo czytał
+adres ZANIM efekt tła zdążył go przepisać; wyścig, na którym nie wolno opierać
+asercji. Stałą bramką jest dziś `logowanie-adres-nietkniety.klikalnosc.spec.ts`:
+sprawdza `?mode=rejestracja` oraz parę `next`+`powod`, każdorazowo po odczekaniu
+na zamontowanie tła.
+
 **Dopełniacz „meczów", nie „meczy".** Obie formy są w słownikach, „meczów" jest
 dominująca — a mieszanie ich w jednej aplikacji czyta się jak literówka.
 Ujednolicone we wszystkich czterech miejscach wołających `plural()`.

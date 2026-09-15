@@ -91,7 +91,7 @@ const PAGE_SIZE = 20;
  * logowania (components/auth/LoginBackdrop.tsx). Gdyby renderował własny
  * nagłówek, na /logowanie byłyby dwa.
  */
-export default function EventsListView({ widzianoWczesniej }: {
+export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = false }: {
   /** Znacznik „ostatnio widziano listę" SPRZED nadpisania go przez
    *  `EventsListClient.tsx` — `undefined` (jeszcze nie odczytane) i `null`
    *  (pierwsza wizyta w ogóle) świadomie NIE oznaczają żadnej karty jako
@@ -99,6 +99,23 @@ export default function EventsListView({ widzianoWczesniej }: {
    *  listę kropkami zamiast wskazać coś konkretnego. Bez propa (tło ekranu
    *  logowania) żadna karta nigdy nie jest nowa. */
   widzianoWczesniej?: string | null;
+  /**
+   * Czy TEN egzemplarz listy jest właścicielem adresu strony.
+   *
+   * MUSI BYĆ WYŁĄCZONE DOMYŚLNIE, bo `EventsListView` renderuje się także jako
+   * TŁO EKRANU LOGOWANIA (`components/auth/LoginBackdrop.tsx`). Bez tego
+   * przełącznika synchronizacja filtrów przepisywała adres `/logowanie`
+   * i zjadała jego parametry — `mode=rejestracja` (przycisk „Dołącz" w pasku
+   * przestawał otwierać zakładanie konta), a także `next` i `powod`, czyli
+   * całą ścieżkę powrotu po zalogowaniu. Złapały to dopiero zrzuty ekranu:
+   * `rejestracja-formularz` pokazał formularz LOGOWANIA.
+   *
+   * To ta sama pułapka, którą `EventsListClient` obchodzi przy znaczniku
+   * „widziano listę" — tło ekranu logowania nie jest wizytą na liście i nie
+   * jest też jej adresem. Domyślnie WYŁĄCZONE, bo pomyłka w tę stronę kosztuje
+   * tylko utratę funkcji na jednym ekranie, a w drugą — psuje logowanie.
+   */
+  zarzadzaAdresem?: boolean;
 } = {}) {
   // Jedno źródło relacji do meczu. Wcześniej strona wołała useMyParticipation()
   // ORAZ useMyInvites(), a oba pobierają getMyParticipationMap — to samo
@@ -163,6 +180,7 @@ export default function EventsListView({ widzianoWczesniej }: {
   // listy. Ten sam wzorzec co `backHref` w `boisko/[id]/VenueDetailClient`.
   const [odczytanoAdres, setOdczytanoAdres] = useState(false);
   useEffect(() => {
+    if (!zarzadzaAdresem) { setOdczytanoAdres(true); return; }
     // Powrót z logowania z `alert=1` otwiera okno od razu — to jest druga
     // połowa naprawy „kliknięcie «Powiadom mnie» gubi wszystko": pierwsza
     // przywraca filtry, ta przywraca ZAMIAR.
@@ -179,6 +197,10 @@ export default function EventsListView({ widzianoWczesniej }: {
     setSortBy(f.sortBy);
     setQuery(f.query);
     setOdczytanoAdres(true);
+    // Pusta lista zależności jest tu celem: adres czytamy RAZ, przy montażu.
+    // `zarzadzaAdresem` nie zmienia się w trakcie życia egzemplarza — jest
+    // stałą miejsca renderowania, a nie stanem.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Mobile-only przełącznik lista/mapa (D9) — desktop zawsze pokazuje listę,
@@ -381,14 +403,14 @@ export default function EventsListView({ widzianoWczesniej }: {
   // przebieg (jeszcze z wartościami domyślnymi) nadpisałby adres przyniesiony
   // z linku, zanim efekt powyżej zdąży go przeczytać.
   useEffect(() => {
-    if (!odczytanoAdres) return;
+    if (!zarzadzaAdresem || !odczytanoAdres) return;
     const adres = filtryDoAdresu({ sports, dateFilter, radiusKm, minFreeSpots, sortBy, query })
       || window.location.pathname;
     const docelowy = adres.startsWith('?') ? window.location.pathname + adres : adres;
     if (docelowy !== window.location.pathname + window.location.search) {
       window.history.replaceState(null, '', docelowy);
     }
-  }, [odczytanoAdres, sports, dateFilter, radiusKm, minFreeSpots, sortBy, query]);
+  }, [zarzadzaAdresem, odczytanoAdres, sports, dateFilter, radiusKm, minFreeSpots, sortBy, query]);
 
   const hasFilters = sports.length > 0 || dateFilter !== 'wszystkie' || radiusKm !== null
     || minFreeSpots !== MIN_SPOTS_DOMYSLNIE || !!query;
