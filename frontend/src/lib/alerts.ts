@@ -1,8 +1,11 @@
 import { supabase } from './supabase';
+import { zaktualizujJedenWiersz } from './zapytania';
 import type { GameAlert } from '@/types';
 import { endOfWeek } from 'date-fns';
 import { PROMIEN_DOMYSLNY_KM, indeksPromienia, promienZIndeksu } from './miejscowosci';
-import { dataZKiedy, type DateFilter } from './eventFilters';
+import { dataZKiedy, etykietaKiedy, type DateFilter } from './eventFilters';
+import { distanceKm } from './geo';
+import { sportLabel } from './sports';
 
 function toAlert(row: any): GameAlert {
   return {
@@ -23,15 +26,36 @@ function toAlert(row: any): GameAlert {
   };
 }
 
-export async function getMyAlert(): Promise<GameAlert | null> {
+/**
+ * WIELE ALERTÓW NA KONTO — decyzja właściciela 2026-09-15.
+ *
+ * Schemat umiał to od zawsze: `game_alerts` nie ma unikalności na `user_id`,
+ * a `notifications.alert_id` (migracja `025`) wskazuje KONKRETNY alert. Limit
+ * „jeden na konto" siedział w jednej linijce `saveAlert()`, która przed każdym
+ * zapisem gasiła wszystkie poprzednie — po cichu, bez ostrzeżenia i bez
+ * cofnięcia. Kto założył alert na siatkówkę w Poznaniu, tracił ten na piłkę we
+ * Wrocławiu i nie miał jak się o tym dowiedzieć.
+ *
+ * Zwraca TAKŻE wyłączone — lista w profilu ma je pokazać, żeby dało się je
+ * włączyć z powrotem albo skasować. Kto pyta „czy mam jakiś alert", filtruje
+ * `isActive` u siebie (`maAktywnyAlert()` niżej).
+ *
+ * Bez `.eq('user_id', …)`, bo pilnuje tego polityka `own_alerts` z `025`
+ * (`auth.uid() = user_id`, `FOR ALL`) — ta sama zasada co przy reszcie zapytań
+ * w tym pliku. Asercje w `supabase/test/rls.sql`.
+ */
+export async function getMojeAlerty(): Promise<GameAlert[]> {
   const { data } = await supabase
     .from('game_alerts')
     .select('*')
-    .eq('is_active', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data ? toAlert(data) : null;
+    .order('is_active', { ascending: false })
+    .order('created_at', { ascending: false });
+  return (data ?? []).map(toAlert);
+}
+
+/** Czy człowiek ma CHOĆ JEDEN działający alert — do stanu przycisku w pasku. */
+export function maAktywnyAlert(alerty: GameAlert[]): boolean {
+  return alerty.some((a) => a.isActive);
 }
 
 export interface AlertInput {
@@ -49,29 +73,64 @@ export interface AlertInput {
   kanalEmail?: boolean;
 }
 
-export async function saveAlert(userId: string, input: AlertInput): Promise<GameAlert> {
-  // Deactivate any previous alerts first
-  await supabase.from('game_alerts').update({ is_active: false }).eq('user_id', userId).eq('is_active', true);
+/** Pola wiersza wspólne dla wstawiania i edycji — jedno miejsce, żeby przy
+ *  dokładaniu kolumny nie dało się zaktualizować mniej, niż się wstawia. */
+function doWiersza(input: AlertInput) {
+  return {
+    sport:        input.sport ?? null,
+    days_of_week: input.daysOfWeek,
+    lat:          input.lat,
+    lng:          input.lng,
+    radius_km:    input.radiusKm,
+    city_label:   input.cityLabel ?? null,
+    expires_at:   input.expiresAt ?? null,
+    godzina_od:   input.godzinaOd ?? null,
+    godzina_do:   input.godzinaDo ?? null,
+    kanal_email:  input.kanalEmail ?? true,
+  };
+}
 
+/**
+ * NOWY alert. NIE gasi poprzednich — patrz komentarz przy `getMojeAlerty()`.
+ * Edycję istniejącego robi `zaktualizujAlert()` niżej, żeby zmiana alertu nie
+ * zmieniała jego `id`: `notifications.alert_id` wskazuje konkretny wiersz,
+ * a `wylacz_token` z wysłanych już maili musi dalej działać.
+ */
+export async function saveAlert(userId: string, input: AlertInput): Promise<GameAlert> {
   const { data, error } = await supabase
     .from('game_alerts')
-    .insert({
-      user_id:      userId,
-      sport:        input.sport ?? null,
-      days_of_week: input.daysOfWeek,
-      lat:          input.lat,
-      lng:          input.lng,
-      radius_km:    input.radiusKm,
-      city_label:   input.cityLabel ?? null,
-      expires_at:   input.expiresAt ?? null,
-      godzina_od:   input.godzinaOd ?? null,
-      godzina_do:   input.godzinaDo ?? null,
-      kanal_email:  input.kanalEmail ?? true,
-    })
+    .insert({ user_id: userId, ...doWiersza(input) })
     .select()
     .single();
   if (error) throw error;
   return toAlert(data);
+}
+
+/** Edycja ISTNIEJĄCEGO alertu — ten sam wiersz, to samo `id`, ten sam token.
+ *  Zapis wraca też do `is_active = true`: kto właśnie poprawiał wyłączony
+ *  alert, chce go mieć z powrotem, a nie zapisać zmiany w czymś martwym. */
+export async function zaktualizujAlert(id: string, input: AlertInput): Promise<GameAlert> {
+  // Przez `zaktualizujJedenWiersz`, nie gołym `.update()`: niepasująca polityka
+  // RLS nie rzuca błędu, tylko aktualizuje zero wierszy i zwraca sukces —
+  // pułapka opisana w AGENTS.md. Bez tego „Zaktualizuj alert" mogłoby nic nie
+  // robić i wyglądać na zapisane.
+  await zaktualizujJedenWiersz(
+    'game_alerts', id, { ...doWiersza(input), is_active: true },
+    'Nie udało się zapisać alertu',
+  );
+  const { data, error } = await supabase.from('game_alerts').select('*').eq('id', id).single();
+  if (error) throw error;
+  return toAlert(data);
+}
+
+/** Włącz/wyłącz bez kasowania — to samo, co robi link „nie chcę więcej"
+ *  z maila, tylko z drugiej strony. Wyłączony alert zostaje na liście
+ *  w profilu, więc da się go wskrzesić jednym dotknięciem. */
+export async function ustawAktywnoscAlertu(id: string, aktywny: boolean): Promise<void> {
+  await zaktualizujJedenWiersz(
+    'game_alerts', id, { is_active: aktywny },
+    aktywny ? 'Nie udało się włączyć alertu' : 'Nie udało się wyłączyć alertu',
+  );
 }
 
 /**
@@ -231,4 +290,52 @@ export function domyslneZFiltrow(filtry: {
     lat:      filtry.pozycja?.lat,
     lng:      filtry.pozycja?.lng,
   };
+}
+
+/**
+ * PODPIS ALERTU SKŁADANY Z TREŚCI, BEZ POLA „nazwij swój alert".
+ *
+ * Lista wielu alertów bez nazw jest nie do przeczytania („Alert", „Alert",
+ * „Alert"), ale pole tekstowe na nazwę zostałoby puste u wszystkich — nikt nie
+ * nazywa rzeczy, których jeszcze nie ma. Nazwa bierze się więc z tego, co
+ * alert naprawdę robi, i zmienia się razem z nim.
+ */
+export function nazwaAlertu(a: Pick<GameAlert, 'sport' | 'cityLabel' | 'radiusKm'>): string {
+  const gdzie = a.cityLabel?.trim() || 'Moja okolica';
+  return `${a.sport ? sportLabel(a.sport) : 'Wszystkie sporty'} · ${gdzie} ${a.radiusKm} km`;
+}
+
+/** Druga linijka wiersza: jak długo żyje i czym daje znać. */
+export function opisAlertu(a: Pick<GameAlert, 'expiresAt' | 'kanalEmail'>): string {
+  const doKiedy = a.expiresAt
+    ? `do ${etykietaKiedy(`do:${dataWygasniecia(a.expiresAt)}`).replace(/^Do /, '')}`
+    : 'bezterminowo';
+  return `${doKiedy} · ${a.kanalEmail ? 'dzwonek i mail' : 'tylko dzwonek'}`;
+}
+
+/**
+ * Czy wśród istniejących alertów stoi już praktycznie TEN SAM.
+ *
+ * Powód jest mierzalny, nie estetyczny: `notify-game-alert` filtruje wszystkie
+ * aktywne alerty i NIE deduplikuje po użytkowniku, więc dwa bliźniacze alerty
+ * to dwa maile o jednym meczu. Przy jednym slocie problem nie istniał; odkąd
+ * alertów może być wiele, powstaje przy trzecim nieuważnym dotknięciu
+ * „Powiadom o takich meczach".
+ *
+ * „Praktycznie ten sam" = ten sam sport i punkt na tyle blisko, że promienie
+ * i tak się pokrywają. Próg to POŁOWA mniejszego z dwóch promieni: przy 25 km
+ * przesunięcie o 3 km nie tworzy nowego alertu, przy 2 km — tworzy.
+ */
+export function znajdzPodobnyAlert(
+  alerty: GameAlert[],
+  input: Pick<AlertInput, 'sport' | 'lat' | 'lng' | 'radiusKm'>,
+  pomijajId?: string,
+): GameAlert | null {
+  for (const a of alerty) {
+    if (pomijajId && a.id === pomijajId) continue;
+    if ((a.sport ?? '') !== (input.sport ?? '')) continue;
+    const prog = Math.min(a.radiusKm, input.radiusKm) / 2;
+    if (distanceKm(a.lat, a.lng, input.lat, input.lng) <= prog) return a;
+  }
+  return null;
 }

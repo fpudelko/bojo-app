@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, Bell, BellOff, Mail, Smartphone, Check } from 'lucide-react';
 import {
-  getMyAlert, saveAlert, deleteMyAlert,
-  wygasaZKiedy, kiedyZWygasniecia, PROMIEN_DOMYSLNY, type AlertInput,
+  getMojeAlerty, saveAlert, zaktualizujAlert, deleteMyAlert, nazwaAlertu,
+  znajdzPodobnyAlert, wygasaZKiedy, kiedyZWygasniecia, PROMIEN_DOMYSLNY,
+  type AlertInput,
 } from '@/lib/alerts';
 import { pozycjaBezPytania } from '@/lib/geo';
 import { useAuth } from '@/lib/auth';
@@ -33,6 +34,12 @@ const OPIS_PUSHA: Record<StanPush, string> = {
 interface Props {
   onClose: () => void;
   onSaved?: (alert: GameAlert) => void;
+  /** Podany = EDYCJA tego alertu (ten sam wiersz, to samo `id` i token).
+   *  Pusty = nowy alert; wtedy pola startują z `default*` niżej. */
+  alert?: GameAlert;
+  /** Czy `default*` przyszły z filtrów listy — decyduje o jednej linijce nad
+   *  polami. Bez niej nikt nie wie, skąd wzięły się wypełnione wartości. */
+  zFiltrow?: boolean;
   defaultSport?: string;
   defaultRadiusKm?: number;
   defaultLat?: number;
@@ -82,21 +89,28 @@ interface Props {
  * `/alert/wylacz/[token]`.
  */
 export default function AlertSetupDialog({
-  onClose, onSaved, defaultSport, defaultRadiusKm, defaultLat, defaultLng, defaultLabel,
+  onClose, onSaved, alert, zFiltrow,
+  defaultSport, defaultRadiusKm, defaultLat, defaultLng, defaultLabel,
 }: Props) {
   const { user } = useAuth();
+  const edycja = alert != null;
 
-  const [existing, setExisting] = useState<GameAlert | null>(null);
-  const [sport,    setSport]    = useState(defaultSport ?? '');
-  const [miejsce,  setMiejsce]  = useState<Miejscowosc | null>(
-    defaultLat != null && defaultLng != null
-      ? { nazwa: defaultLabel || 'Moja lokalizacja', kontekst: '', lat: defaultLat, lng: defaultLng }
-      : null,
-  );
-  const [promienKm, setPromienKm] = useState(defaultRadiusKm ?? PROMIEN_DOMYSLNY);
+  const [sport,    setSport]    = useState(alert?.sport ?? defaultSport ?? '');
+  const [miejsce,  setMiejsce]  = useState<Miejscowosc | null>(() => {
+    if (alert) return { nazwa: alert.cityLabel || 'Wybrane miejsce', kontekst: '', lat: alert.lat, lng: alert.lng };
+    if (defaultLat != null && defaultLng != null) {
+      return { nazwa: defaultLabel || 'Moja lokalizacja', kontekst: '', lat: defaultLat, lng: defaultLng };
+    }
+    return null;
+  });
+  const [promienKm, setPromienKm] = useState(alert?.radiusKm ?? defaultRadiusKm ?? PROMIEN_DOMYSLNY);
 
-  const [kiedy, setKiedy] = useState<DateFilter>('wszystkie');
-  const [kanalEmail, setKanalEmail] = useState(true);
+  const [kiedy, setKiedy] = useState<DateFilter>(
+    alert ? kiedyZWygasniecia(alert.expiresAt) : 'wszystkie');
+  const [kanalEmail, setKanalEmail] = useState(alert?.kanalEmail ?? true);
+  /** Pozostałe alerty — wyłącznie do ostrzeżenia o bliźniaku przy zapisie. */
+  const [inneAlerty, setInneAlerty] = useState<GameAlert[]>([]);
+  const [bliźniak, setBliźniak] = useState<GameAlert | null>(null);
   const [push, setPush] = useState<StanPush | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
 
@@ -106,37 +120,51 @@ export default function AlertSetupDialog({
 
   useEffect(() => { stanPush().then(setPush).catch(() => setPush('nieobslugiwane')); }, []);
 
-  // Istniejący alert wygrywa z wartościami przyniesionymi z filtrów — to jego
-  // edycja, nie zakładanie nowego. Gdy alertu nie ma i nikt nie podał miejsca,
-  // bierzemy pozycję, ale WYŁĄCZNIE przy już udzielonej zgodzie
-  // (`pozycjaBezPytania`): samo otwarcie okna nie jest powodem, żeby
-  // przeglądarka wyskoczyła z systemową prośbą o lokalizację.
+  // Okno NIE SZUKA JUŻ SAMO, który alert edytować — dostaje go propsem.
+  // Wcześniej wołało `getMyAlert()` i nadpisywało nim wszystko, bo alert był
+  // jeden; przy wielu to samo zachowanie znaczyłoby „edytuj losowy", cokolwiek
+  // by człowiek kliknął. Pobieramy tu wyłącznie POZOSTAŁE alerty, żeby przy
+  // zapisie ostrzec przed bliźniakiem.
+  //
+  // Gdy nikt nie podał miejsca (nowy alert spoza filtrów), bierzemy pozycję,
+  // ale WYŁĄCZNIE przy już udzielonej zgodzie (`pozycjaBezPytania`): samo
+  // otwarcie okna nie jest powodem, żeby przeglądarka wyskoczyła z systemową
+  // prośbą o lokalizację.
   useEffect(() => {
     let zywe = true;
     (async () => {
-      const a = user ? await getMyAlert().catch(() => null) : null;
-      if (!zywe) return;
-      if (a) {
-        setExisting(a);
-        setSport(a.sport ?? '');
-        setMiejsce({ nazwa: a.cityLabel || 'Wybrane miejsce', kontekst: '', lat: a.lat, lng: a.lng });
-        setPromienKm(a.radiusKm);
-        setKiedy(kiedyZWygasniecia(a.expiresAt));
-        setKanalEmail(a.kanalEmail);
-        return;
+      if (user) {
+        const wszystkie = await getMojeAlerty().catch(() => []);
+        if (zywe) setInneAlerty(wszystkie);
       }
-      if (defaultLat != null) return;
+      if (!zywe || alert || defaultLat != null) return;
       const poz = await pozycjaBezPytania();
       if (!zywe || !poz) return;
       setMiejsce({ nazwa: 'Moja lokalizacja', kontekst: '', lat: poz.lat, lng: poz.lng });
     })();
     return () => { zywe = false; };
-    // `defaultLat` czytane raz, przy otwarciu — okno nie przestawia się w locie.
+    // `alert`/`defaultLat` czytane raz, przy otwarciu — okno nie przestawia
+    // się w locie pod palcem.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const handleSave = async () => {
+  const handleSave = async (mimoBliźniaka = false) => {
     if (!user || !miejsce) return;
+
+    // OSTRZEŻENIE O BLIŹNIAKU — odkąd alertów może być wiele (2026-09-15).
+    // `notify-game-alert` filtruje wszystkie aktywne alerty i NIE deduplikuje
+    // po użytkowniku, więc dwa bliźniacze alerty to dwa maile o jednym meczu.
+    // Przy jednym slocie problem nie istniał; teraz powstaje przy trzecim
+    // nieuważnym dotknięciu „Powiadom o takich meczach".
+    if (!mimoBliźniaka) {
+      const podobny = znajdzPodobnyAlert(
+        inneAlerty.filter((a) => a.isActive),
+        { sport: sport || undefined, lat: miejsce.lat, lng: miejsce.lng, radiusKm: promienKm },
+        alert?.id,
+      );
+      if (podobny) { setBliźniak(podobny); return; }
+    }
+
     setSaving(true);
     try {
       const input: AlertInput = {
@@ -156,8 +184,12 @@ export default function AlertSetupDialog({
         godzinaDo:  null,
         kanalEmail,
       };
-      const zapisany = await saveAlert(user.id, input);
-      setExisting(zapisany);
+      // Edycja idzie `zaktualizujAlert`, nie „skasuj i wstaw": `id` wskazuje
+      // `notifications.alert_id`, a `wylacz_token` siedzi w już wysłanych
+      // mailach i musi dalej działać.
+      const zapisany = alert
+        ? await zaktualizujAlert(alert.id, input)
+        : await saveAlert(user.id, input);
       setSaved(true);
       onSaved?.(zapisany);
       setTimeout(onClose, 1200);
@@ -167,9 +199,9 @@ export default function AlertSetupDialog({
   };
 
   const handleDelete = async () => {
-    if (!existing) return;
+    if (!alert) return;
     setDeleting(true);
-    await deleteMyAlert(existing.id);
+    await deleteMyAlert(alert.id);
     setDeleting(false);
     onClose();
   };
@@ -196,8 +228,11 @@ export default function AlertSetupDialog({
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary-700" />
+            {/* Nagłówek mówi, CO się zaraz stanie. „Twój alert na gierki"
+                znaczyło jedno i drugie naraz i przy wielu alertach byłoby
+                już wprost mylące. */}
             <h2 className="text-base font-bold text-ink">
-              {existing ? 'Twój alert na gierki' : 'Powiadom mnie o nowych meczach'}
+              {edycja ? 'Zmieniasz alert' : 'Nowy alert'}
             </h2>
           </div>
           <button onClick={onClose} aria-label="Zamknij" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 dark:hover:bg-slate-700">
@@ -206,6 +241,19 @@ export default function AlertSetupDialog({
         </div>
 
         <div className="px-5 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
+          {/* SKĄD WZIĘŁY SIĘ WYPEŁNIONE POLA — jedna linijka, ale robi całą
+              robotę przy zarzucie „wymieszanie z filtrami jest średnie".
+              Bez niej człowiek widzi wypełniony formularz i nie wie, czy to
+              pamięć po poprzednim alercie, czy podpowiedź; a przy edycji nie
+              wie, czy zmiana pola ruszy też listę pod spodem. Mówimy oba
+              fakty wprost, w miejscu, w którym powstaje pytanie. */}
+          {!edycja && zFiltrow && (
+            <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs leading-relaxed text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+              Wypełnione <strong className="font-semibold">Twoimi filtrami</strong> — możesz
+              tu wszystko zmienić, nie ruszy to listy meczów.
+            </p>
+          )}
+
           {/* ── SPORT ── ten sam `SportChip` co w arkuszu filtrów. Wybór jest
               POJEDYNCZY (alert trzyma jeden sport albo dowolny), więc
               dotknięcie wybranego odznacza go i wraca do „Dowolnego sportu" —
@@ -345,6 +393,35 @@ export default function AlertSetupDialog({
             <div className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-50 text-green-700 font-semibold text-sm">
               <Bell className="w-4 h-4" /> Alert zapisany!
             </div>
+          ) : bliźniak ? (
+            /* BLIŹNIAK — pytanie zamiast przycisku, w tym samym miejscu ekranu.
+               Drugie okno nad oknem byłoby tu gorsze: człowiek jest w połowie
+               formularza i musi zobaczyć, że wybór dotyczy TEGO zapisu. */
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                Masz już prawie taki alert
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+                „{nazwaAlertu(bliźniak)}" łapie te same mecze. Dwa takie alerty
+                znaczą dwa maile o jednym meczu.
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-xl bg-primary-700 py-2.5 text-sm font-semibold text-white"
+                >
+                  Zostaw ten, który mam
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setBliźniak(null); handleSave(true); }}
+                  className="py-1.5 text-xs font-semibold text-amber-800 underline underline-offset-2 dark:text-amber-300"
+                >
+                  Mimo to dodaj drugi
+                </button>
+              </div>
+            </div>
           ) : (
             <>
               {/* Wskaźnik, nie powtórzenie: pełne wyjaśnienie stoi przy samym
@@ -357,18 +434,18 @@ export default function AlertSetupDialog({
                 </p>
               )}
               <button
-                onClick={handleSave}
+                onClick={() => handleSave()}
                 disabled={saving || brakMiejsca}
                 title={brakMiejsca ? 'Najpierw wskaż miejsce — alert szuka meczów w promieniu od niego' : undefined}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-3.5 text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.98] transition-all"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
-                {existing ? 'Zaktualizuj alert' : 'Zapisz alert'}
+                {edycja ? 'Zapisz zmiany' : 'Zapisz alert'}
               </button>
             </>
           )}
 
-          {existing && !saved && (
+          {edycja && !saved && (
             <button
               onClick={handleDelete}
               disabled={deleting}

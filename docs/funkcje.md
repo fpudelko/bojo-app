@@ -1998,6 +1998,81 @@ wartości w tablicy) — reużywane przez sportowy dropdown na `/wydarzenia` **i
 wyśrodkowana karta od `md:`), różna wyłącznie treść sekcji. **Pigułki filtrów**
 (`components/ui/FilterPill.tsx`: `PillDropdown`, `TogglePill`) też są wspólne z mapą.
 
+### Wiele alertów na konto i ich dom w profilu — od 2026-09-15
+
+**Konto miało JEDEN alert, a każde wejście mówiło „dodaj".** `saveAlert()`
+zaczynało od `update({ is_active: false })` na wszystkich alertach użytkownika
+i dopiero potem wstawiało nowy. Kto miał alert na piłkę we Wrocławiu i założył
+drugi na siatkówkę w Poznaniu, tracił pierwszy — po cichu, bez ostrzeżenia
+i bez cofnięcia.
+
+**Schemat umiał wiele alertów od zawsze.** `game_alerts` nie ma unikalności na
+`user_id`, `notifications.alert_id` (migracja `025`) wskazuje KONKRETNY alert,
+a `notify-game-alert` filtruje wszystkie aktywne wiersze i nie deduplikuje po
+użytkowniku. Limit siedział w jednej linijce klienta — jego zdjęcie **nie
+wymagało migracji**.
+
+| Funkcja w `lib/alerts.ts` | Co robi |
+|---|---|
+| `getMojeAlerty()` | wszystkie alerty, TAKŻE wyłączone — lista w profilu ma je pokazać, żeby dało się je włączyć z powrotem |
+| `maAktywnyAlert(alerty)` | czy jest choć jeden działający — do ikony w pasku `/mapa` |
+| `saveAlert()` | **już nie gasi poprzednich**; pilnuje tego `wieleAlertow.test.ts` |
+| `zaktualizujAlert(id, …)` | edycja TEGO SAMEGO wiersza — `id` wskazuje `notifications.alert_id`, a `wylacz_token` siedzi w już wysłanych mailach i musi dalej działać |
+| `ustawAktywnoscAlertu(id, …)` | włącz/wyłącz bez kasowania, przez `zaktualizujJedenWiersz()` |
+| `nazwaAlertu()` / `opisAlertu()` | podpis wiersza składany z treści |
+| `znajdzPodobnyAlert()` | wykrycie bliźniaka, patrz niżej |
+
+**ALERTY MAJĄ DOM: `/profil#powiadomienia`** (`components/profil/MojeAlerty.tsx`),
+trzecia karta obok pusha i poczty. Do tej pory alert nie istniał w żadnych
+ustawieniach — żeby go wyłączyć, trzeba było wejść do WYSZUKIWARKI MECZÓW
+i natknąć się na jedno z wejść. Odkąd alert jest domyślnie bezterminowy
+(migracja `149`), to przestało być niedogodnością, a zaczęło być tą samą drogą
+do „Zgłoś spam", przed którą broni się `UstawieniaMaili` obok.
+
+Karta jest **rozwinięta od razu**, w kontrze do `UstawieniaMaili`: tamta chowa
+listę dwudziestu kilku rodzajów, których nikt nie przegląda bez powodu, a tu
+wierszy jest tyle, ile ktoś sam założył — i sama ich liczba jest odpowiedzią na
+pytanie, z którym się tu przychodzi. Wiersz niesie emoji sportu, nazwę
+(`nazwaAlertu()`), opis (`opisAlertu()`), kosz i przełącznik. **Wyłączenie
+zostawia wiersz** — to samo, co robi link „nie chcę więcej" z maila, tylko
+z drugiej strony.
+
+**BLIŹNIAK — pytanie przy zapisie, nie cicha zgoda.** `notify-game-alert` nie
+deduplikuje po użytkowniku, więc dwa bliźniacze alerty to dwa maile o jednym
+meczu. Przy jednym slocie problem nie istniał; przy wielu powstaje przy trzecim
+nieuważnym dotknięciu „Powiadom o takich meczach". `znajdzPodobnyAlert()`
+uznaje za bliźniaka ten sam sport w punkcie odległym o mniej niż **połowę
+mniejszego z dwóch promieni** — przy 25 km trzy kilometry to to samo miejsce,
+przy 2 km już nie. Okno pyta wtedy w miejscu przycisku zapisu („Zostaw ten,
+który mam" / „Mimo to dodaj drugi"), a nie drugim oknem nad oknem.
+
+**Wejścia: dwa na ekran, nie trzy-cztery w kilku wyglądach.**
+
+| Gdzie | Co |
+|---|---|
+| pusty stan listy meczów (`/mapa`, `/wydarzenia`) | moment odkrycia — „Powiadom mnie, gdy się pojawi" |
+| arkusz filtrów (oba ekrany) | JEDEN cichy wiersz „Powiadom mnie o takich meczach" |
+| pigułka nad listą (`/mapa`) | skrót dla kogoś, kto już wie, czego szuka |
+
+Trzy warianty wyglądu w arkuszu (osobny dla „mam alert", dla „0 wyników" i dla
+reszty) odeszły: powstały, gdy alert był jeden i arkusz musiał mówić, w którym
+jest stanie. **Goły dzwonek z paska `/wydarzenia` też odszedł** — sama ikona nie
+mówi, co zrobi dotknięcie, a stała w jednym rzędzie z DRUGIM dzwonkiem
+(powiadomienia w `MobileIdentityRow`). `/wydarzenia` świadomie **nie** dostaje
+w zamian pigułki: na `/mapa` lista siedzi w kontenerze o ustalonej wysokości,
+więc nakładka ma od czego mierzyć dół, a tu strona przewija się w całości
+i pigułka musiałaby być `fixed` przez cały czas przewijania kilkudziesięciu
+kart. Zapytanie o alerty na tym ekranie zniknęło razem z dzwonkiem.
+
+Napis na pigułce **nie** zmienia się na „masz już alert", choć ikona tak: odkąd
+alertów może być wiele, „mam alert" nie znaczy już „mam alert NA TAKIE mecze",
+a przycisk zawsze robi to samo. O bliźniaka pyta dopiero okno przy zapisie, bo
+dopiero ono zna komplet wypełnionych pól.
+
+**`components/home/NearbyGames.tsx` USUNIĘTY** — martwy od miesięcy (nic go nie
+importowało), a niósł dwa kolejne wejścia i trzeci wariant copy, który ktoś
+kiedyś wziąłby za żywy.
+
 ### Alert o nowym meczu w okolicy — od 2026-09-12
 
 Pusta lista meczów (`sorted.length === 0`) pokazuje duży przycisk **„Powiadom mnie, gdy
@@ -2154,25 +2229,35 @@ filtry nic nie wyszukały** — a dotąd trzeba było zamknąć arkusz i zobaczy
 się o tym dowiedzieć. Blok stoi tuż nad stopką arkusza, czyli tam, gdzie i tak wędruje
 wzrok sięgający po przycisk zatwierdzenia.
 
-Skutek uboczny trzech wejść: **stan alertu (`getMyAlert()`) pobiera się teraz przy każdym
-wejściu zalogowanego na listę**, nie dopiero przy pustym stanie — dzwonek musi wiedzieć, czy
-jest włączony. Wylogowany klika to samo i trafia na `/logowanie?next=/wydarzenia`
-(`otworzAlert()` — jedno miejsce dla wszystkich trzech wejść). Okno alertu renderuje się
+Przez trzy dni `/wydarzenia` pobierało stan alertu przy KAŻDYM wejściu zalogowanego, bo
+dzwonek w pasku musiał wiedzieć, czy jest włączony. **Zapytanie odeszło razem z dzwonkiem
+(2026-09-15)** — oba pozostałe wejścia wyglądają tak samo niezależnie od tego, ile alertów
+ktoś ma. Wylogowany klika to samo i trafia na `/logowanie?next=/wydarzenia`
+(`otworzAlert()` — jedno miejsce dla obu wejść). Okno alertu renderuje się
 na poziomie całego widoku, nie w pustym stanie: `listContent` bywa w gałęzi ukrytej przez
 CSS, a modal w takiej gałęzi nie miałby jak się pokazać. Wejście na stronie głównej
-(`components/home/NearbyGames.tsx`, martwy kod) zostaje do osobnej decyzji.
+odeszło razem z `NearbyGames.tsx` (2026-09-15, martwy kod).
+
+**Stan alertów nie zmienia już wyglądu tego przycisku** — od 2026-09-15 alertów może być
+wiele, a „mam alert" nie znaczy „mam alert NA TO"; zarządza się nimi w profilu.
 
 | Stan | Co widać |
 |---|---|
-| zalogowany, bez alertu | przycisk „Powiadom mnie, gdy się pojawi" → `AlertSetupDialog` |
-| zalogowany, z aktywnym alertem | „Damy znać, gdy pojawi się pasujący mecz" + „Zmień ustawienia powiadomienia" |
+| zalogowany | przycisk „Powiadom mnie, gdy się pojawi" → `AlertSetupDialog` |
 | wylogowany | ten sam przycisk, prowadzi na `/logowanie?next=/wydarzenia` |
 
 **Okno alertu otwiera się wypełnione filtrami** — `domyslneZFiltrow()` w `lib/alerts.ts`:
 jeden wybrany sport przechodzi wprost, dwa i więcej dają „dowolny" (alert trzyma dokładnie
-jeden sport, więc wybór za kogoś byłby zmyśleniem), promień z filtrów jest przycinany do
-skali suwaka alertu (`PROMIEN_MIN` 3 – `PROMIEN_MAX` 30; filtry chodzą od 1 km, więc same
-z siebie podają wartości spoza skali), a pozycja gracza przechodzi, gdy lista już ją zna.
+jeden sport, więc wybór za kogoś byłby zmyśleniem), promień siada na najbliższym
+przystanku WSPÓLNEJ skali `PROMIENIE_SUWAK_KM` (dawny, węższy zakres 3–30 km odszedł
+2026-09-14 — kto szukał w promieniu 1 km, dostawał alert na 3 km), a pozycja gracza
+przechodzi, gdy lista już ją zna.
+
+**Nad polami stoi wtedy jedna linijka: „Wypełnione Twoimi filtrami — możesz tu wszystko
+zmienić, nie ruszy to listy meczów."** Bez niej człowiek widzi wypełniony formularz i nie
+wie, czy to pamięć po poprzednim alercie, czy podpowiedź, ani czy zmiana pola ruszy też
+listę pod spodem. Oba fakty mówimy wprost, w miejscu, w którym powstaje pytanie — to jest
+odpowiedź na zarzut „wymieszanie z filtrami jest średnie" (2026-09-15).
 
 **Lokalizacja podstawia się sama, ale nigdy nie prosi o zgodę.** Okno woła
 `pozycjaBezPytania()` (`lib/geo.ts`) — pozycję dostaje wyłącznie przy zgodzie JUŻ
@@ -2185,8 +2270,8 @@ pod wybranym miejscem, bo promień jest dopowiedzeniem do niego („ile kilometr
 CZEGO"). Drugie pytanie o kilometry gdzie indziej w tym samym oknie czytałoby się jak dwie
 różne odległości.
 
-Stan alertu (`getMyAlert()`) pobiera się **dopiero gdy pusty stan realnie widać** — na
-niepustej liście byłoby to zapytanie przy każdym wejściu po nic. Wysyłka jest niezmieniona:
+Stanu alertów ten ekran **w ogóle nie pobiera** (patrz wyżej) — wygląd wejść od niego nie
+zależy, a listę alertów czyta profil. Wysyłka jest niezmieniona:
 funkcja brzegowa `notify-game-alert` (Resend), wołana z `lib/events.ts` przy tworzeniu
 meczu. Bez migracji — tabela `game_alerts` stoi w `025` od początku.
 
@@ -4060,7 +4145,6 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 | `components/map/LeafletMapImpl.tsx` | nic nie importuje |
 | `components/map/EventsMapView.tsx` | nic nie importuje |
 | `components/map/EventsMapImpl.tsx` | nic nie importuje |
-| `components/home/NearbyGames.tsx` | kompletny, nigdzie nie renderowany |
 | tabela `games` | zastąpiona przez `events` w `002` |
 
 **Aktywna mapa to `VenueExplorer.tsx`** (strona `/mapa`) oraz pickery lokalizacji.

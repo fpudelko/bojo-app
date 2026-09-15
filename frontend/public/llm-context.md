@@ -370,6 +370,40 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-15 — Alerty: wiele na konto i własne miejsce w ustawieniach
+
+PROBLEM: konto Bojo mogło mieć tylko JEDEN alert o nowych meczach, ale nic tego nie
+mówiło — każde wejście brzmiało „powiadom mnie o takich meczach". Kto miał alert na piłkę
+we Wrocławiu i założył drugi na siatkówkę w Poznaniu, tracił pierwszy: po cichu, bez
+ostrzeżenia i bez cofnięcia. Do tego alert nie istniał w żadnych ustawieniach — żeby go
+zobaczyć albo wyłączyć, trzeba było wejść do wyszukiwarki meczów i natknąć się na jedno
+z kilku wejść, rozsianych po dwóch ekranach w trzech różnych wyglądach. Odkąd alert jest
+domyślnie bezterminowy, brak takiego miejsca prowadził wprost do oznaczania maili jako
+spam.
+
+ROZWIĄZANIE BOJO: alertów może być tyle, ile ktoś chce — osobny na piłkę we Wrocławiu
+i osobny na siatkówkę w Poznaniu. Wszystkie stoją w profilu, w ustawieniach powiadomień,
+jako lista z nazwą („Piłka nożna · Wrocław 25 km"), informacją jak długo działa i czym
+daje znać, przełącznikiem oraz koszem. Wyłączenie zostawia alert na liście, więc wraca
+się do niego jednym dotknięciem. Zakładanie alertu z wyszukiwarki bierze bieżące filtry
+i mówi to wprost linijką nad polami: „Wypełnione Twoimi filtrami — możesz tu wszystko
+zmienić, nie ruszy to listy meczów". Gdy nowy alert łapałby te same mecze co istniejący,
+Bojo pyta o to przed zapisem, bo dwa takie same alerty znaczą dwa maile o jednym meczu.
+
+MECHANIKA: bez migracji — `game_alerts` nigdy nie miało unikalności na `user_id`,
+a `notifications.alert_id` (migracja `025`) od początku wskazuje konkretny alert. Limit
+siedział w `saveAlert()`, które przed każdym zapisem gasiło poprzednie; dziś tego nie robi
+(pilnuje `wieleAlertow.test.ts`). `lib/alerts.ts` dostało `getMojeAlerty()`,
+`maAktywnyAlert()`, `zaktualizujAlert()` (ten sam wiersz, żeby `wylacz_token` z wysłanych
+maili dalej działał), `ustawAktywnoscAlertu()`, `nazwaAlertu()`, `opisAlertu()`
+i `znajdzPodobnyAlert()` (próg: połowa mniejszego z dwóch promieni). Nowa karta
+`components/profil/MojeAlerty.tsx` pod `/profil#powiadomienia`, obok pusha i poczty.
+`AlertSetupDialog` przyjmuje `alert` (edycja) i `zFiltrow` (skąd wypełnienie). Wejść jest
+dziś dwa na ekran zamiast trzech-czterech: pusty stan i jeden cichy wiersz w arkuszu
+filtrów, plus pigułka nad listą na `/mapa`. Goły dzwonek z paska `/wydarzenia` odszedł
+razem z zapytaniem o stan alertu, a martwy `components/home/NearbyGames.tsx` został
+usunięty. Testy: `wieleAlertow.test.ts`, `mojeAlerty.test.tsx`.
+
 ### 2026-09-14 — Wyszukiwarka meczów: mniej kontrolek, prostszy alert
 
 PROBLEM: pasek wyszukiwarki meczów łamał się na telefonie na dwa wiersze, bo mieścił
@@ -687,53 +721,4 @@ powiadomień. Przycisk i handler `handleDoKalendarza` w `EventDetailClient.tsx`,
 dolny pasek. Zdarzenie `event_do_kalendarza` w `lib/analytics.ts` (kolumna `event_type`
 to zwykły TEXT, migracja `047` — nowa wartość nie wymaga migracji). Testy:
 `__tests__/kalendarz.test.ts`.
-
-### 2026-09-13 — Strona meczu przestaje tłumaczyć to, co widać
-
-PROBLEM: strona meczu i lista meczów opisywały słowami rzeczy, które były już widoczne
-obok, i powtarzały tę samą akcję w kilku miejscach. Pod każdym rozegranym meczem na liście
-wisiał osobny odnośnik „Powtórz ten mecz", choć powtórka stoi w ustawieniach meczu.
-„Wyślij link znajomym", „Kopiuj link" i „Zaproś z grupy" pojawiały się w trzech miejscach
-jednego ekranu, za każdym razem z własnym akapitem wyjaśniającym. Karta nad licznikiem
-miejsc mówiła „Brakuje 13 — otwórz dla okolicy", a licznik tuż pod nią „Zostało 13 wolnych
-miejsc" — jeden stan opisany dwa razy, odwrotnie. Nagłówek „KIEDY I GDZIE" stał nad datą
-z ikoną kalendarza i adresem z pinezką. Rozegrany mecz nadal proponował dołączenie do
-rezerwy, utworzenie składu, zapraszanie ludzi i przełączniki sterujące zapisami.
-Formularz „Dopisz osobę bez konta" z dwoma akapitami opisu był stale rozwinięty w składzie.
-Grającemu status „jesteś w składzie" wyświetlał się dwa razy naraz — jako zielona pigułka
-„Grasz" u góry i jako dolny pasek — a wyjście ze składu stało raz w treści („Wypisz się
-z meczu") i raz w tym pasku („Wypisz się"). Nad licznikiem miejsc wisiały dwa szare
-akapity: kto zobaczy prywatny mecz ekipy i lista akceptowanych kart sportowych.
-
-ROZWIĄZANIE BOJO: każda akcja ma na stronie meczu jedno miejsce, a opis zostaje tylko tam,
-gdzie niesie coś, czego nie widać. Wszystkie cztery sposoby zapełnienia składu —
-udostępnienie linku, skopiowanie go, imienne zaproszenie z ekipy i otwarcie meczu dla
-okolicy — stoją w jednej sekcji „Zaproś znajomych" pod licznikiem miejsc, a liczba wolnych
-miejsc pada raz, w liczniku. Mecz, który się już odbył, nie proponuje zapisów, zaproszeń
-ani tworzenia składu i nie pokazuje przełączników sterujących zapisami; powtórka,
-uprawnienia i rozliczenie zostają. Dopisanie osoby bez konta otwiera się jako okno.
-W statystykach ekipy nazwisko gracza prowadzi do jego profilu. Status gracza i wyjście ze
-składu mówi wyłącznie dolny pasek — niesie też rolę („· bramkarz") i stoi na ekranie cały
-czas; przycisk w treści zostaje tylko tam, gdzie paska nie ma (mecz odwołany, gość
-z linku), żeby nikt nie został bez drogi wyjścia. Zdanie o tym, kto zobaczy prywatny mecz
-ekipy, mówi już tylko kreator — w chwili, gdy decyzja zapada i nie ma jeszcze pigułki,
-która by ją pokazała. Akceptowane karty sportowe i sposoby zapłaty zeszły z nagłówka do
-zakładki Rozliczenia, do karty „Twoja płatność" — obok kwoty i sposobu wybranego przez
-gracza, czyli tam, gdzie to pytanie naprawdę pada; przed dołączeniem wymienia je okno
-zapisu.
-
-MECHANIKA: `ZaprosZnajomychPanel.tsx` przyjmuje `onZaprosZGrupy` i `onOtworzDlaOkolicy`
-jako opcjonalne przyciski — `CzyGramyPanel.tsx` oddał mu „Otwórz dla okolicy", zostawiając
-sobie werdykt progu za `SHOW_MIN_PLAYERS_THRESHOLD`. Nowy `DopiszGoscia.tsx` zastąpił dwie
-rozwinięte kopie formularza gościa w `EventDetailClient.tsx`. Gałęzie `!eventStarted`
-w `EventDetailClient.tsx` chowają po gwizdku zaproszenia, tworzenie składu i przełączniki
-„Widoczne publicznie"/„Uczestnicy mogą dodawać gości". `opisWidocznosciWGrupie()`
-(`lib/eventFeatures.ts`) woła już tylko `EventVisibilityFields` (kreator) i odmienia
-orzeczenie z liczbą członków. Przycisk wyjścia w treści `EventDetailClient.tsx` stoi pod
-`!statusBarVisible`, więc oba wyjścia są rozłączne — na tym opierają się helpery
-`wypiszSie()`/`niezapisany()` w `e2e/scenariusze.spec.ts`, łapiące oba napisy jednym
-wzorcem. Karta „Zaproś znajomych" ma zaczep `data-zapros-znajomych` zamiast lokatora po
-kształcie drzewa. `PowtorzZHistorii.tsx` usunięty. Linki do profilu
-w `StatystykiGrupy.tsx`. Testy: `poMeczuCard.test.tsx`, `statystykiGrupy.test.tsx`,
-`eventFeatures.test.ts`, `zaprosZnajomychPanel.test.tsx`.
 

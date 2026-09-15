@@ -16,6 +16,7 @@ import { ADMIN_LINKS } from '@/lib/adminLinks';
 import { validatePhone, normalizePhone } from '@/lib/validation';
 import PowiadomieniaPush from '@/components/PowiadomieniaPush';
 import UstawieniaMaili from '@/components/UstawieniaMaili';
+import MojeAlerty from '@/components/profil/MojeAlerty';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -392,6 +393,13 @@ export default function ProfilePage() {
               `UstawieniaMaili`. Pod tą samą kotwicą `#powiadomienia`, bo to
               jedno miejsce, którego człowiek szuka, gdy chce coś wyciszyć. */}
           <UstawieniaMaili />
+          {/* ALERTY O NOWYCH MECZACH — tu, a nie w wyszukiwarce meczów.
+              Do 2026-09-15 alert nie istniał w żadnych ustawieniach: żeby go
+              wyłączyć, trzeba było wejść na `/mapa` albo `/wydarzenia`
+              i natknąć się na jedno z wejść. Odkąd alert jest domyślnie
+              bezterminowy (migracja `149`), brak takiego miejsca prowadzi
+              dokładnie tam, przed czym broni się `UstawieniaMaili` wyżej. */}
+          <MojeAlerty />
         </div>
 
         {/* Panel administratora — przeniesione z Header.tsx (mobile straciło
