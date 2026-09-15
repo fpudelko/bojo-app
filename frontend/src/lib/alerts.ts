@@ -339,3 +339,37 @@ export function znajdzPodobnyAlert(
   }
   return null;
 }
+
+/**
+ * ZAMIAR ZAŁOŻENIA ALERTU PRZEŻYWA LOGOWANIE — 2026-09-15, zgłoszone jako błąd
+ * krytyczny w przeglądzie powiadomień.
+ *
+ * Wylogowany klikał „Powiadom mnie o takich meczach" i lądował na
+ * `/logowanie?next=%2Fwydarzenia` — po zalogowaniu wracał na GOŁĄ listę.
+ * Przepadały filtry, które właśnie opisywały, czego szuka, ORAZ powód, dla
+ * którego w ogóle tam kliknął. Trzeba było wszystko ustawić od nowa i jeszcze
+ * samemu pamiętać, że chciało się alert.
+ *
+ * Dziś `next` niesie pełny adres z filtrami plus znacznik `alert=1`, a ekran po
+ * powrocie otwiera okno sam (`zamiarAlertuZAdresu()`). `powod=alert` mówi z kolei
+ * ekranowi logowania, po co tam ktoś trafił — inaczej wita go ogólne „wejdź na
+ * swoje konto, żeby grać", czyli odpowiedź na pytanie, którego nie zadał.
+ */
+export function logowanieDlaAlertu(sciezkaZFiltrami: string): string {
+  // Baza jest atrapą — `URL` potrzebuje absolutnego adresu, a i tak bierzemy
+  // z niego wyłącznie ścieżkę i parametry.
+  const u = new URL(sciezkaZFiltrami, 'https://bojo.pl');
+  u.searchParams.set('alert', '1');
+  return `/logowanie?powod=alert&next=${encodeURIComponent(u.pathname + u.search)}`;
+}
+
+/** Czy adres prosi o otwarcie okna alertu, i adres BEZ tego znacznika.
+ *
+ *  Znacznik trzeba zdjąć, bo inaczej odświeżenie strony albo powrót przyciskiem
+ *  „wstecz" otwierałyby okno w kółko, długo po tym, jak ktoś je zamknął. */
+export function zamiarAlertuZAdresu(sciezkaZFiltrami: string): { otworz: boolean; adres: string } {
+  const u = new URL(sciezkaZFiltrami, 'https://bojo.pl');
+  const otworz = u.searchParams.get('alert') === '1';
+  u.searchParams.delete('alert');
+  return { otworz, adres: u.pathname + (u.search || '') };
+}

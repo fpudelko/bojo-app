@@ -370,6 +370,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-15 — Filtry w adresie, a zamiar alertu przeżywa logowanie
+
+PROBLEM: filtry listy meczów na bojo.pl/wydarzenia żyły wyłącznie w pamięci strony.
+Wylogowany, który ustawił „piłka nożna, dzisiaj" i kliknął „Powiadom mnie o takich
+meczach", trafiał na logowanie i wracał na gołą listę — bez filtrów i bez powodu, dla
+którego tam kliknął; musiał ustawić wszystko od nowa i sam pamiętać, że chciał alert.
+Tego samego braku dotyczyło drugie zgłoszenie: nie dało się wysłać komuś linku do
+„piłka, dzisiaj, do 5 km", a każdy powrót albo odświeżenie to ustawianie od zera. Ekran
+logowania witał przy tym ogólnym „wejdź na swoje konto, żeby grać i organizować mecze",
+czyli odpowiedzią na pytanie, którego nikt nie zadał.
+
+ROZWIĄZANIE BOJO: filtry siedzą w adresie strony, więc link da się wysłać, zapisać
+w zakładkach i odświeżyć bez straty. Kliknięcie „Powiadom mnie" przez osobę bez konta
+niesie te filtry na logowanie razem z samym zamiarem — po zalogowaniu Bojo wraca do tej
+samej listy i od razu otwiera okno alertu. Ekran logowania mówi wtedy wprost, po co ktoś
+tam trafił. Adres pokazuje tylko to, co odbiega od ustawień domyślnych, a wartość, której
+Bojo nie rozumie, wraca do domyślnej, zamiast pokazywać pustą listę.
+
+MECHANIKA: `lib/filtryListy.ts` (`filtryZAdresu()`/`filtryDoAdresu()`) — nazwy
+parametrów wspólne z `/mapa` (`sport` powtarzalny, `km`) plus `kiedy`, `miejsca`, `sort`,
+`q`. Odczyt przez `window.location.search` po zamontowaniu, NIE `useSearchParams()`:
+`/wydarzenia` jest trasą prerenderowaną, a ten hook wywraca build produkcyjny (pułapka
+w AGENTS.md). Zapis przez `history.replaceState`, żeby zmiana filtra nie zasypywała
+historii przeglądarki. `logowanieDlaAlertu()`/`zamiarAlertuZAdresu()` w `lib/alerts.ts`
+przenoszą zamiar przez `next` ze znacznikiem `alert=1`, który ekran po powrocie zdejmuje
+z adresu. `?powod=alert` wybiera zdanie z `POWODY` w `AuthForm`. Dopełniacz „mecz"
+ujednolicony na „meczów". Testy: `filtryListy.test.ts`, `wieleAlertow.test.ts`,
+`filtry-w-adresie.klikalnosc.spec.ts`.
+
 ### 2026-09-15 — Alerty: wiele na konto i własne miejsce w ustawieniach
 
 PROBLEM: konto Bojo mogło mieć tylko JEDEN alert o nowych meczach, ale nic tego nie
@@ -684,41 +713,4 @@ w `lib/events.ts` steruje zapisem w `createEvent`/`updateEvent` i `lib/series.ts
 starych wierszy i `DEFAULT` kolumny w bazie zostają na 180. `ZaprosZnajomychPanel`
 wypięty z `NajblizszyMeczGrupy.tsx`. Asercja paska w `e2e/scenariusze.spec.ts` łapie go
 po `data-pasek-dolny`.
-
-### 2026-09-13 — Termin meczu trafia do kalendarza; opis schodzi pod skład
-
-PROBLEM: Bojo przypominało o meczu własnym kanałem (powiadomienie push, e-mail), ale
-terminu nie dało się przenieść do kalendarza telefonu — czyli do miejsca, w które
-człowiek patrzy, planując tydzień. Kolizja z czymkolwiek innym wychodziła dopiero
-w dniu meczu. Dla ekipy grającej co tydzień była to ta sama strata powtarzana
-kilkadziesiąt razy w roku. Osobno: opis meczu renderował się jako pierwsza rzecz na
-stronie meczu — nad terminem, adresem i licznikiem wolnych miejsc. Opis ma do 1000
-znaków, więc organizator, który opisał zasady akapitem, spychał te trzy fakty pod
-zgięcie ekranu. I trzecia rzecz: przycisk „Nawiguj" był tak samo zielony i wypełniony
-jak „Dołącz do meczu", więc ktoś, kto jeszcze nie zdecydował, czy zagra, widział dwa
-równorzędne przyciski, z których jeden prowadził w Mapy Google.
-
-ROZWIĄZANIE BOJO: przy terminie na stronie meczu stoi przycisk „Do kalendarza" —
-pobiera plik `.ics`, który iOS i Android otwierają natywnym kalendarzem. Widzi go
-każdy, także osoba jeszcze niezapisana, bo kalendarz bywa tym, co rozstrzyga, czy da
-się dołączyć; przycisk znika po starcie meczu i przy meczu odwołanym. Pobranie pliku
-po zmianie terminu przez organizatora AKTUALIZUJE istniejący wpis w kalendarzu zamiast
-dokładać drugi. Opis meczu przeniósł się pod skład, jako karta „O meczu" — nad nim
-zostały tylko termin, miejsce i licznik miejsc. „Nawiguj" jest zielony wyłącznie wtedy,
-gdy na ekranie nie ma „Dołącz do meczu".
-
-MECHANIKA: nowy `lib/kalendarz.ts` (`zbudujIcs()`, `pobierzIcs()`, `nazwaPliku()`) składa
-plik w przeglądarce, bez backendu i bez dodatkowych paczek. `UID` to `bojo-<events.id>`,
-stąd aktualizacja zamiast duplikatu. Termin idzie jako czas ścienny
-z `DTSTART;TZID=Europe/Warsaw` i pełnym blokiem `VTIMEZONE` — przeliczenie na UTC
-wymagałoby przesunięcia strefy w dniu meczu, a to zmienia się dwa razy w roku. Tekst
-escapowany wg RFC 5545 §3.3.11, linie zawijane po 75 oktetach (nie znakach — polskie
-diakrytyki zajmują w UTF-8 po dwa bajty). Mecz bez `endTime` dostaje 90 minut, mecz
-przez północ kończy się następnego dnia. `VALARM` celowo brak: przypomnienie wysyła
-Bojo (`lib/reminders.ts`), a alarmu w telefonie nie dałoby się wyłączyć w ustawieniach
-powiadomień. Przycisk i handler `handleDoKalendarza` w `EventDetailClient.tsx`, w karcie
-„Kiedy i gdzie"; waga „Nawiguj" sterowana `joinBarVisible`, czyli tą samą zmienną co
-dolny pasek. Zdarzenie `event_do_kalendarza` w `lib/analytics.ts` (kolumna `event_type`
-to zwykły TEXT, migracja `047` — nowa wartość nie wymaga migracji). Testy:
-`__tests__/kalendarz.test.ts`.
 

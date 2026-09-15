@@ -12,7 +12,10 @@ import {
 import { getPublicEvents } from '@/lib/events';
 import type { EventItem } from '@/types';
 import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
-import { domyslneZFiltrow } from '@/lib/alerts';
+import { domyslneZFiltrow, logowanieDlaAlertu, zamiarAlertuZAdresu } from '@/lib/alerts';
+import {
+  filtryZAdresu, filtryDoAdresu, MIEJSCA_DOMYSLNIE, SORT_DOMYSLNY as SORT_Z_ADRESU,
+} from '@/lib/filtryListy';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import SportChip from '@/components/ui/SportChip';
@@ -57,7 +60,11 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
 
 /** Domyślne sortowanie. Wydzielone, bo licznik filtrów musi wiedzieć,
  *  czym jest „nic nie zmieniałem", a `useState` to za mało. */
-const SORT_DOMYSLNY: SortBy = 'termin';
+// SORT_DOMYSLNY i MIN_SPOTS_DOMYSLNIE mieszkają teraz w `lib/filtryListy.ts`
+// razem z resztą wartości domyślnych — adres i ekran muszą je znać tak samo,
+// bo inaczej „domyślne nie ląduje w adresie" rozjechałoby się z tym, co ekran
+// uważa za domyślne.
+const SORT_DOMYSLNY = SORT_Z_ADRESU;
 
 
 // Cztery suwaki modala filtrów — zakresy ustalone raz, żeby nie były dowolnością
@@ -73,7 +80,7 @@ const SORT_DOMYSLNY: SortBy = 'termin';
 // pytanie „szukamy miejsca dla ośmiu" na większych meczach.
 const MIN_SPOTS_MIN = 0;
 const MIN_SPOTS_MAX = 99;
-const MIN_SPOTS_DOMYSLNIE = 1;
+const MIN_SPOTS_DOMYSLNIE = MIEJSCA_DOMYSLNIE;
 
 const PAGE_SIZE = 20;
 
@@ -141,6 +148,38 @@ export default function EventsListView({ widzianoWczesniej }: {
   // martwe: żadna kontrolka ich nie ustawiała, więc wisiały na stałe
   // na `false`, a `liczbaFiltrow` i `hasFilters` liczyły je co render.
   const [sortBy, setSortBy] = useState<SortBy>(SORT_DOMYSLNY);
+
+  // FILTRY ŻYJĄ W ADRESIE STRONY — od 2026-09-15, dwa zgłoszenia naraz:
+  // „kliknięcie «Powiadom mnie» gubi wszystko" i „filtry nie przeżywają
+  // odświeżenia ani powrotu". Oba to ten sam brak: stan filtrów siedział
+  // wyłącznie w pamięci komponentu, więc przekierowanie na logowanie kasowało
+  // razem z nim powód, dla którego ktoś tam kliknął.
+  //
+  // `window.location.search`, NIE `useSearchParams()`. `/wydarzenia` jest
+  // trasą PRERENDEROWANĄ (`○` w wyniku builda), a ten hook wymusza na takiej
+  // trasie bail-out do CSR i wywraca build produkcyjny na
+  // `missing-suspense-with-csr-bailout` — pułapka opisana w AGENTS.md. Odczyt
+  // po zamontowaniu omija ją w całości i nie wymaga `<Suspense>` wokół całej
+  // listy. Ten sam wzorzec co `backHref` w `boisko/[id]/VenueDetailClient`.
+  const [odczytanoAdres, setOdczytanoAdres] = useState(false);
+  useEffect(() => {
+    // Powrót z logowania z `alert=1` otwiera okno od razu — to jest druga
+    // połowa naprawy „kliknięcie «Powiadom mnie» gubi wszystko": pierwsza
+    // przywraca filtry, ta przywraca ZAMIAR.
+    const { otworz, adres } = zamiarAlertuZAdresu(window.location.pathname + window.location.search);
+    if (otworz) {
+      window.history.replaceState(null, '', adres);
+      setOknoAlertu(true);
+    }
+    const f = filtryZAdresu(window.location.search);
+    setSports(f.sports);
+    setDateFilter(f.dateFilter);
+    setRadiusKm(f.radiusKm);
+    setMinFreeSpots(f.minFreeSpots);
+    setSortBy(f.sortBy);
+    setQuery(f.query);
+    setOdczytanoAdres(true);
+  }, []);
 
   // Mobile-only przełącznik lista/mapa (D9) — desktop zawsze pokazuje listę,
   // ma już osobny link „Mapa boisk" w nawigacji.
@@ -332,6 +371,25 @@ export default function EventsListView({ widzianoWczesniej }: {
     [visible, sortBy],
   );
 
+  // ZAPIS: `history.replaceState`, nie `router.replace`. Filtry zmieniają się
+  // przy każdym dotknięciu suwaka; nawigacja Next.js przy każdej takiej zmianie
+  // przerenderowałaby trasę i zasypała historię przeglądarki, przez co systemowe
+  // „wstecz" cofałoby po jednym kliknięciu filtra zamiast wyjść z listy.
+  // `replaceState` podmienia adres bez jednego i bez drugiego.
+  //
+  // Warunek `odczytanoAdres` jest konieczny, nie ozdobny: bez niego pierwszy
+  // przebieg (jeszcze z wartościami domyślnymi) nadpisałby adres przyniesiony
+  // z linku, zanim efekt powyżej zdąży go przeczytać.
+  useEffect(() => {
+    if (!odczytanoAdres) return;
+    const adres = filtryDoAdresu({ sports, dateFilter, radiusKm, minFreeSpots, sortBy, query })
+      || window.location.pathname;
+    const docelowy = adres.startsWith('?') ? window.location.pathname + adres : adres;
+    if (docelowy !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, '', docelowy);
+    }
+  }, [odczytanoAdres, sports, dateFilter, radiusKm, minFreeSpots, sortBy, query]);
+
   const hasFilters = sports.length > 0 || dateFilter !== 'wszystkie' || radiusKm !== null
     || minFreeSpots !== MIN_SPOTS_DOMYSLNIE || !!query;
 
@@ -359,7 +417,10 @@ export default function EventsListView({ widzianoWczesniej }: {
    *  filtrów, pusty stan). Wylogowanego odsyła na logowanie — alert jest
    *  przypisany do konta, więc bez niego nie ma czego zapisać. */
   const otworzAlert = () => {
-    if (!user) { router.push('/logowanie?next=%2Fwydarzenia'); return; }
+    if (!user) {
+      router.push(logowanieDlaAlertu(window.location.pathname + window.location.search));
+      return;
+    }
     setOknoAlertu(true);
   };
   const clearFilters = () => {
@@ -771,7 +832,7 @@ export default function EventsListView({ widzianoWczesniej }: {
         title="Filtry"
         onApply={applyDraft}
         onClear={clearDraft}
-        applyLabel={geoBusy ? 'Szukam Cię…' : `Pokaż ${previewRows.length} ${plural(previewRows.length, 'mecz', 'mecze', 'meczy')}`}
+        applyLabel={geoBusy ? 'Szukam Cię…' : `Pokaż ${previewRows.length} ${plural(previewRows.length, 'mecz', 'mecze', 'meczów')}`}
       >
         <div className="space-y-6">
           {/* SORTOWANIE I SPORT NA GÓRZE, suwaki niżej. Te dwa odpowiadają na

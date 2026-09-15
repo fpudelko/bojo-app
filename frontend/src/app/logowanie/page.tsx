@@ -45,6 +45,8 @@ function LoginInner() {
   // ?mode=rejestracja przychodzi z przycisku „Dołącz" w nagłówku — otwiera
   // od razu zakładanie konta zamiast logowania.
   const initialMode = params.get('mode') === 'rejestracja' ? 'signup' : 'signin';
+  // ?powod=… mówi, po co ktoś tu trafił — patrz `POWODY` w `AuthForm`.
+  const powod = params.get('powod') ?? undefined;
   const { user, loading } = useAuth();
 
   useEffect(() => {
@@ -68,7 +70,7 @@ function LoginInner() {
         {/* Karta ma własne, prawie pełne tło: stoi teraz nad widoczną treścią,
             a półprzezroczysta byłaby nieczytelna. */}
         <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-7 shadow-card-hover backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-800/95 sm:p-8">
-          <AuthForm next={next} initialMode={initialMode} />
+          <AuthForm next={next} initialMode={initialMode} powod={powod} />
         </div>
         <p className="mt-6 text-center text-xs leading-relaxed text-slate-500 dark:text-slate-400">
           Logując się akceptujesz{' '}

@@ -40,7 +40,9 @@ import { POZNAN, PROMIEN_LISTY_KM } from '@/lib/startowyPunkt';
 import { FOCUS_SPORTS, MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
 import SportChip from '@/components/ui/SportChip';
 import AlertSetupDialog from '@/components/home/AlertSetupDialog';
-import { domyslneZFiltrow, getMojeAlerty, maAktywnyAlert } from '@/lib/alerts';
+import {
+  domyslneZFiltrow, getMojeAlerty, maAktywnyAlert, logowanieDlaAlertu, zamiarAlertuZAdresu,
+} from '@/lib/alerts';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { useAuth } from '@/lib/auth';
 import {
@@ -752,10 +754,24 @@ export default function VenueExplorer({
     return () => { zywe = false; };
   }, [zalogowany]);
   const otworzAlert = () => {
-    if (!zalogowany) { router.push('/logowanie?next=%2Fmapa'); return; }
+    if (!zalogowany) {
+      // Pełny adres z filtrami, nie gołe `/mapa`: sport, miejscowość i promień
+      // siedzą tu w parametrach od dawna, a stare przekierowanie i tak je
+      // wyrzucało. Znacznik `alert=1` przywraca sam zamiar.
+      router.push(logowanieDlaAlertu(window.location.pathname + window.location.search));
+      return;
+    }
     setSheetOpen(false);
     setOknoAlertu(true);
   };
+  // Powrót z logowania z `alert=1` — okno otwiera się samo, a znacznik znika
+  // z adresu, żeby odświeżenie nie wywoływało go w kółko.
+  useEffect(() => {
+    const { otworz, adres } = zamiarAlertuZAdresu(window.location.pathname + window.location.search);
+    if (!otworz || !zalogowany) return;
+    window.history.replaceState(null, '', adres);
+    setOknoAlertu(true);
+  }, [zalogowany]);
   const [gamesGeoBusy, setGamesGeoBusy] = useState(false);
   const [gamesGeoError, setGamesGeoError] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -1560,7 +1576,7 @@ export default function VenueExplorer({
       title="Filtry"
       onApply={applyGamesDraft}
       onClear={clearGamesDraft}
-      applyLabel={gamesGeoBusy ? 'Szukam Cię…' : `Pokaż ${gamesPreviewCount} ${plural(gamesPreviewCount, 'mecz', 'mecze', 'meczy')}`}
+      applyLabel={gamesGeoBusy ? 'Szukam Cię…' : `Pokaż ${gamesPreviewCount} ${plural(gamesPreviewCount, 'mecz', 'mecze', 'meczów')}`}
     >
       <div className="space-y-6">
         <section>
@@ -1859,7 +1875,7 @@ export default function VenueExplorer({
             kadr Leafleta, nie listę obok. */}
         <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-50">
           {showGames
-            ? `${gamesRows.length} ${plural(gamesRows.length, 'mecz', 'mecze', 'meczy')}`
+            ? `${gamesRows.length} ${plural(gamesRows.length, 'mecz', 'mecze', 'meczów')}`
             : `${fields.length.toLocaleString('pl-PL')} ${boiskoSlowo(fields.length)} ${zakresListy}`}
         </div>
 

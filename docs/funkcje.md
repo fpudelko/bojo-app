@@ -1998,6 +1998,61 @@ wartości w tablicy) — reużywane przez sportowy dropdown na `/wydarzenia` **i
 wyśrodkowana karta od `md:`), różna wyłącznie treść sekcji. **Pigułki filtrów**
 (`components/ui/FilterPill.tsx`: `PillDropdown`, `TogglePill`) też są wspólne z mapą.
 
+### Filtry listy meczów w adresie strony — od 2026-09-15
+
+Przegląd powiadomień zgłosił dwa błędy, które okazały się JEDNYM brakiem: stan
+filtrów na `/wydarzenia` żył wyłącznie w pamięci komponentu.
+
+| Zgłoszenie | Objaw |
+|---|---|
+| „Kliknięcie «Powiadom mnie» gubi wszystko" *(krytyczny)* | wylogowany szedł na `/logowanie?next=%2Fwydarzenia` i wracał na GOŁĄ listę — bez filtrów i bez powodu, dla którego tam kliknął |
+| „Filtry nie przeżywają odświeżenia ani powrotu" *(wysoki)* | nie dało się wysłać komuś linku do „piłka, dzisiaj, do 5 km" |
+
+`lib/filtryListy.ts` (`filtryZAdresu()` / `filtryDoAdresu()`) tłumaczy filtry na
+parametry i z powrotem. **Nazwy są CELOWO te same co na `/mapa`** (`sport`
+powtarzalny, `km`) — jeden adres nie ma prawa opisywać dwóch różnych rzeczy.
+Dochodzą `kiedy`, `miejsca`, `sort`, `q`.
+
+Dwie zasady, obie z asercjami w `filtryListy.test.ts`:
+
+- **Zapisujemy tylko odchylenia od domyślnych.** Adres z kompletem parametrów
+  przy nietkniętych filtrach byłby nie do wysłania komukolwiek, a przy okazji
+  zamrażałby wartości domyślne w linkach na zawsze.
+- **Śmieć w parametrze wraca do wartości domyślnej, nigdy do pustej listy.**
+  Adres trafia do ludzi i do wyszukiwarek; obcięty link nie ma prawa pokazać
+  „brak meczów" zamiast listy. Dotyczy to zwłaszcza `miejsca`: zero znaczy
+  „pokaż też komplety" i nie może wziąć się z literówki.
+
+**`window.location.search`, NIE `useSearchParams()`.** `/wydarzenia` jest trasą
+prerenderowaną (`○` w wyniku builda), a ten hook wymusza na takiej trasie
+bail-out do CSR i wywraca build produkcyjny — pułapka opisana w AGENTS.md.
+Odczyt po zamontowaniu omija ją w całości i nie wymaga `<Suspense>` wokół całej
+listy. Zapis idzie przez `history.replaceState`, nie `router.replace`: filtry
+zmieniają się przy każdym dotknięciu suwaka, a nawigacja Next.js zasypałaby
+historię, przez co systemowe „wstecz" cofałoby po jednym kliknięciu filtra.
+
+**Zamiar założenia alertu przeżywa logowanie** (`logowanieDlaAlertu()` /
+`zamiarAlertuZAdresu()` w `lib/alerts.ts`). `next` niesie pełny adres z filtrami
+plus znacznik `alert=1`, a ekran po powrocie otwiera okno sam i **zdejmuje
+znacznik z adresu** — bez tego odświeżenie albo „wstecz" otwierałyby okno
+w kółko. Dotyczy obu ekranów: `/mapa` trzymało filtry w adresie od dawna, ale
+stare przekierowanie na `/logowanie?next=%2Fmapa` i tak je wyrzucało.
+
+**Ekran logowania mówi, po co ktoś tu trafił** — `?powod=alert` wybiera zdanie
+z `POWODY` w `AuthForm`. Wcześniej witał ogólnym „wejdź na swoje konto, żeby
+grać i organizować mecze", czyli odpowiedzią na pytanie, którego nie zadał.
+Świadomie jedno pole, nie słownik wszystkich możliwych powodów: nieznana wartość
+wraca do zdania ogólnego, więc literówka w adresie niczego nie psuje.
+
+Pilnuje tego `filtry-w-adresie.klikalnosc.spec.ts` — trzy scenariusze: adres
+zmienia się pod palcem i przeżywa odświeżenie, adres przyniesiony z zewnątrz
+ustawia filtry, a wylogowany klikający „Powiadom mnie" niesie na logowanie
+i filtry, i powód.
+
+**Dopełniacz „meczów", nie „meczy".** Obie formy są w słownikach, „meczów" jest
+dominująca — a mieszanie ich w jednej aplikacji czyta się jak literówka.
+Ujednolicone we wszystkich czterech miejscach wołających `plural()`.
+
 ### Wiele alertów na konto i ich dom w profilu — od 2026-09-15
 
 **Konto miało JEDEN alert, a każde wejście mówiło „dodaj".** `saveAlert()`

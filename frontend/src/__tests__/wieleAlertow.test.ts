@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { nazwaAlertu, opisAlertu, znajdzPodobnyAlert, maAktywnyAlert } from '@/lib/alerts';
+import {
+  nazwaAlertu, opisAlertu, znajdzPodobnyAlert, maAktywnyAlert,
+  logowanieDlaAlertu, zamiarAlertuZAdresu,
+} from '@/lib/alerts';
 import type { GameAlert } from '@/types';
 
 const alert = (n: Partial<GameAlert> = {}): GameAlert => ({
@@ -131,5 +134,39 @@ describe('zapis nowego alertu NIE gasi poprzednich', () => {
     // wszystkie linki „nie chcę więcej" z dotychczasowej korespondencji.
     expect(zrodlo).toContain('export async function zaktualizujAlert');
     expect(zrodlo).toContain('zaktualizujJedenWiersz');
+  });
+});
+
+describe('zamiar alertu przeżywa logowanie', () => {
+  it('adres logowania niesie filtry i powód', () => {
+    const cel = logowanieDlaAlertu('/wydarzenia?sport=pi%C5%82ka+no%C5%BCna&kiedy=dzisiaj');
+    expect(cel).toContain('powod=alert');
+    const next = decodeURIComponent(new URLSearchParams(cel.split('?')[1]).get('next')!);
+    expect(next).toContain('sport=');
+    expect(next).toContain('kiedy=dzisiaj');
+    expect(next).toContain('alert=1');
+  });
+
+  it('działa też dla adresu bez żadnych filtrów', () => {
+    const cel = logowanieDlaAlertu('/mapa');
+    expect(decodeURIComponent(cel.split('next=')[1])).toBe('/mapa?alert=1');
+  });
+
+  it('odczyt zdejmuje znacznik, żeby okno nie wracało przy odświeżeniu', () => {
+    // Bez zdjęcia `alert=1` powrót przyciskiem „wstecz" albo odświeżenie
+    // otwierałyby okno w kółko, długo po tym, jak ktoś je zamknął.
+    const { otworz, adres } = zamiarAlertuZAdresu('/wydarzenia?sport=x&alert=1');
+    expect(otworz).toBe(true);
+    expect(adres).toBe('/wydarzenia?sport=x');
+  });
+
+  it('bez znacznika nic się nie otwiera, a adres zostaje nietknięty', () => {
+    const { otworz, adres } = zamiarAlertuZAdresu('/wydarzenia?sport=x');
+    expect(otworz).toBe(false);
+    expect(adres).toBe('/wydarzenia?sport=x');
+  });
+
+  it('sam znacznik zostawia czystą ścieżkę, bez wiszącego znaku zapytania', () => {
+    expect(zamiarAlertuZAdresu('/mapa?alert=1').adres).toBe('/mapa');
   });
 });

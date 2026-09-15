@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, Bell, BellOff, Mail, Smartphone, Check } from 'lucide-react';
 import {
-  getMojeAlerty, saveAlert, zaktualizujAlert, deleteMyAlert, nazwaAlertu,
+  getMojeAlerty, saveAlert, zaktualizujAlert, deleteMyAlert, nazwaAlertu, opisAlertu,
   znajdzPodobnyAlert, wygasaZKiedy, kiedyZWygasniecia, PROMIEN_DOMYSLNY,
   type AlertInput,
 } from '@/lib/alerts';
@@ -192,7 +192,7 @@ export default function AlertSetupDialog({
         : await saveAlert(user.id, input);
       setSaved(true);
       onSaved?.(zapisany);
-      setTimeout(onClose, 1200);
+      setTimeout(onClose, 2200);
     } finally {
       setSaving(false);
     }
@@ -390,8 +390,26 @@ export default function AlertSetupDialog({
 
         <div className="px-5 pb-5 pt-3 border-t border-slate-100 space-y-2 dark:border-slate-700">
           {saved ? (
-            <div className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-green-50 text-green-700 font-semibold text-sm">
-              <Bell className="w-4 h-4" /> Alert zapisany!
+            /* POTWIERDZENIE NAZYWA, CZEGO DOTYCZY — zgłoszone w przeglądzie
+               („nie wiadomo, o czym i jak powiadomimy"). Samo „Alert zapisany!"
+               zostawiało człowieka z pytaniem, co właściwie zostało zapisane,
+               dokładnie w chwili, w której okno się zamyka i nie da się już
+               sprawdzić. Zdanie składa się z tych samych funkcji, które opisują
+               wiersz w profilu, więc oba miejsca mówią o alercie tak samo. */
+            <div className="rounded-2xl bg-green-50 px-4 py-3 text-center dark:bg-green-950">
+              <p className="flex items-center justify-center gap-2 text-sm font-semibold text-green-700 dark:text-green-300">
+                <Bell className="w-4 h-4 shrink-0" /> Damy znać o nowych meczach
+              </p>
+              {miejsce && (
+                <p className="mt-1 text-xs text-green-800 dark:text-green-400">
+                  {nazwaAlertu({ sport: sport || undefined, cityLabel: miejsce.nazwa, radiusKm: promienKm })}
+                  {' · '}
+                  {opisAlertu({ expiresAt: wygasaZKiedy(kiedy) ?? undefined, kanalEmail })}
+                </p>
+              )}
+              <p className="mt-1.5 text-[11px] text-green-700/80 dark:text-green-500">
+                Zmienisz i wyłączysz to w profilu, w ustawieniach powiadomień.
+              </p>
             </div>
           ) : bliźniak ? (
             /* BLIŹNIAK — pytanie zamiast przycisku, w tym samym miejscu ekranu.
