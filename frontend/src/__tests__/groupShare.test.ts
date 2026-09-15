@@ -33,6 +33,14 @@ describe('tekstZaproszeniaDoGrupy', () => {
     expect(t).toMatch(/zakładasz konto/i);
   });
 
+  // Od migracji `150` link SKŁADA PROŚBĘ, nie wpuszcza do ekipy. Zaproszenie,
+  // które obiecuje wejście od ręki, kończy się ekranem „prośba czeka" i
+  // pytaniem „czemu nie działa".
+  it('mówi o prośbie, nie obiecuje wejścia do ekipy od ręki', () => {
+    const t = tekstZaproszeniaDoGrupy(grupa, link);
+    expect(t).toMatch(/prośbę/i);
+  });
+
   it('does not promise SMS, push notifications, or rankings', () => {
     const t = tekstZaproszeniaDoGrupy(grupa, link);
     expect(t.toLowerCase()).not.toMatch(/sms|push|ranking/);

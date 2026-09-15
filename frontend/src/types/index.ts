@@ -569,10 +569,15 @@ export interface GroupJoinRequest {
   userId: string;
   status: 'oczekuje' | 'przyjeta' | 'odrzucona';
   wiadomosc?: string;
+  /** Prośba przyszła z linku/kodu zaproszenia, nie z błądzenia po aplikacji. */
+  zKodu: boolean;
+  /** Autor zaproszenia — weryfikowany w bazie (musi sam być w ekipie). */
+  invitedBy?: string;
   createdAt: string;
   rozpatrzonaAt?: string;
   name?: string;
   avatarUrl?: string;
+  inviterName?: string;
 }
 
 /** Wpis na tablicy grupy (migracja `093`) — płaska lista, bez wątków. */

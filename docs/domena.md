@@ -678,17 +678,17 @@ jest cena.
 ## Grupy
 
 `lib/groups.ts`. Stała ekipa: sport, miasto, okładka, członkowie, mecze grupy, tablica
-(`lib/groupPosts.ts`), statystyki (`lib/groupStats.ts`). Dołączanie przez kod
-zaproszenia — `/g/[kod]` albo pole „Masz kod?" na `/grupy` (migracja `094`; znajomość
-samego UUID grupy **nie wystarcza**) — albo przez **prośbę o dołączenie** (`150`).
+(`lib/groupPosts.ts`), statystyki (`lib/groupStats.ts`). Do składu prowadzą od migracji
+`150` dokładnie dwie drogi, OBIE przez czyjąś decyzję: **prośba o dołączenie**
+(`rozpatrz_prosbe_do_grupy()`) i **dopisanie wprost** przez kogoś z `can_manage_members`
+(`dodaj_czlonka_do_grupy()`, `094`).
 
-### Ekipa jest prywatna — obcy widzi NAZWĘ i nic więcej (migracja `150`)
+### Ekipa jest prywatna, a wejście do niej to czyjaś decyzja (migracja `150`)
 
-Do `150` `groups` i `group_members` miały politykę SELECT `USING (true)`. Wychodziły
-tamtędy trzy rzeczy naraz: skład każdej ekipy (a `profiles` jest czytelne, więc z
-`user_id` robi się lista imion), `groups.join_code` (czyli JEDYNA kontrola wejścia,
-`094` — bramka przy drzwiach, na których wisiał klucz) i cały terminarz ekipy
-(`events` z `USING (true)` plus filtr po `group_id`, który stoi w adresie każdego linku).
+Do `150` `groups` i `group_members` miały politykę SELECT `USING (true)`. Wychodził
+tamtędy skład każdej ekipy (a `profiles` jest czytelne, więc z `user_id` robi się
+lista imion i awatarów) i — gorzej — `groups.join_code`, czyli JEDYNA kontrola
+wejścia z `094`: bramka przy drzwiach, na których wisiał klucz.
 
 Po `150`:
 
@@ -697,32 +697,68 @@ Po `150`:
 | Nazwa ekipy | każdy — przez `grupa_publicznie(id)`, funkcja oddaje WYŁĄCZNIE `id` i `name` |
 | Wiersz `groups` (opis, miasto, kod, okładka) | członek (plus założyciel i admin) |
 | Skład (`group_members`) | członek |
-| Mecz PRYWATNY przypięty do ekipy | członek, skład meczu, imiennie zaproszony (`060`), delegat (`089`), organizator |
-| Skład takiego meczu (`event_participants`) | jak wyżej — idzie za meczem |
 | Rozmowa (`group_posts`), statystyki graczy | członek — bez zmian od `093`/`095` |
 | Wizytówka ekipy pod linkiem `/g/[kod]` | kto ma KOD — przez `podglad_zaproszenia_do_grupy()`; liczba osób, nie skład |
+| Mecze ekipy (`events`, `event_participants`) | **bez zmian** — patrz „Co zostaje otwarte" niżej |
 
 **Nazwa zostaje publiczna świadomie.** Podgląd linku na Messengerze i metadane OG
 renderuje klucz `anon`, zanim ktokolwiek się zaloguje — bez nazwy zaproszenie prowadzi
 do pustej kartki. Wąska funkcja zamiast polityki `USING (true)`: RLS jest wierszowe,
 więc „obcy widzi nazwę, członek całość" nie da się zapisać jednym warunkiem.
 
-**Mecz prywatny przypięty do ekipy przestał być dostępny z linku.** Do `150` `private`
-znaczyło „nieindeksowany, ale otwarty dla każdego, kto ma adres" (`002`) — i to zostaje
-regułą dla meczu prywatnego BEZ ekipy. Mecz ekipy ma inną publiczność: to mecz ekipy.
-Kogoś z zewnątrz wpuszcza się imiennym zaproszeniem albo ustawieniem meczu jako
-publicznego. Skutek uboczny, o którym trzeba wiedzieć: `/d/[kod]` (kod meczu) prowadzi
-dla obcego donikąd, gdy mecz jest prywatny i przypięty do ekipy.
+#### Do ekipy nie wchodzi się z linku — to jest sedno tej migracji
 
-**Prośba o dołączenie** (`group_join_requests`) to jedyne, co obcy może z ekipą zrobić.
-Wysyła ją `popros_o_dolaczenie_do_grupy()`, rozpatruje `rozpatrz_prosbe_do_grupy()` —
-założyciel albo `can_manage_members`, czyli ci sami, którzy mogą dodać człowieka wprost.
-Osobna tabela, NIE `group_members.status`: wiersz w składzie znaczy dziś dokładnie jedno
-(„jest w ekipie"), a dołożenie do niego stanu „jeszcze nie" kazałoby dopisać
-`AND status = 'aktywny'` w `czy_czlonek_grupy()`, `czy_moze_zarzadzac_grupa()`,
-politykach `group_posts`, statystykach i liczniku na karcie — jedno przeoczenie znaczy
-obcego czytającego rozmowę ekipy. Odrzucenie trzyma tydzień (ponowna prośba wraca
-wyjątkiem), inaczej „Poproś" jest przyciskiem „zawołaj założyciela" bez wyłącznika.
+`dolacz_do_grupy_kodem()` (`094`) dopisywała do `group_members` każdego, kto podał kod.
+Kod jest JEDEN dla całej ekipy, link wklejony raz na czacie zostaje tam na zawsze,
+a unieważnienie kodu (`odswiez_kod_grupy()`) dotyczy wszystkich albo nikogo — nie da
+się odebrać go jednej osobie. **Ta funkcja została USUNIĘTA**, nie tylko obudowana
+warunkiem: dopóki istniałaby z `GRANT`-em dla `authenticated`, byłaby działającym
+obejściem całej tej sekcji — jednym wywołaniem REST-a.
+
+Kod i link **dalej działają i dalej są potrzebne**, tylko robią co innego:
+
+- rozstrzygają, o KTÓRĄ ekipę chodzi (obcy nie przeczyta `groups`, więc bez kodu
+  nie ma nawet z czego złożyć prośby pod właściwym adresem),
+- pokazują wizytówkę (`podglad_zaproszenia_do_grupy()`),
+- **podpisują prośbę** — `popros_o_dolaczenie_kodem()` zapisuje `z_kodu = true`
+  i `invited_by` (weryfikowane w bazie: zapraszający musi sam być w ekipie, ten sam
+  warunek co w `094`). Rozpatrujący widzi „Z zaproszenia: Krzysiek" zamiast gołego
+  imienia obcej osoby — i to jest cała różnica między „Przyjmij" od razu
+  a odkładaniem decyzji.
+
+`z_kodu` i `invited_by` **nie mogą przyjść od klienta** — inaczej każdy podpisałby
+sobie prośbę „od założyciela", a to jedyna rzecz, na której rozpatrujący się opiera.
+Dlatego wspólne jądro `zloz_prosbe_do_grupy()` ma odebrany `EXECUTE` roli `PUBLIC`
+(Postgres nadaje go każdej nowej funkcji, a PostgREST wystawia schemat `public`, więc
+bez `REVOKE` „wewnętrzna" funkcja jest zwykłym endpointem).
+
+**Prośba** (`group_join_requests`) ma osobną tabelę, NIE `group_members.status`: wiersz
+w składzie znaczy dziś dokładnie jedno („jest w ekipie"), a dołożenie do niego stanu
+„jeszcze nie" kazałoby dopisać `AND status = 'aktywny'` w `czy_czlonek_grupy()`,
+`czy_moze_zarzadzac_grupa()`, politykach `group_posts`, statystykach i liczniku na
+karcie — jedno przeoczenie znaczy obcego czytającego rozmowę ekipy. Odrzucenie trzyma
+tydzień (ponowna prośba, także z linku, wraca wyjątkiem), inaczej „Poproś" jest
+przyciskiem „zawołaj założyciela" bez wyłącznika.
+
+#### Co zostaje otwarte — i dlaczego to nie jest niedokończona robota
+
+**Migracja `150` świadomie nie rusza polityk na `events`.** Mecz prywatny przypięty do
+ekipy zostaje czytelny dla każdego, kto ma adres, bo **z linku do meczu mają grać
+ludzie spoza ekipy** — to jest cały model „private = unlisted, dzielony linkiem"
+z `002` i decyzja produktowa. Zamknięcie ekipy i otwartość meczu to dwie różne
+sprawy: pierwsza dotyczy tego, kto NALEŻY do ekipy, druga — kto z nią ZAGRA.
+
+Cena tej decyzji, żeby nie trzeba było jej pamiętać: `events` ma dalej `USING (true)`,
+a RLS jest WIERSZOWE i nie odróżnia „odczytu po `id`" od „odczytu po `group_id`".
+Znając UUID ekipy (stoi w adresie linku do niej), **da się wylistować jej terminarz**
+jednym zapytaniem — mimo że sam wiersz ekipy i jej skład są zamknięte. Politykami
+nie da się mieć obu rzeczy naraz; żeby domknąć to bez zabrania linku graczom,
+trzeba by oddawać mecz osobną funkcją `SECURITY DEFINER` po tokenie, jak
+`podejrzyj_wpis_goscia()` (`128`). Stan faktyczny pilnują asercje w sekcji
+„ZNANE, ŚWIADOMIE OTWARTE" w `supabase/test/rls.sql`.
+
+Strona ekipy nie pokazuje obcemu tych meczów — nie dlatego, że je ukrywa, ale bo nie
+ma skąd: `groups` i `group_members` są zamknięte, więc UI nie ma czego renderować.
 
 **`events.group_id` steruje listowaniem, i — dla prywatnych meczów grupy — dostępem.**
 Przypisanie meczu do grupy sprawia, że pojawia się on na liście meczów grupy
@@ -738,11 +774,11 @@ pigułki „Prywatne"/„Publiczne" i nazwa ekipy, więc zdanie powtarzało wła
 stan, który widać. W kreatorze żadnej pigułki jeszcze nie ma i decyzja dopiero zapada,
 więc tam zostaje.
 Nadal nie ma **prawdziwego** trzeciego poziomu w `events.visibility` (CHECK zostaje
-dwuwartościowy), ale od migracji `150` polityka `Events readable by all` (`USING (true)`)
-już NIE obowiązuje dla meczu prywatnego przypiętego do ekipy — zastąpiła ją „Mecz ekipy
-widzi ekipa" (patrz tabela wyżej). `getMyGroupEvents()` działa dalej, bo członek
-przechodzi przez `czy_widoczny_mecz()`. Mecz prywatny BEZ ekipy i mecz publiczny
-zostają czytelne dla każdego.
+dwuwartościowy) i nadal nie zaostrzono ogólnej polityki `Events readable by all`
+(`USING (true)`) — także po migracji `150`, która zamknęła samą ekipę, ale nie jej
+mecze (uzasadnienie wyżej, „Co zostaje otwarte"). `getMyGroupEvents()` w dalszym ciągu
+działa dzięki tej luźnej polityce, a jej domknięcie bez równoczesnej przebudowy funkcji
+po cichu urwałoby mecze grupowe z list. To osobne zadanie, patrz `BACKLOG.md §5`.
 
 ---
 
@@ -761,9 +797,11 @@ Migracja `092` (rozszerzona o `096`) dokłada obok tego cztery niezależne prze�
 | `can_moderate_wall` | Kasuje cudze wpisy w rozmowie i przypina ważne | `false` |
 
 **`can_invite` a `can_manage_members` — dwa różne poziomy.** `can_invite` steruje
-wyłącznie WIDOCZNOŚCIĄ przycisku „Zaproś" i kodu dołączenia w UI — RPC
-`dolacz_do_grupy_kodem()` (`094`) nie sprawdzała i nadal nie sprawdza uprawnień osoby,
-która podała kod, więc to nie jest nowa granica bezpieczeństwa. Rotacja kodu
+wyłącznie WIDOCZNOŚCIĄ przycisku „Zaproś" i kodu dołączenia w UI — ani dawna RPC
+`dolacz_do_grupy_kodem()` (`094`, usunięta w `150`), ani jej następca
+`popros_o_dolaczenie_kodem()` nie sprawdzają uprawnień osoby, która podała kod, więc to
+nie jest granica bezpieczeństwa. Od `150` nie musi nią być: kod nie wpuszcza do składu,
+tylko składa prośbę — granicą jest decyzja rozpatrującego. Rotacja kodu
 (`odswiez_kod_grupy()`, unieważnia stary link) zostaje przy `can_manage_members` — to
 cięższa akcja, bo dotyka wszystkich, nie tylko widoczności jednego przycisku.
 

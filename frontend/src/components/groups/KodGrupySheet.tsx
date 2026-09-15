@@ -3,17 +3,21 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Loader2, Users, X } from 'lucide-react';
-import { joinGroupByCode } from '@/lib/groups';
+import { poprosODolaczenieKodem } from '@/lib/groups';
 import { useToast } from '@/lib/toast';
 import { WARSTWA } from '@/lib/warstwy';
 import { useBlokadaPrzewijania } from '@/lib/blokadaPrzewijania';
 
 /**
  * Bottom sheet „Masz kod zaproszenia?" — dawniej karta na pół ekranu na
- * `/grupy`, dziś dyskretny wiersz, który to otwiera na żądanie. Kod jest
- * jedyną drogą samodzielnego dołączenia od migracji `094` — RPC
- * `dolacz_do_grupy_kodem` mówi wprost, czy kodu nie ma, więc błąd trafia
- * do toasta bez zgadywania po treści.
+ * `/grupy`, dziś dyskretny wiersz, który to otwiera na żądanie.
+ *
+ * KOD NIE WPUSZCZA DO EKIPY — SKŁADA PROŚBĘ (migracja `150`). Do `150` RPC
+ * `dolacz_do_grupy_kodem` dopisywała do składu każdego, kto znał kod; kod jest
+ * jeden dla całej ekipy, a link wklejony na czacie zostaje tam na zawsze.
+ * Dlatego przycisk mówi dziś „Poproś", a nie „Dołącz" — obietnica ma pokrywać
+ * się z tym, co się stanie. Nieznany kod dalej wraca błędem wprost z bazy,
+ * więc literowka nie wygląda jak awaria.
  */
 export default function KodGrupySheet({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -26,7 +30,8 @@ export default function KodGrupySheet({ onClose }: { onClose: () => void }) {
     if (code.trim().length < 4 || busy) return;
     setBusy(true);
     try {
-      const groupId = await joinGroupByCode(code);
+      const groupId = await poprosODolaczenieKodem(code);
+      toast('Prośba wysłana — ekipa musi ją przyjąć');
       router.push(`/grupy/${groupId}`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
@@ -50,7 +55,10 @@ export default function KodGrupySheet({ onClose }: { onClose: () => void }) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <p className="mb-3 text-sm text-slate-500">Wpisz 6 znaków z linku albo od organizatora.</p>
+        <p className="mb-3 text-sm text-slate-500">
+          Wpisz 6 znaków z linku albo od organizatora. Wyślemy prośbę — ekipa
+          zobaczy, że przychodzisz z zaproszenia.
+        </p>
         <div className="flex gap-2">
           <input
             value={code}
@@ -66,7 +74,7 @@ export default function KodGrupySheet({ onClose }: { onClose: () => void }) {
             disabled={code.trim().length < 4 || busy}
             className="inline-flex flex-1 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-95 disabled:opacity-40"
           >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Dołącz <ArrowRight className="h-4 w-4" /></>}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Poproś <ArrowRight className="h-4 w-4" /></>}
           </button>
         </div>
       </div>

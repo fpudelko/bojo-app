@@ -2724,31 +2724,57 @@ wiadomości (`atBottom === false`), zostaje przy nich.
 
 Kto nie jest w ekipie, widzi na `/grupy/[id]` **nazwę, zdanie „To prywatna ekipa" i
 przycisk „Poproś o dołączenie"** (`components/groups/EkipaZamknieta.tsx`). Nie ma tam
-zakładek, składu, listy meczów ani statystyk — i **nie dlatego, że JSX je chowa**: baza
-nie odda tej osobie żadnej z tych rzeczy (patrz
-[docs/domena.md § Ekipa jest prywatna](./domena.md#ekipa-jest-prywatna--obcy-widzi-nazwę-i-nic-więcej-migracja-150)).
+zakładek, składu, rozmowy ani statystyk — i **nie dlatego, że JSX je chowa**: baza nie
+odda tej osobie żadnej z tych rzeczy (patrz
+[docs/domena.md § Ekipa jest prywatna](./domena.md#ekipa-jest-prywatna-a-wejście-do-niej-to-czyjaś-decyzja-migracja-150)).
 `GroupDetailClient` rozpoznaje tę sytuację po tym, że `getGroup()` zwraca `null`,
 a `getGroupPublic()` — nazwę: pierwsze znaczy „nie należysz", drugie „taka ekipa
 istnieje". Zmyślony adres (obie funkcje puste) dalej kończy się „Nie znaleziono ekipy".
 
-Wejście z linkiem zaproszenia w adresie (`?dolacz=<kod>`) **nie pokazuje tego ekranu** —
-zamiast niego stoi „Dołączam do ekipy…", bo za chwilę ta osoba będzie członkiem
-i ekran prośby mignąłby tylko po to, żeby zniknąć.
+**Mecze ekipy to osobna sprawa i zostają otwarte** — z linku do meczu mają grać ludzie
+spoza ekipy, więc `/wydarzenia/[id]` działa dla każdego, kto ma adres, tak jak dotąd.
+Ten ekran ich nie pokazuje, bo nie ma skąd (zamknięte `groups`/`group_members`), nie
+dlatego, że są zabronione.
+
+### Kod i link zaproszenia składają PROŚBĘ, nie wpuszczają do składu
+
+Do `150` link `/g/[kod]` i pole „Mam kod" na `/grupy` dopisywały do ekipy od ręki
+(`dolacz_do_grupy_kodem()`, usunięte). Dziś obie drogi wołają
+`popros_o_dolaczenie_kodem()` i zostawiają prośbę — **podpisaną zaproszeniem**, więc
+rozpatrujący widzi „Z zaproszenia: Krzysiek" i przyjmuje jednym kliknięciem. Copy
+musiało pójść za tą zmianą w trzech miejscach, bo obietnica „wchodzisz do ekipy" i ekran
+„prośba czeka" to dwie różne rzeczy:
+
+- `KodGrupySheet.tsx` — przycisk „Poproś" zamiast „Dołącz", plus zdanie, że ekipa
+  zobaczy, że przychodzisz z zaproszenia,
+- `ZaproszenieClient.tsx` (`/g/[kod]`) — pod nazwą ekipy stoi wprost: „Założenie konta
+  wyśle prośbę o dołączenie — przyjmie ją ktoś z ekipy",
+- `EkipaZamknieta.tsx` — NIE ma zdania „masz kod? wejdziesz od razu"; jest „otwórz
+  link, prośba pójdzie z jego imieniem".
+
+Wejście z kodem w adresie (`?dolacz=<kod>`) **wysyła prośbę samo**, bez dodatkowego
+kliknięcia — ta sama miękkość co `?auto=1` przy przejęciu wpisu gościa; zmienił się
+tylko skutek. Na ten czas stoi „Wysyłam prośbę o dołączenie…", nie formularz, który
+mignąłby tylko po to, żeby zniknąć. Warunkiem jest osobny stan, nie `?dolacz=` z adresu:
+adres czyścimy przez `replaceState`, czego `useSearchParams()` nie zauważa — warunek
+oparty na samym kodzie zostawiłby wieczną ładowarkę.
+
+### Notka i rozpatrywanie
 
 Do prośby można dopisać **notkę** (do 300 znaków, nieobowiązkowa). Jest ważniejsza niż
 przy prośbie o wejście do meczu: ekipa jest niewidoczna, więc rozpatrujący widzi samo
 imię z profilu i nie ma jak sprawdzić, skąd ten ktoś się wziął.
 
 **Prośby rozpatruje się w zakładce Skład**, nad listą członków
-(`components/groups/ProsbyDoEkipy.tsx`) — niebieska ramka, imię, notka i dwa przyciski
-(„Przyjmij" / odrzuć). Widzi ją założyciel i `can_manage_members`, czyli ci sami, którzy
-mogą dodać człowieka wprost. Niebieski, bo to „wymaga akceptacji uczestnictwa" — ta sama
-rodzina co prośba o dołączenie do meczu (AGENTS.md, Konwencje). Powiadomienie
-`prosba_do_grupy` prowadzi wprost na tę zakładkę (`?tab=sklad`), nie na domyślną „Mecze".
+(`components/groups/ProsbyDoEkipy.tsx`) — niebieska ramka, imię, skąd prośba przyszła,
+notka i dwa przyciski („Przyjmij" / odrzuć). Widzi ją założyciel i `can_manage_members`,
+czyli ci sami, którzy mogą dodać człowieka wprost. Niebieski, bo to „wymaga akceptacji
+uczestnictwa" — ta sama rodzina co prośba o dołączenie do meczu (AGENTS.md, Konwencje).
+Powiadomienie `prosba_do_grupy` prowadzi wprost na tę zakładkę (`?tab=sklad`), nie na
+domyślną „Mecze".
 
 **Odrzucenie trzyma tydzień** — ponowna prośba w tym czasie wraca wyjątkiem z gotową
-treścią. Bez tego „Poproś o dołączenie" jest przyciskiem „zawołaj założyciela",
-którego nie da się wyłączyć.
+treścią, także wtedy, gdy ktoś klika w link zaproszenia drugi raz.
 
 ---
 
@@ -2768,25 +2794,29 @@ Strona ustawień grupy (`/grupy/[id]/edytuj`) ma od tej zmiany zakładki: **Ogó
 **`/g/[kod]` to dziś lądowanie, nie sam redirect.** Serwerowy `page.tsx` czyta nazwę
 ekipy, liczbę osób, najbliższy mecz i (gdy w adresie jest `?od=<uuid>`, zweryfikowane
 w bazie) imię zapraszającego — wszystko JEDNYM wywołaniem
-`podglad_zaproszenia_do_grupy(kod, od)`. Od migracji `150` `groups`, `group_members`
-i `events` nie są już publicznie czytelne, więc uprawnieniem jest tu sam KOD, dokładnie
-jak `claim_token` przy wpisie gościa; wynik to wizytówka (liczba osób, termin), nie
-skład. `ZaproszenieClient.tsx` renderuje to wszystko i, dla
+`podglad_zaproszenia_do_grupy(kod, od)`. Od migracji `150` `groups` i `group_members`
+nie są już publicznie czytelne, więc uprawnieniem jest tu sam KOD, dokładnie jak
+`claim_token` przy wpisie gościa; wynik to wizytówka (liczba osób, termin), nie skład.
+Samo obejrzenie wizytówki niczego nie przesądza — wejście to osobny krok, przez
+prośbę (patrz sekcja wyżej). `ZaproszenieClient.tsx` renderuje to wszystko i, dla
 wylogowanego, formularz rejestracji (`AuthForm` w trybie `signup`, `next` wskazuje
 z powrotem na `/grupy/[id]?dolacz=<kod>&od=<uuid>`) — dokładnie ta sama miękka ścieżka,
 co przejęcie wpisu gościa (`/gracz/przejmij/[token]?auto=1`). Zalogowany odwiedzający
 jest przekierowany od razu, bez migania tego widoku; `GroupDetailClient` widząc
-`?dolacz=` dołącza go kodem automatycznie (`dolacz_do_grupy_kodem()`, migracja `094`)
-i czyści adres. Stare linki `/grupy/[id]?join=1` (bez kodu) nadal się otwierają, ale
+`?dolacz=` składa za niego prośbę automatycznie (`popros_o_dolaczenie_kodem()`,
+migracja `150` — wcześniej było to natychmiastowe dołączenie przez
+`dolacz_do_grupy_kodem()`) i czyści adres. Stare linki `/grupy/[id]?join=1` (bez kodu) nadal się otwierają, ale
 pokazują komunikat, że trzeba poprosić o nowy — bez kodu dołączenie od tej migracji nie
 jest już możliwe (patrz niżej).
 
-**Dołączenie do grupy wymaga kodu — zawsze.** Migracja `094` zdjęła politykę INSERT na
-`group_members`, którą wcześniej wystarczało obejść, znając samo UUID grupy (publicznie
-czytelne). Jedyne drogi wejścia: `dolacz_do_grupy_kodem()` (trzeba znać kod),
-`dodaj_czlonka_do_grupy()` (trzeba mieć `can_manage_members`) i trigger przy założeniu
-grupy. `joinGroup()` (surowy INSERT) zostało usunięte z `lib/groups.ts` —
-zastępuje je `joinGroupByCode()`.
+**Dołączenie do grupy wymaga czyjejś decyzji — zawsze.** Migracja `094` zdjęła politykę
+INSERT na `group_members`, którą wcześniej wystarczało obejść, znając samo UUID grupy
+(publicznie czytelne), i zostawiła trzy drogi wejścia. Migracja `150` zabrała z nich
+tę jedną, która nie pytała nikogo o zgodę — `dolacz_do_grupy_kodem()` — więc dziś
+zostają: `rozpatrz_prosbe_do_grupy()` (ktoś przyjął prośbę),
+`dodaj_czlonka_do_grupy()` (ktoś z `can_manage_members` dopisał wprost) i trigger przy
+założeniu grupy. `joinGroup()` (surowy INSERT) usunięto z `lib/groups.ts` w `094`;
+`joinGroupByCode()` zastąpiło `poprosODolaczenieKodem()` w `150`.
 
 ---
 

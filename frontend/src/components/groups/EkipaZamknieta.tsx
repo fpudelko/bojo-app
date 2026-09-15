@@ -17,9 +17,11 @@ import type { GroupJoinRequest } from '@/types';
  * zostaje, gdy zapytania wracają puste — i ma to powiedzieć wprost, zamiast
  * pokazywać pustą listę meczów, którą łatwo wziąć za „ekipa nic nie gra".
  *
- * Dwie drogi wejścia stoją obok siebie, bo prowadzą do różnych sytuacji:
- * kto ma kod albo link, wchodzi od ręki (`dolacz_do_grupy_kodem`, `094`);
- * kto trafił tu sam, może poprosić i czekać na decyzję.
+ * WEJŚCIE JEST JEDNO: prośba i czyjaś decyzja. Kod zaproszenia nie jest drugą
+ * drogą — od migracji `150` również składa prośbę, tylko podpisaną autorem
+ * zaproszenia (`z_kodu`, `invited_by`), więc rozpatrujący wie, że to ktoś
+ * polecony, i przyjmuje jednym kliknięciem. Dlatego NIE MA tu zdania
+ * „masz kod? wejdziesz od razu" — byłoby nieprawdą.
  */
 export default function EkipaZamknieta({
   groupId, nazwa, prosba, zalogowany, onZmiana,
@@ -123,6 +125,7 @@ export default function EkipaZamknieta({
                   druga strona. */}
               <p className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800 dark:bg-blue-950/60 dark:text-blue-200">
                 <Check className="h-4 w-4" /> Prośba wysłana — czeka na decyzję ekipy
+                {prosba.zKodu && <span className="sr-only"> (z zaproszenia)</span>}
               </p>
               <button
                 onClick={anuluj}
@@ -141,7 +144,8 @@ export default function EkipaZamknieta({
           )}
 
           <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-            Masz kod albo link zaproszenia? Wejdziesz od razu, bez czekania.
+            Masz link zaproszenia od kogoś z ekipy? Otwórz go — prośba pójdzie
+            z jego imieniem, więc łatwiej ją przyjąć.
           </p>
         </div>
       </main>

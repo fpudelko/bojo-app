@@ -53,9 +53,14 @@ export function tekstZaproszeniaDoGrupy(
     terminLinia = `\nNajbliższy mecz: ${kiedy}, ${godzina}${miejsce}.\n`;
   }
 
+  // „Przyjmiemy Cię", nie „jesteś w ekipie": od migracji `150` link składa
+  // PROŚBĘ, którą ktoś z ekipy zatwierdza. Zaproszenie nie może obiecywać
+  // wejścia od ręki, bo zaproszony zobaczy potem ekran „prośba czeka" —
+  // i nie zrozumiałby, czemu nie działa.
   return `${naglowek}\n\n${wstep}${terminLinia}\n`
-    + `Wchodzisz w link, zakładasz konto (można przez Google) i masz w jednym `
-    + `miejscu wszystkie nasze terminy, skład na żywo i kto ile ma dorzucić.\n\n`
+    + `Wchodzisz w link, zakładasz konto (można przez Google), my przyjmujemy `
+    + `Twoją prośbę — i masz w jednym miejscu wszystkie nasze terminy, skład `
+    + `na żywo i kto ile ma dorzucić.\n\n`
     + `${link}`;
 }
 

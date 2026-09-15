@@ -21,14 +21,20 @@ interface DaneMeczu {
 }
 
 /**
- * Lądowanie zaproszenia do ekipy — czytelne BEZ konta, bo `groups` i
- * `group_members` są publicznie czytelne przez RLS. To jest ekran, o który
- * rozbija się dziś organizator: zanim ten PR, `/g/[kod]` prosiło o
- * zalogowanie, zanim ktokolwiek się czegokolwiek dowiedział o ekipie.
+ * Lądowanie zaproszenia do ekipy — czytelne BEZ konta, bo wizytówkę wydaje
+ * `podglad_zaproszenia_do_grupy()` (migracja `150`) temu, kto ma kod. To jest
+ * ekran, o który rozbijał się organizator: wcześniej `/g/[kod]` prosiło
+ * o zalogowanie, zanim ktokolwiek się czegokolwiek dowiedział o ekipie.
+ *
+ * KOD NIE WPUSZCZA DO EKIPY — SKŁADA PROŚBĘ. Do `150` rejestracja z tego
+ * ekranu dopisywała do składu od ręki; dziś zostawia prośbę podpisaną tym
+ * zaproszeniem, a ktoś z ekipy przyjmuje ją jednym kliknięciem. Copy musi to
+ * mówić PRZED kliknięciem — obietnica „wchodzisz do ekipy" i ekran
+ * „prośba czeka" to dwie różne rzeczy.
  *
  * Zalogowany odwiedzający jest przekierowany bez migania tego widoku —
- * `/grupy/{id}` sam dołączy go kodem z adresu (patrz efekt auto-dołączenia
- * w `GroupDetailClient.tsx`).
+ * `/grupy/{id}` sam złoży prośbę kodem z adresu (patrz efekt w
+ * `GroupDetailClient.tsx`).
  */
 export default function ZaproszenieClient({
   code, group, nextEvent, totalMatches, inviterName, od,
@@ -81,6 +87,11 @@ export default function ZaproszenieClient({
           <p className="mt-1 text-sm text-slate-600">
             {inviterName ? `${inviterName} zaprasza Cię do ekipy` : 'Zaproszenie do ekipy'}
           </p>
+          {/* Wprost, przy nazwie: co się stanie po rejestracji. Ekipa jest
+              prywatna, a wejście do niej to czyjaś decyzja (migracja `150`). */}
+          <p className="mt-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+            Założenie konta wyśle prośbę o dołączenie — przyjmie ją ktoś z ekipy.
+          </p>
           <p className="mt-2 text-xs text-slate-400">
             {[group.city, group.fieldName].filter(Boolean).join(' · ')}
             {(group.city || group.fieldName) && ' · '}
@@ -111,7 +122,8 @@ export default function ZaproszenieClient({
 
         <div className="mt-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
           <p className="mb-4 text-center text-sm text-slate-600">
-            Konto zajmie 30 sekund. Potem widzisz wszystkie terminy ekipy, skład na żywo i kto ile ma dorzucić.
+            Konto zajmie 30 sekund. Po przyjęciu prośby widzisz wszystkie terminy
+            ekipy, skład na żywo i kto ile ma dorzucić.
           </p>
           <AuthForm next={celPoZalogowaniu} initialMode="signup" />
         </div>

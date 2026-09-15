@@ -48,8 +48,12 @@ export default function ZaprosDoGrupySheet({
             <X className="h-5 w-5" />
           </button>
         </div>
+        {/* „Zobaczy" i „zostanie w ekipie" to od migracji `150` dwie różne rzeczy:
+            link pokazuje wizytówkę i składa prośbę, a przyjęcie jest osobnym
+            kliknięciem — zapraszający ma o tym wiedzieć, zanim wyśle link. */}
         <p className="mb-4 text-sm text-slate-500">
-          Wyślij link — po kliknięciu znajomy od razu zobaczy ekipę i najbliższy mecz.
+          Wyślij link — znajomy od razu zobaczy ekipę i najbliższy mecz, a jego
+          prośba o dołączenie trafi do zakładki Skład.
         </p>
         <div className="flex flex-wrap gap-2">
           <button

@@ -38,7 +38,7 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 import {
-  joinGroupByCode, addMemberToGroup, regenerateJoinCode, setMemberPermissions, getGroupMembers,
+  poprosODolaczenieKodem, addMemberToGroup, regenerateJoinCode, setMemberPermissions, getGroupMembers,
   uprawnieniaCzlonka, czyWspolorganizator, getMyGroupsZTerminem, getNewGroupEventGroup,
   getGroupPublic, poprosODolaczenieDoGrupy, anulujProsbeDoGrupy, rozpatrzProsbeDoGrupy,
   getProsbyDoGrupy,
@@ -51,29 +51,43 @@ beforeEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// joinGroupByCode
+// poprosODolaczenieKodem — następca `joinGroupByCode()`. Kod SKŁADA PROŚBĘ,
+// nie wpuszcza do ekipy (migracja `150` usuwa `dolacz_do_grupy_kodem`).
 // ---------------------------------------------------------------------------
-describe('joinGroupByCode', () => {
-  it('uppercases and trims the code before calling the RPC', async () => {
+describe('poprosODolaczenieKodem', () => {
+  it('nie woła już funkcji, która wpuszczała do ekipy od ręki', async () => {
     rpcMock.mockResolvedValue({ data: 'group-1', error: null });
-    await joinGroupByCode(' abc123 ');
-    expect(rpcMock).toHaveBeenCalledWith('dolacz_do_grupy_kodem', { p_code: 'ABC123', p_od: null });
+    await poprosODolaczenieKodem('ABC123');
+    expect(rpcMock).not.toHaveBeenCalledWith('dolacz_do_grupy_kodem', expect.anything());
+    expect(rpcMock).toHaveBeenCalledWith('popros_o_dolaczenie_kodem', {
+      p_code: 'ABC123', p_od: null, p_wiadomosc: null,
+    });
   });
 
-  it('forwards the inviter id when given', async () => {
+  it('uppercases and trims the code before calling the RPC', async () => {
     rpcMock.mockResolvedValue({ data: 'group-1', error: null });
-    await joinGroupByCode('ABC123', 'inviter-uuid');
-    expect(rpcMock).toHaveBeenCalledWith('dolacz_do_grupy_kodem', { p_code: 'ABC123', p_od: 'inviter-uuid' });
+    await poprosODolaczenieKodem(' abc123 ');
+    expect(rpcMock).toHaveBeenCalledWith('popros_o_dolaczenie_kodem', {
+      p_code: 'ABC123', p_od: null, p_wiadomosc: null,
+    });
+  });
+
+  it('forwards the inviter id when given — toż to on podpisuje prośbę', async () => {
+    rpcMock.mockResolvedValue({ data: 'group-1', error: null });
+    await poprosODolaczenieKodem('ABC123', 'inviter-uuid');
+    expect(rpcMock).toHaveBeenCalledWith('popros_o_dolaczenie_kodem', {
+      p_code: 'ABC123', p_od: 'inviter-uuid', p_wiadomosc: null,
+    });
   });
 
   it('propagates the RPC error message verbatim, so the toast can show it', async () => {
     rpcMock.mockResolvedValue({ data: null, error: { message: 'Nie ma grupy o tym kodzie' } });
-    await expect(joinGroupByCode('ZZZZZZ')).rejects.toThrow('Nie ma grupy o tym kodzie');
+    await expect(poprosODolaczenieKodem('ZZZZZZ')).rejects.toThrow('Nie ma grupy o tym kodzie');
   });
 
   it('returns the group id from the RPC result', async () => {
     rpcMock.mockResolvedValue({ data: 'group-42', error: null });
-    const id = await joinGroupByCode('ABC123');
+    const id = await poprosODolaczenieKodem('ABC123');
     expect(id).toBe('group-42');
   });
 });
@@ -344,15 +358,22 @@ describe('getProsbyDoGrupy', () => {
   it('dokłada imię i awatar z profilu, a bezimiennemu daje „Gracz"', async () => {
     tables['group_join_requests'] = {
       data: [
-        { id: 'r1', group_id: 'g1', user_id: 'u1', status: 'oczekuje', wiadomosc: 'Gram z Kubą', created_at: '2026-09-01T10:00:00Z' },
-        { id: 'r2', group_id: 'g1', user_id: 'u2', status: 'oczekuje', wiadomosc: null, created_at: '2026-09-02T10:00:00Z' },
+        { id: 'r1', group_id: 'g1', user_id: 'u1', status: 'oczekuje', wiadomosc: 'Gram z Kubą', z_kodu: true, invited_by: 'u9', created_at: '2026-09-01T10:00:00Z' },
+        { id: 'r2', group_id: 'g1', user_id: 'u2', status: 'oczekuje', wiadomosc: null, z_kodu: false, invited_by: null, created_at: '2026-09-02T10:00:00Z' },
       ],
       error: null,
     };
-    tables['profiles'] = { data: [{ id: 'u1', display_name: 'Jan Kowalski', avatar_url: 'a.png' }], error: null };
+    tables['profiles'] = { data: [
+      { id: 'u1', display_name: 'Jan Kowalski', avatar_url: 'a.png' },
+      { id: 'u9', display_name: 'Krzysiek Zapraszał', avatar_url: null },
+    ], error: null };
 
     const prosby = await getProsbyDoGrupy('g1');
     expect(prosby.map((p) => p.name)).toEqual(['Jan Kowalski', 'Gracz']);
+    // Prośba z linku niesie też imię zapraszającego — bez niego „z zaproszenia"
+    // jest zdaniem bez treści.
+    expect(prosby[0].inviterName).toBe('Krzysiek Zapraszał');
+    expect(prosby[1].inviterName).toBeUndefined();
     expect(prosby[0].wiadomosc).toBe('Gram z Kubą');
     expect(prosby[0].avatarUrl).toBe('a.png');
   });

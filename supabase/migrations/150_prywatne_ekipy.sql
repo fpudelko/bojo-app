@@ -1,4 +1,5 @@
--- 150: Ekipa przestaje być publiczną wizytówką — obcy widzi NAZWĘ i nic więcej.
+-- 150: Ekipa przestaje być publiczną wizytówką — obcy widzi NAZWĘ, a wejście
+--      do niej zawsze wymaga CZYJEJŚ DECYZJI.
 --
 -- STAN SPRZED TEJ MIGRACJI. `groups` i `group_members` miały od `044` politykę
 -- SELECT `USING (true)` z komentarzem „nic wrażliwego tu nie leży". Leżało:
@@ -11,14 +12,22 @@
 --      („kod dołączenia był dekoracją"), ale kod dało się po prostu ODCZYTAĆ
 --      i podać do `dolacz_do_grupy_kodem()`. Bramka pilnowała drzwi, przy
 --      których leżał klucz.
---   3. MECZE EKIPY. `events` ma `USING (true)`, więc `?group_id=eq.<uuid>`
---      oddawało cały terminarz ekipy, łącznie z meczami prywatnymi. UUID nie
---      jest sekretem — stoi w adresie każdego linku do ekipy.
 --
 -- CO JEST PO. Obcy widzi nazwę (bo link zaproszenia i podgląd na Messengerze
--- muszą mieć co pokazać) i przycisk „Poproś o dołączenie". Skład, terminarz,
--- rozmowa, statystyki i kod — wyłącznie dla członków. Rozmowa i statystyki
--- były domknięte od `093`/`095`; ta migracja dociąga do nich resztę.
+-- muszą mieć co pokazać) i przycisk „Poproś o dołączenie". Skład, rozmowa,
+-- statystyki i kod — wyłącznie dla członków. Rozmowa i statystyki były
+-- domknięte od `093`/`095`; ta migracja dociąga do nich samą ekipę.
+--
+-- DO EKIPY NIE WCHODZI SIĘ Z LINKU — TO JEST SEDNO TEJ MIGRACJI.
+-- `dolacz_do_grupy_kodem()` (`094`) dopisywała do składu KAŻDEGO, kto podał
+-- kod: link wklejony raz na czacie zostaje na zawsze, a kod jest jeden dla
+-- całej ekipy i nie da się go cofnąć jednej osobie. Ta funkcja ZNIKA. Kod
+-- i link dalej działają, tylko robią co innego: pokazują wizytówkę ekipy
+-- i SKŁADAJĄ PROŚBĘ podpisaną zaproszeniem (`z_kodu`, `invited_by`), którą
+-- założyciel albo ktoś z `can_manage_members` przyjmuje jednym kliknięciem.
+-- Po tej migracji do `group_members` prowadzą dokładnie dwie drogi, obie
+-- przez czyjąś decyzję: `rozpatrz_prosbe_do_grupy()` i
+-- `dodaj_czlonka_do_grupy()` (`094`, `can_manage_members`).
 --
 -- DLACZEGO NAZWA ZOSTAJE PUBLICZNA. Musi ją wypisać podgląd linku
 -- (`/g/[kod]`, `/grupy/[id]` w metadanych OG) renderowany kluczem `anon`,
@@ -27,23 +36,19 @@
 -- wąskie okno na dwie kolumny zamiast polityki wierszowej `USING (true)`,
 -- która oddawała cały wiersz z kodem dołączenia włącznie.
 --
--- MECZ PRYWATNY PRZYPIĘTY DO EKIPY PRZESTAJE BYĆ DOSTĘPNY Z LINKU. To jest
--- zmiana zachowania, nie tylko szczelności: do dziś `private` znaczyło
--- „niewidoczny na listach, ale otwarty dla każdego, kto ma adres" (`002`).
--- Dla meczu przypiętego do ekipy publiczność jest inna — to mecz ekipy, więc
--- widzą go członkowie, skład, imiennie zaproszeni (`060`), delegaci (`089`)
--- i organizator. Kto chce wpuścić kogoś z zewnątrz, ma dwie drogi, obie
--- istniejące: zaprosić imiennie albo zrobić mecz publicznym. Mecz prywatny
--- BEZ ekipy zostaje nietknięty — tam „unlisted, dzielony linkiem" dalej jest
--- całym modelem.
+-- CZEGO TA MIGRACJA ŚWIADOMIE NIE RUSZA: POLITYK NA `events`.
+-- Mecz prywatny przypięty do ekipy zostaje czytelny dla każdego, kto ma
+-- adres — bo z linku do meczu MAJĄ grać ludzie spoza ekipy. To jest cały
+-- model „private = unlisted, dzielony linkiem" z `002` i decyzja produktowa,
+-- nie przeoczenie. Skutek uboczny, który trzeba znać: `events` ma dalej
+-- `USING (true)`, a RLS jest wierszowe i nie umie odróżnić „odczyt po id"
+-- od „odczytu po `group_id`" — czyli terminarz ekipy nadal da się wylistować
+-- jednym zapytaniem, znając UUID ekipy. Zamknięcie tego BEZ zabrania linku
+-- graczom nie jest możliwe politykami; pilnuje tego asercja w sekcji
+-- „ZNANE, ŚWIADOMIE OTWARTE" w `supabase/test/rls.sql`.
 --
--- Do tej pory pilnowała tego asercja „OTWARTE: mecz prywatny czyta każdy"
--- w `supabase/test/rls.sql`; ta migracja jest tym momentem, w którym zmienia
--- się w niej OCZEKIWANIE (patrz nagłówek tamtej sekcji).
---
--- GOŚĆ BEZ KONTA NIE TRACI NIC: jego strona (`/gracz/przejmij/[token]`) chodzi
--- wyłącznie przez `podejrzyj_wpis_goscia()`/`wypisz_wpis_goscia()` (`128`),
--- czyli SECURITY DEFINER, gdzie uprawnieniem jest sam token.
+-- Strona ekipy nie pokazuje obcemu tych meczów, bo nie ma skąd — `groups`
+-- i `group_members` są zamknięte, więc UI nie ma czego renderować.
 
 -- ---------------------------------------------------------------------------
 -- 1. Ekipa: wiersz widzą członkowie, nazwę — każdy, przez wąską funkcję
@@ -90,66 +95,7 @@ CREATE POLICY "Sklad ekipy czyta ekipa" ON group_members FOR SELECT
   );
 
 -- ---------------------------------------------------------------------------
--- 3. Mecz ekipy widzi ekipa
--- ---------------------------------------------------------------------------
--- Lustro `czy_widzi_rozmowe_meczu()` z `120`, poszerzone o delegatów i
--- imiennie zaproszonych: rozmowy nie czyta się „z zaproszenia", ale samą
--- stronę meczu — owszem, inaczej zaproszenie prowadziłoby donikąd.
-CREATE OR REPLACE FUNCTION czy_widoczny_mecz(p_event_id UUID) RETURNS BOOLEAN
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM events e
-     WHERE e.id = p_event_id
-       AND (
-         e.group_id IS NULL
-         OR e.visibility <> 'private'
-         OR e.organizer_id = auth.uid()
-         OR EXISTS (SELECT 1 FROM group_members gm
-                     WHERE gm.group_id = e.group_id AND gm.user_id = auth.uid())
-         OR EXISTS (SELECT 1 FROM event_participants ep
-                     WHERE ep.event_id = e.id AND ep.user_id = auth.uid())
-         OR EXISTS (SELECT 1 FROM event_player_invites i
-                     WHERE i.event_id = e.id AND i.user_id = auth.uid())
-         OR EXISTS (SELECT 1 FROM event_delegates d
-                     WHERE d.event_id = e.id AND d.user_id = auth.uid())
-       )
-  );
-$$;
-
-GRANT EXECUTE ON FUNCTION czy_widoczny_mecz(UUID) TO anon, authenticated;
-
--- Warunek taniej części stoi PRZED wywołaniem funkcji: mecz publiczny i mecz
--- bez ekipy (czyli zdecydowana większość wierszy na każdej liście) rozstrzyga
--- się bez wchodzenia do funkcji.
-DROP POLICY IF EXISTS "Events readable by all" ON events;
-DROP POLICY IF EXISTS "Mecz ekipy widzi ekipa" ON events;
--- DRUGA POLITYKA SELECT, KTÓRA UNIEWAŻNIAŁA PIERWSZĄ. `041` dołożyło
--- „Join code lookup" z warunkiem `join_code IS NOT NULL` — a `join_code` jest
--- w tej tabeli NOT NULL od tej samej migracji, więc warunek jest prawdziwy
--- dla KAŻDEGO wiersza. Polityki SELECT sumują się przez OR, więc bez tego
--- DROP-a nowa polityka niżej nie zmieniałaby zupełnie nic (złapane przez
--- `supabase/test/rls.sql`, nie przez czytanie kodu).
---
--- Trasa `/d/[kod]`, dla której tamta polityka powstała, działa dalej bez
--- niej: mecz publiczny i mecz prywatny BEZ ekipy widać z samej polityki
--- niżej. Kod do meczu ekipy prowadzi odtąd donikąd dla kogoś z zewnątrz —
--- to jest dokładnie ta zmiana, o którą tu chodzi.
-DROP POLICY IF EXISTS "Join code lookup" ON events;
-CREATE POLICY "Mecz ekipy widzi ekipa" ON events FOR SELECT
-  USING (group_id IS NULL OR visibility <> 'private' OR czy_widoczny_mecz(id));
-
--- Skład idzie za meczem. Bez tego `event_participants` (nadal `USING (true)`)
--- oddawałoby imiona ze składu meczu, którego samego nie widać — czyli dokładnie
--- tę listę nazwisk, którą ta migracja zamyka w `group_members`.
--- Uprawnienia KOLUMNOWE z `127` (e-mail gościa, telefony, `claim_token`)
--- zostają nietknięte — to druga, niezależna warstwa.
-DROP POLICY IF EXISTS "Participants readable by all" ON event_participants;
-DROP POLICY IF EXISTS "Sklad widoczny razem z meczem" ON event_participants;
-CREATE POLICY "Sklad widoczny razem z meczem" ON event_participants FOR SELECT
-  USING (czy_widoczny_mecz(event_id));
-
--- ---------------------------------------------------------------------------
--- 4. Prośba o dołączenie — jedyne, co obcy może z ekipą zrobić
+-- 3. Prośba o dołączenie — jedyna droga do składu poza zaproszeniem wprost
 -- ---------------------------------------------------------------------------
 -- DLACZEGO OSOBNA TABELA, A NIE `group_members.status`. Wiersz w składzie
 -- znaczy dziś dokładnie jedno: „ta osoba jest w ekipie". Dołożenie do niego
@@ -172,11 +118,24 @@ CREATE TABLE IF NOT EXISTS group_join_requests (
   -- rozpatrujący widzi samo imię z profilu — a „gram z Kubą w czwartki" jest
   -- całą różnicą między przyjęciem a odrzuceniem.
   wiadomosc      TEXT CHECK (wiadomosc IS NULL OR char_length(wiadomosc) BETWEEN 1 AND 300),
+  -- Prośba z LINKU/KODU zaproszenia, nie z błądzenia po aplikacji — plus kto
+  -- ten link dał (`invited_by`, weryfikowane w bazie tak samo jak w `094`:
+  -- musi sam być w ekipie). Rozpatrujący widzi wtedy „Krzysiek go zaprosił"
+  -- zamiast gołego imienia obcej osoby — i to jest cała różnica między
+  -- kliknięciem „Przyjmij" od razu a odkładaniem decyzji.
+  z_kodu         BOOLEAN NOT NULL DEFAULT false,
+  invited_by     UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   rozpatrzyl     UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   rozpatrzona_at TIMESTAMPTZ,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (group_id, user_id)
 );
+
+-- Migracja MUSI dać się puścić drugi raz (AGENTS.md): gdy tabela powstała
+-- wcześniejszym przebiegiem tego pliku, kolumny dokladamy tutaj.
+ALTER TABLE group_join_requests
+  ADD COLUMN IF NOT EXISTS z_kodu     BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS invited_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_group_join_requests_group
   ON group_join_requests (group_id, created_at DESC) WHERE status = 'oczekuje';
@@ -204,11 +163,21 @@ CREATE POLICY "Wycofanie wlasnej prosby" ON group_join_requests FOR DELETE
 -- i tak musi pisać do `group_members`, gdzie od `094` nie ma polityki INSERT.
 
 -- ---------------------------------------------------------------------------
--- 4a. Wysłanie prośby
+-- 3a. Złożenie prośby — wspólne jądro obu wejść
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION popros_o_dolaczenie_do_grupy(
-  p_group_id UUID,
-  p_wiadomosc TEXT DEFAULT NULL
+-- NIE JEST WOŁANA Z PRZEGLĄDARKI. `z_kodu` i `invited_by` muszą być
+-- WYLICZONE z prawdziwego kodu, nie przysłane przez klienta — inaczej każdy
+-- podpisałby sobie prośbę „z zaproszenia od założyciela", a to jest jedyna
+-- rzecz, na której rozpatrujący ma się oprzeć.
+--
+-- `REVOKE ... FROM PUBLIC` jest tu konieczne: Postgres nadaje EXECUTE roli
+-- PUBLIC każdej nowej funkcji, a PostgREST wystawia schemat `public` — bez
+-- tego „wewnętrzna" funkcja byłaby zwykłym endpointem REST-a.
+CREATE OR REPLACE FUNCTION zloz_prosbe_do_grupy(
+  p_group_id  UUID,
+  p_wiadomosc TEXT,
+  p_od        UUID,
+  p_z_kodu    BOOLEAN
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -216,13 +185,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_user      UUID := auth.uid();
-  v_nazwa     TEXT;
-  v_id        UUID;
-  v_status    TEXT;
+  v_user        UUID := auth.uid();
+  v_nazwa       TEXT;
+  v_id          UUID;
+  v_status      TEXT;
   v_rozpatrzona TIMESTAMPTZ;
-  v_imie      TEXT;
-  v_tresc     TEXT;
+  v_imie        TEXT;
+  v_tresc       TEXT;
+  v_od          UUID := NULL;
+  v_od_imie     TEXT;
 BEGIN
   IF v_user IS NULL THEN
     RAISE EXCEPTION 'Musisz być zalogowany, żeby poprosić o dołączenie';
@@ -238,18 +209,29 @@ BEGIN
     RAISE EXCEPTION 'Jesteś już w tej ekipie';
   END IF;
 
+  -- Zapraszający liczy się TYLKO wtedy, gdy sam należy do ekipy — ten sam
+  -- warunek co w `dolacz_do_grupy_kodem()` (`094`), bo `?od=` przychodzi
+  -- z adresu i każdy może tam wpisać, co chce.
+  IF p_od IS NOT NULL AND EXISTS (
+       SELECT 1 FROM group_members m WHERE m.group_id = p_group_id AND m.user_id = p_od
+     ) THEN
+    v_od := p_od;
+  END IF;
+
   SELECT r.id, r.status, r.rozpatrzona_at INTO v_id, v_status, v_rozpatrzona
     FROM group_join_requests r
    WHERE r.group_id = p_group_id AND r.user_id = v_user;
 
-  -- Prośba już wisi — powtórne kliknięcie (odświeżona strona, dwa telefony)
-  -- oddaje tę samą prośbę zamiast dokładać drugi dzwonek.
+  -- Prośba już wisi — powtórne kliknięcie (odświeżona strona, dwa telefony,
+  -- link otwarty drugi raz) oddaje tę samą prośbę zamiast dokładać drugi
+  -- dzwonek.
   IF v_status = 'oczekuje' THEN
     RETURN v_id;
   END IF;
 
-  -- Odrzucenie ma trzymać tydzień. Bez tego „Poproś" jest przyciskiem
-  -- „zawołaj założyciela", którego nie da się wyłączyć.
+  -- Odrzucenie ma trzymać tydzień — także prośbę z linku. Inaczej odrzucony
+  -- wracałby kolejnym kliknięciem w ten sam link, a „Poproś o dołączenie"
+  -- byłoby przyciskiem „zawołaj założyciela" bez wyłącznika.
   IF v_status = 'odrzucona' AND v_rozpatrzona > now() - INTERVAL '7 days' THEN
     RAISE EXCEPTION 'Ta ekipa nie przyjęła Twojej prośby. Możesz spróbować ponownie za jakiś czas.';
   END IF;
@@ -259,15 +241,17 @@ BEGIN
     v_tresc := left(v_tresc, 300);
   END IF;
 
-  INSERT INTO group_join_requests (group_id, user_id, wiadomosc)
-  VALUES (p_group_id, v_user, v_tresc)
+  INSERT INTO group_join_requests (group_id, user_id, wiadomosc, z_kodu, invited_by)
+  VALUES (p_group_id, v_user, v_tresc, coalesce(p_z_kodu, false), v_od)
   ON CONFLICT (group_id, user_id) DO UPDATE
      SET status = 'oczekuje', wiadomosc = EXCLUDED.wiadomosc,
+         z_kodu = EXCLUDED.z_kodu, invited_by = EXCLUDED.invited_by,
          rozpatrzyl = NULL, rozpatrzona_at = NULL, created_at = now()
   RETURNING id INTO v_id;
 
   SELECT coalesce(p.display_name, 'Gracz') INTO v_imie
     FROM profiles p WHERE p.id = v_user;
+  SELECT p.display_name INTO v_od_imie FROM profiles p WHERE p.id = v_od;
 
   -- Dzwonek idzie do tych, którzy mogą to rozpatrzyć — założyciel i
   -- `can_manage_members`. Reszcie ekipy prośba nie daje nic do zrobienia.
@@ -275,7 +259,12 @@ BEGIN
   SELECT gm.user_id,
          'prosba_do_grupy',
          'Prośba o dołączenie do ekipy',
-         coalesce(v_imie, 'Ktoś') || ' chce dołączyć do ekipy ' || v_nazwa || '.',
+         coalesce(v_imie, 'Ktoś') || ' chce dołączyć do ekipy ' || v_nazwa || '.'
+           || CASE
+                WHEN v_od_imie IS NOT NULL THEN ' Z zaproszenia: ' || v_od_imie || '.'
+                WHEN coalesce(p_z_kodu, false) THEN ' Z linku zaproszenia.'
+                ELSE ''
+              END,
          p_group_id
     FROM group_members gm
    WHERE gm.group_id = p_group_id
@@ -287,10 +276,77 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION popros_o_dolaczenie_do_grupy(UUID, TEXT) TO authenticated;
+REVOKE EXECUTE ON FUNCTION zloz_prosbe_do_grupy(UUID, TEXT, UUID, BOOLEAN) FROM PUBLIC;
 
 -- ---------------------------------------------------------------------------
--- 4b. Rozpatrzenie prośby
+-- 3b. Dwa wejścia: ze strony ekipy i z linku/kodu zaproszenia
+-- ---------------------------------------------------------------------------
+-- Prośba „od siebie": ktoś trafił na ekipę i chce do niej wejść.
+CREATE OR REPLACE FUNCTION popros_o_dolaczenie_do_grupy(
+  p_group_id UUID,
+  p_wiadomosc TEXT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT zloz_prosbe_do_grupy(p_group_id, p_wiadomosc, NULL, false);
+$$;
+
+GRANT EXECUTE ON FUNCTION popros_o_dolaczenie_do_grupy(UUID, TEXT) TO authenticated;
+
+-- Prośba Z LINKU — następca `dolacz_do_grupy_kodem()`. Kod dalej jest wart
+-- tyle, że OD RAZU wiadomo, o którą ekipę chodzi i kto zaprasza; przestał
+-- być natomiast przepustką do składu. Nieznany kod wraca tym samym błędem co
+-- dotąd, żeby literowka w kodzie nie wyglądała jak awaria.
+CREATE OR REPLACE FUNCTION popros_o_dolaczenie_kodem(
+  p_code TEXT,
+  p_od UUID DEFAULT NULL,
+  p_wiadomosc TEXT DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_group UUID;
+BEGIN
+  SELECT g.id INTO v_group FROM groups g
+   WHERE g.join_code = upper(btrim(coalesce(p_code, '')));
+  IF v_group IS NULL THEN
+    RAISE EXCEPTION 'Nie ma grupy o tym kodzie';
+  END IF;
+
+  PERFORM zloz_prosbe_do_grupy(v_group, p_wiadomosc, p_od, true);
+  -- Zwracamy EKIPĘ, nie prośbę: wołający nawiguje na jej stronę, żeby
+  -- zobaczyć, że prośba czeka.
+  RETURN v_group;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION popros_o_dolaczenie_kodem(TEXT, UUID, TEXT) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 3b'. Koniec wchodzenia do ekipy z linku
+-- ---------------------------------------------------------------------------
+-- `dolacz_do_grupy_kodem()` (`094`) dopisywała do `group_members` każdego, kto
+-- podał kod. Kod jest JEDEN dla całej ekipy, link zostaje w czacie na zawsze
+-- i nie da się go unieważnić jednej osobie — a wejście do ekipy ma być
+-- czyjąś decyzją. Funkcja ZNIKA, nie zostaje „na wszelki wypadek": dopóki
+-- istnieje z GRANT-em dla `authenticated`, jest działającym obejściem
+-- wszystkiego, co robi ta migracja — jednym wywołaniem REST-a.
+--
+-- KOLEJNOŚĆ WDROŻENIA MA ZNACZENIE (migracje puszcza się ręcznie): stary
+-- front woła tę funkcję przy „Mam kod", więc między uruchomieniem migracji
+-- a deployem tego PR-a „Mam kod" odpowie błędem. Tak jest lepiej niż
+-- odwrotnie — funkcja, która po cichu dalej wpuszcza, jest dokładnie tą
+-- dziurą, którą zamykamy.
+DROP FUNCTION IF EXISTS dolacz_do_grupy_kodem(TEXT, UUID);
+
+-- ---------------------------------------------------------------------------
+-- 3c. Rozpatrzenie prośby
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION rozpatrz_prosbe_do_grupy(p_request_id UUID, p_akceptuj BOOLEAN)
 RETURNS VOID
@@ -322,10 +378,11 @@ BEGIN
    WHERE id = p_request_id;
 
   IF p_akceptuj THEN
-    -- `invited_by` = ten, kto przyjął: „kto go przyprowadził" (`094`) ma tu
-    -- dokładnie to samo znaczenie co przy zaproszeniu linkiem.
+    -- „Kto go przyprowadził" (`094`): autor zaproszenia, jeśli prośba przyszła
+    -- z jego linku, a w przeciwnym razie ten, kto ją przyjął.
     INSERT INTO group_members (group_id, user_id, role, invited_by)
-    VALUES (v_prosba.group_id, v_prosba.user_id, 'member', auth.uid())
+    VALUES (v_prosba.group_id, v_prosba.user_id, 'member',
+            coalesce(v_prosba.invited_by, auth.uid()))
     ON CONFLICT (group_id, user_id) DO NOTHING;
 
     INSERT INTO notifications (user_id, type, title, body, group_id)
@@ -349,13 +406,14 @@ $$;
 GRANT EXECUTE ON FUNCTION rozpatrz_prosbe_do_grupy(UUID, BOOLEAN) TO authenticated;
 
 -- ---------------------------------------------------------------------------
--- 5. Podgląd zaproszenia — jedyna rzecz, która działa BEZ członkostwa
+-- 4. Podgląd zaproszenia — co widzi ktoś z kodem, jeszcze przed prośbą
 -- ---------------------------------------------------------------------------
--- `/g/[kod]` czytało dotąd `groups`, `group_members` i `events` wprost,
--- kluczem `anon`. Po punktach 1–3 nie ma do tego prawa, a strona musi
--- pokazać, DO CZEGO ktoś jest zapraszany — inaczej link prowadzi do pustej
--- kartki. Uprawnieniem jest sam kod, tak jak `claim_token` przy wpisie gościa
--- (`128`): kto go ma, dostaje wizytówkę ekipy. Nie skład — liczbę osób.
+-- `/g/[kod]` czytało dotąd `groups` i `group_members` wprost, kluczem `anon`.
+-- Po punktach 1–2 nie ma do tego prawa, a strona musi pokazać, DO CZEGO ktoś
+-- jest zapraszany — inaczej link prowadzi do pustej kartki. Uprawnieniem jest
+-- sam kod, tak jak `claim_token` przy wpisie gościa (`128`): kto go ma,
+-- dostaje wizytówkę ekipy. Nie skład — liczbę osób. Samo obejrzenie
+-- wizytówki niczego nie przesądza: wejście to osobny krok, przez prośbę.
 CREATE OR REPLACE FUNCTION podglad_zaproszenia_do_grupy(p_code TEXT, p_od UUID DEFAULT NULL)
 RETURNS TABLE (
   id                UUID,

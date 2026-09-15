@@ -61,6 +61,19 @@ export default function ProsbyDoEkipy({
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-ink">{p.name ?? 'Gracz'}</p>
+              {/* Skąd przyszła prośba — od `150` to najważniejsza linijka w tym
+                  wierszu. Ekipa jest niewidoczna, więc „Krzysiek go zaprosił"
+                  jest całą różnicą między „Przyjmij" od razu a odkładaniem
+                  decyzji. Baza sprawdza, czy zapraszający naprawdę jest w ekipie
+                  (`zloz_prosbe_do_grupy`), więc tego zdania nie da się podrobić
+                  z przeglądarki. */}
+              {p.inviterName ? (
+                <p className="mt-0.5 text-xs font-medium text-blue-700 dark:text-blue-300">
+                  Z zaproszenia: {p.inviterName}
+                </p>
+              ) : p.zKodu ? (
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Z linku zaproszenia</p>
+              ) : null}
               {p.wiadomosc && (
                 <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">{p.wiadomosc}</p>
               )}

@@ -718,12 +718,15 @@ test.describe('grupy', () => {
     await expect(page.getByText('Masz kod zaproszenia?')).toBeVisible();
 
     await page.getByPlaceholder('K7QP4B').fill('ZZZZZZ');
-    await klik(page, /^Dołącz$/);
+    // Przycisk mówi „Poproś", nie „Dołącz" — od migracji `150` kod SKŁADA
+    // PROŚBĘ, nie wpuszcza do ekipy (patrz `KodGrupySheet.tsx`).
+    await klik(page, /^Poproś$/);
     // Cichy brak reakcji na zły kod to dokładnie ten rodzaj błędu, który
     // trudno zauważyć ręcznie — wygląda jak „przycisk nic nie robi".
-    // Treść niesie WPROST baza: `dolacz_do_grupy_kodem` (migracja 094) rzuca
-    // „Nie ma grupy o tym kodzie", a `KodGrupySheet` podaje `e.message` do
-    // toasta bez przepisywania. Test zgadywał wcześniej inne brzmienie.
+    // Treść niesie WPROST baza: `popros_o_dolaczenie_kodem` (migracja 150,
+    // następca `dolacz_do_grupy_kodem` z `094`) rzuca „Nie ma grupy o tym
+    // kodzie", a `KodGrupySheet` podaje `e.message` do toasta bez
+    // przepisywania. Test zgadywał wcześniej inne brzmienie.
     await pokazSie(page, chmurka(page).getByText(/nie ma grupy o tym kodzie/i),
       'chmurka z komunikatem o nieznanym kodzie');
     await uspokoj(page);

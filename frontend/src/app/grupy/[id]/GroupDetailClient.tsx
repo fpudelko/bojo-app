@@ -28,7 +28,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
   getGroup, getGroupPublic, getGroupMembers, getGroupEvents, isGroupMember, getMyGroupPermissions,
-  joinGroupByCode, leaveGroup, removeMember, setMemberPermissions, uprawnieniaCzlonka,
+  poprosODolaczenieKodem, leaveGroup, removeMember, setMemberPermissions, uprawnieniaCzlonka,
   kluczGrupyWidziano, getMyGroups, getMojaProsbaDoGrupy, getProsbyDoGrupy,
 } from '@/lib/groups';
 import { getGroupPosts, nieprzeczytane, kluczTablicaWidziano } from '@/lib/groupPosts';
@@ -143,14 +143,19 @@ export default function GroupDetailClient() {
   // `tab` — nie wchodzi do listy swipe'owej.
   const gestSwipe = useSwipeZakladek(TABS.map((t) => t.value), tab, goToTab);
 
-  // Dołączenie kodem z linku zaproszenia — `?dolacz=<kod>` (nowy adres
-  // /g/[kod]) albo `?join=1&kod=<kod>` (przekierowanie starych linków).
-  // Bez kodu (`?join=1` samo) dołączenie nie jest już możliwe — kod
-  // przestał być ozdobą UI (migracja `094`) — banner mówi to wprost.
+  // Prośba z linku zaproszenia — `?dolacz=<kod>` (nowy adres /g/[kod]) albo
+  // `?join=1&kod=<kod>` (przekierowanie starych linków). Do migracji `150` kod
+  // z adresu DOŁĄCZAŁ od ręki; dziś składa prośbę podpisaną zaproszeniem
+  // (`z_kodu`, `invited_by`), bo do ekipy nie wchodzi się z linku. Bez kodu
+  // (`?join=1` samo) nie ma nawet czego podpisać — banner mówi to wprost.
   const kodZUrl = searchParams.get('dolacz') || (searchParams.get('join') === '1' ? searchParams.get('kod') : null);
   const odZUrl = searchParams.get('od') || undefined;
   const legacyBezKodu = searchParams.get('join') === '1' && !searchParams.get('kod') && !searchParams.get('dolacz');
-  const autoJoinProbowane = useRef(false);
+  const autoProsbaProbowana = useRef(false);
+  // Osobny stan, nie sam `kodZUrl`: adres czyścimy przez `replaceState`,
+  // czego `useSearchParams()` nie zauważa — warunek oparty na samym kodzie
+  // z adresu zostawiłby na ekranie wieczną ładowarkę.
+  const [wysylamProsbe, setWysylamProsbe] = useState(false);
 
   // Zaraz po utworzeniu ekipy (`/grupy/nowe`) — otwórz od razu sheet
   // zaproszenia. Ekipa z jedną osobą jest martwa, a to jedyny moment, w którym
@@ -292,18 +297,21 @@ export default function GroupDetailClient() {
     }
   }, [tab, id]);
 
-  // Auto-dołączenie: zalogowany użytkownik z kodem w adresie dołącza bez
-  // dodatkowego kliknięcia — dokładnie ta sama miękkość, co `?auto=1` przy
-  // przejęciu wpisu gościa (`PrzejmijClient.tsx`).
+  // Prośba wychodzi SAMA, bez dodatkowego kliknięcia — ta sama miękkość, co
+  // `?auto=1` przy przejęciu wpisu gościa (`PrzejmijClient.tsx`): kto kliknął
+  // w zaproszenie, powiedział już, czego chce. Zmienił się tylko SKUTEK:
+  // wcześniej był to wpis do składu, dziś prośba do rozpatrzenia.
   useEffect(() => {
-    if (autoJoinProbowane.current) return;
+    if (autoProsbaProbowana.current) return;
     if (authLoading || loading) return;
     if (!user || !kodZUrl || member) return;
-    autoJoinProbowane.current = true;
-    joinGroupByCode(kodZUrl, odZUrl)
-      .then(() => { toast('Dołączyłeś do ekipy!'); return load(); })
+    autoProsbaProbowana.current = true;
+    setWysylamProsbe(true);
+    poprosODolaczenieKodem(kodZUrl, odZUrl)
+      .then(() => { toast('Prośba wysłana — ekipa musi ją przyjąć'); return load(); })
       .catch((e) => toast(e instanceof Error ? e.message : 'Błąd', 'error'))
       .finally(() => {
+        setWysylamProsbe(false);
         const sp = new URLSearchParams(window.location.search);
         sp.delete('dolacz'); sp.delete('od'); sp.delete('join'); sp.delete('kod');
         const qs = sp.toString();
@@ -422,15 +430,15 @@ export default function GroupDetailClient() {
 
   // Obcy widzi NAZWĘ i jedną akcję — reszta tej strony nie ma dla niego
   // danych (migracja `150`), więc nie ma czego renderować „na pusto".
-  // Wyjątek: kod w adresie znaczy, że za chwilę będzie członkiem — wtedy
-  // ekran prośby mignąłby tylko po to, żeby zniknąć.
+  // Wyjątek: kod w adresie znaczy, że za chwilę sama poleci prośba — formularz
+  // „Poproś o dołączenie" mignąłby tylko po to, żeby zniknąć.
   if (!notFound && !group && nazwaPubliczna) {
-    if (kodZUrl && (user || authLoading)) {
+    if (wysylamProsbe || (kodZUrl && !autoProsbaProbowana.current && (user || authLoading))) {
       return (
         <div className="flex min-h-screen flex-col bg-canvas">
           <Header showMobileWordmark />
           <main className="flex flex-1 items-center justify-center px-4 text-sm text-slate-500">
-            <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Dołączam do ekipy…</span>
+            <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Wysyłam prośbę o dołączenie…</span>
           </main>
         </div>
       );
@@ -770,12 +778,16 @@ export default function GroupDetailClient() {
           </p>
         ))}
 
+        {/* Widok członka, a `member` jeszcze `false` — pierwsza chwila po
+            wejściu, zanim wróci `isGroupMember()` (albo założyciel, którego wpis
+            w składzie ktoś usunął z bazy). Obcy tu nie trafia: jego ścieżka to
+            `EkipaZamknieta` wyżej. */}
         {!member && !legacyBezKodu && (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-            {kodZUrl ? (
-              <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Dołączam do ekipy…</span>
+            {wysylamProsbe ? (
+              <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Wysyłam prośbę o dołączenie…</span>
             ) : (
-              'Poproś kogoś z ekipy o link, żeby dołączyć.'
+              'Nie należysz do tej ekipy.'
             )}
           </div>
         )}

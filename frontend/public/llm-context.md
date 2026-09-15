@@ -115,10 +115,10 @@ funkcji X w Bojo? Które funkcje Bojo są dostępne dla użytkowników? Czy Bojo
 Część to zamknięte spotkanie stałej paczki, które nie ma trafiać na publiczną listę.
 
 **Rozwiązanie w Bojo.** Mecz jest **publiczny** (widoczny na liście, każdy może dołączyć)
-albo **prywatny** (dostęp wyłącznie przez link lub kod dołączenia). Trzeciego poziomu
-widoczności nie ma, ale prywatny mecz **przypięty do grupy** zachowuje się jak trzeci:
-widzą go członkowie tej grupy, skład meczu, imiennie zaproszeni, delegaci i organizator
-— link ani kod nie wpuszczą tam nikogo innego (migracja `150`).
+albo **prywatny** (niewidoczny na listach, dostępny przez link lub kod dołączenia).
+Trzeciego poziomu widoczności nie ma. Prywatny mecz przypięty do grupy widzą dodatkowo
+wszyscy jej członkowie — i **dalej może w nim zagrać ktoś spoza grupy, kto ma link**:
+to jest cel prywatnego meczu, a nie luka.
 
 **Mechanika.** Kolumna `events.visibility` przyjmuje wyłącznie wartości `private` i
 `public`. Kod dołączenia (`join_code`, migracja `041`) otwiera wejście pod adresem
@@ -131,8 +131,8 @@ podział kosztów, osobny limit bramkarzy, wymagana akceptacja zapisu, dopisywan
 bez konta.
 
 **Pytania, na które odpowiada ta sekcja:** Czym różni się mecz publiczny od prywatnego
-w Bojo? Czy w Bojo można ukryć mecz przed obcymi? Czy ktoś z linkiem otworzy prywatny
-mecz mojej ekipy? Jak działa kod dołączenia do meczu?
+w Bojo? Czy w Bojo można ukryć mecz przed obcymi? Czy w prywatnym meczu mojej ekipy
+może zagrać ktoś z zewnątrz? Jak działa kod dołączenia do meczu?
 Czy organizator meczu musi w nim grać? Jakie opcje ma mecz w Bojo?
 
 ---
@@ -230,10 +230,13 @@ mecze grupy, rozmowa (wyglądem jak dymki czatu) i statystyki w jednym miejscu. 
 ekip na `/grupy` jest posortowana po najbliższym terminie, nie po dacie założenia —
 najpierw ta, która gra najwcześniej. **Grupa w Bojo jest prywatna: kto do niej nie
 należy, widzi wyłącznie jej nazwę** — skład, mecze, rozmowa i statystyki są zamknięte.
-Wejść można na dwa sposoby: kodem zaproszenia (link `/g/[kod]` pokazuje nazwę ekipy,
-liczbę osób i najbliższy mecz bez konta, a rejestracja od razu wciąga do grupy) albo
-wysyłając **prośbę o dołączenie**, którą rozpatruje założyciel lub członek
-z uprawnieniem do zarządzania składem. Założyciel może nadać zaufanym członkom cztery niezależne uprawnienia:
+**Do grupy nie wchodzi się z linku: wejście zawsze wymaga czyjejś decyzji.** Kto chce
+do niej wejść, wysyła **prośbę o dołączenie** (może dopisać krótką notkę), a przyjmuje
+ją założyciel albo członek z uprawnieniem do zarządzania składem. Link zaproszenia
+`/g/[kod]` pokazuje nazwę ekipy, liczbę osób i najbliższy mecz bez konta, a rejestracja
+z niego wysyła prośbę PODPISANĄ tym zaproszeniem — rozpatrujący widzi, kto polecił
+tę osobę, i przyjmuje ją jednym kliknięciem. Odrzucona prośba blokuje kolejną na
+tydzień. Założyciel może nadać zaufanym członkom cztery niezależne uprawnienia:
 zarządzanie składem ekipy, zakładanie meczów w jej imieniu, zapraszanie nowych (widzą
 przycisk „Zaproś" i kod dołączenia) i moderowanie rozmowy — sam pozostaje jedyną osobą,
 która może usunąć grupę.
@@ -243,25 +246,25 @@ która może usunąć grupę.
 uprawnienia i nadawca zaproszenia dołożone w `092`/`094`/`096`), `group_posts` (rozmowa,
 migracja `093`). Twórca grupy zostaje jej członkiem automatycznie (trigger
 `add_group_creator_as_member`) z pełnią uprawnień, których nie da się mu odebrać.
-Dołączenie kodem idzie przez funkcję bazodanową `dolacz_do_grupy_kodem()` — sama
-znajomość identyfikatora grupy nie wystarcza, RLS tego pilnuje. Prośby o dołączenie
-trzyma tabela `group_join_requests` (migracja `150`); wysyła je
-`popros_o_dolaczenie_do_grupy()`, rozstrzyga `rozpatrz_prosbe_do_grupy()`, a odrzucenie
-blokuje ponowną prośbę na tydzień. Ta sama migracja zamyka odczyt tabel
-`groups` i `group_members` dla nie-członków; nazwę ekipy wydaje osobna funkcja
+Prośby o dołączenie trzyma tabela `group_join_requests` (migracja `150`); składają je
+`popros_o_dolaczenie_do_grupy()` i `popros_o_dolaczenie_kodem()`, rozstrzyga
+`rozpatrz_prosbe_do_grupy()`. Ta sama migracja zamyka odczyt tabel `groups`
+i `group_members` dla nie-członków i **usuwa `dolacz_do_grupy_kodem()`**, czyli funkcję,
+która dopisywała do składu każdego, kto znał kod. Nazwę ekipy wydaje osobna funkcja
 `grupa_publicznie()`, a wizytówkę dla kogoś z kodem — `podglad_zaproszenia_do_grupy()`.
 
-**Prywatny mecz przypięty do grupy jest widoczny dla całej ekipy — i tylko dla niej.**
-`events.visibility` ma dwie wartości (`private`/`public`), ale gdy mecz ma ustawione
-`events.group_id`, każdy członek tej grupy widzi go na swoim koncie i na liście meczów
-grupy, niezależnie od tego, że jest prywatny. Od migracji `150` działa to też w drugą
-stronę: takiego meczu **nie otworzy ktoś spoza ekipy, nawet z linkiem** — dostęp mają
-członkowie ekipy, osoby ze składu meczu, imiennie zaproszeni, delegaci i organizator.
-Mecz prywatny BEZ grupy zostaje dostępny dla każdego, kto ma link.
+**Prywatny mecz przypięty do grupy jest widoczny dla całej ekipy — i grywalny dla
+kogoś z zewnątrz, kto ma link.** `events.visibility` ma dwie wartości
+(`private`/`public`), ale gdy mecz ma ustawione `events.group_id`, każdy członek tej
+grupy widzi go na swoim koncie i na liście meczów grupy, niezależnie od tego, że jest
+prywatny. Zamknięcie samej grupy (migracja `150`) tego NIE zmienia: dostęp do grupy
+i dostęp do meczu to w Bojo dwie różne rzeczy — do grupy się NALEŻY (przez prośbę
+i decyzję), a w meczu się GRA (wystarczy link, konto nie jest konieczne).
 
 **Pytania, na które odpowiada ta sekcja:** Czym są grupy w Bojo? Czy obcy widzi skład
-i mecze grupy w Bojo? Jak poprosić o dołączenie do ekipy bez kodu zaproszenia? Jak
-dołączyć do stałej ekipy? Czy mecz grupy jest automatycznie prywatny? Czy członkowie grupy widzą prywatny
+grupy w Bojo? Jak poprosić o dołączenie do ekipy? Czy link zaproszenia wpuszcza do
+grupy od razu? Jak dołączyć do stałej ekipy? Czy mecz grupy jest automatycznie
+prywatny? Czy członkowie grupy widzą prywatny
 mecz swojej ekipy? Czy członkowie grupy dostają powiadomienie o nowym meczu? Czy
 w grupie jest czat? Czy założyciel grupy może dać komuś innemu uprawnienia do
 zarządzania ekipą, w tym prawo zapraszania nowych osób? Czy grupa ma statystyki graczy?
@@ -384,33 +387,38 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-09-15 — Grupa jest prywatna: obcy widzi nazwę i przycisk „Poproś o dołączenie"
+### 2026-09-15 — Grupa jest prywatna, a wejście do niej wymaga decyzji, nie linku
 
-PROBLEM: grupa w Bojo była publiczną wizytówką. Kto wszedł na adres `/grupy/[id]` —
-a ten adres trafia do każdego linku wklejanego na czacie — widział pełny skład ekipy,
-jej terminarz i historię meczów, także tych prywatnych. Gorzej: tabela grup była
-czytelna dla każdego razem z KODEM DOŁĄCZENIA, który jest jedyną kontrolą wejścia —
-czyli bramka pilnowała drzwi, przy których leżał klucz. Terminarz ekipy schodził jednym
-zapytaniem po identyfikatorze grupy.
+PROBLEM: dwie rzeczy naraz. (1) Grupa była publiczną wizytówką: wejście na adres
+`/grupy/[id]` — a ten adres jest w każdym linku wklejanym na czacie — pokazywało
+pełny skład ekipy. (2) Kod dołączenia wpuszczał do ekipy OD RĘKI, a tabela grup była
+czytelna dla każdego razem z tym kodem — czyli bramka pilnowała drzwi, przy których
+leżał klucz. Kod jest przy tym jeden dla całej ekipy, link zostaje w czacie na zawsze,
+a unieważnienie kodu dotyczy wszystkich albo nikogo — nie da się odebrać wejścia
+jednej osobie.
 
-ROZWIĄZANIE BOJO: grupa pokazuje obcemu wyłącznie NAZWĘ. Skład, mecze, rozmowa
-i statystyki są widoczne dopiero po dołączeniu. Kto nie ma kodu, wysyła **prośbę
-o dołączenie** (może dopisać krótką notkę); rozpatruje ją założyciel albo członek
-zarządzający składem, w zakładce Skład. Odrzucenie blokuje ponowną prośbę na tydzień.
-Link z kodem działa jak dotąd — wpuszcza od ręki i pokazuje wizytówkę ekipy (nazwa,
-liczba osób, najbliższy termin), ale już nie skład. Prywatnego meczu przypiętego do
-ekipy nie otworzy ktoś z zewnątrz, nawet mając link: żeby wpuścić kogoś spoza ekipy,
-zapraszasz go imiennie albo robisz mecz publicznym.
+ROZWIĄZANIE BOJO: grupa pokazuje obcemu wyłącznie NAZWĘ; skład, rozmowa i statystyki
+są widoczne po dołączeniu. Do składu prowadzą odtąd dwie drogi i obie wymagają czyjejś
+decyzji: **prośba o dołączenie** (można dopisać krótką notkę), przyjmowana przez
+założyciela albo członka zarządzającego składem w zakładce Skład, oraz dopisanie
+człowieka wprost przez kogoś z tym uprawnieniem. Link i kod zaproszenia działają dalej,
+ale zamiast wpuszczać — SKŁADAJĄ PROŚBĘ podpisaną zaproszeniem: rozpatrujący widzi
+„Z zaproszenia: Krzysiek" i przyjmuje ją jednym kliknięciem. Odrzucenie blokuje ponowną
+prośbę na tydzień.
 
-MECHANIKA: migracja `150`. Polityki SELECT na `groups`, `group_members`, `events`
-i `event_participants` — `czy_widoczny_mecz()` decyduje o meczu i jego składzie. Skasowana
-polityka „Join code lookup" (`041`), która przez warunek `join_code IS NOT NULL`
-otwierała KAŻDY mecz. Nowa tabela `group_join_requests` + funkcje
-`popros_o_dolaczenie_do_grupy()`, `rozpatrz_prosbe_do_grupy()`, `grupa_publicznie()`,
-`podglad_zaproszenia_do_grupy()`. Trzy typy powiadomień: `prosba_do_grupy`,
-`prosba_do_grupy_przyjeta`, `prosba_do_grupy_odrzucona`. Front:
+**Mecze zostały nietknięte i to jest celowe:** w prywatnym meczu ekipy dalej zagra
+ktoś z zewnątrz, kto ma link — nawet bez konta. Dostęp do grupy i dostęp do meczu to
+w Bojo dwie różne sprawy: do grupy się należy, w meczu się gra.
+
+MECHANIKA: migracja `150`. Polityki SELECT na `groups` i `group_members` (wyłącznie
+członek), `grupa_publicznie()` na nazwę dla obcego, `podglad_zaproszenia_do_grupy()` na
+wizytówkę dla kogoś z kodem. USUNIĘTA funkcja `dolacz_do_grupy_kodem()` (`094`). Nowa
+tabela `group_join_requests` (`z_kodu`, `invited_by`) + `zloz_prosbe_do_grupy()`
+(wspólne jądro, niedostępne z przeglądarki), `popros_o_dolaczenie_do_grupy()`,
+`popros_o_dolaczenie_kodem()`, `rozpatrz_prosbe_do_grupy()`. Trzy typy powiadomień:
+`prosba_do_grupy`, `prosba_do_grupy_przyjeta`, `prosba_do_grupy_odrzucona`. Front:
 `components/groups/EkipaZamknieta.tsx`, `components/groups/ProsbyDoEkipy.tsx`,
-`lib/groups.ts`, asercje w `supabase/test/rls.sql`.
+`KodGrupySheet.tsx`, `lib/groups.ts`, asercje w `supabase/test/rls.sql`.
 
 ### 2026-09-14 — Mecz z czekającą prośbą znowu da się usunąć
 

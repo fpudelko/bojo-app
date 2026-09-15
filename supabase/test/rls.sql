@@ -270,11 +270,13 @@ SELECT _sekcja('Ekipa jest prywatna (migracja 150)');
 
 -- PO CO. Do `150` `groups` i `group_members` miały politykę SELECT
 -- `USING (true)`, więc jedno zapytanie do REST-a oddawało skład KAŻDEJ ekipy
--- w bazie i jej `join_code` — a kod jest jedyną kontrolą wejścia (`094`).
--- Mecze ekipy szły tą samą drogą: `events` z `USING (true)` i filtr po
--- `group_id`, który stoi w adresie każdego linku do ekipy.
+-- w bazie — i jej `join_code`, czyli jedyną kontrolę wejścia (`094`). Kod
+-- do tego WPUSZCZAŁ do składu od ręki (`dolacz_do_grupy_kodem`), a link
+-- wklejony raz na czacie zostaje tam na zawsze.
 --
 -- Nazwa ZOSTAJE publiczna, ale wychodzi wąską funkcją, nie całym wierszem.
+-- MECZE zostają otwarte świadomie — patrz sekcja „ZNANE, ŚWIADOMIE OTWARTE"
+-- na końcu pliku.
 
 -- Piąta tożsamość: ktoś z zewnątrz, kto prosi o wejście i zostaje przyjęty.
 -- `:OBCY` przechodzi tu ścieżkę odmowy, więc przyjęcie potrzebuje kogoś innego
@@ -290,8 +292,6 @@ SELECT _oczekuj('niezalogowany nie widzi wiersza ekipy (czyli i kodu dołączeni
                 (SELECT count(*) FROM groups WHERE id = :EKIPA::uuid), 0);
 SELECT _oczekuj('niezalogowany nie widzi składu ekipy',
                 (SELECT count(*) FROM group_members WHERE group_id = :EKIPA::uuid), 0);
-SELECT _oczekuj('niezalogowany nie wylistuje meczów ekipy po group_id',
-                (SELECT count(*) FROM events WHERE group_id = :EKIPA::uuid), 0);
 -- ...ale nazwę widzi — na tym stoi podgląd linku na Messengerze.
 SELECT _oczekuj('niezalogowany DOSTAJE nazwę ekipy z grupa_publicznie()',
                 (SELECT count(*) FROM grupa_publicznie(:EKIPA::uuid) WHERE name = 'Ekipa do testów RLS'), 1);
@@ -302,15 +302,13 @@ SELECT set_config('request.jwt.claim.sub', :OBCY, false);
 SELECT _oczekuj('obcy zalogowany też nie widzi ani wiersza ekipy, ani składu',
                 (SELECT (SELECT count(*) FROM groups WHERE id = :EKIPA::uuid)
                       + (SELECT count(*) FROM group_members WHERE group_id = :EKIPA::uuid)), 0);
-SELECT _oczekuj('obcy nie widzi prywatnego meczu ekipy',
-                (SELECT count(*) FROM events WHERE id = :MECZ::uuid), 0);
 
--- Kod dołączenia dalej wpuszcza od ręki — to jest ta druga droga, obok prośby.
--- Podgląd zaproszenia wydaje wizytówkę ekipy temu, kto ma kod: liczbę osób,
--- nie skład.
+-- Kod pokazuje WIZYTÓWKĘ ekipy (liczbę osób, nie skład) — i na tym koniec
+-- jego mocy.
 SELECT _oczekuj('kto ma kod, dostaje wizytówkę ekipy (bez składu)',
                 (SELECT count(*) FROM podglad_zaproszenia_do_grupy(:'kod_ekipy', NULL)
                   WHERE name = 'Ekipa do testów RLS' AND member_count = 2), 1);
+
 
 -- Prośby nie da się wstawić wprost — jedyną drogą jest funkcja, bo przyjęcie
 -- musi pisać do `group_members`, gdzie od `094` nie ma polityki INSERT.
@@ -372,6 +370,42 @@ SELECT _oczekuj('przyjęty widzi ekipę, jej skład i jej prywatny mecz',
 SELECT _oczekuj('przyjęty wie, że go przyjęto',
                 (SELECT count(*) FROM notifications
                   WHERE user_id = :PROSZACY::uuid AND type = 'prosba_do_grupy_przyjeta'), 1);
+RESET ROLE;
+
+-- DO EKIPY NIE WCHODZI SIĘ Z LINKU. `dolacz_do_grupy_kodem()` (`094`)
+-- dopisywała do składu każdego, kto podał kod — i przestała istnieć.
+-- Asercja na NIEISTNIENIE funkcji, nie na jej wynik: dopóki funkcja żyje
+-- z GRANT-em dla `authenticated`, jest działającym obejściem całej tej sekcji.
+--
+-- Osobna, szósta tożsamość: `:OBCY` dostał wyżej odmowę (blokada na tydzień),
+-- a `:PROSZACY` jest już w ekipie — żadne z nich nie może złożyć kolejnej
+-- prośby, i dobrze, bo dokładnie tego pilnują asercje wyżej.
+\set KODOWY '''aaaaaaaa-0000-4000-8000-000000000006'''
+INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data)
+VALUES (:KODOWY::uuid, 'rls-kodowy@example.com', now(), '{"display_name":"Kamil Z Linku"}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :KODOWY, false);
+SELECT _oczekuj('funkcja wpuszczająca kodem NIE ISTNIEJE',
+                (SELECT count(*) FROM pg_proc WHERE proname = 'dolacz_do_grupy_kodem'), 0);
+
+-- Kod składa PROŚBĘ — podpisaną zaproszeniem, ale wciąż prośbę.
+SELECT popros_o_dolaczenie_kodem(:'kod_ekipy', :ORGANIZATOR::uuid, NULL);
+SELECT _oczekuj('kod NIE wpuszcza do składu',
+                (SELECT count(*) FROM group_members
+                  WHERE group_id = :EKIPA::uuid AND user_id = :KODOWY::uuid), 0);
+SELECT _oczekuj('kod zostawia prośbę podpisaną zaproszeniem',
+                (SELECT count(*) FROM group_join_requests
+                  WHERE group_id = :EKIPA::uuid AND user_id = :KODOWY::uuid
+                    AND status = 'oczekuje' AND z_kodu
+                    AND invited_by = :ORGANIZATOR::uuid), 1);
+SELECT _oczekuj_wyjatek('zmyślony kod wraca błędem, nie ciszą',
+  'SELECT popros_o_dolaczenie_kodem(''ZZZZZZ'', NULL, NULL)');
+-- Jądro składania prośby nie jest endpointem REST-a — inaczej każdy
+-- podpisałby sobie prośbę „od założyciela".
+SELECT _oczekuj_odmowe('nikt nie woła jądra wprost (podpisanie prośby zaproszeniem)', format(
+  'SELECT zloz_prosbe_do_grupy(%L, NULL, %L, true)', :EKIPA, :ORGANIZATOR));
 RESET ROLE;
 
 SELECT _sekcja('RLS: rozmowy prywatne (dm_messages, migracja 125)');
@@ -439,12 +473,12 @@ RESET ROLE;
 
 SELECT _sekcja('Prywatne kolumny składu (migracja 127)');
 
--- Polityka wierszowa na `event_participants` chowa dziś skład meczu ekipy
--- (migracja `150`), ale to DRUGA, niezależna warstwa. Ta sekcja pilnuje
--- pierwszej: UPRAWNIEŃ KOLUMNOWYCH. E-mail gościa, telefony i tokeny wychodzą
--- z listy czytelnej przez API dla KAŻDEGO meczu, także publicznego, i Postgres
--- odpowiada na nie wyjątkiem `insufficient_privilege`, nie pustym wynikiem —
--- więc sprawdzamy je tym samym pomocnikiem co odbite zapisy.
+-- Polityka na `event_participants` nadal ma `USING (true)` — skład meczu jest
+-- publiczny i taki ma zostać (z linku do meczu mają grać ludzie spoza ekipy,
+-- patrz sekcja „ZNANE, ŚWIADOMIE OTWARTE"). Granicą są tu UPRAWNIENIA
+-- KOLUMNOWE: e-mail gościa, telefony i tokeny wychodzą z listy czytelnej przez
+-- API. Postgres odpowiada na to wyjątkiem `insufficient_privilege`, nie pustym
+-- wynikiem, więc sprawdzamy tym samym pomocnikiem co odbite zapisy.
 SET ROLE anon;
 SELECT set_config('request.jwt.claim.sub', '', false);
 SELECT _oczekuj_odmowe('anon NIE czyta e-maila gościa',
@@ -457,21 +491,9 @@ SELECT _oczekuj_odmowe('anon NIE czyta telefonu uczestnika',
 -- wymieniać kolumny z nazwy (patrz kolejność wdrożenia w migracji 127).
 SELECT _oczekuj_odmowe('anon NIE pobierze całego wiersza przez select(*)',
   format('SELECT * FROM event_participants WHERE event_id = %L', :MECZ));
--- Skład meczu EKIPY zniknął anonimowi razem z samym meczem (migracja `150`,
--- polityka „Sklad widoczny razem z meczem") — wcześniej stała tu asercja
--- odwrotna, w sekcji „ZNANE, ŚWIADOMIE OTWARTE".
-SELECT _oczekuj('anon NIE czyta składu meczu ekipy',
-                (SELECT count(*) FROM (
-                   SELECT name, is_reserve, is_goalkeeper, pending_approval
-                     FROM event_participants WHERE event_id = :MECZ::uuid) s), 0);
-RESET ROLE;
-
--- Druga strona tej samej reguły: skład meczu, który anon WIDZI, ma dalej być
--- czytelny. Bez tej asercji łatwo „naprawić" wyciek, zamykając przy okazji
--- stronę zwykłego meczu dla kogoś z linku.
-SET ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
-SELECT _oczekuj('uczestnik NADAL czyta skład (imię, rola, rezerwa)',
+-- ...ale sam skład zostaje publiczny. Bez tej asercji łatwo „naprawić"
+-- wyciek, zamykając przy okazji stronę meczu dla zaproszonych.
+SELECT _oczekuj('anon NADAL czyta skład (imię, rola, rezerwa)',
                 (SELECT count(*) FROM (
                    SELECT name, is_reserve, is_goalkeeper, pending_approval
                      FROM event_participants WHERE event_id = :MECZ::uuid) s), 2);
@@ -766,25 +788,29 @@ SELECT _sekcja('ZNANE, ŚWIADOMIE OTWARTE (nie regresje — stan do domknięcia)
 -- którąś z tych polityk, test tutaj spadnie — i to jest sygnał do zmiany
 -- oczekiwania w tym pliku, a nie do cofania poprawki. Bez nich rozmowa o tym,
 -- co jeszcze jest otwarte, opiera się na pamięci.
--- Mecz prywatny BEZ EKIPY zostaje otwarty dla każdego, kto zna adres —
--- to nie niedopatrzenie, tylko cały model „private = unlisted" z migracji
--- `002`: taki link wkleja się znajomym na czacie i ma działać bez konta.
--- Migracja `150` zabrała to WYŁĄCZNIE meczom przypiętym do ekipy, bo tam
--- publicznością jest ekipa (asercje w sekcji „Ekipa jest prywatna" wyżej).
-\set MECZ_SAM '''bbbbbbbb-0000-4000-8000-000000000009'''
-INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
-                    event_date, event_time, max_players, visibility, title)
-VALUES (:MECZ_SAM::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko bez ekipy',
-        CURRENT_DATE + 5, '20:00', 10, 'private', 'Mecz prywatny bez ekipy');
-INSERT INTO event_participants (event_id, user_id, name, is_guest)
-VALUES (:MECZ_SAM::uuid, NULL, 'Gość Bez Ekipy', true);
-
+-- Mecz prywatny jest „unlisted", nie zamknięty: kto zna adres, ten wchodzi —
+-- także w mecz przypięty do EKIPY. To decyzja produktowa, nie przeoczenie:
+-- z linku do meczu MAJĄ grać ludzie spoza ekipy (migracja `150` świadomie nie
+-- rusza polityk na `events`).
+--
+-- Cena tej decyzji, wpisana tu wprost, żeby nie trzeba było jej pamiętać:
+-- `events` ma `USING (true)`, a RLS jest WIERSZOWE i nie odróżnia „odczytu po
+-- id" od „odczytu po `group_id`". Znając UUID ekipy (stoi w adresie linku do
+-- niej), da się wylistować jej terminarz — mimo że skład ekipy i jej wiersz
+-- są zamknięte. Zamknięcie tego bez zabrania linku graczom nie jest możliwe
+-- politykami: trzeba by oddać mecz osobną funkcją SECURITY DEFINER po tokenie,
+-- jak `podejrzyj_wpis_goscia()` (`128`).
 SET ROLE anon;
 SELECT set_config('request.jwt.claim.sub', '', false);
-SELECT _oczekuj('OTWARTE: mecz prywatny BEZ ekipy czyta każdy (dzielony linkiem)',
-                (SELECT count(*) FROM events WHERE id = :MECZ_SAM::uuid), 1);
-SELECT _oczekuj('OTWARTE: skład takiego meczu też czyta każdy',
-                (SELECT count(*) FROM event_participants WHERE event_id = :MECZ_SAM::uuid), 1);
+SELECT _oczekuj('OTWARTE: mecz prywatny czyta każdy, także mecz ekipy (events USING true)',
+                (SELECT count(*) FROM events WHERE id = :MECZ::uuid), 1);
+SELECT _oczekuj('OTWARTE: terminarz ekipy da się wylistować po group_id',
+                (SELECT count(*) FROM events WHERE group_id = :EKIPA::uuid), 1);
+-- Skład (imiona, role, rezerwa) czyta każdy — polityka wierszowa nadal
+-- `USING (true)`. Token i e-mail gościa już NIE: to załatwiła migracja `127`
+-- uprawnieniami kolumnowymi, asercje wyżej.
+SELECT _oczekuj('OTWARTE: skład meczu prywatnego czyta każdy (event_participants USING true)',
+                (SELECT count(*) FROM event_participants WHERE event_id = :MECZ::uuid AND is_guest), 1);
 RESET ROLE;
 
 SELECT _sekcja('Gość zarządza swoim zapisem (migracja 128)');

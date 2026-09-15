@@ -32,6 +32,8 @@ function toJoinRequest(row: any): GroupJoinRequest {
     userId: row.user_id,
     status: row.status,
     wiadomosc: row.wiadomosc ?? undefined,
+    zKodu: !!row.z_kodu,
+    invitedBy: row.invited_by ?? undefined,
     createdAt: row.created_at,
     rozpatrzonaAt: row.rozpatrzona_at ?? undefined,
   };
@@ -344,17 +346,23 @@ export async function setMemberPermissions(
   );
 }
 
-/** Dołączenie kodem zaproszenia — jedyna droga samodzielnego wejścia do grupy
- *  od migracji `094` (polityka INSERT na `group_members` została zdjęta).
- *  `od` to `?od=<uuid>` z linku zaproszenia; baza sama sprawdza, czy ta osoba
- *  naprawdę należy do grupy, zanim zapisze ją jako zapraszającego. */
-export async function joinGroupByCode(code: string, od?: string): Promise<string> {
-  const { data, error } = await supabase.rpc('dolacz_do_grupy_kodem', {
+/** Prośba o dołączenie Z LINKU albo z wpisanego kodu — następca
+ *  `joinGroupByCode()`, który wpuszczał do ekipy od ręki (RPC
+ *  `dolacz_do_grupy_kodem`, usunięte w migracji `150`).
+ *
+ *  KOD PRZESTAŁ BYĆ PRZEPUSTKĄ, NIE PRZESTAŁ BYĆ POTRZEBNY: dalej rozstrzyga,
+ *  o którą ekipę chodzi (obcy nie przeczyta `groups`), a `od` — kto zaprasza.
+ *  Prośba z linku jest tym podpisana (`z_kodu`, `invited_by`), więc
+ *  rozpatrujący widzi „Krzysiek go zaprosił", nie samo imię obcej osoby.
+ *  Zwraca id ekipy — na jej stronę prowadzi ekran z czekającą prośbą. */
+export async function poprosODolaczenieKodem(code: string, od?: string, wiadomosc?: string): Promise<string> {
+  const { data, error } = await supabase.rpc('popros_o_dolaczenie_kodem', {
     p_code: code.toUpperCase().trim(),
     p_od: od ?? null,
+    p_wiadomosc: wiadomosc?.trim() || null,
   });
   if (error) throw new Error(error.message);
-  track('group_joined', { groupId: data as string, zZaproszenia: !!od });
+  track('group_join_requested', { groupId: data as string, zZaproszenia: !!od });
   return data as string;
 }
 
@@ -382,7 +390,7 @@ export async function poprosODolaczenieDoGrupy(groupId: string, wiadomosc?: stri
 export async function getMojaProsbaDoGrupy(groupId: string, userId: string): Promise<GroupJoinRequest | null> {
   const { data, error } = await supabase
     .from('group_join_requests')
-    .select('id, group_id, user_id, status, wiadomosc, created_at, rozpatrzona_at')
+    .select('id, group_id, user_id, status, wiadomosc, z_kodu, invited_by, created_at, rozpatrzona_at')
     .eq('group_id', groupId)
     .eq('user_id', userId)
     .maybeSingle();
@@ -409,7 +417,7 @@ export async function anulujProsbeDoGrupy(requestId: string): Promise<void> {
 export async function getProsbyDoGrupy(groupId: string): Promise<GroupJoinRequest[]> {
   const { data, error } = await supabase
     .from('group_join_requests')
-    .select('id, group_id, user_id, status, wiadomosc, created_at, rozpatrzona_at')
+    .select('id, group_id, user_id, status, wiadomosc, z_kodu, invited_by, created_at, rozpatrzona_at')
     .eq('group_id', groupId)
     .eq('status', 'oczekuje')
     .order('created_at', { ascending: true });
@@ -417,15 +425,19 @@ export async function getProsbyDoGrupy(groupId: string): Promise<GroupJoinReques
   const prosby = (data ?? []).map(toJoinRequest);
   if (prosby.length === 0) return [];
 
+  // Jedno zapytanie na oba imiona: proszącego i — gdy prośba przyszła z linku —
+  // zapraszającego. Bez tego drugiego „z zaproszenia" jest zdaniem bez treści.
+  const ids = Array.from(new Set(prosby.flatMap((p) => [p.userId, p.invitedBy].filter(Boolean) as string[])));
   const { data: profileRows } = await supabase
     .from('profiles')
     .select('id, display_name, avatar_url')
-    .in('id', prosby.map((p) => p.userId));
+    .in('id', ids);
   const profile = Object.fromEntries((profileRows ?? []).map((p) => [p.id, p]));
   return prosby.map((p) => ({
     ...p,
     name: profile[p.userId]?.display_name ?? 'Gracz',
     avatarUrl: profile[p.userId]?.avatar_url ?? undefined,
+    inviterName: p.invitedBy ? profile[p.invitedBy]?.display_name ?? undefined : undefined,
   }));
 }
 
