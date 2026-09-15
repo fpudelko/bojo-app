@@ -115,6 +115,27 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     wazne: true,
   },
   {
+    // To samo, piętro wyżej: prośba o wejście do EKIPY (migracja `150`).
+    // Dostaje ją założyciel i `can_manage_members`, czyli ci, którzy mogą ją
+    // rozpatrzyć — i dopóki tego nie zrobią, ktoś czeka.
+    typ: 'prosba_do_grupy',
+    nazwa: 'Prośba o dołączenie do ekipy',
+    opis: 'Ktoś chce wejść do Twojej ekipy i czeka na decyzję',
+    wazne: true,
+  },
+  {
+    // Dwie strony tej samej decyzji, więc stoją obok siebie. Żadna nie wymaga
+    // już niczego od odbiorcy, stąd bez `wazne`.
+    typ: 'prosba_do_grupy_przyjeta',
+    nazwa: 'Przyjęcie do ekipy',
+    opis: 'Ekipa przyjęła Twoją prośbę o dołączenie',
+  },
+  {
+    typ: 'prosba_do_grupy_odrzucona',
+    nazwa: 'Odmowa wejścia do ekipy',
+    opis: 'Ekipa nie przyjęła Twojej prośby o dołączenie',
+  },
+  {
     // Odpowiedź na prośbę wyżej — dwie strony tej samej sprawy, więc stoją
     // obok siebie. Ani jedna, ani druga nie wymaga już żadnej decyzji (ta
     // zapadła), stąd bez `wazne`.

@@ -14,6 +14,8 @@ import NajblizszyMeczGrupy from '@/components/groups/NajblizszyMeczGrupy';
 import RozmowaGrupy from '@/components/groups/RozmowaGrupy';
 import { useWstecz } from '@/lib/historia';
 import SkladGrupy from '@/components/groups/SkladGrupy';
+import EkipaZamknieta from '@/components/groups/EkipaZamknieta';
+import ProsbyDoEkipy from '@/components/groups/ProsbyDoEkipy';
 import StatystykiGrupy from '@/components/groups/StatystykiGrupy';
 import ZaprosDoGrupySheet from '@/components/groups/ZaprosDoGrupySheet';
 import type { PatchUprawnien } from '@/components/groups/UprawnieniaCzlonkaPanel';
@@ -25,16 +27,16 @@ import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import {
-  getGroup, getGroupMembers, getGroupEvents, isGroupMember, getMyGroupPermissions,
+  getGroup, getGroupPublic, getGroupMembers, getGroupEvents, isGroupMember, getMyGroupPermissions,
   joinGroupByCode, leaveGroup, removeMember, setMemberPermissions, uprawnieniaCzlonka,
-  kluczGrupyWidziano, getMyGroups,
+  kluczGrupyWidziano, getMyGroups, getMojaProsbaDoGrupy, getProsbyDoGrupy,
 } from '@/lib/groups';
 import { getGroupPosts, nieprzeczytane, kluczTablicaWidziano } from '@/lib/groupPosts';
 import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
 import { linkDoGrupy, udostepnijGrupe } from '@/lib/groupShare';
 import { sportEmoji, sportLabel } from '@/lib/sports';
 import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
-import type { Group, GroupMember, EventItem, GroupPermissions } from '@/types';
+import type { Group, GroupJoinRequest, GroupMember, EventItem, GroupPermissions } from '@/types';
 
 type Tab = 'mecze' | 'tablica' | 'sklad' | 'staty';
 const TABS: { value: Tab; label: string }[] = [
@@ -79,6 +81,11 @@ export default function GroupDetailClient() {
   const [nieprzeczytaneN, setNieprzeczytaneN] = useState(0);
   const [nieprzeczytaneWMeczach, setNieprzeczytaneWMeczach] = useState<Record<string, number>>({});
   const [mojeEkipy, setMojeEkipy] = useState<Group[]>([]);
+  // Ekipa widziana z zewnątrz: sama nazwa z `grupa_publicznie()` (migracja
+  // `150`). `group` jest wtedy `null`, bo baza nie oddaje wiersza.
+  const [nazwaPubliczna, setNazwaPubliczna] = useState<string | null>(null);
+  const [mojaProsba, setMojaProsba] = useState<GroupJoinRequest | null>(null);
+  const [prosbyDoEkipy, setProsbyDoEkipy] = useState<GroupJoinRequest[]>([]);
   const [przelacznikOtwarty, setPrzelacznikOtwarty] = useState(false);
 
   // Zakładka: stan lokalny odczytany z URL-a, zapisywany przez
@@ -170,6 +177,12 @@ export default function GroupDetailClient() {
     // żadnych uprawnień w nowej ekipie. Zgłoszone wprost.
     setMember(false);
     setPermissions(null);
+    // Ten sam powód co wyżej — komponent nie odmontowuje się przy przejściu
+    // do innej ekipy, więc stan „nie ma takiej" i nazwa z poprzedniego adresu
+    // zostawałyby na ekranie.
+    setNotFound(false);
+    setNazwaPubliczna(null);
+    setMojaProsba(null);
 
     let g: Group | null = null;
     try {
@@ -179,7 +192,22 @@ export default function GroupDetailClient() {
       setLoading(false);
       return;
     }
-    if (!g) { setNotFound(true); setLoading(false); return; }
+    // Brak wiersza NIE znaczy „nie ma takiej ekipy" — od migracji `150` znaczy
+    // najczęściej „nie należysz do niej". Rozstrzyga o tym `grupa_publicznie()`:
+    // zwraca nazwę, gdy ekipa istnieje, i nic, gdy adres jest zmyślony.
+    if (!g) {
+      setGroup(null);
+      try {
+        const publiczna = await getGroupPublic(id);
+        if (!publiczna) { setNotFound(true); setLoading(false); return; }
+        setNazwaPubliczna(publiczna.name);
+        setMojaProsba(user ? await getMojaProsbaDoGrupy(id, user.id).catch(() => null) : null);
+      } catch {
+        setNotFound(true);
+      }
+      setLoading(false);
+      return;
+    }
     setGroup(g);
 
     if (user) {
@@ -246,6 +274,15 @@ export default function GroupDetailClient() {
       ))
       .catch(() => {});
   }, [member, events, user]);
+
+  // Prośby o dołączenie — jedno zapytanie, wyłącznie dla kogoś, kto może je
+  // rozpatrzyć. RLS zwróci innym pustkę, ale bez tego warunku sekcja
+  // renderowałaby się każdemu jako pusta ramka.
+  const mogeRozpatrywac = !!permissions && (permissions.isFounder || permissions.canManageMembers);
+  useEffect(() => {
+    if (!mogeRozpatrywac) { setProsbyDoEkipy([]); return; }
+    getProsbyDoGrupy(id).then(setProsbyDoEkipy).catch(() => {});
+  }, [mogeRozpatrywac, id]);
 
   // Wejście na zakładkę Tablica zaznacza wszystko jako widziane.
   useEffect(() => {
@@ -380,6 +417,32 @@ export default function GroupDetailClient() {
           <div className="h-24 animate-pulse rounded-2xl border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800" />
         </main>
       </div>
+    );
+  }
+
+  // Obcy widzi NAZWĘ i jedną akcję — reszta tej strony nie ma dla niego
+  // danych (migracja `150`), więc nie ma czego renderować „na pusto".
+  // Wyjątek: kod w adresie znaczy, że za chwilę będzie członkiem — wtedy
+  // ekran prośby mignąłby tylko po to, żeby zniknąć.
+  if (!notFound && !group && nazwaPubliczna) {
+    if (kodZUrl && (user || authLoading)) {
+      return (
+        <div className="flex min-h-screen flex-col bg-canvas">
+          <Header showMobileWordmark />
+          <main className="flex flex-1 items-center justify-center px-4 text-sm text-slate-500">
+            <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Dołączam do ekipy…</span>
+          </main>
+        </div>
+      );
+    }
+    return (
+      <EkipaZamknieta
+        groupId={id}
+        nazwa={nazwaPubliczna}
+        prosba={mojaProsba}
+        zalogowany={!!user}
+        onZmiana={load}
+      />
     );
   }
 
@@ -677,6 +740,13 @@ export default function GroupDetailClient() {
               publicznym, zobaczą go też gracze spoza ekipy — z okolicy.
             </p>
           </div>
+        )}
+
+        {tab === 'sklad' && mogeRozpatrywac && (
+          <ProsbyDoEkipy
+            prosby={prosbyDoEkipy}
+            onRozpatrzone={() => { getProsbyDoGrupy(id).then(setProsbyDoEkipy).catch(() => {}); load(); }}
+          />
         )}
 
         {tab === 'sklad' && (

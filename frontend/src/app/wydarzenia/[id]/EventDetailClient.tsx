@@ -723,8 +723,16 @@ export default function EventDetailClient() {
         setProposals([]);
       }
       if (ev.groupId) {
-        import('@/lib/groups').then(({ getGroup, isGroupMember }) => {
-          getGroup(ev.groupId!).then((g) => g && setGroupInfo({ id: g.id, name: g.name, memberCount: g.memberCount })).catch(() => {});
+        import('@/lib/groups').then(({ getGroup, getGroupPublic, isGroupMember }) => {
+          // Pigułka z nazwą ekipy stoi też na meczu PUBLICZNYM, oglądanym przez
+          // kogoś spoza ekipy — a taki nie przeczyta wiersza `groups` od
+          // migracji `150`. Wtedy zostaje sama nazwa (`grupa_publicznie`),
+          // bez liczby członków, i to jest cała treść tej pigułki.
+          getGroup(ev.groupId!)
+            .then((g) => (g
+              ? setGroupInfo({ id: g.id, name: g.name, memberCount: g.memberCount })
+              : getGroupPublic(ev.groupId!).then((p) => p && setGroupInfo({ id: p.id, name: p.name }))))
+            .catch(() => {});
           if (user) isGroupMember(ev.groupId!, user.id).then(setCzlonekGrupyMeczu).catch(() => setCzlonekGrupyMeczu(false));
           else setCzlonekGrupyMeczu(false);
         });

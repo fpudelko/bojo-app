@@ -11,6 +11,11 @@ export type AnalyticsEvent =
   | 'event_joined'
   | 'group_created'
   | 'group_joined'
+  // Prośba o dołączenie do ekipy (migracja `150`). Osobno od `group_joined`,
+  // bo to inny moment lejka: wejście kodem jest natychmiastowe, prośba czeka
+  // na czyjąś decyzję — dopiero różnica między tymi dwiema liczbami mówi,
+  // ile próśb zostaje bez odpowiedzi.
+  | 'group_join_requested'
   // ── LEJEK ORGANIZATORA (2026-09-03) ──────────────────────────────────────
   // Pięć zdarzeń wyżej mówi, ILE rzeczy powstało. Nie mówią, gdzie ludzie
   // odpadają — a audyt ścieżki organizatora sam sobie to wypomniał:

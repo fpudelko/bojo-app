@@ -678,9 +678,51 @@ jest cena.
 ## Grupy
 
 `lib/groups.ts`. Stała ekipa: sport, miasto, okładka, członkowie, mecze grupy, tablica
-(`lib/groupPosts.ts`), statystyki (`lib/groupStats.ts`). Dołączanie wyłącznie przez kod
+(`lib/groupPosts.ts`), statystyki (`lib/groupStats.ts`). Dołączanie przez kod
 zaproszenia — `/g/[kod]` albo pole „Masz kod?" na `/grupy` (migracja `094`; znajomość
-samego UUID grupy dziś **nie wystarcza**, patrz niżej).
+samego UUID grupy **nie wystarcza**) — albo przez **prośbę o dołączenie** (`150`).
+
+### Ekipa jest prywatna — obcy widzi NAZWĘ i nic więcej (migracja `150`)
+
+Do `150` `groups` i `group_members` miały politykę SELECT `USING (true)`. Wychodziły
+tamtędy trzy rzeczy naraz: skład każdej ekipy (a `profiles` jest czytelne, więc z
+`user_id` robi się lista imion), `groups.join_code` (czyli JEDYNA kontrola wejścia,
+`094` — bramka przy drzwiach, na których wisiał klucz) i cały terminarz ekipy
+(`events` z `USING (true)` plus filtr po `group_id`, który stoi w adresie każdego linku).
+
+Po `150`:
+
+| Co | Kto widzi |
+|---|---|
+| Nazwa ekipy | każdy — przez `grupa_publicznie(id)`, funkcja oddaje WYŁĄCZNIE `id` i `name` |
+| Wiersz `groups` (opis, miasto, kod, okładka) | członek (plus założyciel i admin) |
+| Skład (`group_members`) | członek |
+| Mecz PRYWATNY przypięty do ekipy | członek, skład meczu, imiennie zaproszony (`060`), delegat (`089`), organizator |
+| Skład takiego meczu (`event_participants`) | jak wyżej — idzie za meczem |
+| Rozmowa (`group_posts`), statystyki graczy | członek — bez zmian od `093`/`095` |
+| Wizytówka ekipy pod linkiem `/g/[kod]` | kto ma KOD — przez `podglad_zaproszenia_do_grupy()`; liczba osób, nie skład |
+
+**Nazwa zostaje publiczna świadomie.** Podgląd linku na Messengerze i metadane OG
+renderuje klucz `anon`, zanim ktokolwiek się zaloguje — bez nazwy zaproszenie prowadzi
+do pustej kartki. Wąska funkcja zamiast polityki `USING (true)`: RLS jest wierszowe,
+więc „obcy widzi nazwę, członek całość" nie da się zapisać jednym warunkiem.
+
+**Mecz prywatny przypięty do ekipy przestał być dostępny z linku.** Do `150` `private`
+znaczyło „nieindeksowany, ale otwarty dla każdego, kto ma adres" (`002`) — i to zostaje
+regułą dla meczu prywatnego BEZ ekipy. Mecz ekipy ma inną publiczność: to mecz ekipy.
+Kogoś z zewnątrz wpuszcza się imiennym zaproszeniem albo ustawieniem meczu jako
+publicznego. Skutek uboczny, o którym trzeba wiedzieć: `/d/[kod]` (kod meczu) prowadzi
+dla obcego donikąd, gdy mecz jest prywatny i przypięty do ekipy.
+
+**Prośba o dołączenie** (`group_join_requests`) to jedyne, co obcy może z ekipą zrobić.
+Wysyła ją `popros_o_dolaczenie_do_grupy()`, rozpatruje `rozpatrz_prosbe_do_grupy()` —
+założyciel albo `can_manage_members`, czyli ci sami, którzy mogą dodać człowieka wprost.
+Osobna tabela, NIE `group_members.status`: wiersz w składzie znaczy dziś dokładnie jedno
+(„jest w ekipie"), a dołożenie do niego stanu „jeszcze nie" kazałoby dopisać
+`AND status = 'aktywny'` w `czy_czlonek_grupy()`, `czy_moze_zarzadzac_grupa()`,
+politykach `group_posts`, statystykach i liczniku na karcie — jedno przeoczenie znaczy
+obcego czytającego rozmowę ekipy. Odrzucenie trzyma tydzień (ponowna prośba wraca
+wyjątkiem), inaczej „Poproś" jest przyciskiem „zawołaj założyciela" bez wyłącznika.
 
 **`events.group_id` steruje listowaniem, i — dla prywatnych meczów grupy — dostępem.**
 Przypisanie meczu do grupy sprawia, że pojawia się on na liście meczów grupy
@@ -696,10 +738,11 @@ pigułki „Prywatne"/„Publiczne" i nazwa ekipy, więc zdanie powtarzało wła
 stan, który widać. W kreatorze żadnej pigułki jeszcze nie ma i decyzja dopiero zapada,
 więc tam zostaje.
 Nadal nie ma **prawdziwego** trzeciego poziomu w `events.visibility` (CHECK zostaje
-dwuwartościowy) i nadal nie zaostrzono ogólnej polityki `Events readable by all`
-(`USING (true)`) — `getMyGroupEvents()` w dalszym ciągu działa dzięki tej luźnej
-polityce, a jej domknięcie bez równoczesnej przebudowy funkcji po cichu urwałoby mecze
-grupowe z list. To osobne zadanie, patrz `BACKLOG.md §5`.
+dwuwartościowy), ale od migracji `150` polityka `Events readable by all` (`USING (true)`)
+już NIE obowiązuje dla meczu prywatnego przypiętego do ekipy — zastąpiła ją „Mecz ekipy
+widzi ekipa" (patrz tabela wyżej). `getMyGroupEvents()` działa dalej, bo członek
+przechodzi przez `czy_widoczny_mecz()`. Mecz prywatny BEZ ekipy i mecz publiczny
+zostają czytelne dla każdego.
 
 ---
 

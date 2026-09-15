@@ -49,6 +49,14 @@ export const IKONY: Record<string, IkonaPowiadomienia> = {
   zaproszenie_na_mecz:         { Ikona: Check,         klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Zaproszenie' },
   reserve_claim_offered:       { Ikona: TicketCheck,   klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Wolne miejsce' },
   ogloszenie_w_grupie:         { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Ogłoszenie' },
+  // Ekipa jest prywatna (migracja `150`) — prośba o wejście prosi
+  // ZARZĄDZAJĄCEGO o decyzję, więc niebieski, jak każde „wymaga akceptacji
+  // uczestnictwa" w AGENTS.md. Odpowiedź decyzji już nie wymaga: przyjęcie
+  // zielono (dobra wiadomość o stanie), odmowa neutralnie — nie czerwono, bo
+  // czerwień znaczy tu „coś poszło źle", a nic się nie zepsuło.
+  prosba_do_grupy:             { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Prośba do ekipy' },
+  prosba_do_grupy_przyjeta:    { Ikona: Users,         klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Jesteś w ekipie' },
+  prosba_do_grupy_odrzucona:   { Ikona: X,             klasa: 'bg-slate-100 text-slate-500',    rodzaj: 'Decyzja ekipy' },
   niepotwierdzony_wpis_goscia: { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Potwierdź' },
   wiadomosc_w_meczu:           { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Wiadomość' },
   wiadomosc_w_grupie:          { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Wiadomość' },

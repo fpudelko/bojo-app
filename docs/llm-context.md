@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-14 · migracja `148` · 64 tabele
+**Stan na:** 2026-09-15 · migracja `150` · 65 tabel
 
 ---
 
@@ -116,7 +116,9 @@ Część to zamknięte spotkanie stałej paczki, które nie ma trafiać na publi
 
 **Rozwiązanie w Bojo.** Mecz jest **publiczny** (widoczny na liście, każdy może dołączyć)
 albo **prywatny** (dostęp wyłącznie przez link lub kod dołączenia). Trzeciego poziomu
-widoczności nie ma.
+widoczności nie ma, ale prywatny mecz **przypięty do grupy** zachowuje się jak trzeci:
+widzą go członkowie tej grupy, skład meczu, imiennie zaproszeni, delegaci i organizator
+— link ani kod nie wpuszczą tam nikogo innego (migracja `150`).
 
 **Mechanika.** Kolumna `events.visibility` przyjmuje wyłącznie wartości `private` i
 `public`. Kod dołączenia (`join_code`, migracja `041`) otwiera wejście pod adresem
@@ -129,7 +131,8 @@ podział kosztów, osobny limit bramkarzy, wymagana akceptacja zapisu, dopisywan
 bez konta.
 
 **Pytania, na które odpowiada ta sekcja:** Czym różni się mecz publiczny od prywatnego
-w Bojo? Czy w Bojo można ukryć mecz przed obcymi? Jak działa kod dołączenia do meczu?
+w Bojo? Czy w Bojo można ukryć mecz przed obcymi? Czy ktoś z linkiem otworzy prywatny
+mecz mojej ekipy? Jak działa kod dołączenia do meczu?
 Czy organizator meczu musi w nim grać? Jakie opcje ma mecz w Bojo?
 
 ---
@@ -225,9 +228,12 @@ a organizator jest jedyną osobą, która może cokolwiek zmienić.
 **Rozwiązanie w Bojo.** Grupa to stała ekipa: sport, miasto, okładka, lista członków,
 mecze grupy, rozmowa (wyglądem jak dymki czatu) i statystyki w jednym miejscu. Lista
 ekip na `/grupy` jest posortowana po najbliższym terminie, nie po dacie założenia —
-najpierw ta, która gra najwcześniej. Dołącza się wyłącznie kodem zaproszenia — link
-`/g/[kod]` pokazuje ekipę i najbliższy mecz bez konta, a rejestracja od razu wciąga do
-grupy. Założyciel może nadać zaufanym członkom cztery niezależne uprawnienia:
+najpierw ta, która gra najwcześniej. **Grupa w Bojo jest prywatna: kto do niej nie
+należy, widzi wyłącznie jej nazwę** — skład, mecze, rozmowa i statystyki są zamknięte.
+Wejść można na dwa sposoby: kodem zaproszenia (link `/g/[kod]` pokazuje nazwę ekipy,
+liczbę osób i najbliższy mecz bez konta, a rejestracja od razu wciąga do grupy) albo
+wysyłając **prośbę o dołączenie**, którą rozpatruje założyciel lub członek
+z uprawnieniem do zarządzania składem. Założyciel może nadać zaufanym członkom cztery niezależne uprawnienia:
 zarządzanie składem ekipy, zakładanie meczów w jej imieniu, zapraszanie nowych (widzą
 przycisk „Zaproś" i kod dołączenia) i moderowanie rozmowy — sam pozostaje jedyną osobą,
 która może usunąć grupę.
@@ -238,16 +244,24 @@ uprawnienia i nadawca zaproszenia dołożone w `092`/`094`/`096`), `group_posts`
 migracja `093`). Twórca grupy zostaje jej członkiem automatycznie (trigger
 `add_group_creator_as_member`) z pełnią uprawnień, których nie da się mu odebrać.
 Dołączenie kodem idzie przez funkcję bazodanową `dolacz_do_grupy_kodem()` — sama
-znajomość identyfikatora grupy dziś nie wystarcza, RLS tego pilnuje.
+znajomość identyfikatora grupy nie wystarcza, RLS tego pilnuje. Prośby o dołączenie
+trzyma tabela `group_join_requests` (migracja `150`); wysyła je
+`popros_o_dolaczenie_do_grupy()`, rozstrzyga `rozpatrz_prosbe_do_grupy()`, a odrzucenie
+blokuje ponowną prośbę na tydzień. Ta sama migracja zamyka odczyt tabel
+`groups` i `group_members` dla nie-członków; nazwę ekipy wydaje osobna funkcja
+`grupa_publicznie()`, a wizytówkę dla kogoś z kodem — `podglad_zaproszenia_do_grupy()`.
 
-**Prywatny mecz przypięty do grupy jest widoczny dla całej ekipy.** `events.visibility`
-ma dwie wartości (`private`/`public`), ale gdy mecz ma ustawione `events.group_id`,
-każdy członek tej grupy widzi go na swoim koncie i na liście meczów grupy — niezależnie
-od tego, że jest prywatny dla reszty świata. To świadome, ustalone zachowanie aplikacji,
-nie luka.
+**Prywatny mecz przypięty do grupy jest widoczny dla całej ekipy — i tylko dla niej.**
+`events.visibility` ma dwie wartości (`private`/`public`), ale gdy mecz ma ustawione
+`events.group_id`, każdy członek tej grupy widzi go na swoim koncie i na liście meczów
+grupy, niezależnie od tego, że jest prywatny. Od migracji `150` działa to też w drugą
+stronę: takiego meczu **nie otworzy ktoś spoza ekipy, nawet z linkiem** — dostęp mają
+członkowie ekipy, osoby ze składu meczu, imiennie zaproszeni, delegaci i organizator.
+Mecz prywatny BEZ grupy zostaje dostępny dla każdego, kto ma link.
 
-**Pytania, na które odpowiada ta sekcja:** Czym są grupy w Bojo? Jak dołączyć do stałej
-ekipy? Czy mecz grupy jest automatycznie prywatny? Czy członkowie grupy widzą prywatny
+**Pytania, na które odpowiada ta sekcja:** Czym są grupy w Bojo? Czy obcy widzi skład
+i mecze grupy w Bojo? Jak poprosić o dołączenie do ekipy bez kodu zaproszenia? Jak
+dołączyć do stałej ekipy? Czy mecz grupy jest automatycznie prywatny? Czy członkowie grupy widzą prywatny
 mecz swojej ekipy? Czy członkowie grupy dostają powiadomienie o nowym meczu? Czy
 w grupie jest czat? Czy założyciel grupy może dać komuś innemu uprawnienia do
 zarządzania ekipą, w tym prawo zapraszania nowych osób? Czy grupa ma statystyki graczy?
@@ -369,6 +383,34 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-09-15 — Grupa jest prywatna: obcy widzi nazwę i przycisk „Poproś o dołączenie"
+
+PROBLEM: grupa w Bojo była publiczną wizytówką. Kto wszedł na adres `/grupy/[id]` —
+a ten adres trafia do każdego linku wklejanego na czacie — widział pełny skład ekipy,
+jej terminarz i historię meczów, także tych prywatnych. Gorzej: tabela grup była
+czytelna dla każdego razem z KODEM DOŁĄCZENIA, który jest jedyną kontrolą wejścia —
+czyli bramka pilnowała drzwi, przy których leżał klucz. Terminarz ekipy schodził jednym
+zapytaniem po identyfikatorze grupy.
+
+ROZWIĄZANIE BOJO: grupa pokazuje obcemu wyłącznie NAZWĘ. Skład, mecze, rozmowa
+i statystyki są widoczne dopiero po dołączeniu. Kto nie ma kodu, wysyła **prośbę
+o dołączenie** (może dopisać krótką notkę); rozpatruje ją założyciel albo członek
+zarządzający składem, w zakładce Skład. Odrzucenie blokuje ponowną prośbę na tydzień.
+Link z kodem działa jak dotąd — wpuszcza od ręki i pokazuje wizytówkę ekipy (nazwa,
+liczba osób, najbliższy termin), ale już nie skład. Prywatnego meczu przypiętego do
+ekipy nie otworzy ktoś z zewnątrz, nawet mając link: żeby wpuścić kogoś spoza ekipy,
+zapraszasz go imiennie albo robisz mecz publicznym.
+
+MECHANIKA: migracja `150`. Polityki SELECT na `groups`, `group_members`, `events`
+i `event_participants` — `czy_widoczny_mecz()` decyduje o meczu i jego składzie. Skasowana
+polityka „Join code lookup" (`041`), która przez warunek `join_code IS NOT NULL`
+otwierała KAŻDY mecz. Nowa tabela `group_join_requests` + funkcje
+`popros_o_dolaczenie_do_grupy()`, `rozpatrz_prosbe_do_grupy()`, `grupa_publicznie()`,
+`podglad_zaproszenia_do_grupy()`. Trzy typy powiadomień: `prosba_do_grupy`,
+`prosba_do_grupy_przyjeta`, `prosba_do_grupy_odrzucona`. Front:
+`components/groups/EkipaZamknieta.tsx`, `components/groups/ProsbyDoEkipy.tsx`,
+`lib/groups.ts`, asercje w `supabase/test/rls.sql`.
 
 ### 2026-09-14 — Mecz z czekającą prośbą znowu da się usunąć
 
@@ -664,35 +706,3 @@ MECHANIKA: mapa ikon przeniesiona z `NotificationBell.tsx` do `lib/ikonyPowiadom
 `__tests__/typyPowiadomien.test.ts` czyta `supabase/migrations/*.sql`, wyciąga wartość
 `type` z każdego `INSERT INTO notifications` i porównuje ją z `lib/ikonyPowiadomien.ts`
 oraz `lib/ustawieniaPowiadomien.ts` w obie strony.
-
-### 2026-09-12 — Powtórka meczu nie gubi ustawień; odwołanie i link znają skład
-
-PROBLEM: (1) „Powtórz mecz" — jedyny zamiennik gier cyklicznych, świadomie wyłączonych —
-przepisywało ustawienia źródłowego meczu do nowego terminu, ale trzy z nich po cichu
-gubiło: wymaganą akceptację zapisów, wyłączoną listę rezerwową i tryb puli dla bramkarzy.
-Mecz, do którego organizator wpuszczał ludzi ręcznie, wracał po powtórce OTWARTY dla
-każdego. (2) Okno „Odwołać mecz?" liczyło odbiorców po swojemu — węziej niż faktycznie
-powiadamia baza — i mówiło „dostanie e-mail, JEŚLI podał adres" zamiast dokładnej
-odpowiedzi, którą Bojo już zna. (3) Wiadomość, którą organizator wkleja na czat, żeby
-znaleźć brakujące osoby, mówiła zawsze „14 miejsc" — także wtedy, gdy realnie brakowało
-dwóch — i nigdy nie wspominała, że dołączenie nie wymaga konta, choć to jest główny
-argument na przebicie oporu graczy przed zakładaniem konta.
-
-ROZWIĄZANIE BOJO: powtórka meczu (na stronie meczu, w karcie „Po meczu", przy najbliższym
-meczu ekipy i w Historii na `/moje-gry`) przenosi dziś KAŻDE ustawienie źródłowego meczu —
-pominięcie nowego pola przy przyszłej zmianie przestaje się kompilować, zamiast po cichu
-zostawiać wartość domyślną. Wszystkie cztery drogi lądują też w panelu „Mecz gotowy —
-wyślij link", nie tylko powtórka z Historii jak dotąd. Okno odwołania liczy odbiorców tą
-samą funkcją co okno edycji meczu — trzy zdania: ilu z kontem dostanie powiadomienie
-w Bojo, ilu gości dostanie e-mail, ilu trzeba powiadomić samemu. Wiadomość na czat mówi
-dziś „Zostały 2 miejsca" albo „Komplet — wejdź na rezerwę" zamiast stałej liczby miejsc,
-a gdy da się to uczciwie powiedzieć, dokłada zdanie „Zapisujesz się bez zakładania konta."
-
-MECHANIKA: `lib/events.ts` — typ `ZrodloPowtorki` (mapowany z `EventCreate`) wymusza
-wymienienie każdego pola w `repeatEvent()`. `lib/zmianyMeczu.ts` — nowa
-`konsekwencjeOdwolania()`, wołana z `handleCancel()` w `EventDetailClient.tsx` przez
-`komuDojdzie()`. `lib/eventShare.ts` — `eventShareText()` przyjmuje opcjonalny drugi
-argument `StanUdostepnienia` (wolne miejsca, rezerwa, zapisy zamknięte); bez niego
-zachowanie jest identyczne jak dotąd. Testy: `__tests__/events.test.ts`,
-`__tests__/zmianyMeczu.test.ts`, `__tests__/eventShare.test.ts`.
-

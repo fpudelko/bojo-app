@@ -40,6 +40,8 @@ vi.mock('@/lib/supabase', () => ({
 import {
   joinGroupByCode, addMemberToGroup, regenerateJoinCode, setMemberPermissions, getGroupMembers,
   uprawnieniaCzlonka, czyWspolorganizator, getMyGroupsZTerminem, getNewGroupEventGroup,
+  getGroupPublic, poprosODolaczenieDoGrupy, anulujProsbeDoGrupy, rozpatrzProsbeDoGrupy,
+  getProsbyDoGrupy,
 } from '@/lib/groups';
 
 beforeEach(() => {
@@ -290,5 +292,74 @@ describe('getNewGroupEventGroup', () => {
     };
     window.localStorage.setItem('bojo:grupa-widziano:g2', '2026-08-12T00:00:00Z');
     expect(await getNewGroupEventGroup(grupy)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ekipa prywatna (migracja `150`) — nazwa dla obcego i prośby o dołączenie.
+// ---------------------------------------------------------------------------
+describe('getGroupPublic', () => {
+  it('rozpakowuje wiersz z funkcji tabelarycznej (PostgREST oddaje tablicę)', async () => {
+    rpcMock.mockResolvedValue({ data: [{ id: 'g1', name: 'Ekipa Rataje' }], error: null });
+    await expect(getGroupPublic('g1')).resolves.toEqual({ id: 'g1', name: 'Ekipa Rataje' });
+    expect(rpcMock).toHaveBeenCalledWith('grupa_publicznie', { p_group_id: 'g1' });
+  });
+
+  it('oddaje null dla ekipy, której nie ma — obcy i zmyślony adres wyglądają tak samo', async () => {
+    rpcMock.mockResolvedValue({ data: [], error: null });
+    await expect(getGroupPublic('g1')).resolves.toBeNull();
+  });
+});
+
+describe('poprosODolaczenieDoGrupy', () => {
+  it('przycina pustą notkę do null — pusty string nie ma trafić do bazy', async () => {
+    rpcMock.mockResolvedValue({ data: 'req-1', error: null });
+    await poprosODolaczenieDoGrupy('g1', '   ');
+    expect(rpcMock).toHaveBeenCalledWith('popros_o_dolaczenie_do_grupy', { p_group_id: 'g1', p_wiadomosc: null });
+  });
+
+  it('podaje dalej treść wyjątku z bazy — to ona niesie „odrzucona, spróbuj później"', async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { message: 'Ta ekipa nie przyjęła Twojej prośby.' } });
+    await expect(poprosODolaczenieDoGrupy('g1')).rejects.toThrow(/nie przyjęła Twojej prośby/);
+  });
+});
+
+describe('anulujProsbeDoGrupy', () => {
+  it('zamienia ciche zero skasowanych wierszy w wyjątek (pułapka RLS z AGENTS.md)', async () => {
+    const chain = chainFor('group_join_requests');
+    chain.select.mockImplementationOnce(() => Promise.resolve({ data: [], error: null }));
+    await expect(anulujProsbeDoGrupy('req-1')).rejects.toThrow(/Nie udało się wycofać prośby/);
+  });
+});
+
+describe('rozpatrzProsbeDoGrupy', () => {
+  it('woła funkcję w bazie — dopisanie do składu nie ma drogi przez INSERT', async () => {
+    rpcMock.mockResolvedValue({ data: null, error: null });
+    await rozpatrzProsbeDoGrupy('req-1', true);
+    expect(rpcMock).toHaveBeenCalledWith('rozpatrz_prosbe_do_grupy', { p_request_id: 'req-1', p_akceptuj: true });
+  });
+});
+
+describe('getProsbyDoGrupy', () => {
+  it('dokłada imię i awatar z profilu, a bezimiennemu daje „Gracz"', async () => {
+    tables['group_join_requests'] = {
+      data: [
+        { id: 'r1', group_id: 'g1', user_id: 'u1', status: 'oczekuje', wiadomosc: 'Gram z Kubą', created_at: '2026-09-01T10:00:00Z' },
+        { id: 'r2', group_id: 'g1', user_id: 'u2', status: 'oczekuje', wiadomosc: null, created_at: '2026-09-02T10:00:00Z' },
+      ],
+      error: null,
+    };
+    tables['profiles'] = { data: [{ id: 'u1', display_name: 'Jan Kowalski', avatar_url: 'a.png' }], error: null };
+
+    const prosby = await getProsbyDoGrupy('g1');
+    expect(prosby.map((p) => p.name)).toEqual(['Jan Kowalski', 'Gracz']);
+    expect(prosby[0].wiadomosc).toBe('Gram z Kubą');
+    expect(prosby[0].avatarUrl).toBe('a.png');
+  });
+
+  it('nie pyta o profile, gdy nie ma żadnej prośby', async () => {
+    tables['group_join_requests'] = { data: [], error: null };
+    await expect(getProsbyDoGrupy('g1')).resolves.toEqual([]);
+    expect(fromMock).not.toHaveBeenCalledWith('profiles');
   });
 });

@@ -3,9 +3,9 @@ import type { Metadata } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import GroupDetailClient from './GroupDetailClient';
 
-/** Ten sam wzorzec co /g/[code]: klient serwerowy z kluczem anon. Tabela
- *  `groups` jest publicznie czytelna przez RLS („Groups are readable"), więc
- *  do tytułu strony nie potrzeba uprawnień. */
+/** Ten sam wzorzec co /g/[code]: klient serwerowy z kluczem anon. Wiersza
+ *  `groups` ten klucz od migracji `150` NIE przeczyta (ekipa jest prywatna) —
+ *  nazwę wydaje funkcja `grupa_publicznie()`, i tylko nazwę. */
 const supabasePublic = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -15,23 +15,20 @@ const supabasePublic = createClient(
  *  udostępnienie na Messengerze pokazywało generyczny tytuł całej aplikacji. */
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   try {
-    const { data } = await supabasePublic
-      .from('groups')
-      .select('name, description, sport, city')
-      .eq('id', params.id)
-      .maybeSingle();
+    const { data } = await supabasePublic.rpc('grupa_publicznie', { p_group_id: params.id });
+    const grupa = Array.isArray(data) ? data[0] : data;
+    if (!grupa) return { title: 'Grupa — Bojo' };
 
-    if (!data) return { title: 'Grupa — Bojo' };
-
-    const detale = [data.sport, data.city].filter(Boolean).join(' · ');
-    const description = data.description?.trim()
-      || (detale ? `Stała ekipa w Bojo — ${detale}.` : 'Stała ekipa w Bojo: mecze, skład i historia w jednym miejscu.');
+    // Opis jest GENERYCZNY, nie własny opis ekipy: podgląd linku na
+    // Messengerze trafia do ludzi spoza ekipy, a ci mają zobaczyć dokładnie
+    // to samo, co na stronie — nazwę i nic więcej (migracja `150`).
+    const description = 'Prywatna ekipa w Bojo. Skład i mecze widzą jej członkowie.';
 
     return {
-      title: `${data.name} — grupa w Bojo`,
+      title: `${grupa.name} — grupa w Bojo`,
       description,
       alternates: { canonical: `/grupy/${params.id}` },
-      openGraph: { title: `${data.name} — grupa w Bojo`, description },
+      openGraph: { title: `${grupa.name} — grupa w Bojo`, description },
     };
   } catch {
     // Brak sieci przy budowaniu metadanych nie może wywrócić całej strony.

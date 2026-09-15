@@ -559,6 +559,22 @@ export interface GroupPermissions {
   canInvite: boolean;
 }
 
+/** Prośba o dołączenie do ekipy (migracja `150`). Ekipa jest niewidoczna dla
+ *  obcych, więc to jedyna rzecz, jaką ktoś z zewnątrz może z nią zrobić.
+ *  `name`/`avatarUrl` dochodzą z `profiles` przy liście dla rozpatrującego —
+ *  sama tabela ich nie trzyma. */
+export interface GroupJoinRequest {
+  id: string;
+  groupId: string;
+  userId: string;
+  status: 'oczekuje' | 'przyjeta' | 'odrzucona';
+  wiadomosc?: string;
+  createdAt: string;
+  rozpatrzonaAt?: string;
+  name?: string;
+  avatarUrl?: string;
+}
+
 /** Wpis na tablicy grupy (migracja `093`) — płaska lista, bez wątków. */
 export interface GroupPost {
   id: string;

@@ -3,7 +3,7 @@ import { validateName } from './validation';
 import { getEventsByGroup, toEvent } from './events';
 import { track } from './analytics';
 import { zaktualizujJedenWiersz } from './zapytania';
-import type { Group, GroupMember, GroupPermissions, GroupWithNext, EventItem } from '@/types';
+import type { Group, GroupJoinRequest, GroupMember, GroupPermissions, GroupWithNext, EventItem } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toGroup(row: any): Group {
@@ -21,6 +21,19 @@ function toGroup(row: any): Group {
     fieldId: row.field_id ?? undefined,
     fieldName: row.field_name ?? undefined,
     joinCodeRotatedAt: row.join_code_rotated_at ?? undefined,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toJoinRequest(row: any): GroupJoinRequest {
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    userId: row.user_id,
+    status: row.status,
+    wiadomosc: row.wiadomosc ?? undefined,
+    createdAt: row.created_at,
+    rozpatrzonaAt: row.rozpatrzona_at ?? undefined,
   };
 }
 
@@ -195,6 +208,10 @@ export async function getMyGroupsZTerminem(userId: string): Promise<GroupWithNex
     });
 }
 
+/** Ekipa w całości — sport, miasto, kod dołączenia, liczba osób. Od migracji
+ *  `150` wiersz `groups` czyta WYŁĄCZNIE członek, więc dla kogoś z zewnątrz ta
+ *  funkcja zwraca `null` — i to nie jest błąd, tylko cała reguła. Nazwę dla
+ *  niego daje `getGroupPublic()` niżej. */
 export async function getGroup(groupId: string): Promise<Group | null> {
   const { data, error } = await supabase
     .from('groups')
@@ -205,14 +222,15 @@ export async function getGroup(groupId: string): Promise<Group | null> {
   return data ? toGroup(data) : null;
 }
 
-export async function getGroupByCode(code: string): Promise<Group | null> {
-  const { data, error } = await supabase
-    .from('groups')
-    .select('*, group_members(id)')
-    .eq('join_code', code.toUpperCase().trim())
-    .maybeSingle();
+/** Nazwa ekipy dla kogoś, kto do niej nie należy — jedyne, co widzi obcy
+ *  (migracja `150`, funkcja `grupa_publicznie`). Tyle pokazuje strona ekipy
+ *  przed dołączeniem, tytuł karty w metadanych i pigułka ekipy na stronie
+ *  meczu publicznego. */
+export async function getGroupPublic(groupId: string): Promise<{ id: string; name: string } | null> {
+  const { data, error } = await supabase.rpc('grupa_publicznie', { p_group_id: groupId });
   if (error) throw new Error(error.message);
-  return data ? toGroup(data) : null;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? { id: row.id as string, name: row.name as string } : null;
 }
 
 /**
@@ -340,6 +358,87 @@ export async function joinGroupByCode(code: string, od?: string): Promise<string
   return data as string;
 }
 
+/* ---------------------------------------------------------------------------
+ * Prośby o dołączenie (migracja `150`)
+ * ------------------------------------------------------------------------ */
+
+/** Wysłanie prośby — jedyne, co obcy może zrobić z ekipą, do której nie
+ *  należy. Baza sprawdza resztę: czy nie jest już członkiem, czy prośba już
+ *  nie wisi i czy nie dostał odmowy w ostatnim tygodniu (wtedy rzuca
+ *  wyjątkiem z gotową treścią dla użytkownika). */
+export async function poprosODolaczenieDoGrupy(groupId: string, wiadomosc?: string): Promise<string> {
+  const { data, error } = await supabase.rpc('popros_o_dolaczenie_do_grupy', {
+    p_group_id: groupId,
+    p_wiadomosc: wiadomosc?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  track('group_join_requested', { groupId });
+  return data as string;
+}
+
+/** Moja prośba do tej ekipy — `null`, gdy nigdy nie prosiłem. Nie mylić
+ *  z „nie jestem członkiem": odrzucona prośba też tu jest i to ona decyduje,
+ *  co pokazać zamiast przycisku. */
+export async function getMojaProsbaDoGrupy(groupId: string, userId: string): Promise<GroupJoinRequest | null> {
+  const { data, error } = await supabase
+    .from('group_join_requests')
+    .select('id, group_id, user_id, status, wiadomosc, created_at, rozpatrzona_at')
+    .eq('group_id', groupId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? toJoinRequest(data) : null;
+}
+
+/** Wycofanie własnej prośby — jedyne DELETE, na które pozwala polityka.
+ *  Rozpatrujący nie kasuje, tylko odrzuca: ślad po decyzji jest tym, co
+ *  powstrzymuje ponowną prośbę tego samego dnia. */
+export async function anulujProsbeDoGrupy(requestId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('group_join_requests')
+    .delete()
+    .eq('id', requestId)
+    .select('id');
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) throw new Error('Nie udało się wycofać prośby — spróbuj ponownie.');
+}
+
+/** Nierozpatrzone prośby do ekipy, z imieniem i awatarem proszącego. Widzi je
+ *  wyłącznie założyciel i `can_manage_members` (RLS) — UI i tak pyta o to samo
+ *  przez `uprawnieniaCzlonka()`, żeby nie renderować pustej sekcji. */
+export async function getProsbyDoGrupy(groupId: string): Promise<GroupJoinRequest[]> {
+  const { data, error } = await supabase
+    .from('group_join_requests')
+    .select('id, group_id, user_id, status, wiadomosc, created_at, rozpatrzona_at')
+    .eq('group_id', groupId)
+    .eq('status', 'oczekuje')
+    .order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  const prosby = (data ?? []).map(toJoinRequest);
+  if (prosby.length === 0) return [];
+
+  const { data: profileRows } = await supabase
+    .from('profiles')
+    .select('id, display_name, avatar_url')
+    .in('id', prosby.map((p) => p.userId));
+  const profile = Object.fromEntries((profileRows ?? []).map((p) => [p.id, p]));
+  return prosby.map((p) => ({
+    ...p,
+    name: profile[p.userId]?.display_name ?? 'Gracz',
+    avatarUrl: profile[p.userId]?.avatar_url ?? undefined,
+  }));
+}
+
+/** Przyjęcie albo odrzucenie. Przyjęcie dopisuje do składu — `group_members`
+ *  nie ma polityki INSERT od `094`, więc robi to funkcja w bazie. */
+export async function rozpatrzProsbeDoGrupy(requestId: string, przyjmij: boolean): Promise<void> {
+  const { error } = await supabase.rpc('rozpatrz_prosbe_do_grupy', {
+    p_request_id: requestId,
+    p_akceptuj: przyjmij,
+  });
+  if (error) throw new Error(error.message);
+}
+
 /** Dopisanie osoby do grupy bez kodu — dla kogoś z `can_manage_members`. */
 export async function addMemberToGroup(groupId: string, userId: string): Promise<void> {
   const { error } = await supabase.rpc('dodaj_czlonka_do_grupy', { p_group_id: groupId, p_user_id: userId });
@@ -351,19 +450,6 @@ export async function regenerateJoinCode(groupId: string): Promise<string> {
   const { data, error } = await supabase.rpc('odswiez_kod_grupy', { p_group_id: groupId });
   if (error) throw new Error(error.message);
   return data as string;
-}
-
-/** Kto zaprosił: publiczny profil, zwracany tylko gdy naprawdę należy do tej
- *  grupy (patrz komentarz w `dolacz_do_grupy_kodem`, migracja `094`). Dla
- *  lądowania `/g/[kod]` — „Marek zaprasza Cię do ekipy". */
-export async function getInviter(userId: string, groupId: string): Promise<{ name: string; avatarUrl?: string } | null> {
-  const { data: memberRow } = await supabase
-    .from('group_members').select('user_id').eq('group_id', groupId).eq('user_id', userId).maybeSingle();
-  if (!memberRow) return null;
-  const { data: profile } = await supabase
-    .from('profiles').select('display_name, avatar_url').eq('id', userId).maybeSingle();
-  if (!profile?.display_name) return null;
-  return { name: profile.display_name, avatarUrl: profile.avatar_url ?? undefined };
 }
 
 export async function leaveGroup(groupId: string, userId: string): Promise<void> {

@@ -45,7 +45,10 @@ function adresPowiadomienia(dane: Record<string, unknown>): string {
   }
   if (dane.group_id) {
     const naTablice = typ === 'wiadomosc_w_grupie' || typ === 'ogloszenie_w_grupie';
-    return naTablice ? `/grupy/${dane.group_id}?tab=tablica` : `/grupy/${dane.group_id}`;
+    if (naTablice) return `/grupy/${dane.group_id}?tab=tablica`;
+    // Prośba o dołączenie do ekipy (`150`) — na Skład, gdzie stoi lista próśb.
+    if (typ === 'prosba_do_grupy') return `/grupy/${dane.group_id}?tab=sklad`;
+    return `/grupy/${dane.group_id}`;
   }
   // Turniej (145/146) — lustro gałęzi `celPowiadomienia()` w `lib/notifications.ts`.
   if (dane.turniej_id) {

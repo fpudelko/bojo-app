@@ -2720,6 +2720,38 @@ kurczy się od dołu przy niezmienionym `scrollTop`, więc najnowsza wiadomość
 krawędź dokładnie w chwili, gdy ktoś zaczynał na nią odpowiadać. Kto czytał starsze
 wiadomości (`atBottom === false`), zostaje przy nich.
 
+## Ekipa przed dołączeniem: nazwa i jeden przycisk (migracja `150`)
+
+Kto nie jest w ekipie, widzi na `/grupy/[id]` **nazwę, zdanie „To prywatna ekipa" i
+przycisk „Poproś o dołączenie"** (`components/groups/EkipaZamknieta.tsx`). Nie ma tam
+zakładek, składu, listy meczów ani statystyk — i **nie dlatego, że JSX je chowa**: baza
+nie odda tej osobie żadnej z tych rzeczy (patrz
+[docs/domena.md § Ekipa jest prywatna](./domena.md#ekipa-jest-prywatna--obcy-widzi-nazwę-i-nic-więcej-migracja-150)).
+`GroupDetailClient` rozpoznaje tę sytuację po tym, że `getGroup()` zwraca `null`,
+a `getGroupPublic()` — nazwę: pierwsze znaczy „nie należysz", drugie „taka ekipa
+istnieje". Zmyślony adres (obie funkcje puste) dalej kończy się „Nie znaleziono ekipy".
+
+Wejście z linkiem zaproszenia w adresie (`?dolacz=<kod>`) **nie pokazuje tego ekranu** —
+zamiast niego stoi „Dołączam do ekipy…", bo za chwilę ta osoba będzie członkiem
+i ekran prośby mignąłby tylko po to, żeby zniknąć.
+
+Do prośby można dopisać **notkę** (do 300 znaków, nieobowiązkowa). Jest ważniejsza niż
+przy prośbie o wejście do meczu: ekipa jest niewidoczna, więc rozpatrujący widzi samo
+imię z profilu i nie ma jak sprawdzić, skąd ten ktoś się wziął.
+
+**Prośby rozpatruje się w zakładce Skład**, nad listą członków
+(`components/groups/ProsbyDoEkipy.tsx`) — niebieska ramka, imię, notka i dwa przyciski
+(„Przyjmij" / odrzuć). Widzi ją założyciel i `can_manage_members`, czyli ci sami, którzy
+mogą dodać człowieka wprost. Niebieski, bo to „wymaga akceptacji uczestnictwa" — ta sama
+rodzina co prośba o dołączenie do meczu (AGENTS.md, Konwencje). Powiadomienie
+`prosba_do_grupy` prowadzi wprost na tę zakładkę (`?tab=sklad`), nie na domyślną „Mecze".
+
+**Odrzucenie trzyma tydzień** — ponowna prośba w tym czasie wraca wyjątkiem z gotową
+treścią. Bez tego „Poproś o dołączenie" jest przyciskiem „zawołaj założyciela",
+którego nie da się wyłączyć.
+
+---
+
 ## Uprawnienia w grupie i lądowanie zaproszenia `/g/[kod]`
 
 **Cztery niezależne przełączniki** (`can_manage_members`, `can_create_events`,
@@ -2733,10 +2765,13 @@ Strona ustawień grupy (`/grupy/[id]/edytuj`) ma od tej zmiany zakładki: **Ogó
 (nazwa, sport, miasto, boisko, opis, okładka, strefa niebezpieczna), **Zaproszenia**
 (link, kod, rotacja kodu) i, wyłącznie dla założyciela, **Uprawnienia**.
 
-**`/g/[kod]` to dziś lądowanie, nie sam redirect.** Serwerowy `page.tsx` czyta grupę,
-najbliższy mecz i (gdy w adresie jest `?od=<uuid>`, zweryfikowane w bazie) imię
-zapraszającego kluczem anonimowym — `groups` i `group_members` są publicznie czytelne,
-więc to działa bez konta. `ZaproszenieClient.tsx` renderuje to wszystko i, dla
+**`/g/[kod]` to dziś lądowanie, nie sam redirect.** Serwerowy `page.tsx` czyta nazwę
+ekipy, liczbę osób, najbliższy mecz i (gdy w adresie jest `?od=<uuid>`, zweryfikowane
+w bazie) imię zapraszającego — wszystko JEDNYM wywołaniem
+`podglad_zaproszenia_do_grupy(kod, od)`. Od migracji `150` `groups`, `group_members`
+i `events` nie są już publicznie czytelne, więc uprawnieniem jest tu sam KOD, dokładnie
+jak `claim_token` przy wpisie gościa; wynik to wizytówka (liczba osób, termin), nie
+skład. `ZaproszenieClient.tsx` renderuje to wszystko i, dla
 wylogowanego, formularz rejestracji (`AuthForm` w trybie `signup`, `next` wskazuje
 z powrotem na `/grupy/[id]?dolacz=<kod>&od=<uuid>`) — dokładnie ta sama miękka ścieżka,
 co przejęcie wpisu gościa (`/gracz/przejmij/[token]?auto=1`). Zalogowany odwiedzający

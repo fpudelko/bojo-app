@@ -110,6 +110,12 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO groups (id, name, created_by)
 VALUES (:EKIPA::uuid, 'Ekipa do testów RLS', :ORGANIZATOR::uuid);
 
+-- Kod dołączenia zapamiętujemy TERAZ, jeszcze jako superuser: od migracji
+-- `150` wiersz `groups` czyta wyłącznie członek, a sekcja „Ekipa jest
+-- prywatna" potrzebuje kodu w roli kogoś z zewnątrz (tak jak `token_goscia`
+-- niżej).
+SELECT join_code AS kod_ekipy FROM groups WHERE id = :EKIPA::uuid \gset
+
 -- Członek ekipy, który NIE jest zapisany na mecz — to on rozstrzyga, czy
 -- polityka rozmowy zna gałąź „mecz przypięty do ekipy".
 -- Założyciela dopisuje do ekipy wyzwalacz przy tworzeniu grupy, stąd
@@ -260,6 +266,114 @@ SELECT _oczekuj('członek ekipy widzi tablicę',
                 (SELECT count(*) FROM group_posts WHERE group_id = :EKIPA::uuid), 1);
 RESET ROLE;
 
+SELECT _sekcja('Ekipa jest prywatna (migracja 150)');
+
+-- PO CO. Do `150` `groups` i `group_members` miały politykę SELECT
+-- `USING (true)`, więc jedno zapytanie do REST-a oddawało skład KAŻDEJ ekipy
+-- w bazie i jej `join_code` — a kod jest jedyną kontrolą wejścia (`094`).
+-- Mecze ekipy szły tą samą drogą: `events` z `USING (true)` i filtr po
+-- `group_id`, który stoi w adresie każdego linku do ekipy.
+--
+-- Nazwa ZOSTAJE publiczna, ale wychodzi wąską funkcją, nie całym wierszem.
+
+-- Piąta tożsamość: ktoś z zewnątrz, kto prosi o wejście i zostaje przyjęty.
+-- `:OBCY` przechodzi tu ścieżkę odmowy, więc przyjęcie potrzebuje kogoś innego
+-- (odrzucenie blokuje ponowną prośbę na tydzień).
+\set PROSZACY '''aaaaaaaa-0000-4000-8000-000000000005'''
+INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data)
+VALUES (:PROSZACY::uuid, 'rls-proszacy@example.com', now(), '{"display_name":"Piotr Proszący"}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('niezalogowany nie widzi wiersza ekipy (czyli i kodu dołączenia)',
+                (SELECT count(*) FROM groups WHERE id = :EKIPA::uuid), 0);
+SELECT _oczekuj('niezalogowany nie widzi składu ekipy',
+                (SELECT count(*) FROM group_members WHERE group_id = :EKIPA::uuid), 0);
+SELECT _oczekuj('niezalogowany nie wylistuje meczów ekipy po group_id',
+                (SELECT count(*) FROM events WHERE group_id = :EKIPA::uuid), 0);
+-- ...ale nazwę widzi — na tym stoi podgląd linku na Messengerze.
+SELECT _oczekuj('niezalogowany DOSTAJE nazwę ekipy z grupa_publicznie()',
+                (SELECT count(*) FROM grupa_publicznie(:EKIPA::uuid) WHERE name = 'Ekipa do testów RLS'), 1);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj('obcy zalogowany też nie widzi ani wiersza ekipy, ani składu',
+                (SELECT (SELECT count(*) FROM groups WHERE id = :EKIPA::uuid)
+                      + (SELECT count(*) FROM group_members WHERE group_id = :EKIPA::uuid)), 0);
+SELECT _oczekuj('obcy nie widzi prywatnego meczu ekipy',
+                (SELECT count(*) FROM events WHERE id = :MECZ::uuid), 0);
+
+-- Kod dołączenia dalej wpuszcza od ręki — to jest ta druga droga, obok prośby.
+-- Podgląd zaproszenia wydaje wizytówkę ekipy temu, kto ma kod: liczbę osób,
+-- nie skład.
+SELECT _oczekuj('kto ma kod, dostaje wizytówkę ekipy (bez składu)',
+                (SELECT count(*) FROM podglad_zaproszenia_do_grupy(:'kod_ekipy', NULL)
+                  WHERE name = 'Ekipa do testów RLS' AND member_count = 2), 1);
+
+-- Prośby nie da się wstawić wprost — jedyną drogą jest funkcja, bo przyjęcie
+-- musi pisać do `group_members`, gdzie od `094` nie ma polityki INSERT.
+SELECT _oczekuj_odmowe('obcy nie wstawi prośby z pominięciem funkcji', format(
+  'INSERT INTO group_join_requests (group_id, user_id) VALUES (%L, %L)', :EKIPA, :OBCY));
+
+SELECT popros_o_dolaczenie_do_grupy(:EKIPA::uuid, 'Gram z Czarkiem w czwartki');
+SELECT _oczekuj('prośba czeka i widzi ją proszący',
+                (SELECT count(*) FROM group_join_requests
+                  WHERE group_id = :EKIPA::uuid AND user_id = :OBCY::uuid AND status = 'oczekuje'), 1);
+SELECT _oczekuj('prośba NIE wpuszcza do ekipy',
+                (SELECT count(*) FROM groups WHERE id = :EKIPA::uuid), 0);
+SELECT _oczekuj_wyjatek('proszący nie przyjmie własnej prośby', format(
+  'SELECT rozpatrz_prosbe_do_grupy((SELECT id FROM group_join_requests
+      WHERE group_id = %L AND user_id = %L), true)', :EKIPA, :OBCY));
+
+-- Członek bez `can_manage_members` prośby nie widzi i nie rozpatrzy.
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT _oczekuj('zwykły członek nie widzi cudzych próśb',
+                (SELECT count(*) FROM group_join_requests WHERE group_id = :EKIPA::uuid), 0);
+SELECT _oczekuj_wyjatek('zwykły członek nie rozpatrzy prośby', format(
+  'SELECT rozpatrz_prosbe_do_grupy((SELECT id FROM group_join_requests
+      WHERE group_id = %L AND user_id = %L), true)', :EKIPA, :OBCY));
+
+-- Założyciel widzi, odrzuca — i odrzucony nie wraca tego samego dnia.
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj('założyciel widzi prośbę razem z notką',
+                (SELECT count(*) FROM group_join_requests
+                  WHERE group_id = :EKIPA::uuid AND wiadomosc = 'Gram z Czarkiem w czwartki'), 1);
+SELECT _oczekuj('założyciel dostał dzwonek o prośbie',
+                (SELECT count(*) FROM notifications
+                  WHERE user_id = :ORGANIZATOR::uuid AND type = 'prosba_do_grupy'), 1);
+SELECT rozpatrz_prosbe_do_grupy(
+  (SELECT id FROM group_join_requests WHERE group_id = :EKIPA::uuid AND user_id = :OBCY::uuid), false);
+
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj('odrzucony wie, że dostał odpowiedź',
+                (SELECT count(*) FROM notifications
+                  WHERE user_id = :OBCY::uuid AND type = 'prosba_do_grupy_odrzucona'), 1);
+SELECT _oczekuj_wyjatek('odrzucony nie prosi drugi raz tego samego dnia', format(
+  'SELECT popros_o_dolaczenie_do_grupy(%L)', :EKIPA));
+SELECT _oczekuj('odrzucenie NIE wpuszcza do ekipy',
+                (SELECT count(*) FROM group_members WHERE group_id = :EKIPA::uuid AND user_id = :OBCY::uuid), 0);
+
+-- Druga strona: przyjęcie otwiera wszystko, co ekipa ma za bramką.
+SELECT set_config('request.jwt.claim.sub', :PROSZACY, false);
+SELECT popros_o_dolaczenie_do_grupy(:EKIPA::uuid, NULL);
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT rozpatrz_prosbe_do_grupy(
+  (SELECT id FROM group_join_requests WHERE group_id = :EKIPA::uuid AND user_id = :PROSZACY::uuid), true);
+SELECT set_config('request.jwt.claim.sub', :PROSZACY, false);
+SELECT _oczekuj('przyjęty jest w składzie ekipy',
+                (SELECT count(*) FROM group_members
+                  WHERE group_id = :EKIPA::uuid AND user_id = :PROSZACY::uuid), 1);
+SELECT _oczekuj('przyjęty widzi ekipę, jej skład i jej prywatny mecz',
+                (SELECT (SELECT count(*) FROM groups WHERE id = :EKIPA::uuid)
+                      + (SELECT count(*) FROM group_members WHERE group_id = :EKIPA::uuid)
+                      + (SELECT count(*) FROM events WHERE id = :MECZ::uuid)), 5);
+SELECT _oczekuj('przyjęty wie, że go przyjęto',
+                (SELECT count(*) FROM notifications
+                  WHERE user_id = :PROSZACY::uuid AND type = 'prosba_do_grupy_przyjeta'), 1);
+RESET ROLE;
+
 SELECT _sekcja('RLS: rozmowy prywatne (dm_messages, migracja 125)');
 
 -- Ta sekcja jest ważniejsza od pozostałych: rozmowa meczu jest półpubliczna
@@ -325,11 +439,12 @@ RESET ROLE;
 
 SELECT _sekcja('Prywatne kolumny składu (migracja 127)');
 
--- Polityka na `event_participants` nadal ma `USING (true)` — skład meczu jest
--- publiczny i taki ma zostać. Granicą są tu UPRAWNIENIA KOLUMNOWE: e-mail
--- gościa, telefony i tokeny wychodzą z listy czytelnej przez API. Postgres
--- odpowiada na to wyjątkiem `insufficient_privilege`, nie pustym wynikiem,
--- więc sprawdzamy tym samym pomocnikiem co odbite zapisy.
+-- Polityka wierszowa na `event_participants` chowa dziś skład meczu ekipy
+-- (migracja `150`), ale to DRUGA, niezależna warstwa. Ta sekcja pilnuje
+-- pierwszej: UPRAWNIEŃ KOLUMNOWYCH. E-mail gościa, telefony i tokeny wychodzą
+-- z listy czytelnej przez API dla KAŻDEGO meczu, także publicznego, i Postgres
+-- odpowiada na nie wyjątkiem `insufficient_privilege`, nie pustym wynikiem —
+-- więc sprawdzamy je tym samym pomocnikiem co odbite zapisy.
 SET ROLE anon;
 SELECT set_config('request.jwt.claim.sub', '', false);
 SELECT _oczekuj_odmowe('anon NIE czyta e-maila gościa',
@@ -342,9 +457,21 @@ SELECT _oczekuj_odmowe('anon NIE czyta telefonu uczestnika',
 -- wymieniać kolumny z nazwy (patrz kolejność wdrożenia w migracji 127).
 SELECT _oczekuj_odmowe('anon NIE pobierze całego wiersza przez select(*)',
   format('SELECT * FROM event_participants WHERE event_id = %L', :MECZ));
--- ...ale sam skład zostaje publiczny. Bez tej asercji łatwo „naprawić"
--- wyciek, zamykając przy okazji stronę meczu dla zaproszonych.
-SELECT _oczekuj('anon NADAL czyta skład (imię, rola, rezerwa)',
+-- Skład meczu EKIPY zniknął anonimowi razem z samym meczem (migracja `150`,
+-- polityka „Sklad widoczny razem z meczem") — wcześniej stała tu asercja
+-- odwrotna, w sekcji „ZNANE, ŚWIADOMIE OTWARTE".
+SELECT _oczekuj('anon NIE czyta składu meczu ekipy',
+                (SELECT count(*) FROM (
+                   SELECT name, is_reserve, is_goalkeeper, pending_approval
+                     FROM event_participants WHERE event_id = :MECZ::uuid) s), 0);
+RESET ROLE;
+
+-- Druga strona tej samej reguły: skład meczu, który anon WIDZI, ma dalej być
+-- czytelny. Bez tej asercji łatwo „naprawić" wyciek, zamykając przy okazji
+-- stronę zwykłego meczu dla kogoś z linku.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT _oczekuj('uczestnik NADAL czyta skład (imię, rola, rezerwa)',
                 (SELECT count(*) FROM (
                    SELECT name, is_reserve, is_goalkeeper, pending_approval
                      FROM event_participants WHERE event_id = :MECZ::uuid) s), 2);
@@ -639,15 +766,25 @@ SELECT _sekcja('ZNANE, ŚWIADOMIE OTWARTE (nie regresje — stan do domknięcia)
 -- którąś z tych polityk, test tutaj spadnie — i to jest sygnał do zmiany
 -- oczekiwania w tym pliku, a nie do cofania poprawki. Bez nich rozmowa o tym,
 -- co jeszcze jest otwarte, opiera się na pamięci.
+-- Mecz prywatny BEZ EKIPY zostaje otwarty dla każdego, kto zna adres —
+-- to nie niedopatrzenie, tylko cały model „private = unlisted" z migracji
+-- `002`: taki link wkleja się znajomym na czacie i ma działać bez konta.
+-- Migracja `150` zabrała to WYŁĄCZNIE meczom przypiętym do ekipy, bo tam
+-- publicznością jest ekipa (asercje w sekcji „Ekipa jest prywatna" wyżej).
+\set MECZ_SAM '''bbbbbbbb-0000-4000-8000-000000000009'''
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title)
+VALUES (:MECZ_SAM::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko bez ekipy',
+        CURRENT_DATE + 5, '20:00', 10, 'private', 'Mecz prywatny bez ekipy');
+INSERT INTO event_participants (event_id, user_id, name, is_guest)
+VALUES (:MECZ_SAM::uuid, NULL, 'Gość Bez Ekipy', true);
+
 SET ROLE anon;
 SELECT set_config('request.jwt.claim.sub', '', false);
-SELECT _oczekuj('OTWARTE: mecz prywatny czyta każdy (events USING true)',
-                (SELECT count(*) FROM events WHERE id = :MECZ::uuid), 1);
--- Skład (imiona, role, rezerwa) czyta każdy — polityka wierszowa nadal
--- `USING (true)`. Token i e-mail gościa już NIE: to załatwiła migracja `127`
--- uprawnieniami kolumnowymi, asercje wyżej.
-SELECT _oczekuj('OTWARTE: skład meczu prywatnego czyta każdy (event_participants USING true)',
-                (SELECT count(*) FROM event_participants WHERE event_id = :MECZ::uuid AND is_guest), 1);
+SELECT _oczekuj('OTWARTE: mecz prywatny BEZ ekipy czyta każdy (dzielony linkiem)',
+                (SELECT count(*) FROM events WHERE id = :MECZ_SAM::uuid), 1);
+SELECT _oczekuj('OTWARTE: skład takiego meczu też czyta każdy',
+                (SELECT count(*) FROM event_participants WHERE event_id = :MECZ_SAM::uuid), 1);
 RESET ROLE;
 
 SELECT _sekcja('Gość zarządza swoim zapisem (migracja 128)');

@@ -124,12 +124,15 @@ aplikacja tego nie mówiła, `llms.txt` twierdziło wprost „trzeciego poziomu 
 nie ma", a organizator musiał się domyślać. Pełny opis → [docs/domena.md §
 Grupy](./docs/domena.md#grupy).
 
-**Wciąż otwarte, świadomie poza tym zakresem:** ogólna polityka `Events readable by
-all` na `events` ma nadal warunek `USING (true)` — każdy, także niezalogowany, może
-odczytać wszystkie mecze, w tym prywatne. `getMyGroupEvents()` działa dziś **wyłącznie
-dzięki tej luźnej polityce**. Domknięcie RLS na `events` bez jednoczesnej przebudowy tej
-funkcji po cichu urwałoby mecze grupowe z list, bez błędu — patrz §5 niżej. To osobne
-zadanie z osobnym ryzykiem, nie robimy go przy okazji.
+**Domknięte dla meczów EKIPY migracją `150` (2026-09-15).** Polityka `Events readable by
+all` ustąpiła polityce „Mecz ekipy widzi ekipa": mecz prywatny z `group_id` widzi
+członek ekipy, skład meczu, imiennie zaproszony, delegat i organizator — czyli
+zachowanie, które ten punkt opisuje jako „widoczne dla grupy", ma dziś pokrycie
+w bazie, a nie tylko w listowaniu po `group_id`. CHECK na `events.visibility` dalej
+ma dwie wartości i to się nie zmienia. `getMyGroupEvents()` działa bez zmian, bo
+członek przechodzi przez `czy_widoczny_mecz()`. **Mecz prywatny BEZ ekipy** zostaje
+czytelny dla każdego, kto zna adres — to jest cały model „unlisted, dzielony linkiem"
+z `002`, nie luka.
 
 ### 1.2 Powiadomienie dla członków grupy o utworzeniu gry — ZROBIONE
 Wizja stawia to jako część propozycji „Grupy — zastąpienie facebook/whatsapp". Bez
@@ -325,13 +328,16 @@ gęstość poza Poznaniem wciąż będzie odstawać), gdy ten import się domkni
       Dziś filtr `RELEVANT_SPORTS` jest **po stronie klienta** (`VenueExplorer`).
       Docelowo: `map_visibility = 'hidden'` w bazie + panel admina do przeglądu.
 - [ ] **Zod — walidacja danych z bazy** (mappery `toEvent`, `toField`).
-- [ ] **Domknąć reguły dostępu w RLS na `events`** — część sprawdzana dziś po stronie
-      przeglądarki. **Kolejność ma znaczenie:** naprawić `getMyGroupEvents()` PRZED
-      dociągnięciem polityki na `events` (patrz ustalenie z 2026-08-04 niżej) —
-      funkcja dziś zależy wyłącznie od luźnego warunku `true`, więc domknięcie RLS bez
-      jednoczesnej przebudowy tej funkcji po cichu urwie mecze grupowe z list, bez błędu.
-      **Nadal otwarte** po rundzie „Grupy jako magnes na organizatora" (2026-08-14) —
-      świadomie poza jej zakresem, patrz §1.1 wyżej.
+- [ ] **Domknąć reguły dostępu w RLS na `events` — CZĘŚĆ ZROBIONA (migracja `150`).**
+      Mecz prywatny przypięty do ekipy przestał być czytelny dla świata: polityka
+      „Mecz ekipy widzi ekipa" + `czy_widoczny_mecz()` (członek ekipy, skład meczu,
+      imiennie zaproszony, delegat, organizator), a `event_participants` idzie za
+      meczem. `getMyGroupEvents()` działa dalej, bo członek przechodzi przez tę funkcję —
+      obawa z tego punktu została zaadresowana wprost, nie ominięta. Przy okazji
+      skasowana polityka „Join code lookup" (`041`), której warunek `join_code IS NOT
+      NULL` otwierał KAŻDY wiersz i milcząco unieważniał każdą nową politykę SELECT.
+      **Zostaje otwarte:** mecz prywatny BEZ ekipy — dalej `„unlisted", dzielony linkiem`
+      (świadomy model z `002`, pilnowany asercją w `supabase/test/rls.sql`).
 - [x] **`group_members` przyjmowało INSERT od każdego, kto znał UUID grupy —
       naprawione.** (2026-08-14) Polityka `"Users join groups"` z migracji `044`
       sprawdzała wyłącznie `auth.uid() = user_id`; `join_code` filtrował dopiero
@@ -372,14 +378,16 @@ gęstość poza Poznaniem wciąż będzie odstawać), gdy ten import się domkni
       otwarciu `/` (zapis do bazy przy każdej wizycie każdego użytkownika byłby zbyt
       kosztowny) — liczniki miejsc na kartach dashboardu mogą więc być nieaktualne,
       dopóki ktoś nie wejdzie w konkretny mecz.
-- [ ] **Potwierdzone na produkcji przez Supabase MCP (2026-08-04):** polityka RLS
-      `Events readable by all` na `events` ma warunek `true` — każdy, także
-      niezalogowany, może odczytać WSZYSTKIE mecze, w tym prywatne. Kod dołączenia
-      (`join_code`) chroni tylko w UI, nie w bazie — potwierdza to punkt „Domknąć
-      reguły dostępu w RLS" wyżej, tym razem z realnym zapytaniem, nie tylko
-      podejrzeniem. `getMyGroupEvents()` (mecze grup, w tym prywatne — `lib/events.ts`)
-      działa dziś **wyłącznie dzięki tej luźnej polityce**: gdy ktoś RLS domknie, ta
-      funkcja po cichu zacznie zwracać mniej wierszy, bez błędu.
+- [x] **Potwierdzone na produkcji przez Supabase MCP (2026-08-04), ZAADRESOWANE
+      migracją `150` (2026-09-15):** polityka `Events readable by all` miała warunek
+      `true`, więc każdy — także niezalogowany — czytał WSZYSTKIE mecze, w tym
+      prywatne. Drugie tyle robiła polityka „Join code lookup" (`041`) z warunkiem
+      `join_code IS NOT NULL`, prawdziwym dla każdego wiersza. Dziś mecz prywatny
+      przypięty do ekipy widzi wyłącznie ekipa (plus skład, zaproszeni imiennie,
+      delegaci i organizator). `getMyGroupEvents()` nie urwało wierszy — członek ekipy
+      przechodzi przez `czy_widoczny_mecz()`; pilnują tego asercje w
+      `supabase/test/rls.sql`. Mecz prywatny BEZ ekipy zostaje otwarty dla każdego,
+      kto ma link — świadomie.
 - [x] **`event_participants.claim_token` jest czytelny dla każdego.** ZROBIONE
       migracją `127` (2026-09-02) — i szerzej, niż opisywał ten punkt: razem z tokenem
       z zasięgu ról API wyszły `guest_email`, `guest_phone`, `phone`

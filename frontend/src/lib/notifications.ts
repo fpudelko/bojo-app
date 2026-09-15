@@ -38,7 +38,11 @@ export function celPowiadomienia(n: AppNotification): string | null {
   // prowadzą na samą grupę, na zakładkę „Rozmowa" (`tablica` w URL-u).
   if (n.groupId) {
     const naTablice = n.type === 'wiadomosc_w_grupie' || n.type === 'ogloszenie_w_grupie';
-    return naTablice ? `/grupy/${n.groupId}?tab=tablica` : `/grupy/${n.groupId}`;
+    if (naTablice) return `/grupy/${n.groupId}?tab=tablica`;
+    // Prośba o dołączenie do ekipy (`150`) prowadzi na Skład — tam stoi lista
+    // próśb z przyciskami. Domyślna zakładka „Mecze" kazałaby szukać.
+    if (n.type === 'prosba_do_grupy') return `/grupy/${n.groupId}?tab=sklad`;
+    return `/grupy/${n.groupId}`;
   }
   // Turniej (145/146). Dwa typy proszą ORGANIZATORA o decyzję — prowadzą
   // wprost do panelu, nie na publiczną stronę turnieju, którą i tak zna na
@@ -85,7 +89,7 @@ export async function getMyNotifications(limit = 20): Promise<AppNotification[]>
 }
 
 /** Typy powiadomień, które proszą użytkownika o zrobienie czegoś. */
-export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered', 'pytanie_o_udzial', 'zaproszenie_na_mecz', 'turniej_zgloszenie_druzyny']);
+export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'prosba_do_grupy', 'reserve_claim_offered', 'pytanie_o_udzial', 'zaproszenie_na_mecz', 'turniej_zgloszenie_druzyny']);
 
 /**
  * Które z tych powiadomień mają jeszcze COŚ DO ZROBIENIA.
