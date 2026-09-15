@@ -27,7 +27,11 @@ export default function EventsListClient() {
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header hideMobileBarForUser />
       <main className="flex-1">
-        <EventsListView widzianoWczesniej={widzianoWczesniej} />
+        {/* `zarzadzaAdresem` TYLKO tutaj, nie w `LoginBackdrop` — patrz opis
+            propa. To ta sama granica co przy znaczniku „widziano listę" wyżej:
+            tło ekranu logowania nie jest ani wizytą na liście, ani jej
+            adresem. */}
+        <EventsListView widzianoWczesniej={widzianoWczesniej} zarzadzaAdresem />
       </main>
     </div>
   );

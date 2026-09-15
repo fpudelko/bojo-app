@@ -1,7 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import SportChip from '@/components/ui/SportChip';
-import { domyslneZFiltrow, PROMIEN_MIN, PROMIEN_MAX, PROMIEN_DOMYSLNY } from '@/lib/alerts';
+import { domyslneZFiltrow, PROMIEN_DOMYSLNY } from '@/lib/alerts';
+import { PROMIENIE_SUWAK_KM } from '@/lib/miejscowosci';
 
 afterEach(cleanup);
 
@@ -25,13 +28,28 @@ describe('domyslneZFiltrow — okno alertu nie pyta o to, co już powiedziały f
     expect(domyslneZFiltrow({ sports: [], radiusKm: null, pozycja: null }).sport).toBeUndefined();
   });
 
-  it('promień z filtrów wchodzi wprost', () => {
-    expect(domyslneZFiltrow({ sports: [], radiusKm: 8, pozycja: null }).radiusKm).toBe(8);
+  it('promień z filtrów trafia na najbliższy przystanek skali, nie między dwa', () => {
+    // Od 2026-09-14 okno alertu używa TEJ SAMEJ skali co filtry
+    // (`PROMIENIE_SUWAK_KM`), więc 8 km — które przystankiem nie jest —
+    // siada na 7, a nie zostaje wartością, której suwak nie umie pokazać.
+    expect(domyslneZFiltrow({ sports: [], radiusKm: 8, pozycja: null }).radiusKm).toBe(7);
+    expect(domyslneZFiltrow({ sports: [], radiusKm: 10, pozycja: null }).radiusKm).toBe(10);
   });
 
-  it('filtr chodzi od 1 km, suwak alertu od 3 — wartość spoza skali jest przycinana, nie przenoszona', () => {
-    expect(domyslneZFiltrow({ sports: [], radiusKm: 1, pozycja: null }).radiusKm).toBe(PROMIEN_MIN);
-    expect(domyslneZFiltrow({ sports: [], radiusKm: 99, pozycja: null }).radiusKm).toBe(PROMIEN_MAX);
+  it('cały zakres filtrów mieści się w alercie — nic już nie jest przycinane', () => {
+    // Dawniej alert miał własny, węższy zakres 3–30 km i wartości spoza niego
+    // przycinał: kto szukał w promieniu 1 km, dostawał alert na 3 km, czyli
+    // o czymś innym, niż prosił. Skala jest teraz wspólna, więc oba skraje
+    // przechodzą bez zmiany.
+    expect(domyslneZFiltrow({ sports: [], radiusKm: 1, pozycja: null }).radiusKm).toBe(1);
+    expect(domyslneZFiltrow({ sports: [], radiusKm: 100, pozycja: null }).radiusKm).toBe(100);
+  });
+
+  it('promień alertu zawsze jest przystankiem skali suwaka', () => {
+    for (const km of [1, 4, 8, 13, 33, 99, 500]) {
+      const wynik = domyslneZFiltrow({ sports: [], radiusKm: km, pozycja: null }).radiusKm;
+      expect(PROMIENIE_SUWAK_KM).toContain(wynik);
+    }
   });
 
   it('bez promienia w filtrach — wartość domyślna, nie zero', () => {
@@ -71,5 +89,40 @@ describe('SportChip — sama ikona, nazwa tylko dla dostępności', () => {
       expect(klasyNiewybranej).toContain(rozmiar);
       expect(klasyWybranej).toContain(rozmiar);
     }
+  });
+});
+
+describe('okno alertu ma WŁASNE pole miejscowości', () => {
+  // Zgłoszone wprost ze zrzutu: „nie da się lokalizacji wskazać".
+  //
+  // Przez pół dnia okno nie miało pola miejscowości — zakładaliśmy, że punkt
+  // przyjdzie z filtrów (`domyslneZFiltrow`), a gdyby nie przyszedł, wystarczy
+  // przycisk „Użyj mojej lokalizacji". Założenie pomijało przypadek, w którym
+  // alert otwiera ktoś, kto filtrów jeszcze nie ruszył, W PRZEGLĄDARCE
+  // WBUDOWANEJ W INNĄ APLIKACJĘ — tam geolokalizacja bywa zablokowana i okno
+  // kończyło się ślepo: przycisk, który nic nie daje, i wyszarzony zapis.
+  //
+  // Test jest statyczny (czyta źródło), bo wyrenderowanie całego okna wymaga
+  // atrapy sesji, pusha i Supabase — a pilnowana rzecz jest prostsza niż to:
+  // czy w oknie w ogóle JEST kontrolka przyjmująca wpisaną miejscowość.
+  // Ten sam wzorzec co `maskiZrzutow.test.ts` i `typyPowiadomien.test.ts`.
+  const zrodlo = readFileSync(
+    join(process.cwd(), 'src/components/home/AlertSetupDialog.tsx'), 'utf8');
+
+  it('używa `WyborMiejscowosci`, czyli pola na nazwę albo kod pocztowy', () => {
+    expect(zrodlo).toContain("from '@/components/map/WyborMiejscowosci'");
+    expect(zrodlo).toContain('<WyborMiejscowosci');
+  });
+
+  it('nie opiera się WYŁĄCZNIE na przycisku lokalizacji', () => {
+    // `PrzyciskMojaLokalizacja` siedzi w środku `WyborMiejscowosci` jako
+    // skrót obok pola. Gdyby wrócił tu jako jedyna droga, wróciłby też błąd.
+    const samPrzycisk = zrodlo.includes('PrzyciskMojaLokalizacja')
+      && !zrodlo.includes('<WyborMiejscowosci');
+    expect(samPrzycisk).toBe(false);
+  });
+
+  it('pyta też o sport — alert bez tego łapie wszystko, o co nikt nie prosił', () => {
+    expect(zrodlo).toContain('<SportChip');
   });
 });

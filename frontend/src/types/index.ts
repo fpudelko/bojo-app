@@ -462,6 +462,12 @@ export interface GameAlert {
   cityLabel?: string;
   isActive: boolean;
   createdAt: string;
+  /** Kiedy alert gaśnie sam; `undefined` = bezterminowo (migracja `149`). */
+  expiresAt?: string;
+  /** Para godzin 0–23 albo oba puste = dowolna pora dnia meczu. */
+  godzinaOd?: number;
+  godzinaDo?: number;
+  kanalEmail: boolean;
 }
 
 export interface AppNotification {

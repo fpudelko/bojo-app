@@ -88,9 +88,26 @@ interface Props {
    *  rejestrację, więc musi pokazać formularz zakładania konta, a nie
    *  logowania. Bez tego obietnica z paska rozjeżdża się z tym, co widać. */
   initialMode?: Mode;
+  /**
+   * PO CO KTOŚ TU TRAFIŁ — 2026-09-15, zgłoszone w przeglądzie powiadomień:
+   * „ekran logowania nie mówi, po co tam trafiłem". Wylogowany klikał
+   * „Powiadom mnie o takich meczach" i dostawał ogólne „wejdź na swoje konto,
+   * żeby grać i organizować mecze" — odpowiedź na pytanie, którego nie zadał.
+   *
+   * Świadomie JEDNO pole, nie słownik wszystkich możliwych powodów: dopisuje
+   * się je wtedy, gdy przekierowanie naprawdę powstaje w konkretnym miejscu
+   * i da się powiedzieć coś konkretnego. Nieznana wartość wraca do zdania
+   * ogólnego, więc literówka w adresie niczego nie psuje.
+   */
+  powod?: string;
 }
 
-export default function AuthForm({ next, onSuccess, initialMode }: Props) {
+/** Zdanie pod nagłówkiem logowania, zależne od tego, skąd ktoś przyszedł. */
+const POWODY: Record<string, string> = {
+  alert: 'Zaloguj się, żeby dostawać powiadomienia o nowych meczach — alert przypiszemy do Twojego konta.',
+};
+
+export default function AuthForm({ next, onSuccess, initialMode, powod }: Props) {
   const router = useRouter();
   const { signInWithGoogle, signInWithEmail, signUpWithEmail, sendMagicLink, sendPasswordReset } = useAuth();
 
@@ -176,7 +193,7 @@ export default function AuthForm({ next, onSuccess, initialMode }: Props) {
     <div>
       <h2 className="font-display text-2xl font-bold tracking-tight text-ink">{TITLES[mode]}</h2>
       <p className="mt-1 text-sm text-slate-500">
-        {mode === 'signin' && 'Wejdź na swoje konto, żeby grać i organizować mecze.'}
+        {mode === 'signin' && ((powod && POWODY[powod]) || 'Wejdź na swoje konto, żeby grać i organizować mecze.')}
         {mode === 'signup' && 'Załóż konto w kilka sekund — wystarczy e-mail.'}
         {mode === 'magic' && 'Wyślemy Ci jednorazowy link — bez hasła.'}
         {mode === 'reset' && 'Podaj e-mail, a wyślemy link do zmiany hasła.'}

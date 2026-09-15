@@ -9,7 +9,7 @@
 
 | # | Decyzja | Konsekwencja w kodzie |
 |---|---|---|
-| 1 | Stary moduł turniejowy znika | Front kasujemy w Etapie 0, sześć tabel `tournament_*` migracją `149` w Etapie 4 |
+| 1 | Stary moduł turniejowy znika | Front kasujemy w Etapie 0, sześć tabel `tournament_*` migracją `151` w Etapie 4 |
 | 2 | Polskie nazwy tabel | `turnieje`, `turniej_*`; brak kolizji ze starym schematem |
 | 3 | Ściana logowania na składach i statystykach | `turniej_zawodnicy` i `turniej_zdarzenia`: SELECT wyłącznie `auth.uid() IS NOT NULL` |
 | 4 | MVP wybiera prowadzący | `turniej_mecze.mvp_zawodnik_id`, bez tabeli głosów |
@@ -23,8 +23,8 @@ supabase/migrations/
   145_turnieje_fundament.sql          E0   turnieje, osoby, drużyny, zawodnicy, RLS, 4 powiadomienia
   146_turniej_terminarz.sql           E1   grupy, areny, mecze, propagacja, przesunięcie
   147_turniej_rozgrywka.sql           E2   zdarzenia, wynik, zakoncz_mecz, 2 powiadomienia
-  148_turniej_ogloszenia_blik.sql     E4   ogłoszenia, BLIK, 1 powiadomienie
-  149_zegnaj_stary_turniej.sql        E4   DROP tournament_* (uruchamiana świadomie)
+  150_turniej_ogloszenia_blik.sql     E4   ogłoszenia, BLIK, 1 powiadomienie
+  151_zegnaj_stary_turniej.sql        E4   DROP tournament_* (uruchamiana świadomie)
 supabase/test/rls.sql                 E0+  sekcja turniejowa rośnie z każdym etapem
 supabase/zapytania/stan-migracji.sql  E0+  znaczniki nowych tabel
 supabase/seed_turniej.sql             E4   marker [TUR]
@@ -338,7 +338,7 @@ Do wklejenia w `supabase/migrations/145_turnieje_fundament.sql`. Idempotentna.
 -- mecze same przez tygodnie, a wynik zgłasza kapitan i potwierdza rywal. Tu
 -- turniej zakłada każdy organizator, terminarz powstaje z góry, a wynik wpisuje
 -- prowadzący przy boisku. Polskie nazwy pozwalają obu modelom istnieć obok
--- siebie przez czas przenosin; stare tabele kasuje migracja `149`.
+-- siebie przez czas przenosin; stare tabele kasuje migracja `151`.
 --
 -- ŚCIANA LOGOWANIA. Skład drużyny i zdarzenia meczu czyta WYŁĄCZNIE zalogowany.
 -- To jest decyzja produktowa (konto jako cena za statystyki) i RODO naraz —
@@ -410,7 +410,7 @@ CREATE TRIGGER trg_turnieje_updated BEFORE UPDATE ON turnieje
 
 COMMENT ON TABLE turnieje IS
   'Turniej amatorski prowadzony w Bojo (migracja 145). Nie mylić z tabelą '
-  '`tournaments` (029) — tamta to nieużywany BOJO Community Cup, kasowany w 149.';
+  '`tournaments` (029) — tamta to nieużywany BOJO Community Cup, kasowany w 151.';
 
 
 -- ── 2. Uprawnienia: współorganizatorzy i prowadzący ─────────────────────────
@@ -1153,7 +1153,7 @@ Atrapa PostgREST musi oddawać 406 PGRST116 na `.single()` przy zerze wierszy.
 
 ## I–L. Etapy 1–4
 
-Pełny opis (migracje 146–149, `lib/turniejFormat.ts`, `lib/turniejMecze.ts`, konsola
+Pełny opis (migracje 146–147 i 150–151, `lib/turniejFormat.ts`, `lib/turniejMecze.ts`, konsola
 prowadzącego, tabela/statystyki, domknięcie) — patrz historia tego dokumentu / kolejne PR-y.
 Skrót:
 
@@ -1164,7 +1164,7 @@ Skrót:
   prowadzącego, optymistyczne zapisy, „Cofnij ostatnie".
 - **Etap 3 (bez migracji):** `lib/turniejTabela.ts`, `lib/turniejStatystyki.ts` — czyste funkcje;
   drabinka jako pionowa lista rund na telefonie, drzewko od `md:`.
-- **Etap 4 (148, 149):** ogłoszenia, `turniej_blik`, „Zamień drużynę w ekipę", OG image,
+- **Etap 4 (150, 151):** ogłoszenia, `turniej_blik`, „Zamień drużynę w ekipę", OG image,
   kasowanie `tournament_*`, odmrożenie `SHOW_TURNIEJE`.
 
 ## M. Kolejność prac wewnątrz etapu

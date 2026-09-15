@@ -46,7 +46,11 @@ test('Enter w polu miejscowości wybiera pierwszą podpowiedź', async ({ page }
   await pole.press('Enter');
 
   // Wybrana miejscowość zamienia pole tekstowe na chip z nazwą + promień.
+  // Promień to od 2026-09-14 SUWAK, nie cztery pigułki „5 km / 10 km / …",
+  // więc lokator celuje w rolę `slider` po etykiecie, a nie w przycisk
+  // o nazwie „N km". Rola jest trwalsza niż tekst wartości: ta zmienia się
+  // przy każdym ruchu suwaka.
   await expect(page.getByText('Kraków').filter({ visible: true }).first()).toBeVisible();
-  await expect(page.getByRole('button', { name: /^\d+ km$/ }).filter({ visible: true }).first())
+  await expect(page.getByRole('slider', { name: 'W promieniu' }).filter({ visible: true }).first())
     .toBeVisible();
 });

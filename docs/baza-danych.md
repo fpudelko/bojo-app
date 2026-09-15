@@ -1,9 +1,10 @@
 # Baza danych
 
-146 migracji (`001`–`148`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
+147 migracji (`001`–`149`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
 `supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
 
 ---
+
 
 ## ⚠️ Migracje uruchamia się RĘCZNIE
 
@@ -125,7 +126,7 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `player_match_stats` | `014` | Statystyki per mecz |
 | `rate_limits` | `016` | Limity (m.in. usuwanie konta) |
 | `field_outreach` | `020` | CRM kontaktu z obiektami |
-| `game_alerts` | `025` | Alerty o grach w okolicy |
+| `game_alerts` | `025`, `149` | Alerty o grach w okolicy. Od `149`: `expires_at` (NULL = bezterminowo, wartość domyślna), `godzina_od`/`godzina_do` (para albo oba NULL, pilnuje `CHECK`), `kanal_email`, `wylacz_token` (sekret z linku „nie chcę więcej”). **Dwa różne czasy w jednej tabeli**: `expires_at` mówi, jak długo żyje ALERT, a godziny — o jakich MECZACH powiadamiać. Interfejs nazywa je osobno, bo zlanie ich w jedno „kiedy” jest najkrótszą drogą do tego, żeby nikt nie wiedział, co ustawia |
 | `notifications` | `025` | Powiadomienia in-app. `claim_token` (`084`) — dla typu `niepotwierdzony_wpis_goscia`, link do przejęcia wpisu |
 | `event_comments` | `026` | Komentarze pod meczem |
 | `field_comments` | `063` | Komentarze pod obiektem z katalogu boisk — osobne od `event_comments`, bo przeżywają pojedynczy mecz |
@@ -139,7 +140,7 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `team_proposals` | `059` | Propozycje składów od uczestników |
 | `team_proposal_picks` | `059` | Przypisania graczy w propozycji |
 | `team_proposal_votes` | `059` | Poparcia propozycji |
-| `tournaments` i 5 tabel `tournament_*` | `029` | **MARTWE** — dawny „BOJO Cup", zastąpiony modułem niżej. Kod usunięty z frontu; tabele kasuje osobna migracja `149`, uruchamiana świadomie, gdy nowy moduł zastąpi go w całości |
+| `tournaments` i 5 tabel `tournament_*` | `029` | **MARTWE** — dawny „BOJO Cup", zastąpiony modułem niżej. Kod usunięty z frontu; tabele kasuje osobna migracja `151`, uruchamiana świadomie, gdy nowy moduł zastąpi go w całości |
 | `event_delegates` | `089` | Delegowanie uprawnień organizatora (`can_edit`/`can_manage_squad`/`can_manage_payments`) — patrz `090` niżej |
 | `push_subscriptions` | `102` | Subskrypcje web-push, jedna na przeglądarkę. Każdy widzi i kasuje wyłącznie swoje |
 | `konfiguracja_push` | `102` | Adres funkcji `send-push` i sekret wyzwalacza. RLS bez polityk — przez API nieczytelna |
@@ -168,6 +169,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 |---|---|
 | `011_advanced_event_features` | Drużyny, wyniki, płatności, statystyki |
 | `025_game_alerts` | Alerty + tabela `notifications` + RPC `get_nearby_events` |
+| `149_alert_czas_kanaly_i_wylaczanie` | Alert dostaje własny czas życia (`expires_at`, NULL = bezterminowo), porę dnia meczu (`godzina_od`/`godzina_do`, parami albo wcale), wybór kanału mailowego (`kanal_email`) i `wylacz_token`. Promień poszerzony do 1–100 km, bo suwak filtrów sięga tyle od `PROMIENIE_SUWAK_KM`. Funkcja `wylacz_alert_tokenem()` (`SECURITY DEFINER`) wyłącza alert linkiem z maila, bez logowania |
 | `033_contact_visibility` | Telefony i e-maile boisk **ukryte domyślnie**, egzekwowane w DB |
 | `041_join_code` | Kod dołączenia + `require_approval` |
 | `043_player_stats_fn` | RPC `get_player_stats` (poprawki w `045`, `055`) |
@@ -267,7 +269,7 @@ powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 | `set_event_teams_published` | Publikacja składów. `SECURITY DEFINER` + `can_manage_squad()` od `090` (wcześniej `SECURITY INVOKER` z `organizer_id` wpisanym wprost w `WHERE`) |
 | `generate_join_code` | Kod dołączenia do meczu |
 | `add_group_creator_as_member` | Trigger — twórca grupy zostaje członkiem |
-| `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | **Martwe** — dawny „BOJO Cup" (`029`), kasowane migracją `149` razem z tabelami |
+| `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | **Martwe** — dawny „BOJO Cup" (`029`), kasowane migracją `151` razem z tabelami |
 | `czy_organizator_turnieju`, `czy_zarzadza_turniejem`, `czy_zarzadza_druzynami`, `czy_kapitan_druzyny` | Nowy moduł turniejowy (`145`) — funkcje pomocnicze do polityk RLS, wzorem `can_edit_event()`/`czy_czlonek_grupy()` |
 | `dolacz_do_druzyny_kodem` | Jedyna droga wejścia do drużyny turniejowej (`/t/[kod]`): kapitanat, przypisanie do wolnego wpisu składu albo dopisanie nowego — jedna transakcja (`SECURITY DEFINER`, `145`) |
 | `turniej_kontakty` | Telefon i e-mail kapitanów — wyłącznie dla zarządzających turniejem, bo kolumny są odebrane grantem (`SECURITY DEFINER`, `145`) |

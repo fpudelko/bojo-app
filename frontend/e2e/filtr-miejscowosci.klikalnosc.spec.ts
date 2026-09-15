@@ -79,7 +79,14 @@ test('wybór miejscowości z promieniem trafia do adresu i zawęża listę', asy
     .click({ timeout: 15_000 });
 
   // Po wyborze pojawia się promień; 25 km zamiast domyślnych 10.
-  await page.getByRole('button', { name: '25 km', exact: true }).filter({ visible: true }).first().click();
+  //
+  // Suwak chodzi po INDEKSIE skali `PROMIENIE_SUWAK_KM`
+  // (`frontend/src/lib/miejscowosci.ts`), nie po kilometrach — 25 km stoi
+  // na pozycji 8: [1, 2, 3, 5, 7, 10, 15, 20, >25<, 30, 40, 50, 65, 80, 100].
+  // Gdyby skala się zmieniła, asercja `km === '25'` niżej powie to wprost,
+  // zamiast przepuścić inną wartość.
+  await page.getByRole('slider', { name: 'W promieniu' }).filter({ visible: true }).first()
+    .fill('8');
   await page.getByRole('button', { name: /^Pokaż \d+ boisk/i }).filter({ visible: true }).first().click();
 
   await page.waitForTimeout(1500);
@@ -126,7 +133,9 @@ test('filtr miejscowości działa też na mecze, nie tylko na katalog', async ({
   await pole.fill('Wrocław');
   await page.getByRole('button', { name: /Wrocław/ }).filter({ visible: true }).first()
     .click({ timeout: 15_000 });
-  await page.getByRole('button', { name: /^Pokaż /i }).filter({ visible: true }).first().click();
+  // `^Pokaż \d+ mecz`, nie samo `^Pokaż `: pusty stan listy ma własne wyjścia,
+  // a lokator ma trafiać wyłącznie w przycisk ZATWIERDZAJĄCY arkusz.
+  await page.getByRole('button', { name: /^Pokaż \d+ mecz/i }).filter({ visible: true }).first().click();
 
   await page.waitForTimeout(1500);
   expect(new URL(page.url()).searchParams.get('m')).toBe('Wrocław');

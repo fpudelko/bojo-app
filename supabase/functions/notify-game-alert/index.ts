@@ -79,10 +79,25 @@ serve(async (req) => {
 
   const { data: alerts } = await admin.from('game_alerts').select('*').eq('is_active', true);
 
+  // Godzina STARTU meczu, do porównania z oknem `godzina_od`/`godzina_do`.
+  // `event_time` przychodzi jako `HH:MM:SS`, więc bierzemy dwa pierwsze znaki.
+  const godzinaMeczu = Number(String(event.event_time ?? '').slice(0, 2));
+  const teraz = Date.now();
+
   const matching = (alerts ?? []).filter((a: any) => {
     if (a.user_id === event.organizer_id) return false; // skip organizer
+    // WYGASŁY ALERT NIE POWIADAMIA (migracja `149`). `expires_at` jest NULL
+    // dla alertów bezterminowych, czyli domyślnych — te nie gasną nigdy
+    // i wyłącza się je linkiem z maila.
+    if (a.expires_at && new Date(a.expires_at).getTime() < teraz) return false;
     if (a.sport && a.sport !== event.sport) return false;
     if (a.days_of_week?.length > 0 && !a.days_of_week.includes(dow)) return false;
+    // Pora dnia. Kolumny idą parami (pilnuje tego CHECK w migracji), więc
+    // wystarczy sprawdzić jedną; okno przez północ nie istnieje, bo mecz
+    // o 23:00 i tak zaczyna się tego samego dnia.
+    if (a.godzina_od != null && Number.isFinite(godzinaMeczu)) {
+      if (godzinaMeczu < a.godzina_od || godzinaMeczu > a.godzina_do) return false;
+    }
     return haversineKm(a.lat, a.lng, event.lat, event.lng) <= a.radius_km;
   });
 
@@ -102,7 +117,14 @@ serve(async (req) => {
   const [rok, miesiac, dzien] = String(event.event_date).split('-');
   const mail = tresc(dane, `${dzien}.${miesiac}.${rok}`);
   const eventUrl = `${siteUrl}/wydarzenia/${eventId}`;
-  const kontakt = { strona: siteUrl, eventUrl, odpowiedzNa };
+  // Link wyłączający jest RÓŻNY DLA KAŻDEGO ODBIORCY — niesie token jego
+  // alertu — więc treść maila składa się per adresat, a nie raz dla wszystkich.
+  const kontaktDla = (a: any) => ({
+    strona: siteUrl,
+    eventUrl,
+    odpowiedzNa,
+    wylaczUrl: `${siteUrl}/alert/wylacz/${a.wylacz_token}`,
+  });
 
   // Insert in-app notifications in one batch
   await admin.from('notifications').insert(
@@ -119,12 +141,20 @@ serve(async (req) => {
   // Send emails via Resend
   let emailsSent = 0;
   if (resendKey) {
-    const html = doHtml(mail, kontakt);
-    const text = doTekstu(mail, kontakt);
     for (const alert of matching) {
       try {
+        // KANAŁ MAILA JEST WYBOREM (migracja `149`). Powiadomienie w aplikacji
+        // idzie zawsze — dzwonek to historia, nie kanał przerywający dzień —
+        // ale maila dostaje tylko ten, kto go chce.
+        if (alert.kanal_email === false) continue;
+
         const { data: { user } } = await admin.auth.admin.getUserById(alert.user_id);
         if (!user?.email) continue;
+
+        // Treść per adresat, bo link wyłączający niesie token JEGO alertu.
+        const kontakt = kontaktDla(alert);
+        const html = doHtml(mail, kontakt);
+        const text = doTekstu(mail, kontakt);
 
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',

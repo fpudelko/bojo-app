@@ -1908,32 +1908,65 @@ jednej linii (`overflow-x-auto` z ukrytym scrollbarem):
 | Element | Zachowanie |
 |---|---|
 | **„Sortuj"** *(dropdown)* | `PillDropdown` (`components/ui/FilterPill.tsx`), single-select, aplikuje się **natychmiast** po kliknięciu opcji (nie przez szkic modala): Najbliższy termin *(domyślnie)* / **Najbliżej mnie** (pyta o lokalizację od razu, pokazuje „Szukam Cię…" w trakcie) / Najwięcej wolnych miejsc |
-| **„Filtry"** *(przycisk → modal)* | otwiera `FilterSheet` z czterema suwakami: Kiedy / Odległość / Cena / Wolne miejsca |
+| **„Filtry"** *(przycisk → modal)* | otwiera `FilterSheet`: suwaki Kiedy / Odległość + stepper Wolne miejsca. Filtr **Cena zdjęty 2026-09-14** (zgłoszone wprost) — pytał o górny limit w złotych, a mecze w Bojo są albo za darmo, albo za kilkanaście złotych od osoby; suwak 0–100 zł rozstrzygał wybór, którego nikt nie ma. `filterByMaxPrice()` usunięte z `lib/eventFilters.ts` razem z nim, żeby nie zostało martwym helperem |
 | **Sport** | mieszka w arkuszu filtrów (nie w pasku), multi-select, źródło `FOCUS_SPORTS` (4 opcje); „piłka nożna" łapie też `futsal`. Pigułką jest `components/ui/SportChip.tsx`: **sama ikona, kwadrat 44×44 px, podpis POD rzędem** (`multiLabel()`). Od 2026-09-14 nie ma piątej ikony „Wszystkie" — brak wyboru znaczy wszystkie i tak mówi podpis. Ten sam komponent stoi w arkuszu na `/mapa` i w oknie alertu, patrz niżej |
-| „Wolne miejsca" *(toggle)* | odsiewa komplety (`participantsCount < maxPlayers`) — **inny** filtr niż suwak „Wolne miejsca" w modalu, patrz niżej |
-| „Za darmo" *(toggle)* | `costGrosze === 0` |
+Toggle'i „Wolne miejsca" i „Za darmo" w pasku **nie ma** — `onlyFreeSpots`/`onlyNoCost`
+były martwym stanem (żadna kontrolka ich nie ustawiała, wisiały na `false`) i odeszły
+2026-09-14 razem z filtrem ceny.
 
-**Cztery suwaki w modalu** (`components/ui/RangeSlider.tsx` — jeden generyczny suwak,
+**Kontrolki w modalu** (`components/ui/RangeSlider.tsx` — jeden generyczny suwak,
 etykieta wartości nad nim, opisy skrajów pod spodem; reużywany też w trybie gier na
-`/mapa`). Skrajna prawa pozycja = brak ograniczenia:
+`/mapa`). Przy suwakach skrajna prawa pozycja = brak ograniczenia:
 
-| Suwak | Zakres | Prawy skraj |
+| Kontrolka | Zakres | Domyślnie |
 |---|---|---|
-| Kiedy | Dzisiaj / Jutro / Ten tydzień / Ten miesiąc / Wszystko (5 pozycji) | Wszystko |
-| Odległość | 1–20 km, krok 1 | Bez limitu |
-| Cena | 0–100 zł, krok 5 | Bez limitu (0 zł = Za darmo) |
-| Wolne miejsca | 0–14, krok 1 | 0 = dowolna liczba (nie ogranicza) |
+| Kiedy *(cztery przyciski w jednej linii)* | Dzisiaj / 3 dni / Tydzień / Termin *(kalendarz „do kiedy")* | brak wyboru = Wszystkie terminy |
+| Odległość *(suwak)* | skala `PROMIENIE_SUWAK_KM`, 1–100 km | Bez limitu |
+| Wolne miejsca *(stepper)* | 0–99, krok 1 | **1** |
 
-Suwak „Wolne miejsca" w modalu to **próg minimum** (`freeSpots(e) >= N`,
-`filterByMinFreeSpots()`), świadomie osobny od toggle'a „Wolne miejsca" w pasku (który
-tylko odsiewa komplety) — oba filtry łączą się przez AND, gdy oba aktywne. „Kiedy" nie
-ma już opcji „Weekend" (zastąpiona „Ten miesiąc" — `matchesDateFilter` case `'miesiac'`,
-`isSameMonth()` z `date-fns`).
+**„Wolne miejsca" to stepper − / +, nie suwak — od 2026-09-14, zgłoszone wprost.**
+Suwak jest dobry, gdy człowiek szuka progu i widzi cały zakres naraz (odległość, data).
+Tu pytanie brzmi „ilu nas idzie" — odpowiedź to zwykle 1, 2 albo 4, a trafienie palcem
+w konkretną liczbę na suwaku przez cały ekran jest trudniejsze niż dwa dotknięcia „+".
+Górna granica poszła z 14 (skład 7v7) na 99: nie ma powodu odcinać pytania „szukamy
+miejsca dla ośmiu" na większych meczach. Komponent: `components/ui/Stepper.tsx`.
+
+**Domyślna wartość to 1, nie 0 — i to ZMIENIA, co widać bez ruszania filtrów.**
+`filterByMinFreeSpots(rows, 1)` odsiewa komplety, więc wyszukiwarka domyślnie pokazuje
+mecze, do których da się wejść. To jest stanowisko aplikacji, nie filtr nałożony przez
+człowieka — dlatego `liczbaFiltrow` liczy tę pozycję dopiero przy ODCHYLENIU od jedynki
+(plakietka ma mówić „coś ustawiłeś", nie „aplikacja ma domyślne ustawienia"), a pusta
+lista meczów mówi o tym wprost i daje odsyłacz **„Zobacz też mecze z kompletem"**
+(`setGamesMinFreeSpots(0)`). Bez tego odsyłacza byłby to filtr, który działa, a którego
+nie widać — czyli ta sama cisza co przy filtrze, który nie działa, tylko odwrócona.
+Pilnuje tego `szukaj-domyslnie-mecze.klikalnosc.spec.ts`: mecz 10/10 ma NIE wejść na listę.
+
+**„Kiedy" to cztery przyciski w JEDNEJ linii, nie suwak — od 2026-09-14, zgłoszone
+wprost.** Suwak miał pięć pozycji i kazał szukać wartości ruchem, zamiast pokazać
+wszystkie naraz. Dawne „Jutro" było przy tym najwęższą możliwą odpowiedzią — wykluczało
+DZISIAJ, czyli mecz za dwie godziny — a „Ten miesiąc" pod koniec miesiąca znaczyło co
+innego niż na jego początku. Zastąpiły je: **Dzisiaj**, **3 dni** (licząc z dzisiejszym:
+„w ciągu trzech dni" znaczy dziś, jutro i pojutrze), **Tydzień** (`isSameWeek`,
+`weekStartsOn: 1`) i **Termin** — ten odsłania `<input type="date">` z `min` na jutrze
+i filtruje „do tego dnia WŁĄCZNIE".
+
+Piątego przycisku „Wszystko" nie ma: **brak wyboru znaczy wszystkie terminy**, a
+dotknięcie wybranego odznacza go i wraca do tego stanu — ta sama zasada co przy ikonach
+sportów, z tym samym podpisem pod rzędem (`etykietaKiedy()`), bo skróty „3 dni"
+i „Termin" muszą się gdzieś rozwinąć w zdanie. Bez tego odznaczania brak „Wszystko" byłby
+pułapką: dałoby się zawęzić, ale nie cofnąć.
+
+Wartość jest **jednym stringiem**, także dla własnego terminu (`do:2026-09-30`) —
+wchodzi do adresu, porównuje się przez `===` i nie wymaga drugiego pola, które mogłoby
+się z nim rozjechać. Zepsuta data w tej wartości zachowuje się jak „wszystkie terminy",
+nie jak „nic nie pasuje": filtr siedzi w adresie, więc kiedyś trafi tam śmieć, a pusta
+lista bez powodu jest gorsza niż filtr, który w takiej chwili nic nie zawęża.
+Komponent: `components/ui/WyborKiedy.tsx`, ten sam w obu arkuszach **i w oknie alertu**
+(patrz niżej).
 
 **Modal filtrów działa na szkicu, nie na żywym stanie** (styl Booking: wybierz kilka
 rzeczy, potem zatwierdź). Otwarcie kopiuje bieżące `dateFilter`/`radiusKm`/
-`maxPriceGrosze`/`minFreeSpots` do stanu szkicu; dotykanie suwaków zmienia wyłącznie
-szkic. Przycisk zatwierdzenia pokazuje na żywo `Pokaż N meczów` i dopiero jego kliknięcie
+`minFreeSpots` do stanu szkicu; dotykanie kontrolek zmienia wyłącznie szkic. Przycisk zatwierdzenia pokazuje na żywo `Pokaż N meczów` i dopiero jego kliknięcie
 commituje szkic do prawdziwego stanu — jeśli suwak Odległości jest ustawiony i pozycja
 użytkownika jeszcze nie jest znana, pyta wtedy raz o zgodę na lokalizację (przy odmowie
 promień wraca do wyłączonego). „Sortuj" ma **własny**, niezależny geo-trigger (patrz
@@ -1953,8 +1986,8 @@ wyłącznie gdy jest co czyścić.
 Sekcje dzienne wyłączają się przy sortowaniu po odległości i po liczbie miejsc: dwa
 porządki naraz („po czasie" w nagłówkach, „po dystansie" w treści) wprowadzałyby w błąd.
 
-Logika filtrowania, grupowania, sortowania, promienia, ceny i minimalnych wolnych miejsc
-(`filterByRadius`, `filterByMaxPrice`, `filterByMinFreeSpots`) żyje w
+Logika filtrowania, grupowania, sortowania, promienia i minimalnych wolnych miejsc
+(`filterByRadius`, `filterByMinFreeSpots`) żyje w
 `lib/eventFilters.ts` — w komponencie nie dałoby się jej przetestować. Ten sam plik
 eksportuje `multiLabel`/`toggleInArray` (etykieta dropdownu multi-select, przełącznik
 wartości w tablicy) — reużywane przez sportowy dropdown na `/wydarzenia` **i** na
@@ -1964,6 +1997,157 @@ wartości w tablicy) — reużywane przez sportowy dropdown na `/wydarzenia` **i
 (`VenueExplorer.tsx`) — jedna powłoka (portal do `<body>`, bottom sheet na mobile,
 wyśrodkowana karta od `md:`), różna wyłącznie treść sekcji. **Pigułki filtrów**
 (`components/ui/FilterPill.tsx`: `PillDropdown`, `TogglePill`) też są wspólne z mapą.
+
+### Filtry listy meczów w adresie strony — od 2026-09-15
+
+Przegląd powiadomień zgłosił dwa błędy, które okazały się JEDNYM brakiem: stan
+filtrów na `/wydarzenia` żył wyłącznie w pamięci komponentu.
+
+| Zgłoszenie | Objaw |
+|---|---|
+| „Kliknięcie «Powiadom mnie» gubi wszystko" *(krytyczny)* | wylogowany szedł na `/logowanie?next=%2Fwydarzenia` i wracał na GOŁĄ listę — bez filtrów i bez powodu, dla którego tam kliknął |
+| „Filtry nie przeżywają odświeżenia ani powrotu" *(wysoki)* | nie dało się wysłać komuś linku do „piłka, dzisiaj, do 5 km" |
+
+`lib/filtryListy.ts` (`filtryZAdresu()` / `filtryDoAdresu()`) tłumaczy filtry na
+parametry i z powrotem. **Nazwy są CELOWO te same co na `/mapa`** (`sport`
+powtarzalny, `km`) — jeden adres nie ma prawa opisywać dwóch różnych rzeczy.
+Dochodzą `kiedy`, `miejsca`, `sort`, `q`.
+
+Dwie zasady, obie z asercjami w `filtryListy.test.ts`:
+
+- **Zapisujemy tylko odchylenia od domyślnych.** Adres z kompletem parametrów
+  przy nietkniętych filtrach byłby nie do wysłania komukolwiek, a przy okazji
+  zamrażałby wartości domyślne w linkach na zawsze.
+- **Śmieć w parametrze wraca do wartości domyślnej, nigdy do pustej listy.**
+  Adres trafia do ludzi i do wyszukiwarek; obcięty link nie ma prawa pokazać
+  „brak meczów" zamiast listy. Dotyczy to zwłaszcza `miejsca`: zero znaczy
+  „pokaż też komplety" i nie może wziąć się z literówki.
+
+**`window.location.search`, NIE `useSearchParams()`.** `/wydarzenia` jest trasą
+prerenderowaną (`○` w wyniku builda), a ten hook wymusza na takiej trasie
+bail-out do CSR i wywraca build produkcyjny — pułapka opisana w AGENTS.md.
+Odczyt po zamontowaniu omija ją w całości i nie wymaga `<Suspense>` wokół całej
+listy. Zapis idzie przez `history.replaceState`, nie `router.replace`: filtry
+zmieniają się przy każdym dotknięciu suwaka, a nawigacja Next.js zasypałaby
+historię, przez co systemowe „wstecz" cofałoby po jednym kliknięciu filtra.
+
+**Zamiar założenia alertu przeżywa logowanie** (`logowanieDlaAlertu()` /
+`zamiarAlertuZAdresu()` w `lib/alerts.ts`). `next` niesie pełny adres z filtrami
+plus znacznik `alert=1`, a ekran po powrocie otwiera okno sam i **zdejmuje
+znacznik z adresu** — bez tego odświeżenie albo „wstecz" otwierałyby okno
+w kółko. Dotyczy obu ekranów: `/mapa` trzymało filtry w adresie od dawna, ale
+stare przekierowanie na `/logowanie?next=%2Fmapa` i tak je wyrzucało.
+
+**Ekran logowania mówi, po co ktoś tu trafił** — `?powod=alert` wybiera zdanie
+z `POWODY` w `AuthForm`. Wcześniej witał ogólnym „wejdź na swoje konto, żeby
+grać i organizować mecze", czyli odpowiedzią na pytanie, którego nie zadał.
+Świadomie jedno pole, nie słownik wszystkich możliwych powodów: nieznana wartość
+wraca do zdania ogólnego, więc literówka w adresie niczego nie psuje.
+
+Pilnuje tego `filtry-w-adresie.klikalnosc.spec.ts` — trzy scenariusze: adres
+zmienia się pod palcem i przeżywa odświeżenie, adres przyniesiony z zewnątrz
+ustawia filtry, a wylogowany klikający „Powiadom mnie" niesie na logowanie
+i filtry, i powód.
+
+**Właścicielem adresu jest JEDEN egzemplarz listy — `zarzadzaAdresem`.**
+`EventsListView` renderuje się także jako **tło ekranu logowania**
+(`components/auth/LoginBackdrop.tsx`), więc efekt synchronizujący filtry
+przepisywał adres `/logowanie` i zjadał jego własne parametry: `mode=rejestracja`
+(przycisk „Dołącz" w pasku przestawał otwierać zakładanie konta), a także `next`
+i `powod` — czyli całą drogę powrotną po zalogowaniu, w tym świeżo dodany zamiar
+alertu. Prop `zarzadzaAdresem` bramkuje oba efekty (odczyt i zapis) i jest
+**domyślnie WYŁĄCZONY**: pomyłka w tę stronę kosztuje utratę funkcji na jednym
+ekranie, a w drugą — psuje logowanie. Włącza go wyłącznie `EventsListClient`.
+To ta sama granica, którą ten komponent rysuje już przy znaczniku „widziano
+listę": tło ekranu logowania nie jest wizytą na liście i nie jest jej adresem.
+
+Warte zapamiętania, bo mówi coś o narzędziach: **złapały to zrzuty ekranu, nie
+scenariusz zachowania.** `rejestracja-formularz` pokazał formularz LOGOWANIA —
+a zadanie ze zrzutami z założenia „nigdy nie świeci na czerwono" i czyta się
+jak informacja o wyglądzie. Własny scenariusz alertu przechodził, bo czytał
+adres ZANIM efekt tła zdążył go przepisać; wyścig, na którym nie wolno opierać
+asercji. Stałą bramką jest dziś `logowanie-adres-nietkniety.klikalnosc.spec.ts`:
+sprawdza `?mode=rejestracja` oraz parę `next`+`powod`, każdorazowo po odczekaniu
+na zamontowanie tła.
+
+**Dopełniacz „meczów", nie „meczy".** Obie formy są w słownikach, „meczów" jest
+dominująca — a mieszanie ich w jednej aplikacji czyta się jak literówka.
+Ujednolicone we wszystkich czterech miejscach wołających `plural()`.
+
+### Wiele alertów na konto i ich dom w profilu — od 2026-09-15
+
+**Konto miało JEDEN alert, a każde wejście mówiło „dodaj".** `saveAlert()`
+zaczynało od `update({ is_active: false })` na wszystkich alertach użytkownika
+i dopiero potem wstawiało nowy. Kto miał alert na piłkę we Wrocławiu i założył
+drugi na siatkówkę w Poznaniu, tracił pierwszy — po cichu, bez ostrzeżenia
+i bez cofnięcia.
+
+**Schemat umiał wiele alertów od zawsze.** `game_alerts` nie ma unikalności na
+`user_id`, `notifications.alert_id` (migracja `025`) wskazuje KONKRETNY alert,
+a `notify-game-alert` filtruje wszystkie aktywne wiersze i nie deduplikuje po
+użytkowniku. Limit siedział w jednej linijce klienta — jego zdjęcie **nie
+wymagało migracji**.
+
+| Funkcja w `lib/alerts.ts` | Co robi |
+|---|---|
+| `getMojeAlerty()` | wszystkie alerty, TAKŻE wyłączone — lista w profilu ma je pokazać, żeby dało się je włączyć z powrotem |
+| `maAktywnyAlert(alerty)` | czy jest choć jeden działający — do ikony w pasku `/mapa` |
+| `saveAlert()` | **już nie gasi poprzednich**; pilnuje tego `wieleAlertow.test.ts` |
+| `zaktualizujAlert(id, …)` | edycja TEGO SAMEGO wiersza — `id` wskazuje `notifications.alert_id`, a `wylacz_token` siedzi w już wysłanych mailach i musi dalej działać |
+| `ustawAktywnoscAlertu(id, …)` | włącz/wyłącz bez kasowania, przez `zaktualizujJedenWiersz()` |
+| `nazwaAlertu()` / `opisAlertu()` | podpis wiersza składany z treści |
+| `znajdzPodobnyAlert()` | wykrycie bliźniaka, patrz niżej |
+
+**ALERTY MAJĄ DOM: `/profil#powiadomienia`** (`components/profil/MojeAlerty.tsx`),
+trzecia karta obok pusha i poczty. Do tej pory alert nie istniał w żadnych
+ustawieniach — żeby go wyłączyć, trzeba było wejść do WYSZUKIWARKI MECZÓW
+i natknąć się na jedno z wejść. Odkąd alert jest domyślnie bezterminowy
+(migracja `149`), to przestało być niedogodnością, a zaczęło być tą samą drogą
+do „Zgłoś spam", przed którą broni się `UstawieniaMaili` obok.
+
+Karta jest **rozwinięta od razu**, w kontrze do `UstawieniaMaili`: tamta chowa
+listę dwudziestu kilku rodzajów, których nikt nie przegląda bez powodu, a tu
+wierszy jest tyle, ile ktoś sam założył — i sama ich liczba jest odpowiedzią na
+pytanie, z którym się tu przychodzi. Wiersz niesie emoji sportu, nazwę
+(`nazwaAlertu()`), opis (`opisAlertu()`), kosz i przełącznik. **Wyłączenie
+zostawia wiersz** — to samo, co robi link „nie chcę więcej" z maila, tylko
+z drugiej strony.
+
+**BLIŹNIAK — pytanie przy zapisie, nie cicha zgoda.** `notify-game-alert` nie
+deduplikuje po użytkowniku, więc dwa bliźniacze alerty to dwa maile o jednym
+meczu. Przy jednym slocie problem nie istniał; przy wielu powstaje przy trzecim
+nieuważnym dotknięciu „Powiadom o takich meczach". `znajdzPodobnyAlert()`
+uznaje za bliźniaka ten sam sport w punkcie odległym o mniej niż **połowę
+mniejszego z dwóch promieni** — przy 25 km trzy kilometry to to samo miejsce,
+przy 2 km już nie. Okno pyta wtedy w miejscu przycisku zapisu („Zostaw ten,
+który mam" / „Mimo to dodaj drugi"), a nie drugim oknem nad oknem.
+
+**Wejścia: dwa na ekran, nie trzy-cztery w kilku wyglądach.**
+
+| Gdzie | Co |
+|---|---|
+| pusty stan listy meczów (`/mapa`, `/wydarzenia`) | moment odkrycia — „Powiadom mnie, gdy się pojawi" |
+| arkusz filtrów (oba ekrany) | JEDEN cichy wiersz „Powiadom mnie o takich meczach" |
+| pigułka nad listą (`/mapa`) | skrót dla kogoś, kto już wie, czego szuka |
+
+Trzy warianty wyglądu w arkuszu (osobny dla „mam alert", dla „0 wyników" i dla
+reszty) odeszły: powstały, gdy alert był jeden i arkusz musiał mówić, w którym
+jest stanie. **Goły dzwonek z paska `/wydarzenia` też odszedł** — sama ikona nie
+mówi, co zrobi dotknięcie, a stała w jednym rzędzie z DRUGIM dzwonkiem
+(powiadomienia w `MobileIdentityRow`). `/wydarzenia` świadomie **nie** dostaje
+w zamian pigułki: na `/mapa` lista siedzi w kontenerze o ustalonej wysokości,
+więc nakładka ma od czego mierzyć dół, a tu strona przewija się w całości
+i pigułka musiałaby być `fixed` przez cały czas przewijania kilkudziesięciu
+kart. Zapytanie o alerty na tym ekranie zniknęło razem z dzwonkiem.
+
+Napis na pigułce **nie** zmienia się na „masz już alert", choć ikona tak: odkąd
+alertów może być wiele, „mam alert" nie znaczy już „mam alert NA TAKIE mecze",
+a przycisk zawsze robi to samo. O bliźniaka pyta dopiero okno przy zapisie, bo
+dopiero ono zna komplet wypełnionych pól.
+
+**`components/home/NearbyGames.tsx` USUNIĘTY** — martwy od miesięcy (nic go nie
+importowało), a niósł dwa kolejne wejścia i trzeci wariant copy, który ktoś
+kiedyś wziąłby za żywy.
 
 ### Alert o nowym meczu w okolicy — od 2026-09-12
 
@@ -1982,31 +2166,174 @@ wyłącznie po zobaczeniu pustki. Wejścia są dziś trzy:
 | **Dół arkusza filtrów** | przy niezerowym podglądzie cichy wiersz „Powiadom mnie o nowych takich meczach"; **przy `Pokaż 0 meczy` pełny przycisk** z nagłówkiem „Nic nie pasuje do tych filtrów" |
 | **Pusty stan listy** | duży przycisk, jak dotąd |
 | **Arkusz filtrów `/mapa` w trybie gier** | to samo co w arkuszu `/wydarzenia` (od 2026-09-13) — tryb gier zadaje dokładnie to samo pytanie „gdzie i w co chcę zagrać" |
+| **Podpisany przycisk nad listą meczów na `/mapa`** | od 2026-09-14 — do tej pory na mapie wejście siedziało WYŁĄCZNIE w środku arkusza filtrów, więc żeby dowiedzieć się, że Bojo w ogóle umie dać znać o nowym meczu, trzeba było najpierw otworzyć filtry. Szczegóły niżej |
+
+**Na `/mapa` to NIE jest dzwonek, tylko podpisany przycisk nakładający się na listę** —
+zmiana z tego samego dnia, zgłoszona wprost („dzwonek nie ma tak być"). Dzwonek w pasku
+przegrał z trzech powodów naraz: sama ikona nie mówi, co się stanie po dotknięciu; stał
+w jednym rzędzie z DRUGIM dzwonkiem (powiadomienia, wiersz tożsamości wyżej), który
+znaczy coś zupełnie innego; i zjadał 52 px w pasku, przez który ten łamał się na
+telefonie na dwa wiersze. Dziś jest to pigułka `absolute bottom-0` nad listą (kontener
+`pointer-events-none`, przycisk `pointer-events-auto`, odstęp od dołu liczony
+`calc(var(--bottom-nav-h) + 0.75rem)`, więc w sidebarze desktopu siada przy dolnej
+krawędzi). Napis idzie za filtrami, bo alert naprawdę je przejmuje (`domyslneZFiltrow`):
+**„Powiadom o takich meczach"** przy ustawionych filtrach, **„Powiadom o nowych meczach"**
+przy pustych, **„Damy znać o nowym meczu"** (biała, z `BellRing`), gdy alert już jest.
+
+### Alert: dwa czasy, kanały i wyłącznik z maila — od 2026-09-14 (migracja `149`)
+
+**ALERT JEST DOMYŚLNIE BEZTERMINOWY** (decyzja właściciela). Ma to jeden warunek, bez
+którego zamienia się w spam: musi dać się wyłączyć **z samej wiadomości, bez
+logowania**. Mail czyta się w skrzynce, często na innym urządzeniu i długo po założeniu
+alertu — „wejdź do aplikacji i znajdź okno alertu" nie jest wtedy żadnym wyjściem, tylko
+wyjaśnieniem, dlaczego ktoś oznaczy wiadomość jako spam. Kosztuje to wtedy cały kanał,
+nie jeden alert.
+
+Stąd `game_alerts.wylacz_token` i publiczna trasa **`/alert/wylacz/[token]`**. Strona
+wyłącza alert OD RAZU po wejściu, bez pytania „na pewno?" — kto kliknął „nie chcę więcej
+takich wiadomości", już odpowiedział, a operacja jest odwracalna jednym kliknięciem
+w aplikacji. Wyłączenie leci przez `wylacz_alert_tokenem()` (`SECURITY DEFINER`), nie
+przez politykę RLS dla `anon`: polityka otworzyłaby całą tabelę na `UPDATE`, a potrzebna
+jest dokładnie jedna operacja. Asercje w `supabase/test/rls.sql` pilnują, że tokenem nie
+da się ani przeczytać cudzego alertu, ani nic w nim nadpisać, i że drugie kliknięcie
+w ten sam link jest nieszkodliwe.
+
+**DWA RÓŻNE „KIEDY" — dziś w oknie został JEDEN.** Migracja `149` dołożyła alertowi
+porę dnia meczu (`godzina_od`/`godzina_do`) obok dni tygodnia, czyli drugi wymiar
+„kiedy ma być MECZ", osobny od „jak długo ma żyć ALERT" (`expires_at`). Rozdzielenie ich
+nazwą sekcji było słuszne, ale samo pytanie wypadło z okna tego samego dnia — patrz
+sekcję niżej. W bazie i w funkcji brzegowej obie kolumny zostają nietknięte.
+
+### Okno alertu — co z niego wypadło i co MUSIAŁO wrócić (2026-09-14)
+
+Zgłoszone wprost: *„jak klikam «powiadom mnie o takich meczach», to filtry już są,
+zostaje tylko kwestia czy mailowo, czy SMS, czy notyfikacja i w jakim czasie. Resztę
+wywal, w sensie filtry."* Okno pytało wtedy o sport, miejsce, promień, dni tygodnia
+i porę dnia — czyli w dużej mierze o to samo, co człowiek przed chwilą ustawił
+w filtrach, tyle że drugi raz i w innych kontrolkach.
+
+Wycięte zostało wszystko. **Pół dnia później wróciły sport, miejsce i promień** —
+zgłoszenie brzmiało: *„nie da się lokalizacji wskazać. Popraw całe to okno, bo w nim
+brakuje filtrów akurat."*
+
+**Dlaczego pierwsza wersja była błędna.** Rozumowanie „wejście prowadzi z wyników
+filtrów, więc punkt już jest" pomija jeden przypadek: alert da się otworzyć, ZANIM
+cokolwiek zostało w filtrach ustawione. Zostawała wtedy lokalizacja urządzenia — a ta
+w przeglądarce wbudowanej w inną aplikację (zgłoszone ze zrzutu z GitHuba) bywa po
+prostu zablokowana. Okno kończyło się ślepo: „nie wiemy, gdzie szukać", przycisk, który
+nic nie daje, i wyszarzony zapis.
+
+Wniosek jest ogólniejszy niż ten jeden ekran i wart zapamiętania:
+**wartość z innego ekranu może być WYPEŁNIENIEM pola, ale nie może być jedynym sposobem
+jego ustawienia.** Pole miejscowości przyjmuje nazwę albo kod pocztowy z klawiatury
+i działa wszędzie; pinezka w nim jest skrótem, nie jedyną drogą.
+
+| Sekcja | Co robi |
+|---|---|
+| **Sport** | `SportChip`, ten sam co w arkuszu filtrów. Wybór POJEDYNCZY (alert trzyma jeden sport albo dowolny), więc dotknięcie wybranego odznacza go |
+| **Gdzie** *(wymagane)* | `WyborMiejscowosci` — pole na nazwę/kod pocztowy z pinezką obok, a po wybraniu suwak promienia po wspólnej skali `PROMIENIE_SUWAK_KM` |
+| **Jak długo powiadamiać** | ten sam `WyborKiedy` co w filtrach (Dzisiaj / 3 dni / Tydzień / Termin), tylko o czym innym: tam odcinek czasu wybiera MECZE, tu długość życia alertu. Brak wyboru = **Bezterminowo**, czyli stan domyślny |
+| **Czym dać znać** | dzwonek (zawsze) / mail (`kanal_email`) / push (stan + włącznik) / SMS za flagą |
+
+Wartości z filtrów (`domyslneZFiltrow`) nadal **wypełniają** trzy pierwsze pola przy
+otwarciu — więc kto przyszedł z ustawionych filtrów, sprawdza je wzrokiem zamiast
+wpisywać od nowa. Pilnuje tego `alertZFiltrow.test.tsx`: osobna asercja sprawdza, że
+okno w ogóle MA `WyborMiejscowosci`, a nie sam przycisk lokalizacji.
+
+**Co z tej rundy zostaje wycięte: dni tygodnia i pora dnia.** Te dwa naprawdę były
+pytaniem o termin zadanym drugi raz, obok „Kiedy" w filtrach, i nikt nie wiedział,
+które z nich czyta. Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `149`)
+zostają w bazie i w funkcji brzegowej nietknięte — okno zapisuje odpowiednio `[]`
+i `NULL`.
+
+Przeliczniki `wygasaZKiedy()` / `kiedyZWygasniecia()` w `lib/alerts.ts` mapują wybór na
+`expires_at` i z powrotem — „3 dni" liczy DZISIAJ jako pierwszy, dokładnie tak jak filtr,
+bo inaczej ta sama etykieta znaczyłaby w dwóch miejscach dwie różne rzeczy. Odczyt wraca
+na **nazwany przycisk**, gdy data się zgadza co do dnia; dopiero cokolwiek innego ląduje
+na własnym terminie (`alertKoniec.test.ts`). Wybrany dzień liczy się **cały** (23:59:59,
+nie północ: „do 30 września" znaczy, że 30 września alert jeszcze działa).
+
+Gdyby wymiar dni/godzin kiedyś wrócił, wróci jako część FILTRÓW, wspólna dla listy
+i alertu, a nie jako druga, osobna kopia pytania o termin.
+
+**Bez wskazanego miejsca alertu nie da się zapisać — i jest to NAPISANE.** Zgłoszone
+wprost: „użytkownik nie wie, dlaczego nie może dodać alertu, jak nie wybierze miasta".
+Przycisk był po prostu wyszarzony, a wyszarzony przycisk bez powodu czyta się jak
+zepsuta aplikacja, nie jak brakujące pole — zwłaszcza że brakujące pole jest wtedy o pół
+ekranu wyżej. Powód jest prawdziwy, nie formalny: alert dopasowuje mecze po ODLEGŁOŚCI
+od punktu (`lat`/`lng` + `radius_km`), więc bez punktu nie ma od czego liczyć promienia.
+Dziś nagłówek sekcji mówi „Gdzie *(wymagane)*", pod pustym polem stoi wyjaśnienie
+(„alert wyłapuje mecze po odległości od wskazanego punktu, więc bez niego nie ma od
+czego liczyć") z podpowiedzią o pinezce, a nad wyszarzonym przyciskiem — jedno zdanie
+kierujące w górę („Wybierz najpierw miejsce ↑"). Wskaźnik, nie powtórzenie: wyjaśnienie
+jest w jednym miejscu, przy polu, które je naprawia. Sam atrybut `title` nie wystarcza —
+na telefonie nie ma czym najechać.
+
+Godziny idą **parami albo wcale** — pilnuje tego `CHECK` w migracji. Sama dolna granica
+dałaby się obronić, ale wtedy dwa pola znaczą trzy różne rzeczy zależnie od tego, które
+jest puste, a filtr, którego nie da się przeczytać na jeden rzut oka, jest gorszy niż
+brak filtra.
+
+**KANAŁY: JEDEN PRZEŁĄCZNIK, NIE TRZY.** Okno pokazuje trzy kanały, ale zapisuje wybór
+tylko dla jednego — i to jest celowe:
+
+- **dzwonek w aplikacji** — zawsze, bez przełącznika. To historia tego, co się wydarzyło,
+  a nie kanał przerywający dzień (doktryna z `lib/ustawieniaPowiadomien.ts`),
+- **push** — jedzie automatycznie z wiersza w `notifications` (wyzwalacz z migracji
+  `102`), a wyłącza się w ustawieniach powiadomień, per typ. Okno alertu pokazuje tylko
+  STAN (`stanPush()`) i, gdy się da, jedno kliknięcie włączenia; **drugiego przełącznika
+  tu nie ma**, bo dwa miejsca na jedną rzecz rozjeżdżają się przy pierwszej zmianie,
+- **mail** — jedyny realny wybór, kolumna `kanal_email`,
+- **SMS** — za `SHOW_SMS_FEATURES`, bramki nie ma.
+
+**ZNALEZIONE PRZY OKAZJI: `game_alert` nie był w żadnej z trzech list powiadomień.**
+Typ wstawia funkcja brzegowa `notify-game-alert`, a `typyPowiadomien.test.ts` skanował
+wyłącznie `supabase/migrations/*.sql` — więc przez rok alert lądował pod szarym dzwonkiem
+z podpisem „Powiadomienie" i **nie dało się go wyłączyć na telefonie**. Dokładnie ta
+klasa błędu, przed którą ostrzega komentarz w tym teście („ochrona, która wygląda jak
+ochrona"), tylko w nowej postaci. Strażnik czyta teraz także `supabase/functions/**`,
+a osobna asercja pilnuje, żeby ktoś nie zawęził go z powrotem do samych migracji.
+
+**Okno alertu używa tych samych kontrolek co arkusz filtrów** (`WyborMiejscowosci`,
+`SportChip`) — miało dotąd własny przycisk GPS, własne pole miasta i własny suwak
+promienia, czyli trzy kopie rzeczy pytających o to samo. Promień chodzi po wspólnej
+skali `PROMIENIE_SUWAK_KM`, a nie po dawnym, węższym zakresie 3–30 km: kto szukał
+w promieniu 1 km, dostawał wcześniej alert na 3 km, czyli o czymś innym, niż prosił.
 
 Wariant zerowy w arkuszu istnieje, bo **podgląd „Pokaż 0 meczy" JEST momentem, w którym
 filtry nic nie wyszukały** — a dotąd trzeba było zamknąć arkusz i zobaczyć pusty stan, żeby
 się o tym dowiedzieć. Blok stoi tuż nad stopką arkusza, czyli tam, gdzie i tak wędruje
 wzrok sięgający po przycisk zatwierdzenia.
 
-Skutek uboczny trzech wejść: **stan alertu (`getMyAlert()`) pobiera się teraz przy każdym
-wejściu zalogowanego na listę**, nie dopiero przy pustym stanie — dzwonek musi wiedzieć, czy
-jest włączony. Wylogowany klika to samo i trafia na `/logowanie?next=/wydarzenia`
-(`otworzAlert()` — jedno miejsce dla wszystkich trzech wejść). Okno alertu renderuje się
+Przez trzy dni `/wydarzenia` pobierało stan alertu przy KAŻDYM wejściu zalogowanego, bo
+dzwonek w pasku musiał wiedzieć, czy jest włączony. **Zapytanie odeszło razem z dzwonkiem
+(2026-09-15)** — oba pozostałe wejścia wyglądają tak samo niezależnie od tego, ile alertów
+ktoś ma. Wylogowany klika to samo i trafia na `/logowanie?next=/wydarzenia`
+(`otworzAlert()` — jedno miejsce dla obu wejść). Okno alertu renderuje się
 na poziomie całego widoku, nie w pustym stanie: `listContent` bywa w gałęzi ukrytej przez
 CSS, a modal w takiej gałęzi nie miałby jak się pokazać. Wejście na stronie głównej
-(`components/home/NearbyGames.tsx`, martwy kod) zostaje do osobnej decyzji.
+odeszło razem z `NearbyGames.tsx` (2026-09-15, martwy kod).
+
+**Stan alertów nie zmienia już wyglądu tego przycisku** — od 2026-09-15 alertów może być
+wiele, a „mam alert" nie znaczy „mam alert NA TO"; zarządza się nimi w profilu.
 
 | Stan | Co widać |
 |---|---|
-| zalogowany, bez alertu | przycisk „Powiadom mnie, gdy się pojawi" → `AlertSetupDialog` |
-| zalogowany, z aktywnym alertem | „Damy znać, gdy pojawi się pasujący mecz" + „Zmień ustawienia powiadomienia" |
+| zalogowany | przycisk „Powiadom mnie, gdy się pojawi" → `AlertSetupDialog` |
 | wylogowany | ten sam przycisk, prowadzi na `/logowanie?next=/wydarzenia` |
 
 **Okno alertu otwiera się wypełnione filtrami** — `domyslneZFiltrow()` w `lib/alerts.ts`:
 jeden wybrany sport przechodzi wprost, dwa i więcej dają „dowolny" (alert trzyma dokładnie
-jeden sport, więc wybór za kogoś byłby zmyśleniem), promień z filtrów jest przycinany do
-skali suwaka alertu (`PROMIEN_MIN` 3 – `PROMIEN_MAX` 30; filtry chodzą od 1 km, więc same
-z siebie podają wartości spoza skali), a pozycja gracza przechodzi, gdy lista już ją zna.
+jeden sport, więc wybór za kogoś byłby zmyśleniem), promień siada na najbliższym
+przystanku WSPÓLNEJ skali `PROMIENIE_SUWAK_KM` (dawny, węższy zakres 3–30 km odszedł
+2026-09-14 — kto szukał w promieniu 1 km, dostawał alert na 3 km), a pozycja gracza
+przechodzi, gdy lista już ją zna.
+
+**Nad polami stoi wtedy jedna linijka: „Wypełnione Twoimi filtrami — możesz tu wszystko
+zmienić, nie ruszy to listy meczów."** Bez niej człowiek widzi wypełniony formularz i nie
+wie, czy to pamięć po poprzednim alercie, czy podpowiedź, ani czy zmiana pola ruszy też
+listę pod spodem. Oba fakty mówimy wprost, w miejscu, w którym powstaje pytanie — to jest
+odpowiedź na zarzut „wymieszanie z filtrami jest średnie" (2026-09-15).
 
 **Lokalizacja podstawia się sama, ale nigdy nie prosi o zgodę.** Okno woła
 `pozycjaBezPytania()` (`lib/geo.ts`) — pozycję dostaje wyłącznie przy zgodzie JUŻ
@@ -2019,8 +2346,8 @@ pod wybranym miejscem, bo promień jest dopowiedzeniem do niego („ile kilometr
 CZEGO"). Drugie pytanie o kilometry gdzie indziej w tym samym oknie czytałoby się jak dwie
 różne odległości.
 
-Stan alertu (`getMyAlert()`) pobiera się **dopiero gdy pusty stan realnie widać** — na
-niepustej liście byłoby to zapytanie przy każdym wejściu po nic. Wysyłka jest niezmieniona:
+Stanu alertów ten ekran **w ogóle nie pobiera** (patrz wyżej) — wygląd wejść od niego nie
+zależy, a listę alertów czyta profil. Wysyłka jest niezmieniona:
 funkcja brzegowa `notify-game-alert` (Resend), wołana z `lib/events.ts` przy tworzeniu
 meczu. Bez migracji — tabela `game_alerts` stoi w `025` od początku.
 
@@ -2771,8 +3098,12 @@ pytania („co jest grane / gdzie się gra") — Gry↔Obiekty na `/wydarzenia` 
 | Kontrolka | Pytanie | Uwaga |
 |---|---|---|
 | `Gry \| Obiekty` (`SegmentedToggle`) | NA CO patrzę | pełny przełącznik, zmienia dane |
-| `Lista \| Mapa` (`SegmentedToggle size="sm"`) | JAK patrzę | mniejszy wariant — świadomie WIDOCZNY, podpisany przełącznik, nie mały guzik z ikoną (guzik nie mówił, w jakim stanie jest teraz) |
-| Ikona filtrów, z plakietką liczby aktywnych | CZEGO SZUKAM | reszta (sport, cena, odległość, typ obiektu, nawierzchnia, „Gry dziś", „Wolne miejsca", „Za darmo") zjeżdża do arkusza |
+| `Lista \| Mapa` (`SegmentedToggle` z `icon`) | JAK patrzę | świadomie WIDOCZNY przełącznik, nie mały guzik z ikoną (guzik nie mówi, w jakim stanie jest teraz — przełącznik pokazuje oba naraz). Od 2026-09-14 segmenty niosą IKONY (`List`/`Map`, kwadraty 36×36) zamiast napisów, bo pasek łamał się na telefonie na dwa wiersze; kształt przełącznika, czyli to, co odróżnia go od guzika, zostaje. Nazwa dostępna dalej brzmi „Lista"/„Mapa" (`aria-label`) — scenariusze klikalności celują w `getByRole('radio', { name: 'Lista' })` |
+| Ikona filtrów, z plakietką liczby aktywnych | CZEGO SZUKAM | reszta (sport, odległość, typ obiektu, nawierzchnia, „Gry dziś", wolne miejsca) zjeżdża do arkusza |
+
+**Dzwonka alertu w tym pasku NIE MA** — stał tu przez jeden dzień (2026-09-14) i wypadł
+tego samego dnia na rzecz podpisanego przycisku nad listą; uzasadnienie w sekcji „Alert
+o nowym meczu w okolicy".
 
 Sport, „Wolne miejsca"/„Za darmo" (tryb gier) i „Gry dziś" (tryb obiektów) **przeniosły
 się z paska do arkusza filtrów** — wcześniej stały jako osobne pigułki i przełączenie
@@ -3044,8 +3375,32 @@ pinezki".
 
 Arkusz filtrów — w OBU trybach, gier i katalogu — otwiera **wiersz wyboru miejsca**:
 pole na nazwę miejscowości albo **kod pocztowy**, a po jego prawej ikona pinezki
-„Ustaw pinezkę na mojej lokalizacji". Po wyborze dochodzi promień (5/10/25/50 km,
-domyślnie 10).
+„Ustaw pinezkę na mojej lokalizacji". Po wyborze dochodzi **suwak promienia**
+(domyślnie 10 km).
+
+**Suwak zamiast czterech pigułek, ze skalą NARASTAJĄCĄ — 2026-09-14, zgłoszone
+wprost.** Promień wybierało się dotąd z czterech wartości (5/10/25/50 km), więc między
+10 a 25 km nie było nic. Dziś to suwak, ale chodzi po INDEKSIE tablicy
+`PROMIENIE_SUWAK_KM` (`lib/miejscowosci.ts`), nie po kilometrach:
+`1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50, 65, 80, 100`.
+
+Powodem jest to, że kilometry nie są równo ważne. Różnica między 2 a 3 km decyduje,
+czy idzie się pieszo; między 80 a 90 km nie znaczy nic. Liniowy suwak 1–100 oddawał
+pierwszej dziesiątce — czyli całemu realnemu zakresowi decyzji — jedną dziesiątą
+długości. Na tej skali 50 km wypada na jedenastej z piętnastu pozycji, czyli wyraźnie
+po prawej, a środek suwaka to 20 km. Pilnuje tego `promienSuwaka.test.ts`, łącznie
+z regułą remisu: 6 km leży między 5 a 7 i wygrywa **niższy** przystanek, żeby filtr
+nie poszerzał się sam.
+
+**Jedna kontrolka odległości, nie dwie.** Arkusz gier na `/mapa` pokazywał suwak
+„Odległość" RAZEM z promieniem pod wybraną miejscowością, a `filterByRadius(withDist,
+draftMiejscowosc ? draftPromienKm : draftGamesRadius)` mówi wprost, że przy wybranej
+miejscowości ten pierwszy przestaje cokolwiek robić. Stał na ekranie i dawał się
+przesuwać, czyli kłamał. Dziś pokazuje się wyłącznie przy braku miejscowości, pod
+nazwą „Odległość od Ciebie" — wtedy liczy od pozycji gracza i działa. Skala jest
+wspólna dla obu, więc przełączenie między nimi nie zmienia znaczenia tych samych
+kilometrów. Ta sama skala stoi w arkuszu na `/wydarzenia`, gdzie zastąpiła liniowe
+1–20 km.
 
 **Bez nagłówka „Gdzie szukam" i bez akapitu pod nim — 2026-09-14, zgłoszone wprost.**
 Akapit („Postaw pinezkę na swojej lokalizacji albo wpisz miejscowość lub kod pocztowy —
@@ -3214,14 +3569,17 @@ Wcześniej był to `TogglePill` „Pokaż gry" — wyłączony pill nie mówił,
 mapa jest teraz, tylko czego brakuje. Oba tryby są równorzędne, więc widać oba naraz;
 semantyka i URL bez zmian („Gry" = dotychczasowe `?gry=1`).
 
-`SegmentedToggle` jest generyczny (dwie opcje `{ value, label }`, `role="radiogroup"`),
-z kontenerem `grid grid-cols-2` — wskaźnik ma stałą szerokość połowy kontenera, więc
-przy `flex` szerszy tekst przesunąłby podświetlenie obok przycisku, który podświetla.
+`SegmentedToggle` jest generyczny (dwie opcje `{ value, label, icon? }`,
+`role="radiogroup"`), z kontenerem `grid grid-cols-2` — wskaźnik ma stałą szerokość
+połowy kontenera, więc przy `flex` szerszy tekst przesunąłby podświetlenie obok
+przycisku, który podświetla. `icon` musi być w OBU opcjach albo w żadnej: jedna ikona
+i jeden napis rozjechałyby szerokości segmentów, czyli dokładnie to, przed czym broni
+`grid-cols-2`.
 
 | | „Obiekty" (domyślnie) | „Gry" |
 |---|---|---|
 | Pasek | `Gry\|Obiekty` / `Lista\|Mapa` / Filtry (patrz „Scalona wyszukiwarka" wyżej — identyczny kształt w obu trybach) | jw. |
-| Modal „Filtry" | Sport(6) / „Gry dziś" / Typ obiektu / Nawierzchnia | Sport(4) / „Wolne miejsca" / „Za darmo" / Kiedy / Odległość / Cena / Wolne miejsca (suwak) |
+| Modal „Filtry" | Sport(6) / „Gry dziś" / Typ obiektu / Nawierzchnia | Miejscowość + promień / Sport(4) / Kiedy / Wolne miejsca (stepper, domyślnie 1) |
 | Pinezki (widok „Mapa") | boiska, `MapLayer`/`WarstwaSkupisk` (bez zmian) | mecze, `GamesMarkersLayer` (emoji sportu + etykieta „kiedy", swipe w panelu, zamykanie kliknięciem w puste miejsce mapy) |
 | Źródło danych | `getExplorerFields`/`getExplorerClusters` (viewport-scoped) | `events` — **to samo**, co już pobierane wyżej dla `fieldStats`; zero nowego zapytania |
 | Karta wyniku (lista/sidebar/karta wybranej pinezki) | `VenueCard` | `EventBrowseCard`, z plakietką „Nowość" (`isNew`) na liście — patrz „Scalona wyszukiwarka" |
@@ -3863,7 +4221,6 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 | `components/map/LeafletMapImpl.tsx` | nic nie importuje |
 | `components/map/EventsMapView.tsx` | nic nie importuje |
 | `components/map/EventsMapImpl.tsx` | nic nie importuje |
-| `components/home/NearbyGames.tsx` | kompletny, nigdzie nie renderowany |
 | tabela `games` | zastąpiona przez `events` w `002` |
 
 **Aktywna mapa to `VenueExplorer.tsx`** (strona `/mapa`) oraz pickery lokalizacji.

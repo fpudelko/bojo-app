@@ -6,19 +6,24 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { clsx } from 'clsx';
 import {
-  Bell, BellRing, List, LocateFixed, MailOpen, Map as MapIcon, Navigation, Plus,
-  Search, SlidersHorizontal, Ticket, Users, Wallet, X,
+  Bell, List, LocateFixed, MailOpen, Map as MapIcon, Navigation, Plus,
+  Search, SlidersHorizontal, Users, X,
 } from 'lucide-react';
 import { getPublicEvents } from '@/lib/events';
-import type { EventItem, GameAlert } from '@/types';
+import type { EventItem } from '@/types';
 import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
-import { domyslneZFiltrow, getMyAlert } from '@/lib/alerts';
+import { domyslneZFiltrow, logowanieDlaAlertu, zamiarAlertuZAdresu } from '@/lib/alerts';
+import {
+  filtryZAdresu, filtryDoAdresu, MIEJSCA_DOMYSLNIE, SORT_DOMYSLNY as SORT_Z_ADRESU,
+} from '@/lib/filtryListy';
 import { SHOW_GAME_ALERTS } from '@/lib/features';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
-import { TogglePill } from '@/components/ui/FilterPill';
 import SportChip from '@/components/ui/SportChip';
 import FilterSheet from '@/components/ui/FilterSheet';
 import RangeSlider from '@/components/ui/RangeSlider';
+import Stepper from '@/components/ui/Stepper';
+import WyborKiedy from '@/components/ui/WyborKiedy';
+import { PROMIENIE_SUWAK_KM, indeksPromienia, promienZIndeksu } from '@/lib/miejscowosci';
 import PrzyciskMojaLokalizacja from '@/components/ui/PrzyciskMojaLokalizacja';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
@@ -31,7 +36,7 @@ import { foldText, foldedIncludes } from '@/lib/searchText';
 import { plural } from '@/lib/plural';
 import { distanceKm, getCurrentLocation, geoErrorMessage } from '@/lib/geo';
 import {
-  DAY_GROUP_LABEL, filterByMaxPrice, filterByMinFreeSpots, filterByRadius, groupByDay,
+  DAY_GROUP_LABEL, filterByMinFreeSpots, filterByRadius, groupByDay,
   matchesDateFilter, multiLabel, sortEvents,
   type DateFilter, type EventRow, type SortBy,
 } from '@/lib/eventFilters';
@@ -55,20 +60,27 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
 
 /** Domyślne sortowanie. Wydzielone, bo licznik filtrów musi wiedzieć,
  *  czym jest „nic nie zmieniałem", a `useState` to za mało. */
-const SORT_DOMYSLNY: SortBy = 'termin';
+// SORT_DOMYSLNY i MIN_SPOTS_DOMYSLNIE mieszkają teraz w `lib/filtryListy.ts`
+// razem z resztą wartości domyślnych — adres i ekran muszą je znać tak samo,
+// bo inaczej „domyślne nie ląduje w adresie" rozjechałoby się z tym, co ekran
+// uważa za domyślne.
+const SORT_DOMYSLNY = SORT_Z_ADRESU;
 
 
 // Cztery suwaki modala filtrów — zakresy ustalone raz, żeby nie były dowolnością
 // przy każdej zmianie. Skrajna prawa pozycja = brak ograniczenia (D2/D3 planu).
-const DATE_SLIDER_VALUES: DateFilter[] = ['dzisiaj', 'jutro', 'tydzien', 'miesiac', 'wszystkie'];
-const DATE_SLIDER_LABELS = ['Dzisiaj', 'Jutro', 'Ten tydzień', 'Ten miesiąc', 'Wszystko'];
-const RADIUS_MIN = 1;
-const RADIUS_MAX = 20;
-const PRICE_MIN = 0;
-const PRICE_MAX = 100;
-const PRICE_STEP = 5;
+// DATE_SLIDER_VALUES/LABELS zniknęły 2026-09-14 — „Kiedy" to dziś cztery
+// przyciski w jednej linii (`components/ui/WyborKiedy.tsx`), nie suwak.
+// RADIUS_MIN/RADIUS_MAX (1–20 km, liniowo) zniknęły 2026-09-14 — suwak
+// odległości chodzi po skali `PROMIENIE_SUWAK_KM` z `lib/miejscowosci.ts`,
+// wspólnej dla obu arkuszy filtrów.
+// PRICE_MIN/MAX/STEP zniknęły 2026-09-14 razem z filtrem ceny — uzasadnienie
+// przy `minFreeSpots` niżej.
+// Wolne miejsca: domyślnie 1, w górę do 99. Dawne `14` (skład 7v7) odcinało
+// pytanie „szukamy miejsca dla ośmiu" na większych meczach.
 const MIN_SPOTS_MIN = 0;
-const MIN_SPOTS_MAX = 14;
+const MIN_SPOTS_MAX = 99;
+const MIN_SPOTS_DOMYSLNIE = MIEJSCA_DOMYSLNIE;
 
 const PAGE_SIZE = 20;
 
@@ -79,7 +91,7 @@ const PAGE_SIZE = 20;
  * logowania (components/auth/LoginBackdrop.tsx). Gdyby renderował własny
  * nagłówek, na /logowanie byłyby dwa.
  */
-export default function EventsListView({ widzianoWczesniej }: {
+export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = false }: {
   /** Znacznik „ostatnio widziano listę" SPRZED nadpisania go przez
    *  `EventsListClient.tsx` — `undefined` (jeszcze nie odczytane) i `null`
    *  (pierwsza wizyta w ogóle) świadomie NIE oznaczają żadnej karty jako
@@ -87,6 +99,23 @@ export default function EventsListView({ widzianoWczesniej }: {
    *  listę kropkami zamiast wskazać coś konkretnego. Bez propa (tło ekranu
    *  logowania) żadna karta nigdy nie jest nowa. */
   widzianoWczesniej?: string | null;
+  /**
+   * Czy TEN egzemplarz listy jest właścicielem adresu strony.
+   *
+   * MUSI BYĆ WYŁĄCZONE DOMYŚLNIE, bo `EventsListView` renderuje się także jako
+   * TŁO EKRANU LOGOWANIA (`components/auth/LoginBackdrop.tsx`). Bez tego
+   * przełącznika synchronizacja filtrów przepisywała adres `/logowanie`
+   * i zjadała jego parametry — `mode=rejestracja` (przycisk „Dołącz" w pasku
+   * przestawał otwierać zakładanie konta), a także `next` i `powod`, czyli
+   * całą ścieżkę powrotu po zalogowaniu. Złapały to dopiero zrzuty ekranu:
+   * `rejestracja-formularz` pokazał formularz LOGOWANIA.
+   *
+   * To ta sama pułapka, którą `EventsListClient` obchodzi przy znaczniku
+   * „widziano listę" — tło ekranu logowania nie jest wizytą na liście i nie
+   * jest też jej adresem. Domyślnie WYŁĄCZONE, bo pomyłka w tę stronę kosztuje
+   * tylko utratę funkcji na jednym ekranie, a w drugą — psuje logowanie.
+   */
+  zarzadzaAdresem?: boolean;
 } = {}) {
   // Jedno źródło relacji do meczu. Wcześniej strona wołała useMyParticipation()
   // ORAZ useMyInvites(), a oba pobierają getMyParticipationMap — to samo
@@ -121,11 +150,58 @@ export default function EventsListView({ widzianoWczesniej }: {
   const [sports, setSports] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>('wszystkie');
   const [radiusKm, setRadiusKm] = useState<number | null>(null);
-  const [maxPriceGrosze, setMaxPriceGrosze] = useState<number | null>(null);
-  const [minFreeSpots, setMinFreeSpots] = useState(0);
-  const [onlyFreeSpots, setOnlyFreeSpots] = useState(false);
-  const [onlyNoCost, setOnlyNoCost] = useState(false);
+  // WOLNE MIEJSCA: domyślnie 1 — 2026-09-14, zgłoszone wprost. `1` znaczy
+  // „pokaż mecze, do których da się wejść", czyli to, po co ktoś otwiera listę
+  // meczów; `0` (dowolna liczba, z kompletami) zostaje o jedno dotknięcie „−"
+  // niżej, a pusty stan mówi o tym wprost.
+  const [minFreeSpots, setMinFreeSpots] = useState(MIN_SPOTS_DOMYSLNIE);
+  // FILTR CENY ZNIKNĄŁ (zgłoszone wprost). Pytał o górny limit w złotych,
+  // a mecze w Bojo są albo za darmo, albo za kilkanaście złotych od osoby —
+  // suwak 0–100 zł rozstrzygał wybór, którego nikt nie ma. Cena stoi na karcie
+  // meczu i to wystarcza. `filterByMaxPrice` odeszło razem z nim
+  // z `lib/eventFilters.ts`: helper bez wywołania to martwy kod.
+  //
+  // `onlyFreeSpots`/`onlyNoCost` odeszły przy tej samej okazji. Były już
+  // martwe: żadna kontrolka ich nie ustawiała, więc wisiały na stałe
+  // na `false`, a `liczbaFiltrow` i `hasFilters` liczyły je co render.
   const [sortBy, setSortBy] = useState<SortBy>(SORT_DOMYSLNY);
+
+  // FILTRY ŻYJĄ W ADRESIE STRONY — od 2026-09-15, dwa zgłoszenia naraz:
+  // „kliknięcie «Powiadom mnie» gubi wszystko" i „filtry nie przeżywają
+  // odświeżenia ani powrotu". Oba to ten sam brak: stan filtrów siedział
+  // wyłącznie w pamięci komponentu, więc przekierowanie na logowanie kasowało
+  // razem z nim powód, dla którego ktoś tam kliknął.
+  //
+  // `window.location.search`, NIE `useSearchParams()`. `/wydarzenia` jest
+  // trasą PRERENDEROWANĄ (`○` w wyniku builda), a ten hook wymusza na takiej
+  // trasie bail-out do CSR i wywraca build produkcyjny na
+  // `missing-suspense-with-csr-bailout` — pułapka opisana w AGENTS.md. Odczyt
+  // po zamontowaniu omija ją w całości i nie wymaga `<Suspense>` wokół całej
+  // listy. Ten sam wzorzec co `backHref` w `boisko/[id]/VenueDetailClient`.
+  const [odczytanoAdres, setOdczytanoAdres] = useState(false);
+  useEffect(() => {
+    if (!zarzadzaAdresem) { setOdczytanoAdres(true); return; }
+    // Powrót z logowania z `alert=1` otwiera okno od razu — to jest druga
+    // połowa naprawy „kliknięcie «Powiadom mnie» gubi wszystko": pierwsza
+    // przywraca filtry, ta przywraca ZAMIAR.
+    const { otworz, adres } = zamiarAlertuZAdresu(window.location.pathname + window.location.search);
+    if (otworz) {
+      window.history.replaceState(null, '', adres);
+      setOknoAlertu(true);
+    }
+    const f = filtryZAdresu(window.location.search);
+    setSports(f.sports);
+    setDateFilter(f.dateFilter);
+    setRadiusKm(f.radiusKm);
+    setMinFreeSpots(f.minFreeSpots);
+    setSortBy(f.sortBy);
+    setQuery(f.query);
+    setOdczytanoAdres(true);
+    // Pusta lista zależności jest tu celem: adres czytamy RAZ, przy montażu.
+    // `zarzadzaAdresem` nie zmienia się w trakcie życia egzemplarza — jest
+    // stałą miejsca renderowania, a nie stanem.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Mobile-only przełącznik lista/mapa (D9) — desktop zawsze pokazuje listę,
   // ma już osobny link „Mapa boisk" w nawigacji.
@@ -185,25 +261,22 @@ export default function EventsListView({ widzianoWczesniej }: {
    *  jakaś jest, więc „1 filtr" na czystym ekranie byłoby kłamstwem. */
   const liczbaFiltrow = [
     sports.length > 0,
-    onlyFreeSpots,
-    onlyNoCost,
     dateFilter !== 'wszystkie',
     radiusKm !== null,
-    maxPriceGrosze !== null,
-    minFreeSpots > 0,
+    // Od ODCHYLENIA OD DOMYŚLNEJ JEDYNKI, nie od zera: domyślne „co najmniej
+    // jedno wolne miejsce" jest stanowiskiem aplikacji („pokazujemy mecze, do
+    // których da się wejść"), tak samo jak to, że lista nie pokazuje meczów
+    // z przeszłości. Plakietka ma mówić „coś USTAWIŁEŚ".
+    minFreeSpots !== MIN_SPOTS_DOMYSLNIE,
     sortBy !== SORT_DOMYSLNY,
   ].filter(Boolean).length;
   const [draftDate, setDraftDate] = useState<DateFilter>(dateFilter);
   const [draftRadius, setDraftRadius] = useState<number | null>(radiusKm);
-  const [draftMaxPricePln, setDraftMaxPricePln] = useState<number | null>(
-    maxPriceGrosze == null ? null : maxPriceGrosze / 100,
-  );
   const [draftMinFreeSpots, setDraftMinFreeSpots] = useState(minFreeSpots);
 
   const openSheet = () => {
     setDraftDate(dateFilter);
     setDraftRadius(radiusKm);
-    setDraftMaxPricePln(maxPriceGrosze == null ? null : maxPriceGrosze / 100);
     setDraftMinFreeSpots(minFreeSpots);
     setSheetOpen(true);
   };
@@ -233,7 +306,6 @@ export default function EventsListView({ widzianoWczesniej }: {
   const applyDraft = async () => {
     setGeoError(null);
     setDateFilter(draftDate);
-    setMaxPriceGrosze(draftMaxPricePln == null ? null : draftMaxPricePln * 100);
     setMinFreeSpots(draftMinFreeSpots);
     const needsGeo = draftRadius != null && !userPos;
     if (!needsGeo) {
@@ -255,8 +327,7 @@ export default function EventsListView({ widzianoWczesniej }: {
   const clearDraft = () => {
     setDraftDate('wszystkie');
     setDraftRadius(null);
-    setDraftMaxPricePln(null);
-    setDraftMinFreeSpots(0);
+    setDraftMinFreeSpots(MIN_SPOTS_DOMYSLNIE);
   };
 
   /** Baza filtrowania wspólna dla wyniku realnego i podglądu w modalu — bez
@@ -269,12 +340,6 @@ export default function EventsListView({ widzianoWczesniej }: {
       const wanted = sports.includes('piłka nożna') ? [...sports, 'futsal'] : sports;
       list = list.filter((e) => wanted.includes(e.sport));
     }
-    if (onlyFreeSpots) {
-      list = list.filter((e) => (e.participantsCount ?? 0) < (e.maxPlayers ?? 0));
-    }
-    if (onlyNoCost) {
-      list = list.filter((e) => (e.costGrosze ?? 0) <= 0);
-    }
     if (q) {
       list = list.filter((e) =>
         foldedIncludes(e.title, q) ||
@@ -284,7 +349,7 @@ export default function EventsListView({ widzianoWczesniej }: {
       );
     }
     return list;
-  }, [allEvents, sports, onlyFreeSpots, onlyNoCost, query]);
+  }, [allEvents, sports, query]);
 
   const filtered = useMemo(() => {
     if (dateFilter === 'wszystkie') return baseForPreview;
@@ -304,15 +369,19 @@ export default function EventsListView({ widzianoWczesniej }: {
   }, [filtered, userPos]);
 
   const radiusFiltered = useMemo(() => filterByRadius(withDistance, radiusKm), [withDistance, radiusKm]);
-  const priceFiltered = useMemo(() => filterByMaxPrice(radiusFiltered, maxPriceGrosze), [radiusFiltered, maxPriceGrosze]);
-  const spotsFiltered = useMemo(() => filterByMinFreeSpots(priceFiltered, minFreeSpots), [priceFiltered, minFreeSpots]);
+  const spotsFiltered = useMemo(() => filterByMinFreeSpots(radiusFiltered, minFreeSpots), [radiusFiltered, minFreeSpots]);
   const sorted = useMemo(() => sortEvents(spotsFiltered, sortBy), [spotsFiltered, sortBy]);
+  /** Ile meczów odsiał SAM filtr wolnych miejsc. Domyślna jedynka chowa
+   *  komplety, nie podbijając `liczbaFiltrow` ani `hasFilters` (to stan
+   *  domyślny, nie wybór człowieka) — więc bez tej liczby pusty stan mówiłby
+   *  „nie ma teraz otwartych gier w okolicy" w chwili, gdy są, tylko pełne. */
+  const ukryteKomplety = radiusFiltered.length - spotsFiltered.length;
 
   // Licznik wraca do początku przy każdej zmianie filtrów — inaczej po
   // zawężeniu listy zostawałby "Pokaż więcej" dla wyników, których już nie ma.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [sports, dateFilter, radiusKm, maxPriceGrosze, minFreeSpots, onlyFreeSpots, onlyNoCost, query, sortBy]);
+  }, [sports, dateFilter, radiusKm, minFreeSpots, query, sortBy]);
 
   const visible = sorted.slice(0, visibleCount);
 
@@ -324,8 +393,27 @@ export default function EventsListView({ widzianoWczesniej }: {
     [visible, sortBy],
   );
 
+  // ZAPIS: `history.replaceState`, nie `router.replace`. Filtry zmieniają się
+  // przy każdym dotknięciu suwaka; nawigacja Next.js przy każdej takiej zmianie
+  // przerenderowałaby trasę i zasypała historię przeglądarki, przez co systemowe
+  // „wstecz" cofałoby po jednym kliknięciu filtra zamiast wyjść z listy.
+  // `replaceState` podmienia adres bez jednego i bez drugiego.
+  //
+  // Warunek `odczytanoAdres` jest konieczny, nie ozdobny: bez niego pierwszy
+  // przebieg (jeszcze z wartościami domyślnymi) nadpisałby adres przyniesiony
+  // z linku, zanim efekt powyżej zdąży go przeczytać.
+  useEffect(() => {
+    if (!zarzadzaAdresem || !odczytanoAdres) return;
+    const adres = filtryDoAdresu({ sports, dateFilter, radiusKm, minFreeSpots, sortBy, query })
+      || window.location.pathname;
+    const docelowy = adres.startsWith('?') ? window.location.pathname + adres : adres;
+    if (docelowy !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, '', docelowy);
+    }
+  }, [zarzadzaAdresem, odczytanoAdres, sports, dateFilter, radiusKm, minFreeSpots, sortBy, query]);
+
   const hasFilters = sports.length > 0 || dateFilter !== 'wszystkie' || radiusKm !== null
-    || maxPriceGrosze !== null || minFreeSpots > 0 || !!query || onlyFreeSpots || onlyNoCost;
+    || minFreeSpots !== MIN_SPOTS_DOMYSLNIE || !!query;
 
   // ALERT O NOWYM MECZU. Pusta lista to jedyne miejsce w apce, gdzie człowiek
   // powiedział dokładnie, czego szuka, i dostał „nie ma". Od 2026-09-12 to już
@@ -334,7 +422,6 @@ export default function EventsListView({ widzianoWczesniej }: {
   // które przychodzi do głowy wyłącznie po zobaczeniu pustki. Skutek uboczny:
   // stan alertu trzeba znać od razu (dzwonek pokazuje, czy jest włączony), więc
   // nie da się już odkładać tego zapytania do pustego stanu.
-  const [mojAlert, setMojAlert] = useState<GameAlert | null>(null);
   const [oknoAlertu, setOknoAlertu] = useState(false);
   // Filtry SĄ już odpowiedzią na „czego szukasz" — okno alertu otwiera się
   // z nimi, zamiast pytać o to samo drugi raz.
@@ -343,29 +430,27 @@ export default function EventsListView({ widzianoWczesniej }: {
     [sports, radiusKm, userPos],
   );
   const pustaLista = !loading && !loadError && sorted.length === 0;
-  useEffect(() => {
-    if (!SHOW_GAME_ALERTS || !user) return;
-    let zywe = true;
-    getMyAlert().then((a) => { if (zywe) setMojAlert(a); }).catch(() => {});
-    return () => { zywe = false; };
-  }, [user]);
+  // ZAPYTANIA O ALERTY TU JUŻ NIE MA — 2026-09-15. Robiło się przy każdym
+  // wejściu na listę tylko po to, żeby wypełnić dzwonek w pasku; dzwonek
+  // odszedł, a oba pozostałe wejścia („Powiadom mnie…") wyglądają tak samo
+  // niezależnie od tego, ile alertów ktoś ma.
 
   /** Jedno wejście do okna alertu dla trzech miejsc (dzwonek w pasku, arkusz
    *  filtrów, pusty stan). Wylogowanego odsyła na logowanie — alert jest
    *  przypisany do konta, więc bez niego nie ma czego zapisać. */
   const otworzAlert = () => {
-    if (!user) { router.push('/logowanie?next=%2Fwydarzenia'); return; }
+    if (!user) {
+      router.push(logowanieDlaAlertu(window.location.pathname + window.location.search));
+      return;
+    }
     setOknoAlertu(true);
   };
   const clearFilters = () => {
     setSports([]);
     setDateFilter('wszystkie');
     setRadiusKm(null);
-    setMaxPriceGrosze(null);
-    setMinFreeSpots(0);
+    setMinFreeSpots(MIN_SPOTS_DOMYSLNIE);
     setQuery('');
-    setOnlyFreeSpots(false);
-    setOnlyNoCost(false);
     setSortBy('termin');
   };
 
@@ -385,10 +470,9 @@ export default function EventsListView({ widzianoWczesniej }: {
         }))
       : list.map((event) => ({ event }));
     let rows = filterByRadius(withDist, draftRadius);
-    rows = filterByMaxPrice(rows, draftMaxPricePln == null ? null : draftMaxPricePln * 100);
     rows = filterByMinFreeSpots(rows, draftMinFreeSpots);
     return rows;
-  }, [baseForPreview, draftDate, draftRadius, draftMaxPricePln, draftMinFreeSpots, userPos]);
+  }, [baseForPreview, draftDate, draftRadius, draftMinFreeSpots, userPos]);
 
 
   const jestNowe = (event: EventItem) => (
@@ -514,7 +598,9 @@ export default function EventsListView({ widzianoWczesniej }: {
         <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
           <span className="mb-4 text-5xl">⚽</span>
           <p className="text-base font-bold text-slate-700 dark:text-slate-300">
-            {hasFilters ? 'Brak meczów' : 'Nie ma teraz otwartych gier w okolicy'}
+            {ukryteKomplety > 0
+              ? (ukryteKomplety === 1 ? 'Jedyny mecz w okolicy ma komplet' : 'Wszystkie mecze w okolicy mają komplet')
+              : hasFilters ? 'Brak meczów' : 'Nie ma teraz otwartych gier w okolicy'}
           </p>
           {/* Pusty stan ma prowadzić dalej, a nie tylko stwierdzać brak.
               Komu dokąd:
@@ -525,7 +611,9 @@ export default function EventsListView({ widzianoWczesniej }: {
                   meczem bez ludzi — czyli najgorszym pierwszym wrażeniem);
                 - z ekipą → własny mecz, bo ma kogo na niego zaprosić. */}
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {hasFilters
+            {ukryteKomplety > 0
+              ? 'Możesz je obejrzeć i zapisać się na listę rezerwową.'
+              : hasFilters
               ? 'Zmień filtr albo wrzuć własny mecz.'
               : mamEkipe === false
                 ? 'Grasz ze stałą ekipą? Wejdź do niej kodem od kolegów — mecze ekipy zobaczysz w „Grupy".'
@@ -535,31 +623,35 @@ export default function EventsListView({ widzianoWczesniej }: {
               nie ma DZIŚ, jedyne sensowne „dalej" to dowiedzieć się, gdy
               będzie. Dopiero pod spodem czyszczenie filtrów i własny mecz —
               obie te drogi każą coś zrobić, ta jedna działa sama. */}
+          {/* JEDEN przycisk, nie dwa warianty — 2026-09-15. Dotąd przy
+              istniejącym alercie stała tu ramka „Damy znać…" z odsyłaczem do
+              zmiany ustawień; odkąd alertów może być wiele, „mam alert" nie
+              znaczy już „mam alert NA TO", a zmienia się je w profilu
+              (`components/profil/MojeAlerty.tsx`). Przycisk robi zawsze to
+              samo: zakłada alert z tego, co jest teraz na ekranie. */}
           {SHOW_GAME_ALERTS && (
-            mojAlert ? (
-              <div className="mt-5 w-full max-w-sm rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950">
-                <p className="flex items-center justify-center gap-2 text-sm font-semibold text-primary-800 dark:text-primary-200">
-                  <BellRing className="h-4 w-4 shrink-0" />
-                  Damy znać, gdy pojawi się pasujący mecz
-                </p>
-                <button
-                  type="button"
-                  onClick={otworzAlert}
-                  className="mt-1 text-xs font-semibold text-primary-700 underline dark:text-primary-300"
-                >
-                  Zmień ustawienia powiadomienia
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={otworzAlert}
-                className="mt-5 flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-primary-700 px-5 py-4 text-base font-bold text-white transition-transform active:scale-[0.98]"
-              >
-                <Bell className="h-5 w-5 shrink-0" />
-                Powiadom mnie, gdy się pojawi
-              </button>
-            )
+            <button
+              type="button"
+              onClick={otworzAlert}
+              className="mt-5 flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-primary-700 px-5 py-4 text-base font-bold text-white transition-transform active:scale-[0.98]"
+            >
+              <Bell className="h-5 w-5 shrink-0" />
+              Powiadom mnie, gdy się pojawi
+            </button>
+          )}
+
+          {/* Odsyłacz pokazuje się tylko wtedy, gdy naprawdę jest co pokazać
+              (`ukryteKomplety > 0`), a nie „gdy filtr stoi na 1". Filtr stoi na
+              1 domyślnie, więc bez tego warunku obiecywałby komplety także tam,
+              gdzie nie ma żadnych meczów. */}
+          {ukryteKomplety > 0 && (
+            <button
+              type="button"
+              onClick={() => { setMinFreeSpots(0); setDraftMinFreeSpots(0); }}
+              className="mt-4 text-sm font-semibold text-primary-700 underline"
+            >
+              Zobacz też mecze z kompletem
+            </button>
           )}
 
           {hasFilters && (
@@ -697,26 +789,18 @@ export default function EventsListView({ widzianoWczesniej }: {
           >
             {viewMode === 'lista' ? <MapIcon className="h-4 w-4" /> : <List className="h-4 w-4" />}
           </button>
-          {/* Dzwonek alertu stoi w tym samym rzędzie co mapa i filtry, bo
-              odpowiada na to samo pytanie („jak chcę oglądać tę listę"), tylko
-              rozciągnięte w czasie. Wypełniony = alert włączony; ten sam
-              zabieg co przy aktywnych filtrach obok, więc kształt mówi „stan",
-              a nie „nowe zdarzenie". */}
-          {SHOW_GAME_ALERTS && (
-            <button
-              type="button"
-              onClick={otworzAlert}
-              aria-label={mojAlert ? 'Alert o nowych meczach — włączony' : 'Powiadom mnie o nowych meczach'}
-              className={clsx(
-                'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors',
-                mojAlert
-                  ? 'border-primary-700 bg-primary-700 text-white'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
-              )}
-            >
-              {mojAlert ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
-            </button>
-          )}
+          {/* DZWONKA ALERTU TU JUŻ NIE MA — 2026-09-15, ten sam powód, dla
+              którego zniknął z paska na `/mapa`: sama ikona nie mówi, co zrobi
+              dotknięcie, a stała w jednym rzędzie z DRUGIM dzwonkiem
+              (powiadomienia w `MobileIdentityRow`), który znaczy co innego.
+
+              `/wydarzenia` NIE dostaje w zamian pigułki nad listą, którą ma
+              `/mapa`, i to jest świadome: tam lista siedzi w kontenerze
+              o ustalonej wysokości, więc nakładka ma od czego mierzyć dół;
+              tutaj strona przewija się w całości i pigułka musiałaby być
+              `fixed` nad paskiem nawigacji przez cały czas przewijania
+              kilkudziesięciu kart. Wejścia zostają dwa — pusty stan i arkusz
+              filtrów — a alertami zarządza się w profilu. */}
           <button
             type="button"
             onClick={openSheet}
@@ -770,7 +854,7 @@ export default function EventsListView({ widzianoWczesniej }: {
         title="Filtry"
         onApply={applyDraft}
         onClear={clearDraft}
-        applyLabel={geoBusy ? 'Szukam Cię…' : `Pokaż ${previewRows.length} ${plural(previewRows.length, 'mecz', 'mecze', 'meczy')}`}
+        applyLabel={geoBusy ? 'Szukam Cię…' : `Pokaż ${previewRows.length} ${plural(previewRows.length, 'mecz', 'mecze', 'meczów')}`}
       >
         <div className="space-y-6">
           {/* SORTOWANIE I SPORT NA GÓRZE, suwaki niżej. Te dwa odpowiadają na
@@ -836,42 +920,31 @@ export default function EventsListView({ widzianoWczesniej }: {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <TogglePill
-              label="Wolne miejsca"
-              icon={<Ticket className="h-3.5 w-3.5 shrink-0" />}
-              active={onlyFreeSpots}
-              onClick={() => setOnlyFreeSpots((v) => !v)}
-            />
-            <TogglePill
-              label="Za darmo"
-              icon={<Wallet className="h-3.5 w-3.5 shrink-0" />}
-              active={onlyNoCost}
-              onClick={() => setOnlyNoCost((v) => !v)}
-            />
-          </div>
+          {/* PIGUŁKI „Wolne miejsca" i „Za darmo" ZNIKNĘŁY — 2026-09-14,
+              zgłoszone wprost. Pytały o to samo co suwaki tuż niżej, tylko
+              zgrubniej: „Wolne miejsca" to suwak „Wolne miejsca" na 1,
+              a „Za darmo" to suwak „Cena" na 0. Ten sam zabieg co w arkuszu
+              na `/mapa`. */}
 
-          <RangeSlider
-            label="Kiedy"
-            min={0}
-            max={4}
-            step={1}
-            value={DATE_SLIDER_VALUES.indexOf(draftDate)}
-            onChange={(i) => setDraftDate(DATE_SLIDER_VALUES[i])}
-            formatValue={(i) => DATE_SLIDER_LABELS[i]}
-            minLabel="Dzisiaj"
-            maxLabel="Wszystko"
-          />
+          <WyborKiedy wartosc={draftDate} naZmiane={setDraftDate} />
           <div>
+            {/* Skala NARASTAJĄCA, wspólna z arkuszem na `/mapa`
+                (`PROMIENIE_SUWAK_KM`) — uzasadnienie przy samej tablicy
+                w `lib/miejscowosci.ts`. Dotąd suwak chodził liniowo 1–20 km,
+                więc „dalej niż 20" znaczyło od razu „bez limitu": między
+                sąsiednim osiedlem a całą Polską nie było nic.
+
+                „Bez limitu" zostaje ostatnim przystankiem ZA setką — promień
+                `null` to jedyny sposób, żeby zobaczyć wszystko. */}
             <RangeSlider
               label="Odległość"
-              min={RADIUS_MIN}
-              max={RADIUS_MAX}
+              min={0}
+              max={PROMIENIE_SUWAK_KM.length}
               step={1}
-              value={draftRadius ?? RADIUS_MAX}
-              onChange={(km) => setDraftRadius(km >= RADIUS_MAX ? null : km)}
-              formatValue={(km) => (km >= RADIUS_MAX ? 'Bez limitu' : `do ${km} km`)}
-              minLabel={`${RADIUS_MIN} km`}
+              value={draftRadius == null ? PROMIENIE_SUWAK_KM.length : indeksPromienia(draftRadius)}
+              onChange={(i) => setDraftRadius(i >= PROMIENIE_SUWAK_KM.length ? null : promienZIndeksu(i))}
+              formatValue={(i) => (i >= PROMIENIE_SUWAK_KM.length ? 'Bez limitu' : `do ${promienZIndeksu(i)} km`)}
+              minLabel={`${PROMIENIE_SUWAK_KM[0]} km`}
               maxLabel="Bez limitu"
             />
             {/* Promień jest liczony OD CZEGOŚ, a tym czymś jest pozycja gracza
@@ -891,27 +964,16 @@ export default function EventsListView({ widzianoWczesniej }: {
               />
             )}
           </div>
-          <RangeSlider
-            label="Cena"
-            min={PRICE_MIN}
-            max={PRICE_MAX}
-            step={PRICE_STEP}
-            value={draftMaxPricePln ?? PRICE_MAX}
-            onChange={(pln) => setDraftMaxPricePln(pln >= PRICE_MAX ? null : pln)}
-            formatValue={(pln) => (pln >= PRICE_MAX ? 'Bez limitu' : pln === 0 ? 'Za darmo' : `do ${pln} zł`)}
-            minLabel="Za darmo"
-            maxLabel="Bez limitu"
-          />
-          <RangeSlider
+          {/* SUWAKA „Cena" TU NIE MA — 2026-09-14, uzasadnienie przy
+              `minFreeSpots` wyżej. */}
+          <Stepper
             label="Wolne miejsca"
             min={MIN_SPOTS_MIN}
             max={MIN_SPOTS_MAX}
-            step={1}
             value={draftMinFreeSpots}
             onChange={setDraftMinFreeSpots}
             formatValue={(n) => (n === 0 ? 'Dowolna liczba' : `co najmniej ${n}`)}
-            minLabel="Dowolna liczba"
-            maxLabel="14+"
+            hint="Zejdź do zera, żeby zobaczyć też mecze z kompletem."
           />
 
           {/* Alert na dole arkusza, bo dopiero tu wiadomo, czego ktoś szuka.
@@ -920,42 +982,20 @@ export default function EventsListView({ widzianoWczesniej }: {
               dowiedzieć z pustego stanu. Wtedy wejście robi się pełnym
               przyciskiem; przy niezerowym wyniku zostaje cichym wierszem, żeby
               nie konkurować z „Pokaż N meczy" na dole. */}
+          {/* JEDEN CICHY WIERSZ, nie trzy warianty — 2026-09-15, ta sama
+              zmiana co w arkuszu na `/mapa`. Trzy wyglądy dla jednej rzeczy
+              powstały, gdy alert był jeden i arkusz musiał mówić, w którym
+              jest stanie. Dziś stan alertów czyta się w profilu, a tu zostaje
+              skrót dla kogoś, kto właśnie ustawił filtry. */}
           {SHOW_GAME_ALERTS && (
-            mojAlert ? (
-              <button
-                type="button"
-                onClick={() => { setSheetOpen(false); otworzAlert(); }}
-                className="flex w-full items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-3 py-2.5 text-left text-sm font-medium text-primary-800 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-200"
-              >
-                <BellRing className="h-4 w-4 shrink-0" aria-hidden />
-                <span className="flex-1">Damy znać, gdy pojawi się pasujący mecz</span>
-                <span className="shrink-0 text-xs underline">Zmień</span>
-              </button>
-            ) : previewRows.length === 0 ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center dark:border-slate-700 dark:bg-slate-800">
-                <p className="text-sm font-semibold text-ink">Nic nie pasuje do tych filtrów</p>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  Możemy dać znać, gdy pojawi się pierwszy taki mecz.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { setSheetOpen(false); otworzAlert(); }}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-3 text-sm font-bold text-white transition-transform active:scale-[0.98]"
-                >
-                  <Bell className="h-4 w-4 shrink-0" aria-hidden />
-                  Powiadom mnie, gdy się pojawi
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => { setSheetOpen(false); otworzAlert(); }}
-                className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition-colors hover:border-primary-300 hover:text-primary-700 dark:border-slate-700 dark:text-slate-300"
-              >
-                <Bell className="h-4 w-4 shrink-0" aria-hidden />
-                Powiadom mnie o nowych takich meczach
-              </button>
-            )
+            <button
+              type="button"
+              onClick={() => { setSheetOpen(false); otworzAlert(); }}
+              className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition-colors hover:border-primary-300 hover:text-primary-700 dark:border-slate-700 dark:text-slate-300"
+            >
+              <Bell className="h-4 w-4 shrink-0" aria-hidden />
+              Powiadom mnie o takich meczach
+            </button>
           )}
         </div>
       </FilterSheet>
@@ -1018,8 +1058,8 @@ export default function EventsListView({ widzianoWczesniej }: {
           defaultLat={domyslneAlertu.lat}
           defaultLng={domyslneAlertu.lng}
           defaultLabel={domyslneAlertu.lat != null ? 'Moja lokalizacja' : undefined}
+          zFiltrow
           onClose={() => setOknoAlertu(false)}
-          onSaved={setMojAlert}
         />
       )}
     </div>

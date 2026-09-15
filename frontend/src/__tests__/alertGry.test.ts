@@ -8,7 +8,12 @@ import {
 // cztery rzeczy naraz i że tytuł/HTML nie łamią się na danych z brzegu
 // (brak tytułu, brak adresu, mecz za darmo).
 
-const kontakt = { strona: 'https://bojo.pl', eventUrl: 'https://bojo.pl/wydarzenia/abc', odpowiedzNa: 'bojopolska@gmail.com' };
+const kontakt = {
+  strona: 'https://bojo.pl',
+  eventUrl: 'https://bojo.pl/wydarzenia/abc',
+  odpowiedzNa: 'bojopolska@gmail.com',
+  wylaczUrl: 'https://bojo.pl/alert/wylacz/token-123',
+};
 
 function dane(nadpisz: Partial<DaneAlertu> = {}): DaneAlertu {
   return {
@@ -104,5 +109,25 @@ describe('HTML i tekst niosą tę samą treść i domenę kanoniczną', () => {
     const html = doHtml(mail, kontakt);
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
+  });
+});
+
+describe('link „nie chcę więcej" w mailu', () => {
+  // Nie jest ozdobą. Od 2026-09-14 alert domyślnie NIE WYGASA, a mail czyta się
+  // w skrzynce, często na innym urządzeniu i długo po założeniu alertu. Bez
+  // tego linku jedyną drogą wyłączenia jest zalogowanie się i znalezienie okna
+  // alertu — czyli w praktyce oznaczenie wiadomości jako spam, co kosztuje cały
+  // kanał, nie jeden alert.
+  it('jest w wersji HTML', () => {
+    expect(doHtml(tresc(dane(), '14.09.2026'), kontakt)).toContain('https://bojo.pl/alert/wylacz/token-123');
+  });
+
+  it('jest w wersji tekstowej — część klientów pokazuje wyłącznie ją', () => {
+    expect(doTekstu(tresc(dane(), '14.09.2026'), kontakt)).toContain('https://bojo.pl/alert/wylacz/token-123');
+  });
+
+  it('mówi, co robi — sam adres nikomu nic nie mówi', () => {
+    const tekst = doTekstu(tresc(dane(), '14.09.2026'), kontakt);
+    expect(tekst).toMatch(/nie chcesz wi(ę|e)cej/i);
   });
 });

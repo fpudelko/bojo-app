@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { clsx } from 'clsx';
 
 /**
@@ -16,7 +17,12 @@ export default function SegmentedToggle<T extends string>({
 }: {
   value: T;
   onChange: (v: T) => void;
-  options: readonly [{ value: T; label: string }, { value: T; label: string }];
+  /** `icon` zamiast napisu — patrz komentarz przy `zIkonami` niżej. Podpis
+   *  z `label` zostaje wtedy nazwą dostępną (`aria-label`) i podpowiedzią. */
+  options: readonly [
+    { value: T; label: string; icon?: ReactNode },
+    { value: T; label: string; icon?: ReactNode },
+  ];
   ariaLabel: string;
   /** `sm` — dla przełącznika drugorzędnego obok głównego wyboru (np. „Lista |
    *  Mapa" przy „Gry | Obiekty" w scalonej wyszukiwarce). Mniejsza plakietka
@@ -26,6 +32,17 @@ export default function SegmentedToggle<T extends string>({
 }) {
   const drugaAktywna = value === options[1].value;
   const maly = size === 'sm';
+  // WARIANT IKONOWY — 2026-09-14, zgłoszone wprost („Lista i Mapa zmienić na
+  // ikonki, taki przełącznik jak jest, ale zamiast napisów ikonki"). Powód
+  // jest mierzalny, nie estetyczny: pasek wyszukiwarki na telefonie łamał się
+  // na dwa wiersze, a dwa napisy kosztują w nim więcej miejsca niż dwa
+  // kwadraty 36×36. Kształt przełącznika zostaje ten sam, więc dalej widać
+  // OBA stany naraz — a tylko to odróżniało go od guzika z ikoną.
+  //
+  // Ikony muszą być w OBU opcjach albo w żadnej: jedna ikona i jeden napis
+  // rozjechałyby szerokości segmentów, czyli dokładnie to, przed czym broni
+  // `grid-cols-2` wyżej.
+  const zIkonami = options[0].icon != null && options[1].icon != null;
   return (
     <div
       role="radiogroup"
@@ -45,14 +62,21 @@ export default function SegmentedToggle<T extends string>({
           type="button"
           role="radio"
           aria-checked={value === o.value}
+          // Nazwa dostępna z `label` także w wariancie ikonowym — inaczej
+          // czytnik ekranu dostałby przycisk bez nazwy, a scenariusze
+          // klikalności celują w `getByRole('radio', { name: 'Lista' })`.
+          aria-label={zIkonami ? o.label : undefined}
+          title={zIkonami ? o.label : undefined}
           onClick={() => onChange(o.value)}
           className={clsx(
-            'relative z-10 whitespace-nowrap rounded-full font-medium transition-colors',
-            maly ? 'px-2.5 py-1 text-[12px]' : 'px-3 py-1.5 text-[13px]',
+            'relative z-10 flex items-center justify-center whitespace-nowrap rounded-full font-medium transition-colors',
+            zIkonami
+              ? 'h-9 w-9'
+              : maly ? 'px-2.5 py-1 text-[12px]' : 'px-3 py-1.5 text-[13px]',
             value === o.value ? 'text-primary-700' : 'text-slate-500 hover:text-slate-700',
           )}
         >
-          {o.label}
+          {zIkonami ? o.icon : o.label}
         </button>
       ))}
     </div>

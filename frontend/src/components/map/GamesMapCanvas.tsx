@@ -81,7 +81,7 @@ export default function GamesMapCanvas({
       </MapContainer>
 
       <div className="pointer-events-none absolute left-3 top-3 z-[600] rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-md">
-        {zLokalizacja.length} {plural(zLokalizacja.length, 'mecz', 'mecze', 'meczy')} na mapie
+        {zLokalizacja.length} {plural(zLokalizacja.length, 'mecz', 'mecze', 'meczów')} na mapie
         {bezLokalizacji > 0 && (
           <span className="text-slate-400"> · {bezLokalizacji} bez lokalizacji</span>
         )}

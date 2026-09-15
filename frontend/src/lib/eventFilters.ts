@@ -4,10 +4,57 @@
 // logika, którą da się pomylić na kilka sposobów (strefy czasowe, granica
 // tygodnia, mecze bez współrzędnych), a w useMemo nie da się jej przetestować.
 
-import { isSameWeek, isSameMonth } from 'date-fns';
+import { isSameWeek } from 'date-fns';
 import type { EventItem } from '@/types';
 
-export type DateFilter = 'wszystkie' | 'dzisiaj' | 'jutro' | 'tydzien' | 'miesiac';
+/**
+ * „KIEDY" — CZTERY OPCJE W JEDNEJ LINII, nie suwak. 2026-09-14, zgłoszone
+ * wprost („kiedy nie suwak, tylko dzisiaj, najbliższe 3 dni, ten tydzień, lub
+ * własny termin, wtedy kalendarz do kiedy").
+ *
+ * Suwak miał pięć pozycji (Dzisiaj / Jutro / Ten tydzień / Ten miesiąc /
+ * Wszystko) i kazał szukać wartości ruchem, zamiast pokazać wszystkie naraz.
+ * Dawne „Jutro" było przy tym najwęższą możliwą odpowiedzią — wykluczało
+ * DZISIAJ, czyli mecz za dwie godziny — a „Ten miesiąc" pod koniec miesiąca
+ * znaczyło co innego niż na jego początku.
+ *
+ * BRAK WYBORU ZNACZY „WSZYSTKIE TERMINY" — ta sama zasada co przy sportach
+ * (`multiLabel`), więc stan domyślny niczego nie ucina. Własny termin niesie
+ * datę w samej wartości (`do:2026-09-30`), żeby filtr dalej był JEDNYM
+ * stringiem: wchodzi do adresu, porównuje się przez `===` i nie wymaga
+ * drugiego pola, które mogłoby się z nim rozjechać.
+ */
+export type DateFilter = 'wszystkie' | 'dzisiaj' | 'trzy-dni' | 'tydzien' | `do:${string}`;
+
+/** Cztery przyciski w rzędzie. Podpisy krótkie, bo mają się zmieścić w jednej
+ *  linii na najwęższym telefonie — pełne znaczenie mówi podpis pod rzędem
+ *  (`etykietaKiedy`), tak samo jak przy ikonach sportów. */
+export const KIEDY_OPCJE: { value: Exclude<DateFilter, 'wszystkie' | `do:${string}`> | 'wlasny'; label: string }[] = [
+  { value: 'dzisiaj',  label: 'Dzisiaj' },
+  { value: 'trzy-dni', label: '3 dni' },
+  { value: 'tydzien',  label: 'Tydzień' },
+  { value: 'wlasny',   label: 'Termin' },
+];
+
+/** `do:YYYY-MM-DD` → `YYYY-MM-DD`; cokolwiek innego → `null`. */
+export function dataZKiedy(filter: DateFilter): string | null {
+  return filter.startsWith('do:') ? filter.slice(3) : null;
+}
+
+/** Pełnym zdaniem, do podpisu pod rzędem przycisków. */
+export function etykietaKiedy(filter: DateFilter): string {
+  const data = dataZKiedy(filter);
+  if (data) {
+    const [r, m, d] = data.split('-');
+    return `Do ${Number(d)}.${m}.${r}`;
+  }
+  switch (filter) {
+    case 'dzisiaj':  return 'Tylko dzisiaj';
+    case 'trzy-dni': return 'Najbliższe 3 dni';
+    case 'tydzien':  return 'Ten tydzień';
+    default:         return 'Wszystkie terminy';
+  }
+}
 export type SortBy = 'termin' | 'odleglosc' | 'miejsca';
 export type DayGroup = 'dzisiaj' | 'jutro' | 'tydzien' | 'pozniej';
 
@@ -42,12 +89,24 @@ export function matchesDateFilter(dateStr: string, filter: DateFilter, now = new
   const dt = eventDay(dateStr);
   if (!dt) return false;
   const diff = daysFromToday(dt, now);
+  // Przeszłość odpada zawsze — każda z opcji patrzy do przodu.
+  if (diff < 0) return false;
+
+  const data = dataZKiedy(filter);
+  if (data) {
+    const granica = eventDay(data);
+    // Niepoprawna data w adresie nie ma prawa wyciąć całej listy: wtedy filtr
+    // zachowuje się jak „wszystkie terminy", a nie jak „nic nie pasuje".
+    return granica ? dt.getTime() <= granica.getTime() : true;
+  }
 
   switch (filter) {
-    case 'dzisiaj': return diff === 0;
-    case 'jutro':   return diff === 1;
-    case 'tydzien': return diff >= 0 && isSameWeek(dt, now, { weekStartsOn: 1 });
-    case 'miesiac': return diff >= 0 && isSameMonth(dt, now);
+    // „Najbliższe 3 dni" liczy DZISIAJ jako pierwszy z nich — człowiek, który
+    // mówi „w ciągu trzech dni", ma na myśli dziś, jutro i pojutrze, a nie
+    // trzy dni zaczynające się od jutra.
+    case 'dzisiaj':  return diff === 0;
+    case 'trzy-dni': return diff <= 2;
+    case 'tydzien':  return isSameWeek(dt, now, { weekStartsOn: 1 });
     default: return true;
   }
 }
@@ -147,12 +206,6 @@ export function sortEvents(rows: EventRow[], sortBy: SortBy): EventRow[] {
 export function filterByRadius(rows: EventRow[], radiusKm: number | null): EventRow[] {
   if (radiusKm == null) return rows;
   return rows.filter((r) => r.distance != null && r.distance <= radiusKm);
-}
-
-/** Cena w groszach; null = bez limitu. */
-export function filterByMaxPrice(rows: EventRow[], maxPriceGrosze: number | null): EventRow[] {
-  if (maxPriceGrosze == null) return rows;
-  return rows.filter((r) => (r.event.costGrosze ?? 0) <= maxPriceGrosze);
 }
 
 /** Minimalna liczba wolnych miejsc; 0 = brak ograniczenia. */

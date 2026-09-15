@@ -1180,4 +1180,65 @@ SELECT _oczekuj('remis w lidze dozwolony BEZ karnych — zwycięzca NULL',
                 (SELECT count(*) FROM turniej_mecze
                   WHERE id = :T_MECZ_LIGA::uuid AND status = 'zakonczony' AND zwyciezca_id IS NULL), 1);
 
+-- ── ALERT: wyłącznik z maila (migracja 149) ──────────────────────────────────
+-- Nowa ścieżka dostępu dla `anon`: funkcja `wylacz_alert_tokenem()`. Jest
+-- SECURITY DEFINER, czyli omija RLS z definicji — więc jedyne, co stoi między
+-- cudzym alertem a wyłączeniem go, to nieodgadywalność tokenu ORAZ to, że
+-- funkcja nie umie zrobić nic poza `is_active = false`. Oba te warunki są tu
+-- sprawdzone, bo błąd w którymkolwiek jest cichy.
+
+\set ALERT_WLASC '''ffffffff-0000-4000-8000-000000000021'''
+INSERT INTO auth.users (id, email) VALUES (:ALERT_WLASC::uuid, 'alert@example.com')
+  ON CONFLICT DO NOTHING;
+
+\set ALERT_ID '''ffffffff-0000-4000-8000-000000000022'''
+\set ALERT_TOKEN '''ffffffff-0000-4000-8000-000000000023'''
+INSERT INTO game_alerts (id, user_id, lat, lng, radius_km, wylacz_token)
+VALUES (:ALERT_ID::uuid, :ALERT_WLASC::uuid, 52.4, 16.9, 10, :ALERT_TOKEN::uuid);
+
+-- Sam wiersz alertu zostaje prywatny: token daje prawo do JEDNEJ operacji,
+-- nie do czytania, gdzie ktoś gra i kiedy go nie ma w domu.
+SET ROLE anon;
+SELECT _oczekuj('anon NIE czyta cudzego alertu',
+                (SELECT count(*) FROM game_alerts WHERE id = :ALERT_ID::uuid), 0);
+
+-- Zły token nie rusza niczego — inaczej zgadywanie miałoby sens.
+SELECT _oczekuj('zły token nie wyłącza nic',
+                (SELECT CASE WHEN wylacz_alert_tokenem(
+                   'ffffffff-0000-4000-8000-0000000000ff'::uuid) THEN 1 ELSE 0 END), 0);
+RESET ROLE;
+SELECT _oczekuj('alert po złym tokenie dalej aktywny',
+                (SELECT count(*) FROM game_alerts
+                  WHERE id = :ALERT_ID::uuid AND is_active), 1);
+
+-- Właściwy token wyłącza, bez logowania.
+SET ROLE anon;
+SELECT _oczekuj('właściwy token wyłącza alert',
+                (SELECT CASE WHEN wylacz_alert_tokenem(:ALERT_TOKEN::uuid) THEN 1 ELSE 0 END), 1);
+RESET ROLE;
+SELECT _oczekuj('alert jest wyłączony',
+                (SELECT count(*) FROM game_alerts
+                  WHERE id = :ALERT_ID::uuid AND NOT is_active), 1);
+
+-- Drugie kliknięcie w ten sam link (mail zostaje w skrzynce na zawsze) ma być
+-- nieszkodliwe i ma powiedzieć „nie było czego wyłączać", a nie wywalić się.
+SET ROLE anon;
+SELECT _oczekuj('powtórne użycie tokenu nic nie psuje',
+                (SELECT CASE WHEN wylacz_alert_tokenem(:ALERT_TOKEN::uuid) THEN 1 ELSE 0 END), 0);
+RESET ROLE;
+
+-- Token NIE jest kluczem do reszty wiersza: anon nie może nim nic nadpisać.
+SET ROLE anon;
+DO $$
+BEGIN
+  BEGIN
+    UPDATE game_alerts SET lat = 0 WHERE wylacz_token = 'ffffffff-0000-4000-8000-000000000023'::uuid;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+SELECT _oczekuj('anon nie przestawia współrzędnych cudzego alertu',
+                (SELECT count(*) FROM game_alerts
+                  WHERE id = :ALERT_ID::uuid AND lat = 52.4), 1);
+
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ RLS: wszystkie asercje przeszły.'; END $$;

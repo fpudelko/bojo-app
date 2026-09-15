@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { MapPin, X } from 'lucide-react';
 import {
-  szukajMiejscowosci, toKodPocztowy, PROMIENIE_KM,
+  szukajMiejscowosci, toKodPocztowy, PROMIENIE_SUWAK_KM, indeksPromienia, promienZIndeksu,
   type Miejscowosc,
 } from '@/lib/miejscowosci';
 import PrzyciskMojaLokalizacja from '@/components/ui/PrzyciskMojaLokalizacja';
+import RangeSlider from '@/components/ui/RangeSlider';
 
 /**
  * „Szukaj wokół: <miejscowość>, w promieniu N km".
@@ -70,24 +71,24 @@ export default function WyborMiejscowosci({
           </button>
         </div>
 
-        <p className="mb-2 mt-3 text-xs text-slate-500">W promieniu</p>
-        <div className="flex flex-wrap gap-2">
-          {PROMIENIE_KM.map((km) => (
-            <button
-              key={km}
-              type="button"
-              onClick={() => naZmiane(wybrana, km)}
-              aria-pressed={promienKm === km}
-              className={[
-                'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
-                promienKm === km
-                  ? 'border-primary-600 bg-primary-600 text-white'
-                  : 'border-slate-200 text-slate-700 hover:border-slate-300',
-              ].join(' ')}
-            >
-              {km} km
-            </button>
-          ))}
+        {/* SUWAK ZAMIAST CZTERECH PIGUŁEK (5/10/25/50) — 2026-09-14, zgłoszone
+            wprost. Pigułki dawały cztery wartości na cały zakres od „obok
+            domu" po „inne miasto", więc wybór między 10 a 25 km nie istniał.
+            Suwak chodzi po INDEKSIE skali `PROMIENIE_SUWAK_KM`, nie po
+            kilometrach: gęsto tam, gdzie kilometry naprawdę zmieniają decyzję
+            (1–10 km), rzadko wyżej. Uzasadnienie skali stoi przy samej
+            tablicy w `lib/miejscowosci.ts`. */}
+        <div className="mt-3">
+          <RangeSlider
+            label="W promieniu"
+            min={0}
+            max={PROMIENIE_SUWAK_KM.length - 1}
+            value={indeksPromienia(promienKm)}
+            onChange={(i) => naZmiane(wybrana, promienZIndeksu(i))}
+            formatValue={(i) => `${promienZIndeksu(i)} km`}
+            minLabel={`${PROMIENIE_SUWAK_KM[0]} km`}
+            maxLabel={`${PROMIENIE_SUWAK_KM[PROMIENIE_SUWAK_KM.length - 1]} km`}
+          />
         </div>
       </div>
     );

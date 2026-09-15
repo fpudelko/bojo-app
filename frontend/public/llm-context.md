@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-14 · migracja `148` · 64 tabele
+**Stan na:** 2026-09-14 · migracja `149` · 64 tabele
 
 ---
 
@@ -370,6 +370,189 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-15 — Filtry w adresie, a zamiar alertu przeżywa logowanie
+
+PROBLEM: filtry listy meczów na bojo.pl/wydarzenia żyły wyłącznie w pamięci strony.
+Wylogowany, który ustawił „piłka nożna, dzisiaj" i kliknął „Powiadom mnie o takich
+meczach", trafiał na logowanie i wracał na gołą listę — bez filtrów i bez powodu, dla
+którego tam kliknął; musiał ustawić wszystko od nowa i sam pamiętać, że chciał alert.
+Tego samego braku dotyczyło drugie zgłoszenie: nie dało się wysłać komuś linku do
+„piłka, dzisiaj, do 5 km", a każdy powrót albo odświeżenie to ustawianie od zera. Ekran
+logowania witał przy tym ogólnym „wejdź na swoje konto, żeby grać i organizować mecze",
+czyli odpowiedzią na pytanie, którego nikt nie zadał.
+
+ROZWIĄZANIE BOJO: filtry siedzą w adresie strony, więc link da się wysłać, zapisać
+w zakładkach i odświeżyć bez straty. Kliknięcie „Powiadom mnie" przez osobę bez konta
+niesie te filtry na logowanie razem z samym zamiarem — po zalogowaniu Bojo wraca do tej
+samej listy i od razu otwiera okno alertu. Ekran logowania mówi wtedy wprost, po co ktoś
+tam trafił. Adres pokazuje tylko to, co odbiega od ustawień domyślnych, a wartość, której
+Bojo nie rozumie, wraca do domyślnej, zamiast pokazywać pustą listę.
+
+MECHANIKA: `lib/filtryListy.ts` (`filtryZAdresu()`/`filtryDoAdresu()`) — nazwy
+parametrów wspólne z `/mapa` (`sport` powtarzalny, `km`) plus `kiedy`, `miejsca`, `sort`,
+`q`. Odczyt przez `window.location.search` po zamontowaniu, NIE `useSearchParams()`:
+`/wydarzenia` jest trasą prerenderowaną, a ten hook wywraca build produkcyjny (pułapka
+w AGENTS.md). Zapis przez `history.replaceState`, żeby zmiana filtra nie zasypywała
+historii przeglądarki. `logowanieDlaAlertu()`/`zamiarAlertuZAdresu()` w `lib/alerts.ts`
+przenoszą zamiar przez `next` ze znacznikiem `alert=1`, który ekran po powrocie zdejmuje
+z adresu. `?powod=alert` wybiera zdanie z `POWODY` w `AuthForm`. Dopełniacz „mecz"
+ujednolicony na „meczów". Testy: `filtryListy.test.ts`, `wieleAlertow.test.ts`,
+`filtry-w-adresie.klikalnosc.spec.ts`.
+
+### 2026-09-15 — Alerty: wiele na konto i własne miejsce w ustawieniach
+
+PROBLEM: konto Bojo mogło mieć tylko JEDEN alert o nowych meczach, ale nic tego nie
+mówiło — każde wejście brzmiało „powiadom mnie o takich meczach". Kto miał alert na piłkę
+we Wrocławiu i założył drugi na siatkówkę w Poznaniu, tracił pierwszy: po cichu, bez
+ostrzeżenia i bez cofnięcia. Do tego alert nie istniał w żadnych ustawieniach — żeby go
+zobaczyć albo wyłączyć, trzeba było wejść do wyszukiwarki meczów i natknąć się na jedno
+z kilku wejść, rozsianych po dwóch ekranach w trzech różnych wyglądach. Odkąd alert jest
+domyślnie bezterminowy, brak takiego miejsca prowadził wprost do oznaczania maili jako
+spam.
+
+ROZWIĄZANIE BOJO: alertów może być tyle, ile ktoś chce — osobny na piłkę we Wrocławiu
+i osobny na siatkówkę w Poznaniu. Wszystkie stoją w profilu, w ustawieniach powiadomień,
+jako lista z nazwą („Piłka nożna · Wrocław 25 km"), informacją jak długo działa i czym
+daje znać, przełącznikiem oraz koszem. Wyłączenie zostawia alert na liście, więc wraca
+się do niego jednym dotknięciem. Zakładanie alertu z wyszukiwarki bierze bieżące filtry
+i mówi to wprost linijką nad polami: „Wypełnione Twoimi filtrami — możesz tu wszystko
+zmienić, nie ruszy to listy meczów". Gdy nowy alert łapałby te same mecze co istniejący,
+Bojo pyta o to przed zapisem, bo dwa takie same alerty znaczą dwa maile o jednym meczu.
+
+MECHANIKA: bez migracji — `game_alerts` nigdy nie miało unikalności na `user_id`,
+a `notifications.alert_id` (migracja `025`) od początku wskazuje konkretny alert. Limit
+siedział w `saveAlert()`, które przed każdym zapisem gasiło poprzednie; dziś tego nie robi
+(pilnuje `wieleAlertow.test.ts`). `lib/alerts.ts` dostało `getMojeAlerty()`,
+`maAktywnyAlert()`, `zaktualizujAlert()` (ten sam wiersz, żeby `wylacz_token` z wysłanych
+maili dalej działał), `ustawAktywnoscAlertu()`, `nazwaAlertu()`, `opisAlertu()`
+i `znajdzPodobnyAlert()` (próg: połowa mniejszego z dwóch promieni). Nowa karta
+`components/profil/MojeAlerty.tsx` pod `/profil#powiadomienia`, obok pusha i poczty.
+`AlertSetupDialog` przyjmuje `alert` (edycja) i `zFiltrow` (skąd wypełnienie). Wejść jest
+dziś dwa na ekran zamiast trzech-czterech: pusty stan i jeden cichy wiersz w arkuszu
+filtrów, plus pigułka nad listą na `/mapa`. Goły dzwonek z paska `/wydarzenia` odszedł
+razem z zapytaniem o stan alertu, a martwy `components/home/NearbyGames.tsx` został
+usunięty. Testy: `wieleAlertow.test.ts`, `mojeAlerty.test.tsx`.
+
+### 2026-09-14 — Wyszukiwarka meczów: mniej kontrolek, prostszy alert
+
+PROBLEM: pasek wyszukiwarki meczów łamał się na telefonie na dwa wiersze, bo mieścił
+przełącznik trybu, podpisany przełącznik „Lista | Mapa", dzwonek alertu i ikonę filtrów.
+Dzwonek nie mówił, co się stanie po dotknięciu, a stał obok DRUGIEGO dzwonka
+(powiadomienia), który znaczy coś innego. W arkuszu filtrów suwak „Cena" pytał o górny
+limit w złotych, choć mecze w Bojo są albo za darmo, albo za kilkanaście złotych od
+osoby, a suwak „Wolne miejsca" kazał trafiać palcem w konkretną liczbę na osi przez cały
+ekran. Filtr „Kiedy" był pięciopozycyjnym suwakiem, w którym „Jutro" wykluczało
+DZISIAJ, czyli mecz za dwie godziny, a „Ten miesiąc" pod koniec miesiąca znaczyło co
+innego niż na jego początku. Okno alertu pytało o sport, miejsce, promień, dni tygodnia
+i porę dnia — pięć pytań, z których dwa (dni tygodnia, pora dnia) dublowały „Kiedy"
+z filtrów; a przycisk zapisu był wyszarzony bez podania powodu, gdy nikt nie wskazał
+miejsca.
+
+ROZWIĄZANIE BOJO: przełącznik „Lista | Mapa" niesie dziś ikony zamiast napisów, a wejście
+do alertu jest podpisanym przyciskiem nakładającym się na listę meczów („Powiadom
+o takich meczach", a gdy alert już działa — „Damy znać o nowym meczu"). Filtr ceny
+zniknął. „Wolne miejsca" ustawia się przyciskami − i +, domyślnie na 1 i w górę do 99,
+czyli wyszukiwarka domyślnie pokazuje mecze, do których da się wejść; komplety wracają
+jednym dotknięciem „−", a pusta lista mówi o tym wprost odsyłaczem „Zobacz też mecze
+z kompletem". „Kiedy" to cztery przyciski w jednej linii — Dzisiaj, 3 dni, Tydzień
+i Termin, który odsłania kalendarz „do kiedy"; brak wyboru znaczy wszystkie terminy,
+a dotknięcie wybranego odznacza go. Okno alertu pyta już tylko o dwie rzeczy: jak długo
+powiadamiać (te same cztery przyciski, brak wyboru = bezterminowo) i czym dać znać
+(dzwonek, mail, powiadomienie na telefon, SMS). Dni tygodnia i pora dnia zniknęły
+z okna — dublowały „Kiedy" z filtrów. Sport, miejscowość i promień zostają, wypełnione
+wartościami z filtrów, jeśli te były ustawione: alert da się otworzyć, zanim ktokolwiek
+ruszył filtry, a wtedy miejsce trzeba gdzieś wpisać. Pole przyjmuje nazwę miejscowości
+albo kod pocztowy; pinezka obok jest skrótem, nie jedyną drogą — w przeglądarce
+wbudowanej w inną aplikację geolokalizacja bywa zablokowana. Gdy miejsca nie ma, Bojo
+pisze wprost, dlaczego nie da się zapisać.
+
+MECHANIKA: `SegmentedToggle` przyjmuje `icon` w obu opcjach (nazwa dostępna zostaje
+z `label`). Przycisk alertu na `/mapa` to nakładka `absolute bottom-0` nad listą,
+z odstępem `calc(var(--bottom-nav-h) + 0.75rem)`. Nowy `components/ui/Stepper.tsx`
+zastępuje suwak wolnych miejsc w obu arkuszach (`VenueExplorer.tsx`,
+`wydarzenia/EventsListView.tsx`); `MIN_SPOTS_DOMYSLNIE = 1`, a licznik aktywnych filtrów
+liczy tę pozycję dopiero przy odchyleniu od jedynki. `filterByMaxPrice()` usunięte
+z `lib/eventFilters.ts` razem z filtrem ceny, tak samo martwe `onlyFreeSpots`/
+`onlyNoCost`. Koniec alertu trzymają `koniecDnia()` / `dataWygasniecia()` /
+`najwczesniejszyKoniec()` w `lib/alerts.ts` — wybrany dzień liczy się cały (23:59:59),
+`min` pola daty stoi na jutrze. Okno alertu używa `WyborMiejscowosci` i `SportChip`,
+czyli tych samych kontrolek co arkusz filtrów; `alertZFiltrow.test.tsx` pilnuje, że pole
+miejscowości w nim jest, a nie sam przycisk lokalizacji. `DateFilter` jest jednym
+stringiem także dla własnego
+terminu (`do:2026-09-30`), więc wchodzi do adresu bez drugiego pola; zepsuta data
+zachowuje się jak brak filtra, a nie jak „nic nie pasuje". `components/ui/WyborKiedy.tsx`
+stoi w obu arkuszach i w oknie alertu, a `wygasaZKiedy()`/`kiedyZWygasniecia()` mapują
+wybór na `expires_at` i z powrotem. Kolumny `days_of_week`, `godzina_od`/`godzina_do`
+z migracji `149` zostają w bazie nietknięte — okno przestało o nie pytać. Testy:
+`alertKoniec.test.ts`, `eventFilters.test.ts`, `szukaj-domyslnie-mecze.klikalnosc.spec.ts`.
+
+### 2026-09-14 — Alert o meczach: pora dnia, czas życia i wyłącznik z maila
+
+PROBLEM: alert o nowych meczach w okolicy miał jeden wymiar czasu — dni tygodnia. Nie
+miał pory dnia, więc ktoś pracujący do 17 dostawał powiadomienia o meczach o 10 rano.
+Nie miał też własnego czasu życia: raz założony działał w nieskończoność, a jedyną drogą
+wyłączenia było zalogowanie się i znalezienie okna alertu. Osobno: typ powiadomienia
+`game_alert` nie figurował na żadnej z trzech list w aplikacji, bo wstawia go funkcja
+brzegowa, a strażnik sprawdzał tylko migracje — alert lądował więc pod szarym dzwonkiem
+bez ikony i nie dało się go wyłączyć na telefonie. Okno alertu miało do tego własny
+przycisk lokalizacji, własne pole miasta i własny suwak promienia, choć pyta dokładnie
+o to samo co arkusz filtrów, tyle że w węższym zakresie kilometrów.
+
+ROZWIĄZANIE BOJO: alert pyta osobno o dwie różne rzeczy i nazywa je osobno — „Powiadamiaj
+o meczach" (kiedy ma być mecz: dni tygodnia i pora dnia) oraz „Jak długo powiadamiać"
+(jak długo ma żyć alert). Domyślnie alert jest bezterminowy, a każda wiadomość niesie
+link „nie chcę więcej takich wiadomości", który gasi go jednym kliknięciem, bez
+logowania — bo mail czyta się w skrzynce, często na innym urządzeniu i długo po
+założeniu alertu. Okno pokazuje trzy kanały: dzwonek w aplikacji (zawsze), mail
+(do wyboru) i powiadomienie na telefon, przy którym Bojo sprawdza, czy ta przeglądarka
+w ogóle je obsługuje, i mówi wprost, co trzeba zrobić, gdy nie — na iPhonie dodać Bojo
+do ekranu głównego. Alert o nowym meczu da się teraz wyciszyć w ustawieniach powiadomień
+jak każde inne. Miejsce i promień wybiera się tymi samymi kontrolkami co w filtrach.
+
+MECHANIKA: migracja `149` dokłada do `game_alerts` kolumny `expires_at` (NULL =
+bezterminowo), `godzina_od`/`godzina_do` (parami albo wcale, pilnuje `CHECK`),
+`kanal_email` i `wylacz_token`, oraz poszerza promień do 1–100 km. Wyłączanie linkiem
+robi `wylacz_alert_tokenem()` (`SECURITY DEFINER`, dostępna dla `anon`) — nie polityka
+RLS, bo polityka otworzyłaby całą tabelę na `UPDATE`, a potrzebna jest jedna operacja;
+asercje w `supabase/test/rls.sql`. Trasa `/alert/wylacz/[token]` jest `noindex`
+i wyłącza alert od razu po wejściu. `notify-game-alert` respektuje wygaśnięcie, okno
+godzin i kanał mailowy, a treść maila składa się per adresat, bo link wyłączający niesie
+token jego alertu. Push nie dostał drugiego przełącznika: jedzie z wiersza
+w `notifications` (wyzwalacz z `102`) i wyłącza się w ustawieniach powiadomień — typ
+`game_alert` dopisany do `ikonyPowiadomien.ts` i `ustawieniaPowiadomien.ts`, a
+`typyPowiadomien.test.ts` skanuje teraz także `supabase/functions/**`. Okno alertu
+(`AlertSetupDialog.tsx`) używa `WyborMiejscowosci` i `SportChip`. Testy: `alertGry.test.ts`,
+`alertZFiltrow.test.ts`, `typyPowiadomien.test.ts`.
+
+### 2026-09-14 — Suwak odległości z narastającą podziałką, jeden zamiast dwóch
+
+PROBLEM: promień wyszukiwania wokół miejscowości wybierało się z czterech wartości
+(5, 10, 25, 50 km), więc między 10 a 25 km nie istniał żaden wybór. Tam, gdzie promień
+był suwakiem (lista meczów), chodził liniowo od 1 do 20 km — a „dalej niż 20" znaczyło
+od razu „bez limitu", czyli między sąsiednim osiedlem a całą Polską nie było nic.
+Osobno: arkusz filtrów na mapie pokazywał suwak „Odległość" RAZEM z promieniem pod
+wybraną miejscowością, choć przy wybranej miejscowości ten pierwszy nie robił już nic —
+stał na ekranie, dawał się przesuwać i nie zmieniał wyników.
+
+ROZWIĄZANIE BOJO: promień to jeden suwak od 1 do 100 km, z podziałką gęstą na dole
+i rzadką u góry. Kilometry nie są równo ważne: różnica między 2 a 3 km decyduje, czy
+idzie się pieszo, a między 80 a 90 km nie znaczy nic. Dlatego 50 km wypada wyraźnie
+po prawej stronie suwaka, a nie w połowie, i cały realny zakres decyzji (1–10 km)
+dostaje trzecią część długości zamiast jednej dziesiątej. Kontrolka odległości jest
+dokładnie jedna i zawsze ta, która działa: przy wybranej miejscowości promień siedzi
+pod nią, bez miejscowości — liczy się od pozycji gracza i pyta o to suwak „Odległość
+od Ciebie". „Bez limitu" zostaje jako ostatni przystanek za setką.
+
+MECHANIKA: `PROMIENIE_SUWAK_KM` w `lib/miejscowosci.ts` (1, 2, 3, 5, 7, 10, 15, 20, 25,
+30, 40, 50, 65, 80, 100) plus `indeksPromienia()` i `promienZIndeksu()`; suwak
+`RangeSlider` chodzi po indeksie tablicy, nie po kilometrach. Wartość spoza skali
+(stary link, zapisany filtr) trafia na najbliższy przystanek, a przy remisie na
+NIŻSZY — filtr nie ma poszerzać się sam. Wszystkie cztery dawne wartości pigułek mają
+swój przystanek, więc stare adresy nie przestawiają promienia. Miejsca użycia:
+`components/map/WyborMiejscowosci.tsx` (promień pod miejscowością),
+`components/map/VenueExplorer.tsx` (suwak tylko przy braku miejscowości) oraz
+`app/wydarzenia/EventsListView.tsx`. Lokalne stałe `RADIUS_MIN`/`RADIUS_MAX` (1–20,
+liniowo) usunięte z obu widoków. Testy: `promienSuwaka.test.ts`.
 ### 2026-09-14 — Mecz z czekającą prośbą znowu da się usunąć
 
 PROBLEM: organizator, który włączył „Wymagaj akceptacji" i miał choćby jedną
@@ -530,169 +713,4 @@ w `lib/events.ts` steruje zapisem w `createEvent`/`updateEvent` i `lib/series.ts
 starych wierszy i `DEFAULT` kolumny w bazie zostają na 180. `ZaprosZnajomychPanel`
 wypięty z `NajblizszyMeczGrupy.tsx`. Asercja paska w `e2e/scenariusze.spec.ts` łapie go
 po `data-pasek-dolny`.
-
-### 2026-09-13 — Termin meczu trafia do kalendarza; opis schodzi pod skład
-
-PROBLEM: Bojo przypominało o meczu własnym kanałem (powiadomienie push, e-mail), ale
-terminu nie dało się przenieść do kalendarza telefonu — czyli do miejsca, w które
-człowiek patrzy, planując tydzień. Kolizja z czymkolwiek innym wychodziła dopiero
-w dniu meczu. Dla ekipy grającej co tydzień była to ta sama strata powtarzana
-kilkadziesiąt razy w roku. Osobno: opis meczu renderował się jako pierwsza rzecz na
-stronie meczu — nad terminem, adresem i licznikiem wolnych miejsc. Opis ma do 1000
-znaków, więc organizator, który opisał zasady akapitem, spychał te trzy fakty pod
-zgięcie ekranu. I trzecia rzecz: przycisk „Nawiguj" był tak samo zielony i wypełniony
-jak „Dołącz do meczu", więc ktoś, kto jeszcze nie zdecydował, czy zagra, widział dwa
-równorzędne przyciski, z których jeden prowadził w Mapy Google.
-
-ROZWIĄZANIE BOJO: przy terminie na stronie meczu stoi przycisk „Do kalendarza" —
-pobiera plik `.ics`, który iOS i Android otwierają natywnym kalendarzem. Widzi go
-każdy, także osoba jeszcze niezapisana, bo kalendarz bywa tym, co rozstrzyga, czy da
-się dołączyć; przycisk znika po starcie meczu i przy meczu odwołanym. Pobranie pliku
-po zmianie terminu przez organizatora AKTUALIZUJE istniejący wpis w kalendarzu zamiast
-dokładać drugi. Opis meczu przeniósł się pod skład, jako karta „O meczu" — nad nim
-zostały tylko termin, miejsce i licznik miejsc. „Nawiguj" jest zielony wyłącznie wtedy,
-gdy na ekranie nie ma „Dołącz do meczu".
-
-MECHANIKA: nowy `lib/kalendarz.ts` (`zbudujIcs()`, `pobierzIcs()`, `nazwaPliku()`) składa
-plik w przeglądarce, bez backendu i bez dodatkowych paczek. `UID` to `bojo-<events.id>`,
-stąd aktualizacja zamiast duplikatu. Termin idzie jako czas ścienny
-z `DTSTART;TZID=Europe/Warsaw` i pełnym blokiem `VTIMEZONE` — przeliczenie na UTC
-wymagałoby przesunięcia strefy w dniu meczu, a to zmienia się dwa razy w roku. Tekst
-escapowany wg RFC 5545 §3.3.11, linie zawijane po 75 oktetach (nie znakach — polskie
-diakrytyki zajmują w UTF-8 po dwa bajty). Mecz bez `endTime` dostaje 90 minut, mecz
-przez północ kończy się następnego dnia. `VALARM` celowo brak: przypomnienie wysyła
-Bojo (`lib/reminders.ts`), a alarmu w telefonie nie dałoby się wyłączyć w ustawieniach
-powiadomień. Przycisk i handler `handleDoKalendarza` w `EventDetailClient.tsx`, w karcie
-„Kiedy i gdzie"; waga „Nawiguj" sterowana `joinBarVisible`, czyli tą samą zmienną co
-dolny pasek. Zdarzenie `event_do_kalendarza` w `lib/analytics.ts` (kolumna `event_type`
-to zwykły TEXT, migracja `047` — nowa wartość nie wymaga migracji). Testy:
-`__tests__/kalendarz.test.ts`.
-
-### 2026-09-13 — Strona meczu przestaje tłumaczyć to, co widać
-
-PROBLEM: strona meczu i lista meczów opisywały słowami rzeczy, które były już widoczne
-obok, i powtarzały tę samą akcję w kilku miejscach. Pod każdym rozegranym meczem na liście
-wisiał osobny odnośnik „Powtórz ten mecz", choć powtórka stoi w ustawieniach meczu.
-„Wyślij link znajomym", „Kopiuj link" i „Zaproś z grupy" pojawiały się w trzech miejscach
-jednego ekranu, za każdym razem z własnym akapitem wyjaśniającym. Karta nad licznikiem
-miejsc mówiła „Brakuje 13 — otwórz dla okolicy", a licznik tuż pod nią „Zostało 13 wolnych
-miejsc" — jeden stan opisany dwa razy, odwrotnie. Nagłówek „KIEDY I GDZIE" stał nad datą
-z ikoną kalendarza i adresem z pinezką. Rozegrany mecz nadal proponował dołączenie do
-rezerwy, utworzenie składu, zapraszanie ludzi i przełączniki sterujące zapisami.
-Formularz „Dopisz osobę bez konta" z dwoma akapitami opisu był stale rozwinięty w składzie.
-Grającemu status „jesteś w składzie" wyświetlał się dwa razy naraz — jako zielona pigułka
-„Grasz" u góry i jako dolny pasek — a wyjście ze składu stało raz w treści („Wypisz się
-z meczu") i raz w tym pasku („Wypisz się"). Nad licznikiem miejsc wisiały dwa szare
-akapity: kto zobaczy prywatny mecz ekipy i lista akceptowanych kart sportowych.
-
-ROZWIĄZANIE BOJO: każda akcja ma na stronie meczu jedno miejsce, a opis zostaje tylko tam,
-gdzie niesie coś, czego nie widać. Wszystkie cztery sposoby zapełnienia składu —
-udostępnienie linku, skopiowanie go, imienne zaproszenie z ekipy i otwarcie meczu dla
-okolicy — stoją w jednej sekcji „Zaproś znajomych" pod licznikiem miejsc, a liczba wolnych
-miejsc pada raz, w liczniku. Mecz, który się już odbył, nie proponuje zapisów, zaproszeń
-ani tworzenia składu i nie pokazuje przełączników sterujących zapisami; powtórka,
-uprawnienia i rozliczenie zostają. Dopisanie osoby bez konta otwiera się jako okno.
-W statystykach ekipy nazwisko gracza prowadzi do jego profilu. Status gracza i wyjście ze
-składu mówi wyłącznie dolny pasek — niesie też rolę („· bramkarz") i stoi na ekranie cały
-czas; przycisk w treści zostaje tylko tam, gdzie paska nie ma (mecz odwołany, gość
-z linku), żeby nikt nie został bez drogi wyjścia. Zdanie o tym, kto zobaczy prywatny mecz
-ekipy, mówi już tylko kreator — w chwili, gdy decyzja zapada i nie ma jeszcze pigułki,
-która by ją pokazała. Akceptowane karty sportowe i sposoby zapłaty zeszły z nagłówka do
-zakładki Rozliczenia, do karty „Twoja płatność" — obok kwoty i sposobu wybranego przez
-gracza, czyli tam, gdzie to pytanie naprawdę pada; przed dołączeniem wymienia je okno
-zapisu.
-
-MECHANIKA: `ZaprosZnajomychPanel.tsx` przyjmuje `onZaprosZGrupy` i `onOtworzDlaOkolicy`
-jako opcjonalne przyciski — `CzyGramyPanel.tsx` oddał mu „Otwórz dla okolicy", zostawiając
-sobie werdykt progu za `SHOW_MIN_PLAYERS_THRESHOLD`. Nowy `DopiszGoscia.tsx` zastąpił dwie
-rozwinięte kopie formularza gościa w `EventDetailClient.tsx`. Gałęzie `!eventStarted`
-w `EventDetailClient.tsx` chowają po gwizdku zaproszenia, tworzenie składu i przełączniki
-„Widoczne publicznie"/„Uczestnicy mogą dodawać gości". `opisWidocznosciWGrupie()`
-(`lib/eventFeatures.ts`) woła już tylko `EventVisibilityFields` (kreator) i odmienia
-orzeczenie z liczbą członków. Przycisk wyjścia w treści `EventDetailClient.tsx` stoi pod
-`!statusBarVisible`, więc oba wyjścia są rozłączne — na tym opierają się helpery
-`wypiszSie()`/`niezapisany()` w `e2e/scenariusze.spec.ts`, łapiące oba napisy jednym
-wzorcem. Karta „Zaproś znajomych" ma zaczep `data-zapros-znajomych` zamiast lokatora po
-kształcie drzewa. `PowtorzZHistorii.tsx` usunięty. Linki do profilu
-w `StatystykiGrupy.tsx`. Testy: `poMeczuCard.test.tsx`, `statystykiGrupy.test.tsx`,
-`eventFeatures.test.ts`, `zaprosZnajomychPanel.test.tsx`.
-
-### 2026-09-13 — Odmowa lokalizacji mówi, gdzie ją naprawdę odblokować
-
-PROBLEM: przycisk „Użyj mojej lokalizacji GPS" w Bojo (okno alertu o nowych meczach, oba
-arkusze filtrów, sortowanie „Najbliżej mnie") na każdą odmowę odpowiadał jednym zdaniem:
-„Zezwól w ustawieniach przeglądarki (ikona kłódki przy adresie)". Tymczasem przeglądarka
-zgłasza ten sam kod błędu w trzech różnych sytuacjach, a tylko w jednej z nich ta rada
-prowadzi do celu. Gdy lokalizację blokuje telefon (uprawnienie aplikacji przeglądarki),
-ustawienia strony pokazują „zezwól" i człowiek, który CHCIAŁ udostępnić lokalizację, krąży
-między ekranami, na których wszystko jest już włączone. Gdy pytanie zostało zamknięte bez
-odpowiedzi, blokady nie ma wcale i wystarczyłoby nacisnąć drugi raz — ale komunikat kazał
-szukać ustawień.
-
-ROZWIĄZANIE BOJO: Bojo rozpoznaje, KTO odmówił, i podaje instrukcję pasującą do tej
-przyczyny. Blokada zapamiętana przez przeglądarkę odsyła do ustawień strony. Blokada na
-poziomie telefonu odsyła do ustawień systemu i wprost mówi, że przeglądarka nie jest tu
-winna (Android: Ustawienia → Aplikacje → przeglądarka → Uprawnienia; iPhone: Ustawienia →
-Prywatność → Usługi lokalizacji). Zamknięte pytanie namawia na ponowne naciśnięcie
-przycisku. Gdy przeglądarka nie pozwala tego ustalić, komunikat wymienia oba miejsca
-zamiast zgadywać jedno. Każdy wariant nadal przypomina o drodze ręcznej: wpisaniu miasta.
-
-MECHANIKA: `rodzajOdmowy()` w `frontend/src/lib/geo.ts` pyta Permissions API PO błędzie
-`PERMISSION_DENIED` i zestawia stan uprawnienia dla strony z faktem nieotrzymania pozycji:
-`denied` → `denied`, `granted` → `denied-system` (blokuje system), `prompt` →
-`denied-dismissed`, brak API lub wyjątek → `denied-nieznane`. Rozpoznanie siedzi
-w helperze, więc obejmuje wszystkie wywołania `getCurrentLocation()` naraz.
-`__tests__/odmowaLokalizacji.test.ts` pilnuje rozpoznania i treści komunikatów.
-
-### 2026-09-12 — Każde powiadomienie ma ikonę i da się je wyciszyć
-
-PROBLEM: Bojo prowadzi trzy osobne listy typów powiadomień — co realnie wstawia baza,
-jaką ikonę pokazuje dzwonek, i co da się wyciszyć w ustawieniach pusha — i te trzy listy
-rozjeżdżały się już trzykrotnie. Jedenaście typów (m.in. „komplet składu", „zwolniło się
-miejsce", „zapis przyjęty", „usunięto Cię ze składu", „mecz usunięty") nie miało wiersza
-w ustawieniach, więc nie dało się ich wyłączyć na telefonie. Siedem innych nie miało ikony
-i lądowało pod szarym dzwonkiem z podpisem „Powiadomienie" — dokładnie tam, gdzie ikona
-przestaje cokolwiek nieść, mimo że realnie przychodzą.
-
-ROZWIĄZANIE BOJO: wszystkie 27 typów powiadomień, jakie baza faktycznie wysyła, mają dziś
-własną ikonę na dzwonku i własny wiersz w ustawieniach „czego nie chcę na telefon".
-Znaleziony przy okazji martwy klucz (typ, którego baza nigdy nie wysyła jako powiadomienie)
-został usunięty z mapy ikon. Nowy test porównuje trzy listy automatycznie przy każdej
-zmianie, więc rozjazd nie wróci po raz czwarty bez zauważenia.
-
-MECHANIKA: mapa ikon przeniesiona z `NotificationBell.tsx` do `lib/ikonyPowiadomien.ts`.
-`__tests__/typyPowiadomien.test.ts` czyta `supabase/migrations/*.sql`, wyciąga wartość
-`type` z każdego `INSERT INTO notifications` i porównuje ją z `lib/ikonyPowiadomien.ts`
-oraz `lib/ustawieniaPowiadomien.ts` w obie strony.
-
-### 2026-09-12 — Powtórka meczu nie gubi ustawień; odwołanie i link znają skład
-
-PROBLEM: (1) „Powtórz mecz" — jedyny zamiennik gier cyklicznych, świadomie wyłączonych —
-przepisywało ustawienia źródłowego meczu do nowego terminu, ale trzy z nich po cichu
-gubiło: wymaganą akceptację zapisów, wyłączoną listę rezerwową i tryb puli dla bramkarzy.
-Mecz, do którego organizator wpuszczał ludzi ręcznie, wracał po powtórce OTWARTY dla
-każdego. (2) Okno „Odwołać mecz?" liczyło odbiorców po swojemu — węziej niż faktycznie
-powiadamia baza — i mówiło „dostanie e-mail, JEŚLI podał adres" zamiast dokładnej
-odpowiedzi, którą Bojo już zna. (3) Wiadomość, którą organizator wkleja na czat, żeby
-znaleźć brakujące osoby, mówiła zawsze „14 miejsc" — także wtedy, gdy realnie brakowało
-dwóch — i nigdy nie wspominała, że dołączenie nie wymaga konta, choć to jest główny
-argument na przebicie oporu graczy przed zakładaniem konta.
-
-ROZWIĄZANIE BOJO: powtórka meczu (na stronie meczu, w karcie „Po meczu", przy najbliższym
-meczu ekipy i w Historii na `/moje-gry`) przenosi dziś KAŻDE ustawienie źródłowego meczu —
-pominięcie nowego pola przy przyszłej zmianie przestaje się kompilować, zamiast po cichu
-zostawiać wartość domyślną. Wszystkie cztery drogi lądują też w panelu „Mecz gotowy —
-wyślij link", nie tylko powtórka z Historii jak dotąd. Okno odwołania liczy odbiorców tą
-samą funkcją co okno edycji meczu — trzy zdania: ilu z kontem dostanie powiadomienie
-w Bojo, ilu gości dostanie e-mail, ilu trzeba powiadomić samemu. Wiadomość na czat mówi
-dziś „Zostały 2 miejsca" albo „Komplet — wejdź na rezerwę" zamiast stałej liczby miejsc,
-a gdy da się to uczciwie powiedzieć, dokłada zdanie „Zapisujesz się bez zakładania konta."
-
-MECHANIKA: `lib/events.ts` — typ `ZrodloPowtorki` (mapowany z `EventCreate`) wymusza
-wymienienie każdego pola w `repeatEvent()`. `lib/zmianyMeczu.ts` — nowa
-`konsekwencjeOdwolania()`, wołana z `handleCancel()` w `EventDetailClient.tsx` przez
-`komuDojdzie()`. `lib/eventShare.ts` — `eventShareText()` przyjmuje opcjonalny drugi
-argument `StanUdostepnienia` (wolne miejsca, rezerwa, zapisy zamknięte); bez niego
-zachowanie jest identyczne jak dotąd. Testy: `__tests__/events.test.ts`,
-`__tests__/zmianyMeczu.test.ts`, `__tests__/eventShare.test.ts`.
 
