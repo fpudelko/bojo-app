@@ -8,7 +8,7 @@ jeszcze niezrobione.
 - Roadmapa fazowa: [docs/strategia.md](./docs/strategia.md#6-roadmapa-fazowa)
 - Audyt ścieżki organizatora: [docs/przeplyw-organizatora.md](./docs/przeplyw-organizatora.md)
 
-_Ostatnia aktualizacja: 2026-09-09_
+_Ostatnia aktualizacja: 2026-09-15_
 
 ---
 
@@ -186,7 +186,7 @@ Jedno miejsce, jeden przełącznik. Pełna tabela z miejscami użycia →
 
 | Flaga | Co chowa | Dlaczego schowane |
 |---|---|---|
-| `SHOW_CUP` | Turniej BOJO Cup — pasek ogłoszeń, TrustBar, link w nagłówku | Brak gotowego turnieju; nie obiecywać na zapas |
+| `SHOW_TURNIEJE` | Moduł turniejowy (`/turnieje/*`) — zapisy drużyn, terminarz, wyniki na żywo | Powstaje etapami; odmrożenie po Etapie 4. Zastąpił flagę `SHOW_CUP` (stary „BOJO Cup" usunięty z frontu 2026-09-13, tabele `tournament_*` kasuje migracja `151`) |
 | ~~`SHOW_GAME_ALERTS`~~ | — | **WŁĄCZONA 2026-09-12.** Powód wyłączenia (brak kanału) zniknął — kanał istnieje (§3). Wejście: „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów |
 | `SHOW_SMS_FEATURES` | Potwierdzenie SMS + przypomnienia | Brak podpiętej bramki SMS |
 | `SHOW_RECURRING` | Gry cykliczne | Skupienie na meczach jednorazowych — patrz §1.3 |
@@ -213,20 +213,28 @@ Wcześniejsze wersje tego pliku i `PRZEWODNIK.md` twierdziły, że powiadomień 
 | Powitanie po założeniu konta | Migracja `134` — wyzwalacz na `auth.users` |
 | Przypomnienia oparte o czas | Migracja `129` — zadanie `pg_cron` `bojo-przypomnienia` |
 
-**Stan wdrożenia na produkcji (sprawdzony 2026-09-08):** web-push DZIAŁA (funkcja
-wdrożona z `--no-verify-jwt`, `konfiguracja_push` wypełniona, istnieją subskrypcje),
-przypomnienia DZIAŁAJĄ (`pg_cron` włączony, zadanie aktywne). **Poczta MILCZY** —
-`konfiguracja_poczty` jest pusta, a funkcja `powiadom-goscia` niewdrożona; to nie jest
-awaria, tylko stan wdrożenia, i tak zaprojektowany (bez konfiguracji baza nawet nie woła
-funkcji). Cztery kroki do włączenia: `supabase/functions/powiadom-goscia/README.md`.
+**Stan wdrożenia na produkcji (2026-09-15): wszystkie trzy kanały DZIAŁAJĄ.**
+Web-push (funkcja wdrożona z `--no-verify-jwt`, `konfiguracja_push` wypełniona,
+istnieją subskrypcje), przypomnienia (`pg_cron` włączony, zadanie aktywne)
+i **poczta** — kanał włączony 2026-09-10, potwierdzony realnymi mailami
+o alertach docierającymi do skrzynki (właściciel, 2026-09-15).
+
+Poprzednia wersja tego akapitu — migawka z 2026-09-08 — mówiła „poczta MILCZY".
+Było to prawdą przez dwa dni i przestało nią być bez aktualizacji tutaj;
+`docs/funkcje.md` i `supabase/functions/powiadom-goscia/README.md` odnotowały
+włączenie od razu, więc **to jedyne miejsce w repo, które się rozjechało**.
+Opis, co musi zajść naraz, żeby poczta ruszyła (zweryfikowana domena, wdrożona
+funkcja, sekrety, `konfiguracja_poczty` na SAMYM KOŃCU), oraz pułapka „ślad
+w dzienniku przed wysyłką" siedzą w tamtym README — tu ich nie kopiujemy.
 
 ---
 
 ## 4. Zbudowane, nieużywane, martwy kod
 
-- **`components/home/NearbyGames.tsx`** — kompletny komponent „gry w pobliżu + alert",
-  nigdzie nie renderowany. Alerty są już włączone (§2), ale wejście do nich zrobiliśmy
-  w pustym stanie listy meczów, nie tutaj. Do decyzji: wpiąć na stronę główną albo usunąć.
+- ~~**`components/home/NearbyGames.tsx`**~~ — USUNIĘTY (PR #381). Był kompletnym
+  komponentem „gry w pobliżu + alert", którego nic nie renderowało, a niósł dwa
+  kolejne wejścia do zakładania alertu. Decyzja: alerty mają JEDNO okno i jeden dom
+  (profil → „Twoje alerty"), więc martwy trzeci wariant poszedł, zamiast wracać.
 - **`components/map/{MapView,LeafletMapImpl,EventsMapView,EventsMapImpl}.tsx`** — nic
   ich nie importuje. Aktywna mapa to `VenueExplorer.tsx`.
 - **Tabela `games`** (`001`) — zastąpiona przez `events` (`002`), żaden kod jej nie używa.

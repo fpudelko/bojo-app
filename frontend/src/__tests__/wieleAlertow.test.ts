@@ -10,6 +10,7 @@ import type { GameAlert } from '@/types';
 const alert = (n: Partial<GameAlert> = {}): GameAlert => ({
   id: n.id ?? 'a1',
   userId: 'u1',
+  sports: [],
   daysOfWeek: [],
   lat: 51.1079,
   lng: 17.0385,
@@ -22,7 +23,7 @@ const alert = (n: Partial<GameAlert> = {}): GameAlert => ({
 
 describe('nazwa alertu — lista bez nazw jest nie do przeczytania', () => {
   it('składa sport, miejsce i promień', () => {
-    expect(nazwaAlertu(alert({ sport: 'piłka nożna', cityLabel: 'Wrocław' })))
+    expect(nazwaAlertu(alert({ sports: ['piłka nożna'], cityLabel: 'Wrocław' })))
       .toBe('Piłka nożna · Wrocław 25 km');
   });
 
@@ -31,12 +32,22 @@ describe('nazwa alertu — lista bez nazw jest nie do przeczytania', () => {
       .toBe('Wszystkie sporty · Poznań 10 km');
   });
 
+  it('dwa sporty wymienia po imieniu, trzy i więcej urywa liczbą', () => {
+    // Pełna lista rozpycha wiersz na telefonie, a od czterech przestaje
+    // cokolwiek znaczyć — sportów mamy pięć, więc „i 4 inne" to prawie
+    // „wszystkie", tylko dłużej.
+    expect(nazwaAlertu(alert({ sports: ['piłka nożna', 'siatkówka'], cityLabel: 'Wrocław' })))
+      .toBe('Piłka nożna i Siatkówka · Wrocław 25 km');
+    expect(nazwaAlertu(alert({ sports: ['piłka nożna', 'siatkówka', 'koszykówka'], cityLabel: 'Wrocław' })))
+      .toBe('Piłka nożna i 2 inne · Wrocław 25 km');
+  });
+
   it('bez etykiety miejsca nie pokazuje gołych współrzędnych', () => {
     // `cityLabel` bywa puste, gdy punkt wziął się z pinezki „moja lokalizacja".
     // Wiersz „Piłka nożna · 51.1079 25 km" byłby gorszy niż brak wiersza.
-    expect(nazwaAlertu(alert({ sport: 'siatkówka', cityLabel: undefined })))
+    expect(nazwaAlertu(alert({ sports: ['siatkówka'], cityLabel: undefined })))
       .toBe('Siatkówka · Moja okolica 25 km');
-    expect(nazwaAlertu(alert({ sport: 'siatkówka', cityLabel: '   ' })))
+    expect(nazwaAlertu(alert({ sports: ['siatkówka'], cityLabel: '   ' })))
       .toBe('Siatkówka · Moja okolica 25 km');
   });
 });
@@ -64,41 +75,57 @@ describe('bliźniak — dwa takie same alerty to dwa maile o jednym meczu', () =
   const wroclaw = { lat: 51.1079, lng: 17.0385 };
 
   it('ten sam sport i ten sam punkt to bliźniak', () => {
-    const istniejace = [alert({ sport: 'piłka nożna', cityLabel: 'Wrocław' })];
-    const znaleziony = znajdzPodobnyAlert(istniejace, { sport: 'piłka nożna', ...wroclaw, radiusKm: 25 });
+    const istniejace = [alert({ sports: ['piłka nożna'], cityLabel: 'Wrocław' })];
+    const znaleziony = znajdzPodobnyAlert(istniejace, { sports: ['piłka nożna'], ...wroclaw, radiusKm: 25 });
     expect(znaleziony?.id).toBe('a1');
   });
 
+  it('ten sam ZESTAW sportów w innej kolejności to dalej bliźniak', () => {
+    // Kolejność bierze się wyłącznie z tego, co człowiek dotknął pierwsze —
+    // gdyby liczyła się przy porównaniu, ten sam alert dałoby się założyć
+    // dwa razy, a to dwa maile o jednym meczu.
+    const istniejace = [alert({ sports: ['piłka nożna', 'siatkówka'] })];
+    const znaleziony = znajdzPodobnyAlert(
+      istniejace, { sports: ['siatkówka', 'piłka nożna'], ...wroclaw, radiusKm: 25 });
+    expect(znaleziony?.id).toBe('a1');
+  });
+
+  it('nadzbiór sportów to NIE bliźniak — łapie więcej, więc jest czym innym', () => {
+    const istniejace = [alert({ sports: ['piłka nożna'] })];
+    expect(znajdzPodobnyAlert(
+      istniejace, { sports: ['piłka nożna', 'siatkówka'], ...wroclaw, radiusKm: 25 })).toBeNull();
+  });
+
   it('inny sport w tym samym miejscu to NIE bliźniak', () => {
-    const istniejace = [alert({ sport: 'piłka nożna' })];
-    expect(znajdzPodobnyAlert(istniejace, { sport: 'siatkówka', ...wroclaw, radiusKm: 25 })).toBeNull();
+    const istniejace = [alert({ sports: ['piłka nożna'] })];
+    expect(znajdzPodobnyAlert(istniejace, { sports: ['siatkówka'], ...wroclaw, radiusKm: 25 })).toBeNull();
   });
 
   it('„wszystkie sporty" nie zlewa się z konkretnym sportem', () => {
     // Alert bez sportu łapie WIĘCEJ niż alert na piłkę, więc to dwie różne
     // rzeczy — pytanie „masz już taki" byłoby tu nieprawdą.
-    const istniejace = [alert({ sport: undefined })];
-    expect(znajdzPodobnyAlert(istniejace, { sport: 'piłka nożna', ...wroclaw, radiusKm: 25 })).toBeNull();
+    const istniejace = [alert({ sports: [] })];
+    expect(znajdzPodobnyAlert(istniejace, { sports: ['piłka nożna'], ...wroclaw, radiusKm: 25 })).toBeNull();
   });
 
   it('próg skaluje się z promieniem — przy 25 km trzy kilometry to to samo miejsce', () => {
-    const istniejace = [alert({ sport: 'piłka nożna', radiusKm: 25 })];
+    const istniejace = [alert({ sports: ['piłka nożna'], radiusKm: 25 })];
     // ~3 km na północ od punktu alertu.
     const blisko = { lat: 51.135, lng: 17.0385 };
-    expect(znajdzPodobnyAlert(istniejace, { sport: 'piłka nożna', ...blisko, radiusKm: 25 })?.id).toBe('a1');
+    expect(znajdzPodobnyAlert(istniejace, { sports: ['piłka nożna'], ...blisko, radiusKm: 25 })?.id).toBe('a1');
   });
 
   it('…ale przy 2 km te same trzy kilometry to już inne miejsce', () => {
-    const istniejace = [alert({ sport: 'piłka nożna', radiusKm: 2 })];
+    const istniejace = [alert({ sports: ['piłka nożna'], radiusKm: 2 })];
     const blisko = { lat: 51.135, lng: 17.0385 };
-    expect(znajdzPodobnyAlert(istniejace, { sport: 'piłka nożna', ...blisko, radiusKm: 2 })).toBeNull();
+    expect(znajdzPodobnyAlert(istniejace, { sports: ['piłka nożna'], ...blisko, radiusKm: 2 })).toBeNull();
   });
 
   it('EDYTOWANY alert nie jest bliźniakiem samego siebie', () => {
     // Bez `pomijajId` zapisanie zmiany w istniejącym alercie pytałoby
     // „masz już taki" — wskazując na ten, który się właśnie edytuje.
-    const istniejace = [alert({ id: 'a1', sport: 'piłka nożna' })];
-    expect(znajdzPodobnyAlert(istniejace, { sport: 'piłka nożna', ...wroclaw, radiusKm: 25 }, 'a1')).toBeNull();
+    const istniejace = [alert({ id: 'a1', sports: ['piłka nożna'] })];
+    expect(znajdzPodobnyAlert(istniejace, { sports: ['piłka nożna'], ...wroclaw, radiusKm: 25 }, 'a1')).toBeNull();
   });
 });
 

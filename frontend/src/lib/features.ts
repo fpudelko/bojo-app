@@ -11,7 +11,7 @@
  *
  * Nie mylić ze starym „BOJO Cup" (`SHOW_CUP`, usunięty 2026-09-13 razem z
  * `lib/tournaments.ts` i tabelami `tournament_*` — kasowane osobno migracją
- * `149`, gdy ten moduł zastąpi go w całości): tamten turniej zakładał
+ * `151_zegnaj_stary_turniej.sql`, gdy ten moduł zastąpi go w całości): tamten turniej zakładał
  * wyłącznie admin, był jeden, a drużyny umawiały mecze same przez tygodnie.
  * Ten zakłada każdy organizator, wielu naraz, z terminarzem z góry na jeden
  * dzień/weekend. Plan → `docs/turnieje-plan-duze-klocki.md` i

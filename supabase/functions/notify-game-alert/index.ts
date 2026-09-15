@@ -90,7 +90,17 @@ serve(async (req) => {
     // dla alertów bezterminowych, czyli domyślnych — te nie gasną nigdy
     // i wyłącza się je linkiem z maila.
     if (a.expires_at && new Date(a.expires_at).getTime() < teraz) return false;
-    if (a.sport && a.sport !== event.sport) return false;
+    // SPORTY: tablica `sports` (migracja `152`) albo, dla wiersza sprzed niej,
+    // pojedyncze `sport`. Pusta tablica = dowolny sport, czyli to samo, co
+    // znaczyło `sport IS NULL`. Czytamy obie kolumny, bo migracje uruchamia
+    // się RĘCZNIE i ta funkcja wdraża się osobno — przez chwilę jedno może
+    // istnieć bez drugiego, w obie strony.
+    const sporty: string[] = Array.isArray(a.sports) ? a.sports : [];
+    if (sporty.length > 0) {
+      if (!sporty.includes(event.sport)) return false;
+    } else if (a.sport && a.sport !== event.sport) {
+      return false;
+    }
     if (a.days_of_week?.length > 0 && !a.days_of_week.includes(dow)) return false;
     // Pora dnia. Kolumny idą parami (pilnuje tego CHECK w migracji), więc
     // wystarczy sprawdzić jedną; okno przez północ nie istnieje, bo mecz

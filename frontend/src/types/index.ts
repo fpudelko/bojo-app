@@ -454,7 +454,9 @@ export interface RecurringEventInvite {
 export interface GameAlert {
   id: string;
   userId: string;
-  sport?: string;       // undefined = any sport
+  /** Sporty, które alert łapie. Pusta tablica = dowolny sport (migracja `152`).
+   *  Dawne pojedyncze `sport` zostało w bazie, ale kod czyta już tylko to. */
+  sports: string[];
   daysOfWeek: number[]; // [] = any day; 1=Mon…7=Sun (ISO)
   lat: number;
   lng: number;
