@@ -170,6 +170,7 @@ Te warto znać, bo wyjaśniają, dlaczego coś działa tak, a nie inaczej:
 | `011_advanced_event_features` | Drużyny, wyniki, płatności, statystyki |
 | `025_game_alerts` | Alerty + tabela `notifications` + RPC `get_nearby_events` |
 | `149_alert_czas_kanaly_i_wylaczanie` | Alert dostaje własny czas życia (`expires_at`, NULL = bezterminowo), porę dnia meczu (`godzina_od`/`godzina_do`, parami albo wcale), wybór kanału mailowego (`kanal_email`) i `wylacz_token`. Promień poszerzony do 1–100 km, bo suwak filtrów sięga tyle od `PROMIENIE_SUWAK_KM`. Funkcja `wylacz_alert_tokenem()` (`SECURITY DEFINER`) wyłącza alert linkiem z maila, bez logowania |
+| `152_alert_wiele_sportow` | Alert łapie WIELE sportów naraz: `game_alerts.sports text[]`, pusta tablica = dowolny sport (to samo, co znaczyło `sport IS NULL`). Dawne `sport` zostaje wypełnione przy dokładnie jednym sporcie — czyta je starsza wersja `notify-game-alert`, wdrażana osobno od migracji — a `CHECK alert_sport_w_tablicy` pilnuje, żeby obie kolumny nie mówiły dwóch różnych rzeczy. `count_alert_seekers()` rozumie obie reprezentacje |
 | `033_contact_visibility` | Telefony i e-maile boisk **ukryte domyślnie**, egzekwowane w DB |
 | `041_join_code` | Kod dołączenia + `require_approval` |
 | `043_player_stats_fn` | RPC `get_player_stats` (poprawki w `045`, `055`) |

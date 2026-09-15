@@ -11,7 +11,10 @@ function toAlert(row: any): GameAlert {
   return {
     id:          row.id,
     userId:      row.user_id,
-    sport:       row.sport ?? undefined,
+    // Wiersz sprzed migracji `152` ma wyłącznie `sport`; nowy ma `sports`.
+    // Czytamy oba, bo migracje uruchamia się RĘCZNIE (AGENTS.md) i przez
+    // chwilę baza może być starsza niż paczka JS.
+    sports:      row.sports?.length ? row.sports : (row.sport ? [row.sport] : []),
     daysOfWeek:  row.days_of_week ?? [],
     lat:         row.lat,
     lng:         row.lng,
@@ -59,7 +62,8 @@ export function maAktywnyAlert(alerty: GameAlert[]): boolean {
 }
 
 export interface AlertInput {
-  sport?:      string;
+  /** Pusta tablica = dowolny sport. */
+  sports:      string[];
   daysOfWeek:  number[];
   lat:         number;
   lng:         number;
@@ -77,7 +81,13 @@ export interface AlertInput {
  *  dokładaniu kolumny nie dało się zaktualizować mniej, niż się wstawia. */
 function doWiersza(input: AlertInput) {
   return {
-    sport:        input.sport ?? null,
+    sports:       input.sports,
+    // Stara kolumna zostaje wypełniona przy DOKŁADNIE jednym sporcie — czyta
+    // ją starsza wersja `notify-game-alert`, wdrażana osobno od migracji
+    // (AGENTS.md). Przy wielu sportach nie ma czego tam wpisać i wtedy stara
+    // funkcja potraktuje alert jak „dowolny sport": za szeroko, ale nie za
+    // wąsko — mail przyjdzie. Pilnuje tego `alert_sport_w_tablicy` z `152`.
+    sport:        input.sports.length === 1 ? input.sports[0] : null,
     days_of_week: input.daysOfWeek,
     lat:          input.lat,
     lng:          input.lng,
@@ -270,19 +280,19 @@ export function kiedyZWygasniecia(expiresAt: string | null | undefined, teraz: D
  * Ustawienia, z jakimi otwiera się okno alertu wywołane z pustej listy meczów.
  *
  * Człowiek właśnie powiedział filtrami, czego szuka — pytanie go o to drugi raz
- * w oknie alertu byłoby przepisywaniem tego samego. Jeden sport przenosi się
- * wprost; przy dwóch i więcej alert nie ma czego przenieść (trzyma dokładnie
- * jeden sport albo dowolny), więc uczciwiej zostawić „dowolny" niż wybrać za
- * kogoś jeden z dwóch.
+ * w oknie alertu byłoby przepisywaniem tego samego. Od migracji `152` przenoszą
+ * się WSZYSTKIE wybrane sporty: wcześniej alert trzymał dokładnie jeden, więc
+ * przy dwóch filtrach trzeba było zostawić „dowolny" i człowiek dostawał także
+ * to, czego nie szukał.
  */
 export function domyslneZFiltrow(filtry: {
   sports: string[];
   radiusKm: number | null;
   pozycja: { lat: number; lng: number } | null;
-}): { sport?: string; radiusKm: number; lat?: number; lng?: number } {
+}): { sports: string[]; radiusKm: number; lat?: number; lng?: number } {
   const promien = filtry.radiusKm ?? PROMIEN_DOMYSLNY;
   return {
-    sport:    filtry.sports.length === 1 ? filtry.sports[0] : undefined,
+    sports:   [...filtry.sports],
     // Przez skalę suwaka, nie przez `clamp`: filtr mógł mieć 6 km, a to nie
     // jest żaden przystanek — alert ma wystartować z wartości, którą suwak
     // w oknie potrafi pokazać.
@@ -300,9 +310,18 @@ export function domyslneZFiltrow(filtry: {
  * nazywa rzeczy, których jeszcze nie ma. Nazwa bierze się więc z tego, co
  * alert naprawdę robi, i zmienia się razem z nim.
  */
-export function nazwaAlertu(a: Pick<GameAlert, 'sport' | 'cityLabel' | 'radiusKm'>): string {
+export function nazwaAlertu(a: Pick<GameAlert, 'sports' | 'cityLabel' | 'radiusKm'>): string {
   const gdzie = a.cityLabel?.trim() || 'Moja okolica';
-  return `${a.sport ? sportLabel(a.sport) : 'Wszystkie sporty'} · ${gdzie} ${a.radiusKm} km`;
+  return `${nazwaSportow(a.sports)} · ${gdzie} ${a.radiusKm} km`;
+}
+
+/** Sporty alertu jako jeden kawałek tekstu. Przy trzech i więcej urywa się
+ *  liczbą, bo pełna lista rozpycha wiersz na liście alertów w telefonie —
+ *  a od czterech przestaje cokolwiek znaczyć (sportów mamy pięć). */
+export function nazwaSportow(sports: string[]): string {
+  if (sports.length === 0) return 'Wszystkie sporty';
+  if (sports.length <= 2) return sports.map(sportLabel).join(' i ');
+  return `${sportLabel(sports[0])} i ${sports.length - 1} inne`;
 }
 
 /** Druga linijka wiersza: jak długo żyje i czym daje znać. */
@@ -322,18 +341,27 @@ export function opisAlertu(a: Pick<GameAlert, 'expiresAt' | 'kanalEmail'>): stri
  * alertów może być wiele, powstaje przy trzecim nieuważnym dotknięciu
  * „Powiadom o takich meczach".
  *
- * „Praktycznie ten sam" = ten sam sport i punkt na tyle blisko, że promienie
- * i tak się pokrywają. Próg to POŁOWA mniejszego z dwóch promieni: przy 25 km
- * przesunięcie o 3 km nie tworzy nowego alertu, przy 2 km — tworzy.
+ * „Praktycznie ten sam" = ten sam ZESTAW sportów i punkt na tyle blisko, że
+ * promienie i tak się pokrywają. Próg to POŁOWA mniejszego z dwóch promieni:
+ * przy 25 km przesunięcie o 3 km nie tworzy nowego alertu, przy 2 km — tworzy.
+ *
+ * Zestaw porównujemy jako ZBIÓR, nie listę: „piłka, siatkówka" i „siatkówka,
+ * piłka" to ten sam alert, a kolejność bierze się wyłącznie z tego, co człowiek
+ * dotknął pierwsze.
  */
+function kluczSportow(sports: string[]): string {
+  return [...sports].sort().join('|');
+}
+
 export function znajdzPodobnyAlert(
   alerty: GameAlert[],
-  input: Pick<AlertInput, 'sport' | 'lat' | 'lng' | 'radiusKm'>,
+  input: Pick<AlertInput, 'sports' | 'lat' | 'lng' | 'radiusKm'>,
   pomijajId?: string,
 ): GameAlert | null {
+  const kluczWejscia = kluczSportow(input.sports);
   for (const a of alerty) {
     if (pomijajId && a.id === pomijajId) continue;
-    if ((a.sport ?? '') !== (input.sport ?? '')) continue;
+    if (kluczSportow(a.sports) !== kluczWejscia) continue;
     const prog = Math.min(a.radiusKm, input.radiusKm) / 2;
     if (distanceKm(a.lat, a.lng, input.lat, input.lng) <= prog) return a;
   }

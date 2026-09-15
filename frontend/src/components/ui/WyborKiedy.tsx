@@ -75,13 +75,21 @@ export default function WyborKiedy({
       </div>
 
       {wlasnaData && (
+        /* `appearance-none` + `min-w-0` — bez tego pole daty WYSTAJE POZA
+           KARTĘ na iOS (zgłoszone ze zrzutu, 2026-09-15). Safari nadaje
+           `input[type=date]` własną szerokość wewnętrzną z `-webkit-appearance`
+           i traktuje ją jak minimalną, więc `w-full` jej nie przycina, a sama
+           kontrolka w elemencie zgiętym (`flex`/`grid`) nie schodzi poniżej
+           treści. Do tego `block`, bo domyślne `inline-block` zostawia pod
+           polem pasek na linię bazową, który na telefonie widać jako krzywy
+           odstęp. */
         <input
           type="date"
           value={wlasnaData}
           min={jutro()}
           onChange={(e) => naZmiane(e.target.value ? `do:${e.target.value}` : 'wszystkie')}
           aria-label="Do dnia"
-          className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-3 text-sm dark:border-slate-600 dark:bg-slate-800"
+          className="mt-2 block h-11 w-full min-w-0 appearance-none rounded-xl border border-slate-300 bg-white px-3 text-sm text-ink dark:border-slate-600 dark:bg-slate-800"
         />
       )}
 

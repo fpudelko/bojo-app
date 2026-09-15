@@ -2064,12 +2064,11 @@ export default function VenueExplorer({
 
       {oknoAlertu && (
         <AlertSetupDialog
-          defaultSport={domyslneAlertu.sport}
+          defaultSports={domyslneAlertu.sports}
           defaultRadiusKm={domyslneAlertu.radiusKm}
           defaultLat={domyslneAlertu.lat}
           defaultLng={domyslneAlertu.lng}
           defaultLabel={domyslneAlertu.lat != null ? (miejscowosc?.nazwa ?? 'Moja lokalizacja') : undefined}
-          zFiltrow
           onClose={() => setOknoAlertu(false)}
           onSaved={() => setMaAlert(true)}
         />

@@ -1053,12 +1053,11 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
           ukrytej przez CSS. */}
       {oknoAlertu && (
         <AlertSetupDialog
-          defaultSport={domyslneAlertu.sport}
+          defaultSports={domyslneAlertu.sports}
           defaultRadiusKm={domyslneAlertu.radiusKm}
           defaultLat={domyslneAlertu.lat}
           defaultLng={domyslneAlertu.lng}
           defaultLabel={domyslneAlertu.lat != null ? 'Moja lokalizacja' : undefined}
-          zFiltrow
           onClose={() => setOknoAlertu(false)}
         />
       )}

@@ -2074,6 +2074,41 @@ na zamontowanie tła.
 dominująca — a mieszanie ich w jednej aplikacji czyta się jak literówka.
 Ujednolicone we wszystkich czterech miejscach wołających `plural()`.
 
+### Jeden alert łapie WIELE SPORTÓW — od 2026-09-15 (migracja `152`)
+
+Zgłoszone wprost: „powinna być opcja wybrania wielu sportów na raz". Alert trzymał
+dokładnie jeden sport (`game_alerts.sport`) albo żaden, więc kto gra w piłkę
+i w siatkówkę, miał dwie drogi i obie złe: **„dowolny sport"** — i dostawał też
+koszykówkę oraz tenisa, których nie szuka, albo **dwa osobne alerty** — i listę, która
+rośnie z powodu niebędącego powodem. To drugie jest gorsze, niż wygląda: alerty nie
+deduplikują się po użytkowniku, więc dwa wpisy to dwa maile, gdy oba trafią.
+
+Migracja `152` dokłada `sports text[]`; **pusta tablica znaczy dokładnie to, co dawniej
+`sport IS NULL`** — dowolny sport. Dzięki temu okno nadal nie potrzebuje piątej ikony
+„Wszystkie": brak wyboru JEST wyborem, a podpis pod ikonami nazywa go po imieniu.
+
+**Stara kolumna `sport` zostaje wypełniona, gdy sport jest dokładnie jeden** — i nie jest
+to zgodność „na wszelki wypadek". Funkcja brzegowa `notify-game-alert` **wdraża się
+osobno od migracji** (AGENTS.md: jedno i drugie uruchamia człowiek, w dowolnej
+kolejności), więc przez chwilę baza może być nowa, a funkcja stara. Bez tego zapisu alert
+po edycji przestałby wyłapywać cokolwiek do czasu wdrożenia funkcji — **cicho**, bo nikt
+nie dostaje błędu o mailu, który nie przyszedł. Przy wielu sportach nie ma czego tam
+wpisać, więc stara funkcja potraktuje taki alert jak „dowolny": za szeroko, ale nie za
+wąsko. To jest właściwa strona pomyłki. Pilnuje tego `CHECK alert_sport_w_tablicy`.
+
+Porównanie sportów to **ZBIÓR, nie lista** (`znajdzPodobnyAlert`): „piłka, siatkówka"
+i „siatkówka, piłka" to ten sam alert, bo kolejność bierze się wyłącznie z tego, co ktoś
+dotknął pierwsze. Nadzbiór to już inny alert — łapie więcej. `nazwaSportow()` wymienia
+dwa sporty po imieniu, a przy trzech i więcej urywa się liczbą („Piłka nożna i 2 inne"):
+pełna lista rozpycha wiersz na telefonie, a przy czterech z pięciu przestaje cokolwiek
+znaczyć. Testy: `wieleAlertow.test.ts`, `alertZFiltrow.test.tsx`.
+
+**Pole daty w „Jak długo powiadamiać" wystawało poza kartę na iOS.** Safari nadaje
+`input[type=date]` własną szerokość wewnętrzną z `-webkit-appearance` i traktuje ją jak
+minimalną, więc `w-full` jej nie przycina. Naprawia `appearance-none` + `min-w-0`
+w `WyborKiedy.tsx` — warto pamiętać, bo dotyczy każdego natywnego pola daty w tej apce,
+nie tylko tego jednego.
+
 ### Wiele alertów na konto i ich dom w profilu — od 2026-09-15
 
 **Konto miało JEDEN alert, a każde wejście mówiło „dodaj".** `saveAlert()`
@@ -2230,7 +2265,7 @@ i działa wszędzie; pinezka w nim jest skrótem, nie jedyną drogą.
 
 | Sekcja | Co robi |
 |---|---|
-| **Sport** | `SportChip`, ten sam co w arkuszu filtrów. Wybór POJEDYNCZY (alert trzyma jeden sport albo dowolny), więc dotknięcie wybranego odznacza go |
+| **Sport** | `SportChip`, ten sam co w arkuszu filtrów i tak samo WIELOKROTNY (migracja `152`) — dotknięcie dokłada sport albo go zdejmuje. Pusty wybór = dowolny sport, dzięki czemu nie trzeba piątej ikony „Wszystkie" |
 | **Gdzie** *(wymagane)* | `WyborMiejscowosci` — pole na nazwę/kod pocztowy z pinezką obok, a po wybraniu suwak promienia po wspólnej skali `PROMIENIE_SUWAK_KM` |
 | **Jak długo powiadamiać** | ten sam `WyborKiedy` co w filtrach (Dzisiaj / 3 dni / Tydzień / Termin), tylko o czym innym: tam odcinek czasu wybiera MECZE, tu długość życia alertu. Brak wyboru = **Bezterminowo**, czyli stan domyślny |
 | **Czym dać znać** | dzwonek (zawsze) / mail (`kanal_email`) / push (stan + włącznik) / SMS za flagą |
@@ -2262,12 +2297,20 @@ Przycisk był po prostu wyszarzony, a wyszarzony przycisk bez powodu czyta się 
 zepsuta aplikacja, nie jak brakujące pole — zwłaszcza że brakujące pole jest wtedy o pół
 ekranu wyżej. Powód jest prawdziwy, nie formalny: alert dopasowuje mecze po ODLEGŁOŚCI
 od punktu (`lat`/`lng` + `radius_km`), więc bez punktu nie ma od czego liczyć promienia.
-Dziś nagłówek sekcji mówi „Gdzie *(wymagane)*", pod pustym polem stoi wyjaśnienie
-(„alert wyłapuje mecze po odległości od wskazanego punktu, więc bez niego nie ma od
-czego liczyć") z podpowiedzią o pinezce, a nad wyszarzonym przyciskiem — jedno zdanie
-kierujące w górę („Wybierz najpierw miejsce ↑"). Wskaźnik, nie powtórzenie: wyjaśnienie
-jest w jednym miejscu, przy polu, które je naprawia. Sam atrybut `title` nie wystarcza —
-na telefonie nie ma czym najechać.
+Dziś nagłówek sekcji mówi „Gdzie *(wymagane)*", a nad wyszarzonym przyciskiem stoi
+pomarańczowe „Wybierz najpierw miejsce ↑", czyli wskazówka dokładnie tam, gdzie człowiek
+natrafia na przeszkodę. Sam atrybut `title` nie wystarcza — na telefonie nie ma czym
+najechać.
+
+**Trzyzdaniowy akapit pod pustym polem („alert wyłapuje mecze po odległości…") ZNIKNĄŁ
+2026-09-15** na zgłoszenie „te napisy zbędne". Wyjaśniał mechanikę, zanim ktokolwiek
+zdążył się o nią potknąć, i był trzecim miejscem mówiącym to samo co nagłówek sekcji
+i wskaźnik nad przyciskiem. Wniosek ogólniejszy niż ten jeden akapit: **wyjaśnienie
+należy do miejsca, w którym powstaje pytanie, i tylko do jednego takiego miejsca.**
+Tą samą decyzją zeszła linijka „Wypełnione Twoimi filtrami — możesz tu wszystko zmienić,
+nie ruszy to listy meczów": pola są widoczne i edytowalne, a nagłówek okna mówi „Nowy
+alert", więc zdanie broniło przed pytaniem, którego nikt nie zadawał — za cenę miejsca
+nad wszystkimi polami naraz.
 
 Godziny idą **parami albo wcale** — pilnuje tego `CHECK` w migracji. Sama dolna granica
 dałaby się obronić, ale wtedy dwa pola znaczą trzy różne rzeczy zależnie od tego, które
@@ -2278,7 +2321,12 @@ brak filtra.
 tylko dla jednego — i to jest celowe:
 
 - **dzwonek w aplikacji** — zawsze, bez przełącznika. To historia tego, co się wydarzyło,
-  a nie kanał przerywający dzień (doktryna z `lib/ustawieniaPowiadomien.ts`),
+  a nie kanał przerywający dzień (doktryna z `lib/ustawieniaPowiadomien.ts`). Od
+  2026-09-15 ma **ten sam kształt co pozostałe kanały** (ramka, ikona, nazwa, podpis):
+  wcześniej był płaskim szarym paskiem i czytał się jak komunikat systemu, a nie jak
+  pozycja tej samej listy. Brak przełącznika mówi dziś podpis („zawsze włączony"),
+  nie brak ramki — zgłoszone wprost jako „dzwonek powinien być spójny z resztą
+  powiadomień",
 - **push** — jedzie automatycznie z wiersza w `notifications` (wyzwalacz z migracji
   `102`), a wyłącza się w ustawieniach powiadomień, per typ. Okno alertu pokazuje tylko
   STAN (`stanPush()`) i, gdy się da, jedno kliknięcie włączenia; **drugiego przełącznika

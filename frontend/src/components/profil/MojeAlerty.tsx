@@ -111,7 +111,12 @@ export default function MojeAlerty() {
                     className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                   >
                     <span aria-hidden className="text-lg leading-none">
-                      {a.sport ? sportEmoji(a.sport) : '🏟️'}
+                      {/* Emoji tylko przy JEDNYM sporcie. Przy dwóch pierwsze
+                          z nich kłamałoby o drugim, a sklejanie kilku emoji
+                          w jednej linii rozpycha wiersz i przestaje się czytać
+                          — stadion znaczy tu „więcej niż jeden sport albo
+                          dowolny", a dokładną listę niesie nazwa obok. */}
+                      {a.sports.length === 1 ? sportEmoji(a.sports[0]) : '🏟️'}
                     </span>
                     <span className="min-w-0">
                       <span className={`block truncate text-sm font-medium ${a.isActive ? 'text-ink' : 'text-slate-400'}`}>

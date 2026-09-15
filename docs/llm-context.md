@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-14 · migracja `149` · 64 tabele
+**Stan na:** 2026-09-15 · migracja `152` · 64 tabele
 
 ---
 
@@ -370,6 +370,32 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-15 — Alert na bojo.pl łapie kilka sportów naraz
+
+PROBLEM: alert o nowym meczu („Powiadom mnie, gdy się pojawi") trzymał dokładnie
+JEDEN sport albo żaden. Kto gra w piłkę i w siatkówkę, miał dwie drogi i obie złe:
+wybrać „dowolny sport" i dostawać też koszykówkę oraz tenisa, których nie szuka, albo
+założyć dwa osobne alerty i mieć listę, która rośnie z powodu niebędącego powodem.
+
+ROZWIĄZANIE BOJO: w oknie alertu ikony sportów działają tak samo jak w filtrach listy
+meczów — dotknięcie dokłada sport albo go zdejmuje, można wybrać kilka. Pusty wybór
+dalej znaczy „dowolny sport". Sporty wybrane w filtrach przenoszą się do alertu
+w komplecie, nie tylko wtedy, gdy jest jeden. Nazwa alertu na liście w profilu wymienia
+dwa sporty po imieniu, a przy trzech i więcej urywa się liczbą, żeby wiersz mieścił się
+na telefonie.
+
+MECHANIKA: migracja `152` dokłada `game_alerts.sports text[]` (pusta tablica = dowolny
+sport) i przepisuje do niej dawne `sport`; stara kolumna zostaje wypełniona przy
+dokładnie jednym sporcie, bo funkcja brzegowa `notify-game-alert` wdraża się osobno od
+migracji i przez chwilę może czytać starszą kolumnę. Dopasowanie czyta obie
+reprezentacje — tak samo w funkcji brzegowej, jak w `count_alert_seekers`.
+`nazwaSportow()` i `znajdzPodobnyAlert()` w `lib/alerts.ts` porównują sporty jako ZBIÓR,
+więc „piłka, siatkówka" i „siatkówka, piłka" to ten sam alert. Przy okazji z okna alertu
+zeszły dwa akapity tłumaczące mechanikę, wiersz „Dzwonek w aplikacji" dostał kształt
+pozostałych kanałów, a pole daty przestało wystawać poza kartę na iOS
+(`appearance-none` + `min-w-0` w `WyborKiedy`). Testy: `wieleAlertow.test.ts`,
+`alertZFiltrow.test.ts`.
+
 ### 2026-09-15 — Filtry w adresie, a zamiar alertu przeżywa logowanie
 
 PROBLEM: filtry listy meczów na bojo.pl/wydarzenia żyły wyłącznie w pamięci strony.
@@ -427,7 +453,7 @@ siedział w `saveAlert()`, które przed każdym zapisem gasiło poprzednie; dzi�
 maili dalej działał), `ustawAktywnoscAlertu()`, `nazwaAlertu()`, `opisAlertu()`
 i `znajdzPodobnyAlert()` (próg: połowa mniejszego z dwóch promieni). Nowa karta
 `components/profil/MojeAlerty.tsx` pod `/profil#powiadomienia`, obok pusha i poczty.
-`AlertSetupDialog` przyjmuje `alert` (edycja) i `zFiltrow` (skąd wypełnienie). Wejść jest
+`AlertSetupDialog` przyjmuje `alert` (edycja) i `default*` (wypełnienie). Wejść jest
 dziś dwa na ekran zamiast trzech-czterech: pusty stan i jeden cichy wiersz w arkuszu
 filtrów, plus pigułka nad listą na `/mapa`. Goły dzwonek z paska `/wydarzenia` odszedł
 razem z zapytaniem o stan alertu, a martwy `components/home/NearbyGames.tsx` został
@@ -668,49 +694,3 @@ zarządzania (`handleRemovePlayer`, `handleCofnijNaRezerwe`) renderują się w g
 listy składu dla `isOwner || canManageSquad` przed startem meczu, z pominięciem
 samego organizatora (`p.userId !== event.organizerId`); wiersz ma `flex-wrap`
 i `sm:flex-nowrap`, żeby na wąskim telefonie przyciski schodziły do drugiej linii.
-
-### 2026-09-13 — Strona meczu i kreator przestają powtarzać oraz pytać w próżnię
-
-PROBLEM: dolny pasek gracza w składzie mówił „Jesteś w składzie", a zaraz pod spodem
-„Masz miejsce w składzie" — ten sam komunikat dwa razy, przy czym słowo „miejsce" znaczy
-w Bojo także boisko („Miejsce: Szkoła Podstawowa nr 61"). Pigułki z cechami meczu
-(„7 zł / os.", „Prywatne", nazwa ekipy) wchodziły na ekran PRZED datą i adresem, czyli
-przed odpowiedzią na dwa pierwsze pytania, jakie zadaje się przy meczu. Karta „Twoja ekipa
-tu gra. Nie dasz rady? / Nie zagram" prosiła członka ekipy o deklarację, której NIE
-OGLĄDAŁ NIKT: odmowa szła do tabeli, nad którą nie było już żadnego widoku organizatora.
-Strona ekipy miała trzy wejścia do zapraszania na jednym ekranie. W kreatorze opis siedział
-za przełącznikiem „Dodaj opis", choć tytuł tuż nad nim jest tak samo opcjonalny i stoi
-gołe pole; sposoby zapłaty pojawiały się dopiero po wpisaniu kwoty, więc blok wskakiwał
-w trakcie pisania i przesuwał układ pod kciukiem. „Gram" w panelu powiadomień zapisywało
-na mecz natychmiast, choć panel pokazuje jedno zdanie — bez ceny, godziny i tego, czy
-wchodzi się do składu, czy na rezerwę.
-
-ROZWIĄZANIE BOJO: podpis w dolnym pasku został tylko tam, gdzie dokłada fakt — przy
-rezerwie („Wejdziesz, gdy ktoś się wypisze") i przy prośbie („Organizator jeszcze nie
-potwierdził"). Kolejność na stronie meczu to opis, karta „Kiedy i gdzie", pigułki, licznik
-miejsc, skład; cena zostaje nad licznikiem. Karta „Nie zagram" zniknęła, a razem z nią
-pytanie o odpowiedź, której nikt nie czytał. Panel zapraszania na stronie meczu nazywa się
-„Zaproś" (nie „Zaproś znajomych"), a ze strony ekipy zniknęła trzecia kopia zapraszania —
-link do meczu bierze się z samego meczu. W kreatorze opis to zwykłe pole „Opis
-(opcjonalnie)", sposoby zapłaty pokazują się razem z przełącznikiem „Mecz płatny",
-„Biorę udział" dostało tę samą ramkę co reszta opcji, a karty widoczności mówią krócej:
-„Widoczne dla wszystkich — dołączy każdy chętny" i „Nie pojawia się na liście — wejdzie
-tylko ktoś z zaproszeniem lub linkiem" (wzmianka o LINKU jest konieczna: prywatny mecz
-nie jest szczelny, link wpuszcza każdego). Nowy mecz zakłada się z oknem 60 minut na
-odebranie miejsca z rezerwy zamiast 180. „Gram" przy powiadomieniu otwiera stronę meczu
-z gotowym oknem zapisu, zamiast zapisywać od razu; „nie gram" zostaje natychmiastowe.
-
-MECHANIKA: `EventDetailClient.tsx` — rząd pigułek przeniesiony pod kartę „Kiedy i gdzie",
-podpis paska pod warunkiem `myPendingRequest || amIReserve`, `NieGramButton.tsx` usunięty
-(tabela `event_declines`, RLS i `lib/eventDeclines.ts` zostają nietknięte).
-`OdpowiedzJednymKlikiem.tsx` dostał `gramOtwieraMecz` i `naPrzejscie` — w `NotificationBell.tsx`
-kieruje na `/wydarzenia/<id>?dolacz=1` (ta sama ścieżka co powrót z logowania, sama nie
-zapisuje), w `InviteList.tsx` bez zmian. `EventTitleDescriptionField.tsx` bez `ToggleRow`,
-stan `descriptionEnabled` usunięty z kreatora, edycji i `lib/eventDraft.ts` (starsze szkice
-wczytują się bez zmian). `EventPaymentFields.tsx` przyjmuje `zawszeWidoczne` — kreator
-podaje, edycja nie (tam „0" znaczy mecz darmowy). `DOMYSLNE_MINUTY_REZERWY = 60`
-w `lib/events.ts` steruje zapisem w `createEvent`/`updateEvent` i `lib/series.ts`; odczyt
-starych wierszy i `DEFAULT` kolumny w bazie zostają na 180. `ZaprosZnajomychPanel`
-wypięty z `NajblizszyMeczGrupy.tsx`. Asercja paska w `e2e/scenariusze.spec.ts` łapie go
-po `data-pasek-dolny`.
-

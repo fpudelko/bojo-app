@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, Bell, BellOff, Mail, Smartphone, Check } from 'lucide-react';
 import {
-  getMojeAlerty, saveAlert, zaktualizujAlert, deleteMyAlert, nazwaAlertu, opisAlertu,
+  getMojeAlerty, saveAlert, zaktualizujAlert, deleteMyAlert, nazwaAlertu, nazwaSportow,
+  opisAlertu,
   znajdzPodobnyAlert, wygasaZKiedy, kiedyZWygasniecia, PROMIEN_DOMYSLNY,
   type AlertInput,
 } from '@/lib/alerts';
@@ -27,7 +28,11 @@ const OPIS_PUSHA: Record<StanPush, string> = {
   wlaczone:           'Powiadomienia na telefon są włączone.',
   wylaczone:          'Możesz włączyć powiadomienia na telefon.',
   zablokowane:        'Powiadomienia są zablokowane w ustawieniach przeglądarki — odblokuj je tam, wtedy wrócimy do tego pytania.',
-  'wymaga-instalacji': 'Na iPhonie powiadomienia działają dopiero po dodaniu Bojo do ekranu głównego: Udostępnij → „Dodaj do ekranu początkowego".',
+  // Krótko, bo to podpis pod nazwą kanału, nie instrukcja obsługi: pełna
+  // droga („Udostępnij → Dodaj do ekranu początkowego") zajmowała trzy linijki
+  // i przykrywała sobą dwa kanały powyżej. Kto zna iPhone'a, wie, gdzie jest
+  // „Dodaj do ekranu głównego"; kto nie zna, i tak nie zrobi tego z okna alertu.
+  'wymaga-instalacji': 'Dodaj Bojo do ekranu głównego, wtedy zadziałają.',
   nieobslugiwane:     'Ta przeglądarka nie obsługuje powiadomień. Zostaje mail i dzwonek w aplikacji.',
 };
 
@@ -37,10 +42,13 @@ interface Props {
   /** Podany = EDYCJA tego alertu (ten sam wiersz, to samo `id` i token).
    *  Pusty = nowy alert; wtedy pola startują z `default*` niżej. */
   alert?: GameAlert;
-  /** Czy `default*` przyszły z filtrów listy — decyduje o jednej linijce nad
-   *  polami. Bez niej nikt nie wie, skąd wzięły się wypełnione wartości. */
-  zFiltrow?: boolean;
-  defaultSport?: string;
+  /* BYŁ TU `zFiltrow?: boolean` — jedyny odbiorca tej flagi, linijka
+     „Wypełnione Twoimi filtrami", zeszła 2026-09-15. Prop poszedł razem z nią,
+     zamiast zostać „na wszelki wypadek": martwy parametr w interfejsie każe
+     każdemu kolejnemu czytającemu sprawdzać, co właściwie robi, i prędzej czy
+     później ktoś podłączy pod niego drugie znaczenie. */
+  /** Sporty, którymi okno ma wystartować. Pusta/brak = dowolny sport. */
+  defaultSports?: string[];
   defaultRadiusKm?: number;
   defaultLat?: number;
   defaultLng?: number;
@@ -89,13 +97,17 @@ interface Props {
  * `/alert/wylacz/[token]`.
  */
 export default function AlertSetupDialog({
-  onClose, onSaved, alert, zFiltrow,
-  defaultSport, defaultRadiusKm, defaultLat, defaultLng, defaultLabel,
+  onClose, onSaved, alert,
+  defaultSports, defaultRadiusKm, defaultLat, defaultLng, defaultLabel,
 }: Props) {
   const { user } = useAuth();
   const edycja = alert != null;
 
-  const [sport,    setSport]    = useState(alert?.sport ?? defaultSport ?? '');
+  // WIELE SPORTÓW NA JEDEN ALERT — zgłoszone wprost (2026-09-15), migracja
+  // `152`. Pusta tablica = dowolny sport, czyli to samo, co znaczył dawny
+  // brak wyboru; dzięki temu okno nie potrzebuje piątej ikony „Wszystkie".
+  const [sporty, setSporty] = useState<string[]>(
+    alert?.sports ?? defaultSports ?? []);
   const [miejsce,  setMiejsce]  = useState<Miejscowosc | null>(() => {
     if (alert) return { nazwa: alert.cityLabel || 'Wybrane miejsce', kontekst: '', lat: alert.lat, lng: alert.lng };
     if (defaultLat != null && defaultLng != null) {
@@ -159,7 +171,7 @@ export default function AlertSetupDialog({
     if (!mimoBliźniaka) {
       const podobny = znajdzPodobnyAlert(
         inneAlerty.filter((a) => a.isActive),
-        { sport: sport || undefined, lat: miejsce.lat, lng: miejsce.lng, radiusKm: promienKm },
+        { sports: sporty, lat: miejsce.lat, lng: miejsce.lng, radiusKm: promienKm },
         alert?.id,
       );
       if (podobny) { setBliźniak(podobny); return; }
@@ -168,7 +180,7 @@ export default function AlertSetupDialog({
     setSaving(true);
     try {
       const input: AlertInput = {
-        sport:      sport || undefined,
+        sports:     sporty,
         // Dni tygodnia i pora dnia zostały wyjęte z okna (patrz nagłówek
         // komponentu). Pusta tablica znaczy w `notify-game-alert` „dowolny
         // dzień", a `null`/`null` — „dowolna pora"; edycja starego alertu
@@ -241,23 +253,24 @@ export default function AlertSetupDialog({
         </div>
 
         <div className="px-5 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
-          {/* SKĄD WZIĘŁY SIĘ WYPEŁNIONE POLA — jedna linijka, ale robi całą
-              robotę przy zarzucie „wymieszanie z filtrami jest średnie".
-              Bez niej człowiek widzi wypełniony formularz i nie wie, czy to
-              pamięć po poprzednim alercie, czy podpowiedź; a przy edycji nie
-              wie, czy zmiana pola ruszy też listę pod spodem. Mówimy oba
-              fakty wprost, w miejscu, w którym powstaje pytanie. */}
-          {!edycja && zFiltrow && (
-            <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs leading-relaxed text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-              Wypełnione <strong className="font-semibold">Twoimi filtrami</strong> — możesz
-              tu wszystko zmienić, nie ruszy to listy meczów.
-            </p>
-          )}
+          {/* BYŁA TU LINIJKA „Wypełnione Twoimi filtrami — możesz tu wszystko
+              zmienić, nie ruszy to listy meczów". Zdjęta 2026-09-15 na wprost
+              zgłoszony zarzut „te napisy zbędne".
 
-          {/* ── SPORT ── ten sam `SportChip` co w arkuszu filtrów. Wybór jest
-              POJEDYNCZY (alert trzyma jeden sport albo dowolny), więc
-              dotknięcie wybranego odznacza go i wraca do „Dowolnego sportu" —
-              bez tego brak piątej ikony „Wszystkie" byłby pułapką. */}
+              Powód, dla którego powstała, broni się słabiej niż koszt: pola
+              i tak są WIDOCZNE i edytowalne, a nagłówek okna mówi „Nowy
+              alert", więc nikt nie bierze ich za ustawienia listy. Zdanie
+              tłumaczyło mechanikę, której człowiek nie zdążył jeszcze uznać
+              za problem, i robiło to nad wszystkimi polami — czyli w miejscu
+              o najwyższej cenie. Gdyby wróciło pytanie „czy to zmieni moją
+              listę", odpowiedź należy do miejsca, w którym powstaje, nie do
+              pierwszego akapitu okna. */}
+          {/* ── SPORT ── ten sam `SportChip` co w arkuszu filtrów, i tak samo
+              WIELOKROTNY: dotknięcie dokłada sport albo go zdejmuje. Do
+              2026-09-15 alert trzymał dokładnie jeden, więc kto gra w piłkę
+              i w siatkówkę, musiał wybrać „dowolny" i dostawać także
+              koszykówkę, której nie szuka. Pusty wybór dalej znaczy „dowolny",
+              dzięki czemu nie trzeba piątej ikony „Wszystkie". */}
           <div>
             <p className={naglowekSekcji}>Sport</p>
             <div className="flex flex-wrap gap-2">
@@ -266,13 +279,15 @@ export default function AlertSetupDialog({
                   key={s}
                   emoji={sportEmoji(s)}
                   label={sportLabel(s)}
-                  selected={sport === s}
-                  onClick={() => setSport((cur) => (cur === s ? '' : s))}
+                  selected={sporty.includes(s)}
+                  onClick={() => setSporty((cur) => (
+                    cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]
+                  ))}
                 />
               ))}
             </div>
             <p className="mt-2 text-sm font-medium text-ink">
-              {sport === '' ? 'Dowolny sport' : sportLabel(sport)}
+              {nazwaSportow(sporty)}
             </p>
           </div>
 
@@ -297,14 +312,13 @@ export default function AlertSetupDialog({
               promienKm={promienKm}
               naZmiane={(m, km) => { setMiejsce(m); setPromienKm(km); }}
             />
-            {brakMiejsca && (
-              <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                Alert wyłapuje mecze po odległości od wskazanego punktu, więc bez
-                niego nie ma od czego liczyć. Wpisz miejscowość albo kod pocztowy —
-                pinezka obok pola ustawia Twoją lokalizację, jeśli przeglądarka
-                na to pozwala.
-              </p>
-            )}
+            {/* BYŁ TU trzyzdaniowy akapit tłumaczący, po co alertowi punkt na
+                mapie. Zdjęty 2026-09-15 („te napisy zbędne"). Sama informacja
+                nie zniknęła — niesie ją nagłówek sekcji („Gdzie (wymagane)")
+                i pomarańczowy wskaźnik „Wybierz najpierw miejsce ↑" tuż nad
+                zablokowanym przyciskiem, czyli DOKŁADNIE tam, gdzie człowiek
+                natrafia na przeszkodę. Akapit powtarzał to trzeci raz, zanim
+                ktokolwiek zdążył się zablokować. */}
           </div>
 
           {/* ── JAK DŁUGO POWIADAMIAĆ ── ten sam kształt co „Kiedy" w filtrach,
@@ -330,15 +344,26 @@ export default function AlertSetupDialog({
           <div>
             <p className={naglowekSekcji}>Czym dać znać</p>
 
-            <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-              <Check className="h-4 w-4 shrink-0 text-primary-700" aria-hidden />
-              {/* Dzwonek to historia, nie kanał przerywający dzień — ta sama
-                  doktryna co w `lib/ustawieniaPowiadomien.ts`, więc nie ma tu
-                  przełącznika, który obiecywałby jego wyłączenie. */}
-              Dzwonek w aplikacji — zawsze
+            {/* Wszystkie trzy kanały w JEDNYM kształcie — ramka, ikona, nazwa,
+                podpis pod spodem. Do 2026-09-15 dzwonek był płaskim szarym
+                paskiem bez ikony i bez podpisu, więc czytał się jak komunikat
+                systemu, a nie jak pozycja tej samej listy co Mail i telefon
+                („dzwonek powinien być spójny z resztą powiadomień"). Brak
+                przełącznika zostaje: dzwonek to historia, nie kanał
+                przerywający dzień — ta sama doktryna co
+                w `lib/ustawieniaPowiadomien.ts`. Mówi to podpis, nie brak
+                ramki. */}
+            <div className="flex items-start gap-2 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Dzwonek w aplikacji</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  Zawsze włączony — to historia alertu, nie zaczepka
+                </p>
+              </div>
             </div>
 
-            <div className="mt-1 rounded-xl border border-slate-200 px-4 dark:border-slate-700">
+            <div className="mt-2 rounded-xl border border-slate-200 px-4 dark:border-slate-700">
               <ToggleRow
                 label="Mail"
                 desc="Na adres, którym się logujesz"
@@ -402,7 +427,7 @@ export default function AlertSetupDialog({
               </p>
               {miejsce && (
                 <p className="mt-1 text-xs text-green-800 dark:text-green-400">
-                  {nazwaAlertu({ sport: sport || undefined, cityLabel: miejsce.nazwa, radiusKm: promienKm })}
+                  {nazwaAlertu({ sports: sporty, cityLabel: miejsce.nazwa, radiusKm: promienKm })}
                   {' · '}
                   {opisAlertu({ expiresAt: wygasaZKiedy(kiedy) ?? undefined, kanalEmail })}
                 </p>

@@ -16,16 +16,26 @@ afterEach(cleanup);
 describe('domyslneZFiltrow — okno alertu nie pyta o to, co już powiedziały filtry', () => {
   it('jeden wybrany sport przenosi się do alertu', () => {
     const d = domyslneZFiltrow({ sports: ['koszykówka'], radiusKm: null, pozycja: null });
-    expect(d.sport).toBe('koszykówka');
+    expect(d.sports).toEqual(['koszykówka']);
   });
 
-  it('dwa sporty naraz to „dowolny" — alert trzyma jeden, więc wybór za kogoś byłby zmyśleniem', () => {
+  it('DWA sporty też się przenoszą — od migracji `152` alert łapie wiele naraz', () => {
+    // Wcześniej alert trzymał dokładnie jeden sport, więc przy dwóch filtrach
+    // okno startowało z „dowolnego" i człowiek dostawał także to, czego nie
+    // szukał. To jest ta poprawka, nie kosmetyka.
     const d = domyslneZFiltrow({ sports: ['koszykówka', 'siatkówka'], radiusKm: null, pozycja: null });
-    expect(d.sport).toBeUndefined();
+    expect(d.sports).toEqual(['koszykówka', 'siatkówka']);
   });
 
-  it('brak sportu w filtrach to też „dowolny"', () => {
-    expect(domyslneZFiltrow({ sports: [], radiusKm: null, pozycja: null }).sport).toBeUndefined();
+  it('brak sportu w filtrach to „dowolny", czyli pusta lista', () => {
+    expect(domyslneZFiltrow({ sports: [], radiusKm: null, pozycja: null }).sports).toEqual([]);
+  });
+
+  it('kopiuje listę, nie oddaje tej samej tablicy co filtry', () => {
+    // Okno alertu odznacza sporty przez `setSporty`, a wspólna referencja
+    // znaczyłaby, że dotknięcie ikony w oknie zmienia filtry listy pod spodem.
+    const filtry = { sports: ['piłka nożna'], radiusKm: null, pozycja: null };
+    expect(domyslneZFiltrow(filtry).sports).not.toBe(filtry.sports);
   });
 
   it('promień z filtrów trafia na najbliższy przystanek skali, nie między dwa', () => {
