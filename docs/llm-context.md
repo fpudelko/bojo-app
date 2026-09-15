@@ -396,6 +396,30 @@ pozostałych kanałów, a pole daty przestało wystawać poza kartę na iOS
 (`appearance-none` + `min-w-0` w `WyborKiedy`). Testy: `wieleAlertow.test.ts`,
 `alertZFiltrow.test.ts`.
 
+### 2026-09-15 — Alert na bojo.pl nie ma już żadnego ograniczenia czasowego
+
+PROBLEM: zakładając alert o nowych meczach, trzeba było odpowiedzieć, jak długo ma
+powiadamiać — Dzisiaj / 3 dni / Tydzień / własny termin z kalendarza. Ten sam rząd
+przycisków stoi w filtrach listy meczów i znaczy tam co innego: „pokaż mecze w tym
+oknie". Okno alertu otwiera się wprost z filtrów, więc oba pytania były w głowie naraz
+i nie dało się ich rozróżnić bez pamiętania, na którym ekranie się stoi. Wcześniej
+z tego samego okna zniknęły z tego samego powodu dni tygodnia i pora dnia meczu.
+
+ROZWIĄZANIE BOJO: alert Bojo jest ZAWSZE bezterminowy. Okno pyta o trzy rzeczy — sport,
+miejsce z promieniem i kanał — i o nic więcej. Alert gasi się wtedy, gdy przestaje być
+potrzebny: linkiem „nie chcę więcej takich wiadomości" w każdej wiadomości (bez
+logowania) albo przełącznikiem przy wierszu w profilu. Alert założony wcześniej
+z datą końca dalej wygasa o czasie, a profil mówi, do kiedy działa.
+
+MECHANIKA: sekcja „Jak długo powiadamiać" usunięta z `AlertSetupDialog`, okno zapisuje
+`expires_at = NULL`. Kolumna i jej obsługa w funkcji brzegowej `notify-game-alert`
+zostają nietknięte, tak samo jak `days_of_week` i `godzina_od`/`godzina_do`. Cztery
+przeliczniki (`koniecDnia`, `najwczesniejszyKoniec`, `wygasaZKiedy`, `kiedyZWygasniecia`)
+usunięte z `lib/alerts.ts`; `dataWygasniecia()` zostaje, bo `opisAlertu()` musi umieć
+przeczytać stary wiersz. Edycja starego alertu zeruje jego datę świadomie — termin,
+którego nie widać i nie da się zmienić, jest gorszy niż brak terminu.
+`alertKoniec.test.ts` skanuje źródło okna i pilnuje, żeby wymiar czasu nie wrócił.
+
 ### 2026-09-15 — Filtry w adresie, a zamiar alertu przeżywa logowanie
 
 PROBLEM: filtry listy meczów na bojo.pl/wydarzenia żyły wyłącznie w pamięci strony.
@@ -507,10 +531,10 @@ miejscowości w nim jest, a nie sam przycisk lokalizacji. `DateFilter` jest jedn
 stringiem także dla własnego
 terminu (`do:2026-09-30`), więc wchodzi do adresu bez drugiego pola; zepsuta data
 zachowuje się jak brak filtra, a nie jak „nic nie pasuje". `components/ui/WyborKiedy.tsx`
-stoi w obu arkuszach i w oknie alertu, a `wygasaZKiedy()`/`kiedyZWygasniecia()` mapują
-wybór na `expires_at` i z powrotem. Kolumny `days_of_week`, `godzina_od`/`godzina_do`
-z migracji `149` zostają w bazie nietknięte — okno przestało o nie pytać. Testy:
-`alertKoniec.test.ts`, `eventFilters.test.ts`, `szukaj-domyslnie-mecze.klikalnosc.spec.ts`.
+stoi w obu arkuszach filtrów (w oknie alertu już NIE — patrz wpis o alercie wyżej).
+Kolumny `days_of_week`, `godzina_od`/`godzina_do` i `expires_at` z migracji `149`
+zostają w bazie nietknięte — okno przestało o nie pytać. Testy: `alertKoniec.test.ts`,
+`eventFilters.test.ts`, `szukaj-domyslnie-mecze.klikalnosc.spec.ts`.
 
 ### 2026-09-14 — Alert o meczach: pora dnia, czas życia i wyłącznik z maila
 
@@ -662,35 +686,3 @@ z `claim_offered_at` + `events.reserve_claim_minutes`; nowy `krotkiTermin()`
 nie odmieniać przez przypadki jak `dzienTygodniaWBierniku()`). `EventDetailClient.tsx`
 — sekcja „Rezerwa — kolejka do zwolnionego miejsca". Testy:
 `__tests__/kolejkaRezerwy.test.ts`, `__tests__/eventDates.test.ts`.
-
-### 2026-09-13 — Akcje przy swoim wierszu; zarządzanie graczami w liście składu
-
-PROBLEM: karta z terminem i miejscem meczu miała pod spodem rząd trzech przycisków
-z podpisami — „Nawiguj", „O boisku" i „Do kalendarza". Na telefonie nie mieściły się
-w jednej linii, więc łamały się na dwa rzędy, a układ 2+1 sugerował hierarchię, której
-nie ma. Wszystkie trzy stały pod obydwoma wierszami karty, choć każdy dotyczy tylko
-jednego z nich. Do tego nazwa boiska — rzecz, w którą człowiek i tak chce kliknąć —
-nie była klikalna, a jej rolę pełnił osobny przycisk „O boisku" obok. Osobno:
-organizator dostawał na dole strony meczu kartę „Zarządzanie graczami", która
-wypisywała skład drugi raz, tylko po to, żeby doczepić do nazwisk „Usuń" i „Na
-rezerwę" — więc widział każdego gracza dwukrotnie i musiał przewijać między dwiema
-listami tych samych osób.
-
-ROZWIĄZANIE BOJO: każda akcja stoi przy wierszu, którego dotyczy. Przy dacie ikona
-kalendarza (pobiera termin jako plik `.ics`), przy miejscu ikona nawigacji (Mapy
-Google). Nazwa obiektu z katalogu jest teraz odnośnikiem — podkreślonym, w kolorze
-linku, ze strzałką — i prowadzi na stronę boiska, więc osobny przycisk „O boisku"
-zniknął. Miejsce spoza katalogu nie ma strony, więc zostaje zwykłym tekstem, ale
-ikona dojazdu stoi przy nim tak samo. Przyciski „Usuń" i „Na rezerwę" organizator ma
-przy graczu w liście składu, a osobna karta „Zarządzanie graczami" zniknęła.
-
-MECHANIKA: karta „Kiedy i gdzie" w `app/wydarzenia/[id]/EventDetailClient.tsx` —
-dwa wiersze `flex items-start`, każdy z ikoną akcji o polu dotyku 44 px (WCAG 2.5.5)
-i własnym `aria-label`/`title` przy 20-pikselowej ikonie. Odnośnik do boiska prowadzi
-na `/boisko/[id]` i zapisuje powrót przez `zapiszPowrot()`. Zniknął warunek na
-`joinBarVisible`, który ściemniał „Nawiguj”, gdy na ekranie stał zielony „Dołącz do
-meczu" — ikona nie konkuruje wagą z niczym, więc nie ma czym sterować. Akcje
-zarządzania (`handleRemovePlayer`, `handleCofnijNaRezerwe`) renderują się w gałęzi
-listy składu dla `isOwner || canManageSquad` przed startem meczu, z pominięciem
-samego organizatora (`p.userId !== event.organizerId`); wiersz ma `flex-wrap`
-i `sm:flex-nowrap`, żeby na wąskim telefonie przyciski schodziły do drugiej linii.

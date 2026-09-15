@@ -2103,11 +2103,12 @@ dwa sporty po imieniu, a przy trzech i więcej urywa się liczbą („Piłka no�
 pełna lista rozpycha wiersz na telefonie, a przy czterech z pięciu przestaje cokolwiek
 znaczyć. Testy: `wieleAlertow.test.ts`, `alertZFiltrow.test.tsx`.
 
-**Pole daty w „Jak długo powiadamiać" wystawało poza kartę na iOS.** Safari nadaje
-`input[type=date]` własną szerokość wewnętrzną z `-webkit-appearance` i traktuje ją jak
-minimalną, więc `w-full` jej nie przycina. Naprawia `appearance-none` + `min-w-0`
-w `WyborKiedy.tsx` — warto pamiętać, bo dotyczy każdego natywnego pola daty w tej apce,
-nie tylko tego jednego.
+**Pole daty wystawało poza kartę na iOS.** Safari nadaje `input[type=date]` własną
+szerokość wewnętrzną z `-webkit-appearance` i traktuje ją jak minimalną, więc `w-full`
+jej nie przycina. Naprawia `appearance-none` + `min-w-0` w `WyborKiedy.tsx`. Poprawka
+zostaje mimo że sekcja „Jak długo powiadamiać" zeszła z okna alertu tego samego dnia:
+`WyborKiedy` stoi dalej w arkuszach filtrów listy i mapy, a wada dotyczy każdego
+natywnego pola daty w tej apce, nie tylko tamtego jednego.
 
 ### Wiele alertów na konto i ich dom w profilu — od 2026-09-15
 
@@ -2267,7 +2268,6 @@ i działa wszędzie; pinezka w nim jest skrótem, nie jedyną drogą.
 |---|---|
 | **Sport** | `SportChip`, ten sam co w arkuszu filtrów i tak samo WIELOKROTNY (migracja `152`) — dotknięcie dokłada sport albo go zdejmuje. Pusty wybór = dowolny sport, dzięki czemu nie trzeba piątej ikony „Wszystkie" |
 | **Gdzie** *(wymagane)* | `WyborMiejscowosci` — pole na nazwę/kod pocztowy z pinezką obok, a po wybraniu suwak promienia po wspólnej skali `PROMIENIE_SUWAK_KM` |
-| **Jak długo powiadamiać** | ten sam `WyborKiedy` co w filtrach (Dzisiaj / 3 dni / Tydzień / Termin), tylko o czym innym: tam odcinek czasu wybiera MECZE, tu długość życia alertu. Brak wyboru = **Bezterminowo**, czyli stan domyślny |
 | **Czym dać znać** | dzwonek (zawsze) / mail (`kanal_email`) / push (stan + włącznik) / SMS za flagą |
 
 Wartości z filtrów (`domyslneZFiltrow`) nadal **wypełniają** trzy pierwsze pola przy
@@ -2275,21 +2275,37 @@ otwarciu — więc kto przyszedł z ustawionych filtrów, sprawdza je wzrokiem z
 wpisywać od nowa. Pilnuje tego `alertZFiltrow.test.tsx`: osobna asercja sprawdza, że
 okno w ogóle MA `WyborMiejscowosci`, a nie sam przycisk lokalizacji.
 
-**Co z tej rundy zostaje wycięte: dni tygodnia i pora dnia.** Te dwa naprawdę były
-pytaniem o termin zadanym drugi raz, obok „Kiedy" w filtrach, i nikt nie wiedział,
-które z nich czyta. Kolumny `days_of_week`, `godzina_od`/`godzina_do` (migracja `149`)
-zostają w bazie i w funkcji brzegowej nietknięte — okno zapisuje odpowiednio `[]`
-i `NULL`.
+#### Okno alertu nie ma ŻADNEGO wymiaru czasu — domknięte 2026-09-15
 
-Przeliczniki `wygasaZKiedy()` / `kiedyZWygasniecia()` w `lib/alerts.ts` mapują wybór na
-`expires_at` i z powrotem — „3 dni" liczy DZISIAJ jako pierwszy, dokładnie tak jak filtr,
-bo inaczej ta sama etykieta znaczyłaby w dwóch miejscach dwie różne rzeczy. Odczyt wraca
-na **nazwany przycisk**, gdy data się zgadza co do dnia; dopiero cokolwiek innego ląduje
-na własnym terminie (`alertKoniec.test.ts`). Wybrany dzień liczy się **cały** (23:59:59,
-nie północ: „do 30 września" znaczy, że 30 września alert jeszcze działa).
+Wymiary czasu odpadały z tego okna w dwóch ruchach i z tego samego powodu.
 
-Gdyby wymiar dni/godzin kiedyś wrócił, wróci jako część FILTRÓW, wspólna dla listy
-i alertu, a nie jako druga, osobna kopia pytania o termin.
+**14 września: dni tygodnia i pora dnia.** Te dwa były pytaniem o termin zadanym drugi
+raz, obok „Kiedy" w filtrach, i nikt nie wiedział, które z nich czyta.
+
+**15 września: czas życia alertu** („Jak długo powiadamiać": Dzisiaj / 3 dni / Tydzień /
+Termin). Zgłoszone wprost — *„usuń ograniczenie czasowe w alercie, większa prostota plus
+słabe do zrozumienia"*. Ten sam rząd przycisków stoi piętro wyżej, w filtrach, i znaczy
+tam **„mecze w tym oknie"**, a w oknie alertu znaczył **„tak długo powiadamiaj"**. Ten
+sam kształt dla dwóch różnych pytań okazał się kosztem, nie oszczędnością: żeby
+przeczytać go poprawnie, trzeba było pamiętać, w którym oknie się stoi — a okno alertu
+otwiera się wprost z arkusza filtrów, czyli oba są w głowie naraz.
+
+**Alert jest dziś zawsze bezterminowy i gaśnie na żądanie**: linkiem z każdej wiadomości
+(`wylacz_token`, bez logowania) albo przełącznikiem przy wierszu w profilu. To prostsza
+odpowiedź na to samo pytanie — zamiast zgadywać z góry, jak długo będzie się chciało
+dostawać wiadomości, przestaje się je dostawać wtedy, gdy przestają być potrzebne.
+
+Kolumny `days_of_week`, `godzina_od`/`godzina_do` i `expires_at` (migracja `149`) zostają
+w bazie i w funkcji brzegowej **nietknięte** — okno zapisuje odpowiednio `[]`, `NULL`
+i `NULL`. Stary wiersz z ustawioną datą dalej wygasa, a `opisAlertu()` dalej mówi o tym
+prawdę; dopiero jego EDYCJA zeruje datę, bo termin, którego nie widać i nie da się
+zmienić, jest gorszy niż brak terminu. Razem z sekcją poszły cztery przeliczniki
+z `lib/alerts.ts` (`koniecDnia`, `najwczesniejszyKoniec`, `wygasaZKiedy`,
+`kiedyZWygasniecia`) — `alertKoniec.test.ts` skanuje dziś ŹRÓDŁO okna i pilnuje, żeby
+żaden z nich nie wrócił bocznymi drzwiami.
+
+Gdyby wymiar czasu kiedyś wrócił, wróci jako część FILTRÓW, wspólna dla listy i alertu,
+a nie jako druga, osobna kopia pytania o termin.
 
 **Bez wskazanego miejsca alertu nie da się zapisać — i jest to NAPISANE.** Zgłoszone
 wprost: „użytkownik nie wie, dlaczego nie może dodać alertu, jak nie wybierze miasta".

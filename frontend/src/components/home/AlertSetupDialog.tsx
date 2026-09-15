@@ -5,7 +5,7 @@ import { X, Loader2, Bell, BellOff, Mail, Smartphone, Check } from 'lucide-react
 import {
   getMojeAlerty, saveAlert, zaktualizujAlert, deleteMyAlert, nazwaAlertu, nazwaSportow,
   opisAlertu,
-  znajdzPodobnyAlert, wygasaZKiedy, kiedyZWygasniecia, PROMIEN_DOMYSLNY,
+  znajdzPodobnyAlert, PROMIEN_DOMYSLNY,
   type AlertInput,
 } from '@/lib/alerts';
 import { pozycjaBezPytania } from '@/lib/geo';
@@ -15,9 +15,7 @@ import { SHOW_SMS_FEATURES } from '@/lib/features';
 import { stanPush, wlaczPush, type StanPush } from '@/lib/push';
 import SportChip from '@/components/ui/SportChip';
 import ToggleRow from '@/components/ui/ToggleRow';
-import WyborKiedy from '@/components/ui/WyborKiedy';
 import WyborMiejscowosci from '@/components/map/WyborMiejscowosci';
-import type { DateFilter } from '@/lib/eventFilters';
 import type { Miejscowosc } from '@/lib/miejscowosci';
 import type { GameAlert } from '@/types';
 import { WARSTWA } from '@/lib/warstwy';
@@ -77,24 +75,24 @@ interface Props {
  * Pole miejscowości przyjmuje nazwę albo kod pocztowy z klawiatury i działa
  * wszędzie; pinezka jest skrótem, nie jedyną drogą.
  *
- * Okno pyta więc dziś o cztery rzeczy, ale trzy z nich przychodzą już
- * wypełnione z filtrów, gdy tamte były ustawione:
+ * Okno pyta dziś o TRZY rzeczy, a dwie pierwsze przychodzą już wypełnione
+ * z filtrów, gdy tamte były ustawione:
  *
- *   1. **Sport** — `SportChip`, ten sam co w arkuszu filtrów,
+ *   1. **Sport** — `SportChip`, ten sam co w arkuszu filtrów, wielokrotny,
  *   2. **Gdzie** — `WyborMiejscowosci`: pole z pinezką plus suwak promienia,
- *   3. **Jak długo powiadamiać** — `WyborKiedy` (`expires_at`),
- *   4. **Czym dać znać** — mail, push, SMS.
+ *   3. **Czym dać znać** — mail, push, SMS.
  *
- * Co z tej rundy ZOSTAJE: dni tygodnia i pora dnia (`days_of_week`,
- * `godzina_od`/`godzina_do`, migracja `149`) nie wracają do okna. Te dwa
- * naprawdę były pytaniem o termin zadanym drugi raz, obok „Kiedy" w filtrach,
- * i nikt nie wiedział, które z nich czyta. Kolumny zostają w bazie i w funkcji
- * brzegowej nietknięte.
+ * ŻADNEGO WYMIARU CZASU. Okno nie pyta ani o dni tygodnia, ani o porę dnia
+ * meczu (`days_of_week`, `godzina_od`/`godzina_do` — wyjęte 2026-09-14), ani
+ * o to, jak długo alert ma żyć (`expires_at` — wyjęte 2026-09-15). Wszystkie
+ * trzy pytania miały tę samą wadę: zadawały o termin drugi raz, obok „Kiedy"
+ * w filtrach, i nikt nie wiedział, które z nich czyta. Kolumny zostają w bazie
+ * i w funkcji brzegowej nietknięte; okno zapisuje `[]`, `NULL` i `NULL`.
  *
- * ALERT JEST DOMYŚLNIE BEZTERMINOWY (decyzja właściciela) — brak wyboru
- * w „Kiedy" znaczy właśnie to. Warunek jest jeden: musi dać się wyłączyć
- * z samej wiadomości, bez logowania. Stąd `wylacz_token` i trasa
- * `/alert/wylacz/[token]`.
+ * ALERT JEST ZAWSZE BEZTERMINOWY. Warunek, bez którego byłoby to nieuczciwe,
+ * jest jeden i spełniony: musi dać się wyłączyć z samej wiadomości, bez
+ * logowania — stąd `wylacz_token` i trasa `/alert/wylacz/[token]`. Drugie
+ * wyjście to przełącznik przy wierszu w profilu.
  */
 export default function AlertSetupDialog({
   onClose, onSaved, alert,
@@ -117,8 +115,6 @@ export default function AlertSetupDialog({
   });
   const [promienKm, setPromienKm] = useState(alert?.radiusKm ?? defaultRadiusKm ?? PROMIEN_DOMYSLNY);
 
-  const [kiedy, setKiedy] = useState<DateFilter>(
-    alert ? kiedyZWygasniecia(alert.expiresAt) : 'wszystkie');
   const [kanalEmail, setKanalEmail] = useState(alert?.kanalEmail ?? true);
   /** Pozostałe alerty — wyłącznie do ostrzeżenia o bliźniaku przy zapisie. */
   const [inneAlerty, setInneAlerty] = useState<GameAlert[]>([]);
@@ -191,7 +187,10 @@ export default function AlertSetupDialog({
         lng:        miejsce.lng,
         radiusKm:   promienKm,
         cityLabel:  miejsce.nazwa || undefined,
-        expiresAt:  wygasaZKiedy(kiedy),
+        // Zawsze bezterminowo — patrz nagłówek komponentu. Edycja starego
+        // alertu z ustawioną datą wyzeruje ją ŚWIADOMIE: data, której nie
+        // widać i nie da się zmienić, jest gorsza niż jej brak.
+        expiresAt:  null,
         godzinaOd:  null,
         godzinaDo:  null,
         kanalEmail,
@@ -321,24 +320,23 @@ export default function AlertSetupDialog({
                 ktokolwiek zdążył się zablokować. */}
           </div>
 
-          {/* ── JAK DŁUGO POWIADAMIAĆ ── ten sam kształt co „Kiedy" w filtrach,
-              o czym innym: tam odcinek czasu wybiera MECZE, tu długość życia
-              alertu. Brak wyboru = bezterminowo, czyli stan domyślny. */}
-          <div>
-            <p className={naglowekSekcji}>Jak długo powiadamiać</p>
-            <WyborKiedy
-              wartosc={kiedy}
-              naZmiane={setKiedy}
-              label="Do kiedy"
-              podpisWszystkich="Bezterminowo"
-            />
-            {kiedy === 'wszystkie' && (
-              <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                Alert działa, dopóki go nie wyłączysz — każda wiadomość ma na
-                dole link, który go gasi jednym kliknięciem.
-              </p>
-            )}
-          </div>
+          {/* BYŁA TU SEKCJA „JAK DŁUGO POWIADAMIAĆ" — cztery przyciski
+              Dzisiaj / 3 dni / Tydzień / Termin plus kalendarz. Zdjęta
+              2026-09-15: „większa prostota plus słabe do zrozumienia".
+
+              Ten sam rząd przycisków stoi w filtrach listy i znaczy tam
+              „mecze w tym oknie", a tutaj znaczył „tak długo powiadamiaj".
+              Ten sam kształt dla dwóch różnych pytań okazał się kosztem, nie
+              oszczędnością: żeby przeczytać go poprawnie, trzeba było
+              pamiętać, w którym oknie się stoi — a okno alertu otwiera się
+              wprost z arkusza filtrów, czyli oba są w głowie naraz.
+
+              Alert jest dziś zawsze bezterminowy i gaśnie na żądanie: linkiem
+              z każdej wiadomości albo przełącznikiem w profilu. To prostsza
+              odpowiedź na to samo pytanie — zamiast zgadywać z góry, jak długo
+              będzie się chciało dostawać wiadomości, przestaje się je dostawać
+              wtedy, gdy przestają być potrzebne. Kolumna `expires_at` zostaje
+              w bazie nietknięta (patrz `lib/alerts.ts`). */}
 
           {/* ── CZYM DAĆ ZNAĆ ── */}
           <div>
@@ -429,7 +427,7 @@ export default function AlertSetupDialog({
                 <p className="mt-1 text-xs text-green-800 dark:text-green-400">
                   {nazwaAlertu({ sports: sporty, cityLabel: miejsce.nazwa, radiusKm: promienKm })}
                   {' · '}
-                  {opisAlertu({ expiresAt: wygasaZKiedy(kiedy) ?? undefined, kanalEmail })}
+                  {opisAlertu({ expiresAt: undefined, kanalEmail })}
                 </p>
               )}
               <p className="mt-1.5 text-[11px] text-green-700/80 dark:text-green-500">

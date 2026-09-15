@@ -1,9 +1,8 @@
 import { supabase } from './supabase';
 import { zaktualizujJedenWiersz } from './zapytania';
 import type { GameAlert } from '@/types';
-import { endOfWeek } from 'date-fns';
 import { PROMIEN_DOMYSLNY_KM, indeksPromienia, promienZIndeksu } from './miejscowosci';
-import { dataZKiedy, etykietaKiedy, type DateFilter } from './eventFilters';
+import { etykietaKiedy } from './eventFilters';
 import { distanceKm } from './geo';
 import { sportLabel } from './sports';
 
@@ -207,19 +206,11 @@ export const PROMIEN_DOMYSLNY = PROMIEN_DOMYSLNY_KM;
  * w `<input type="date">`) a tym, co trzyma baza (`timestamptz`).
  */
 
-/** `YYYY-MM-DD` → koniec TEGO dnia w strefie przeglądarki.
+/** Moment wygaśnięcia z bazy → `YYYY-MM-DD`. `null`/pusto = bezterminowo.
  *
- *  Koniec, nie północ: „do 30 września" znaczy dla człowieka, że 30 września
- *  alert jeszcze działa. Północ ucinałaby cały ostatni dzień, czyli dokładnie
- *  ten, który ktoś właśnie wskazał palcem. */
-export function koniecDnia(data: string): string | null {
-  const [r, m, d] = data.split('-').map(Number);
-  if (!r || !m || !d) return null;
-  return new Date(r, m - 1, d, 23, 59, 59, 999).toISOString();
-}
-
-/** Moment wygaśnięcia z bazy → `YYYY-MM-DD` do pola daty. `null`/pusto =
- *  bezterminowo, czyli puste pole. */
+ *  ZOSTAJE, choć okno alertu nie pyta już o czas (patrz niżej): wiersze
+ *  założone przed 2026-09-15 mogą mieć `expires_at`, funkcja brzegowa dalej
+ *  go honoruje, a `opisAlertu()` musi umieć powiedzieć o nim prawdę. */
 export function dataWygasniecia(expiresAt: string | null | undefined): string {
   if (!expiresAt) return '';
   const d = new Date(expiresAt);
@@ -228,53 +219,28 @@ export function dataWygasniecia(expiresAt: string | null | undefined): string {
   return `${d.getFullYear()}-${dwie(d.getMonth() + 1)}-${dwie(d.getDate())}`;
 }
 
-/** Najwcześniejsza data, jaką ma sens wybrać — jutro. Alert kończący się dziś
- *  byłby alertem, który nie zdąży o niczym powiadomić. */
-export function najwczesniejszyKoniec(teraz: Date = new Date()): string {
-  const d = new Date(teraz.getFullYear(), teraz.getMonth(), teraz.getDate() + 1);
-  return dataWygasniecia(d.toISOString());
-}
-
-/**
- * TEN SAM WYBÓR „KIEDY" CO W FILTRACH, TYLKO O CZYM INNYM — 2026-09-14,
- * zgłoszone wprost. W arkuszu filtrów cztery przyciski znaczą „mecze w tym
- * oknie"; w oknie alertu — „tak długo powiadamiaj". Kształt jest ten sam
- * (`components/ui/WyborKiedy.tsx`), bo w obu razach człowiek wskazuje ten sam
- * odcinek czasu do przodu; różni się tylko to, co się z nim robi.
+/*
+ * ZNIKNĘŁY TU: `koniecDnia()`, `najwczesniejszyKoniec()`, `wygasaZKiedy()`
+ * i `kiedyZWygasniecia()` — cztery przeliczniki między „Kiedy" a `expires_at`.
  *
- * Brak wyboru (`wszystkie`) znaczy w alercie BEZTERMINOWO i to zostaje
- * wartością domyślną.
+ * Powód: 2026-09-15 z okna alertu zeszła sekcja „Jak długo powiadamiać"
+ * (zgłoszone wprost: „większa prostota plus słabe do zrozumienia"). Te same
+ * cztery przyciski — Dzisiaj / 3 dni / Tydzień / Termin — stały w filtrach
+ * listy i znaczyły tam „mecze w tym oknie", a w oknie alertu „tak długo
+ * powiadamiaj". Ten sam kształt dla dwóch różnych pytań okazał się kosztem,
+ * nie oszczędnością: żeby przeczytać go poprawnie, trzeba było pamiętać,
+ * w którym oknie się stoi.
+ *
+ * Alert jest dziś ZAWSZE bezterminowy, a wyłącza się go jednym kliknięciem —
+ * linkiem z każdej wiadomości (`wylacz_token`, migracja `149`) albo
+ * przełącznikiem w profilu. To jest prostsza odpowiedź na to samo pytanie:
+ * zamiast zgadywać z góry, jak długo będzie się chciało dostawać wiadomości,
+ * przestaje się je dostawać w chwili, w której przestają być potrzebne.
+ *
+ * Kolumna `expires_at` i jej obsługa w funkcji brzegowej zostają NIETKNIĘTE —
+ * tak samo jak `days_of_week` i `godzina_od`/`godzina_do`, wyjęte z okna dzień
+ * wcześniej. Stary wiersz z datą dalej wygasa; okno po prostu jej nie ustawia.
  */
-export function wygasaZKiedy(filter: DateFilter, teraz: Date = new Date()): string | null {
-  const koniecZa = (dni: number) => {
-    const d = new Date(teraz.getFullYear(), teraz.getMonth(), teraz.getDate() + dni, 23, 59, 59, 999);
-    return d.toISOString();
-  };
-  const data = dataZKiedy(filter);
-  if (data) return koniecDnia(data);
-  switch (filter) {
-    case 'dzisiaj':  return koniecZa(0);
-    // Trzy dni licząc z dzisiejszym, tak samo jak filtr — inaczej ta sama
-    // etykieta znaczyłaby w dwóch miejscach dwie różne rzeczy.
-    case 'trzy-dni': return koniecZa(2);
-    case 'tydzien':  return koniecDnia(dataWygasniecia(endOfWeek(teraz, { weekStartsOn: 1 }).toISOString()));
-    default:         return null;
-  }
-}
-
-/** Odwrotnie: moment wygaśnięcia z bazy → wartość dla `WyborKiedy`. Wpada na
- *  nazwany przycisk, gdy data zgadza się co do dnia z tym, co by wyliczył —
- *  inaczej ląduje na własnym terminie, zamiast zgubić wybór. */
-export function kiedyZWygasniecia(expiresAt: string | null | undefined, teraz: Date = new Date()): DateFilter {
-  if (!expiresAt) return 'wszystkie';
-  const data = dataWygasniecia(expiresAt);
-  if (!data) return 'wszystkie';
-  for (const f of ['dzisiaj', 'trzy-dni', 'tydzien'] as const) {
-    const wyliczone = wygasaZKiedy(f, teraz);
-    if (wyliczone && dataWygasniecia(wyliczone) === data) return f;
-  }
-  return `do:${data}`;
-}
 
 /**
  * Ustawienia, z jakimi otwiera się okno alertu wywołane z pustej listy meczów.

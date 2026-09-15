@@ -1,96 +1,70 @@
 import { describe, it, expect } from 'vitest';
-import {
-  koniecDnia, dataWygasniecia, najwczesniejszyKoniec, wygasaZKiedy, kiedyZWygasniecia,
-} from '@/lib/alerts';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { dataWygasniecia, opisAlertu } from '@/lib/alerts';
 
-describe('koniec alertu jako data', () => {
-  it('wybrany dzień liczy się CAŁY — koniec, nie północ', () => {
-    // Sedno zamiany czterech okresów na datę: „do 30 września" znaczy dla
-    // człowieka, że 30 września alert jeszcze działa. Północ ucinałaby
-    // dokładnie ten dzień, który ktoś przed chwilą wskazał palcem.
-    const iso = koniecDnia('2026-09-30');
-    expect(iso).not.toBeNull();
-    const d = new Date(iso!);
-    expect(d.getFullYear()).toBe(2026);
-    expect(d.getMonth()).toBe(8);
-    expect(d.getDate()).toBe(30);
-    expect(d.getHours()).toBe(23);
-    expect(d.getMinutes()).toBe(59);
-  });
+/**
+ * ALERT NIE MA JUŻ WYMIARU CZASU — od 2026-09-15.
+ *
+ * Z okna zeszła sekcja „Jak długo powiadamiać" (zgłoszone: „większa prostota
+ * plus słabe do zrozumienia"), a razem z nią cztery przeliczniki między
+ * przyciskami „Kiedy" a kolumną `expires_at`. Ten plik pilnuje DWÓCH rzeczy,
+ * które po tym cięciu zostały:
+ *
+ *  1. stary wiersz z ustawioną datą dalej daje się PRZECZYTAĆ — kolumna żyje
+ *     w bazie i funkcja brzegowa ją honoruje, więc `opisAlertu()` musi mówić
+ *     o nim prawdę, a nie „bezterminowo",
+ *  2. okno nigdy nie ustawia daty od nowa — gdyby wróciło do tego bocznymi
+ *     drzwiami, powstałby termin, którego nie widać i nie da się zmienić.
+ */
 
-  it('jest odwracalne — data → moment → ta sama data', () => {
-    // Bez tego edycja alertu przesuwałaby jego koniec o dzień przy każdym
-    // otwarciu okna, a nikt by tego nie zauważył: różnica wychodzi dopiero
-    // po kilku zapisach.
-    for (const data of ['2026-01-01', '2026-06-15', '2026-12-31']) {
-      expect(dataWygasniecia(koniecDnia(data))).toBe(data);
-    }
-  });
-
+describe('data wygaśnięcia — odczyt starych wierszy', () => {
   it('puste wygaśnięcie znaczy bezterminowo, nie „dziś"', () => {
     expect(dataWygasniecia(null)).toBe('');
     expect(dataWygasniecia(undefined)).toBe('');
     expect(dataWygasniecia('')).toBe('');
   });
 
-  it('śmieć w kolumnie nie przewraca pola daty', () => {
+  it('śmieć w kolumnie nie przewraca opisu', () => {
     expect(dataWygasniecia('nie-data')).toBe('');
   });
 
-  it('najwcześniejszy koniec to JUTRO — alert kończący się dziś nie zdąży nic zrobić', () => {
-    const teraz = new Date(2026, 8, 14, 13, 45);
-    expect(najwczesniejszyKoniec(teraz)).toBe('2026-09-15');
+  it('wiersz sprzed cięcia dalej mówi, do kiedy działa', () => {
+    // `expires_at` zostaje w bazie i funkcja brzegowa dalej go honoruje.
+    // Gdyby opis mówił „bezterminowo", człowiek zobaczyłby w profilu coś
+    // innego, niż robi serwer — i dowiedziałby się o tym, gdy maile ustaną.
+    const koniec = new Date(2026, 11, 24, 23, 59, 59).toISOString();
+    expect(opisAlertu({ expiresAt: koniec, kanalEmail: true })).toContain('24.12.2026');
   });
 
-  it('najwcześniejszy koniec przeskakuje miesiąc i rok', () => {
-    expect(najwczesniejszyKoniec(new Date(2026, 8, 30, 23, 0))).toBe('2026-10-01');
-    expect(najwczesniejszyKoniec(new Date(2026, 11, 31, 23, 0))).toBe('2027-01-01');
-  });
-
-  it('niepełna data nie daje „Invalid Date" w bazie', () => {
-    expect(koniecDnia('')).toBeNull();
-    expect(koniecDnia('2026-09')).toBeNull();
+  it('bez daty mówi wprost „bezterminowo"', () => {
+    expect(opisAlertu({ expiresAt: undefined, kanalEmail: true })).toContain('bezterminowo');
   });
 });
 
-describe('„Kiedy" jako czas życia alertu', () => {
-  // Środa, 5 sierpnia 2026.
-  const SRODA = new Date(2026, 7, 5, 14, 0);
+describe('okno alertu nie ustawia już terminu', () => {
+  // Skan źródła, nie render — ta sama metoda co `typyPowiadomien.test.ts`
+  // i `maskiZrzutow.test.ts`. Chodzi o klasę błędu, której render nie złapie:
+  // wystarczy, że ktoś przywróci przelicznik, i alerty zaczną cicho gasnąć.
+  const zrodlo = readFileSync(
+    join(process.cwd(), 'src/components/home/AlertSetupDialog.tsx'), 'utf8');
 
-  it('brak wyboru znaczy BEZTERMINOWO, a nie „dziś"', () => {
-    expect(wygasaZKiedy('wszystkie', SRODA)).toBeNull();
-    expect(kiedyZWygasniecia(null, SRODA)).toBe('wszystkie');
+  it('zapisuje `expiresAt: null`, a nie wyliczoną datę', () => {
+    expect(zrodlo).toContain('expiresAt:  null');
   });
 
-  it('„dzisiaj" gaśnie na koniec dzisiejszego dnia', () => {
-    const iso = wygasaZKiedy('dzisiaj', SRODA)!;
-    expect(dataWygasniecia(iso)).toBe('2026-08-05');
-    expect(new Date(iso).getHours()).toBe(23);
-  });
-
-  it('„3 dni" liczy DZISIAJ jako pierwszy — tak samo jak filtr', () => {
-    // Gdyby liczyło od jutra, ta sama etykieta znaczyłaby w filtrach i w alercie
-    // dwie różne rzeczy, a nikt by tego nie zauważył poza brakującym alertem.
-    expect(dataWygasniecia(wygasaZKiedy('trzy-dni', SRODA)!)).toBe('2026-08-07');
-  });
-
-  it('„tydzień" sięga do niedzieli tego tygodnia, nie do siedmiu dni', () => {
-    expect(dataWygasniecia(wygasaZKiedy('tydzien', SRODA)!)).toBe('2026-08-09');
-  });
-
-  it('własny termin przechodzi wprost', () => {
-    expect(dataWygasniecia(wygasaZKiedy('do:2026-12-24', SRODA)!)).toBe('2026-12-24');
-  });
-
-  it('odczyt wraca na NAZWANY przycisk, gdy data się zgadza', () => {
-    // Bez tego edycja alertu założonego na „tydzień" pokazywałaby własny termin,
-    // czyli inny przycisk niż ten, który kliknięto przy zakładaniu.
-    for (const f of ['dzisiaj', 'trzy-dni', 'tydzien'] as const) {
-      expect(kiedyZWygasniecia(wygasaZKiedy(f, SRODA), SRODA)).toBe(f);
+  it('nie woła żadnego przelicznika czasu życia', () => {
+    // Te cztery funkcje zostały usunięte z `lib/alerts.ts`; nazwa, która tu
+    // wraca, znaczy, że ktoś odtworzył wymiar czasu bez dopisania go do okna.
+    for (const nazwa of ['wygasaZKiedy', 'kiedyZWygasniecia', 'koniecDnia', 'najwczesniejszyKoniec']) {
+      expect(zrodlo).not.toContain(nazwa);
     }
   });
 
-  it('data spoza przycisków ląduje na własnym terminie, a nie gubi wyboru', () => {
-    expect(kiedyZWygasniecia(wygasaZKiedy('do:2026-12-24', SRODA), SRODA)).toBe('do:2026-12-24');
+  it('nie renderuje już `WyborKiedy`', () => {
+    // Komponent ŻYJE — stoi w arkuszu filtrów listy i mapy. Chodzi wyłącznie
+    // o to, żeby nie wrócił do okna alertu, gdzie ten sam rząd przycisków
+    // znaczył co innego niż piętro wyżej.
+    expect(zrodlo).not.toContain('<WyborKiedy');
   });
 });
