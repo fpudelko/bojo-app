@@ -588,8 +588,17 @@ Numeracja `D*` odsyła do listy długu w rozdziale 0 tamtego dokumentu.
       z landingu. Zostaje otwarte: link z hubu sportu prowadzi nadal zawsze do
       `/[sport]/poznan` (`boiska/[sport]/page.tsx`), a D18 (serwerowy render otwartych gier
       i boisk na landingu) to osobna pozycja niżej.
-- [ ] **Pomiar bazowy przed jakąkolwiek optymalizacją** — Search Console + 40 promptów
-      (Załączniki A i B strategii).
+- [x] **Pomiar bazowy przed jakąkolwiek optymalizacją** — Search Console + 40 promptów
+      (Załączniki A i B strategii). **ZROBIONE 2026-08-29 przez właściciela.** Search
+      Console → 7a.2. Modele → Załącznik A: 29 odpowiedzi ze 160, ale z KOMPLETNYM
+      koszykiem 1 i 2 na Gemini, co wystarcza do rozstrzygnięcia. Wynik: **Gemini zna
+      markę (8/10 w koszyku markowym, zawsze jako główna odpowiedź, 6 opisów prawdziwych)
+      i nie zna kategorii (0/10 — poleca 4league, amator.app, PlayTeam, Spond, Splitwise,
+      nigdy Bojo)**; ChatGPT nie rozpoznaje encji w ogóle (0/8; myli z zaparkowaną domeną,
+      apką modlitewną „Bosko", „Boja Sport"). Jedna halucynacja na frazie zakazanej:
+      „Tak, za pomocą platformy Bojo zarezerwujesz boisko!" — mimo że `llms.txt`
+      i `llm-context.md` mówią wprost, że Bojo boisk nie rezerwuje. Powtórka zawężona
+      do koszyka 1 i 2 na dwóch silnikach: 2026-09-29 (poz. 33 roadmapy).
 - [x] **Ujednolicić liczbę obiektów w katalogu** (D13, zrobione 2026-08-24) —
       dwa komentarze w kodzie ze sztywną, już nieaktualną liczbą „32 684" zastąpione
       tą samą frazą „ponad 30 000" co w treści widocznej dla użytkownika

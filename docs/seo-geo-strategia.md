@@ -638,11 +638,18 @@ Czterdzieści promptów po polsku, w czterech koszykach, w **Załączniku A**. Z
 celowo stały: sens ma wyłącznie porównanie tej samej listy w czasie. Zmiana pytania
 w połowie pomiaru kasuje historię.
 
-Wartość bazowa: **niezmierzona** (brak dostępu do modeli z tej sesji). Jedyne, co udało
-się ustalić, to że wyszukiwanie ograniczone do domeny `bojo.pl` nie zwróciło żadnego
-wyniku — co jest słabą przesłanką, nie dowodem, bo to nie był indeks Google i nie był
-to rynek polski. Pomiar bazowy jest **pierwszą pozycją roadmapy**, przed jakąkolwiek
-optymalizacją: bez niego za trzy miesiące nie odróżnimy poprawy od wrażenia poprawy.
+Wartość bazowa: **zmierzona 2026-08-29** przez właściciela, częściowo — 29 odpowiedzi
+ze 160, ale z KOMPLETNYM koszykiem 1 i 2 na Gemini. Wynik i trzy wynikające z niego
+znaleziska → Załącznik A. W skrócie, bo zmienia to ocenę całej warstwy GEO w tym
+rozdziale: **Gemini zna markę (8/10 w koszyku markowym, zawsze jako główna odpowiedź)
+i nie zna kategorii (0/10 w koszyku kategorialnym)**, a ChatGPT nie rozpoznaje encji
+w ogóle (0/8). Do tego jedna halucynacja na frazie zakazanej — „Tak, za pomocą platformy
+Bojo zarezerwujesz boisko!" — czyli dokładnie ten rodzaj szkody, przed którym ostrzega
+zasada „cytowanie z błędem jest gorsze niż brak cytowania".
+
+Poprzednia wersja tego akapitu mówiła, że jedyną przesłanką jest brak wyników przy
+wyszukiwaniu ograniczonym do domeny. Ta przesłanka jest już nieaktualna i nie była
+dobra: mierzyła indeks wyszukiwarki, nie wiedzę modelu.
 
 ---
 
@@ -1965,7 +1972,7 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | # | Zadanie | Horyzont | Wpływ | Trudność | Kto | Pliki / miejsce | Miara sukcesu |
 |---|---|---|---|---|---|---|---|
 | 1 | ~~Wyciek metadanych prywatnego meczu (P1) + test~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | wysoki | łatwa | Franek | `eventMeta.ts#metadataDlaMeczu()`; test `eventMetadata.test.ts:32,43,50` | spełnione: trzy warianty `visibility` × brak wycieku i `noindex` |
-| 2 | Pomiar bazowy: Search Console **(zmierzone 2026-08-29, 7a.2)** + 40 promptów (do zrobienia) | QUICK WIN | wysoki | łatwa | Jan | Załączniki A i B | Search Console: spełnione; 40 promptów: tabela w Załączniku A nadal „do wypełnienia" |
+| 2 | ~~Pomiar bazowy: Search Console + 40 promptów~~ **ZROBIONE 2026-08-29** (SC → 7a.2; modele → Załącznik A, 29/160 odpowiedzi, komplet K1 i K2 na Gemini) | QUICK WIN | wysoki | łatwa | Jan | Załączniki A i B | spełnione jako WARTOŚĆ BAZOWA. Wynik: Gemini zna markę (8/10 K1), nie zna kategorii (0/10 K2); ChatGPT nie rozpoznaje encji (0/8). Powtórka 2026-09-29 → poz. 33 |
 | 3 | ~~„Zarezerwuj termin" znika z opisu 32 tys. stron (P2)~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | wysoki | łatwa | Franek | `app/boisko/[id]/page.tsx:197` | spełnione: `audyt-robota --bez-bazy` przeszedł 2026-08-26, zero fraz zakazanych |
 | 4 | ~~Podwójny sufiks w tytułach (P3)~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | średni | łatwa | Franek | test `eventMetadata.test.ts:65` | spełnione: sufiks został tylko w `openGraph.title` |
 | 5 | ~~`noindex` dla tras technicznych i za flagami (P4)~~ **ZROBIONE, potwierdzone 2026-08-25** | QUICK WIN | średni | łatwa | Franek | `app/robots.ts`; test `robots.test.ts:28,34` | spełnione: 18 wpisów DISALLOW, z regresją w drugą stronę |
@@ -1997,6 +2004,7 @@ Franek (tech/produkt), wg podziału z [strategia.md](./strategia.md) §7.
 | 30 | ~~Tytuł i opis pod zapytanie markowe (2c) — rzeczownik kategorii przy marce~~ **ZROBIONE 2026-09-01** | QUICK WIN | wysoki | łatwa | Franek | `content/metaWyszukiwarki.ts`, `app/layout.tsx`, `app/dlaczego-bojo/page.tsx`; test `tytulMarkowy.test.ts` | zweryfikowane `curl` bez JS na surowym HTML; **skutek dla CTR do zmierzenia** za 4–6 tygodni w Search Console |
 | 31 | Rozstrzygnąć „Przeglądanie agentowe" 2/3 na stronie obiektu (5f) | ŚREDNI | średni | łatwa | Jan (2 min), potem Franek | Rich Results Test / validator.schema.org, potem `app/boisko/[id]/page.tsx` | wiadomo, który z trzech audytów pada — dziś NIEZWERYFIKOWANE |
 | 32 | ~~Fakt unikalny dla obiektu bez meczów — pobliskie obiekty tego sportu (rozdz. 8)~~ **ZROBIONE 2026-09-01** | ŚREDNI | średni | średnia | Franek | `lib/pobliskieObiekty.ts`, `VenueDetailClient.tsx#OpisIPowiazane`, `boisko/[id]/page.tsx`; test `pobliskieObiekty.test.ts` | spełnione w kodzie: każda strona obiektu ma treść unikalną i pierwsze linki do innych obiektów. Skutek dla indeksacji — do zmierzenia razem z poz. 29b |
+| 33 | **Drugi przebieg pomiaru w modelach** — koszyk 1 i 2 na Gemini i ChatGPT (40 pytań) | ŚREDNI | wysoki | łatwa | Jan | Załącznik A, „Plan kolejnego przebiegu" | porównanie 1:1 z bazą z 2026-08-29. Kluczowe pytanie: czy skok indeksacji (2 → 17 473 stron) ruszył koszyk kategorialny z zera. Termin: 2026-09-29, razem z odczytem R1 |
 
 ### WERDYKT RUNDY 4 (2026-09-01) wobec oceny rundy 3
 
@@ -2047,7 +2055,7 @@ odrzucone decyzją właściciela, **3 otwarte — i wszystkie trzy poza kodem**:
 
 | # | Pozycja | Kto | Wpływ wg tabeli |
 |---|---|---|---|
-| 2 | Pomiar bazowy (Search Console + 40 promptów) | Jan | wysoki |
+| 2 | ~~Pomiar bazowy (Search Console + 40 promptów)~~ — zrobiony 2026-08-29 | Jan | wysoki |
 | 15 | Trzy profile poza domeną | Jan | wysoki |
 | 22 | Jeden kontakt tygodniowo o wzmiankę | Jan | wysoki |
 
@@ -2230,10 +2238,82 @@ od miejsca.
 
 | Data pomiaru | Silnik | Koszyk 1 | Koszyk 2 | Koszyk 3 | Koszyk 4 | Uwagi |
 |---|---|---|---|---|---|---|
-| _do wypełnienia_ | ChatGPT | –/10 | –/10 | –/10 | –/10 | pomiar bazowy |
-| _do wypełnienia_ | Perplexity | –/10 | –/10 | –/10 | –/10 | pomiar bazowy |
-| _do wypełnienia_ | Gemini | –/10 | –/10 | –/10 | –/10 | pomiar bazowy |
-| _do wypełnienia_ | Copilot | –/10 | –/10 | –/10 | –/10 | pomiar bazowy |
+| 2026-08-29 | Gemini | **8/10** | **0/10** | 0/1 | — | komplet w K1 i K2; K3 przerwany po 1 pytaniu, K4 nietknięty |
+| 2026-08-29 | ChatGPT | 0/8 | — | — | — | przerwany po 8 pytaniach K1: model nie rozpoznaje encji |
+| 2026-08-29 | Perplexity | — | — | — | — | nie wykonany |
+| 2026-08-29 | Copilot | — | — | — | — | nie wykonany |
+
+**Zasięg przebiegu bazowego: 29 odpowiedzi ze 160.** Nie jest to pełny pomiar i nie ma
+udawać, że jest. Jest natomiast ROZSTRZYGAJĄCY, bo dwa koszyki, które zostały pokryte
+w całości (Gemini K1 i K2), odpowiadają na dwa najważniejsze pytania — i odpowiadają
+w przeciwnych kierunkach. Przerwanie było decyzją właściciela po serii odpowiedzi
+świadczących o braku wiedzy o marce; zapis tej decyzji jest częścią wyniku, nie jego
+brakiem. Sesje w trybie incognito, bez zalogowanej historii, po polsku — zgodnie
+z zasadami przebiegu wyżej. Surowe odpowiedzi: arkusz właściciela poza repo.
+
+### Co z tego wynika — trzy znaleziska z pomiaru bazowego
+
+**1. Gemini zna MARKĘ i nie zna KATEGORII. To jest cała diagnoza w jednym zdaniu.**
+W koszyku markowym 8 trafień na 10, **wszystkie jako główna odpowiedź**, z czego 6
+opisanych prawdziwie, 1 częściowo, 1 błędnie. Model wie, że Bojo to polska aplikacja,
+że jest darmowa, że gracz dołącza do meczu bez zakładania konta, i potrafi wyjaśnić
+różnicę wobec aplikacji rezerwacyjnych — odpowiedź na pytanie 9 jest precyzyjniejsza
+niż niejeden akapit z tego dokumentu.
+
+W koszyku kategorialnym: **0 trafień na 10**. Na pytania „jaka aplikacja do organizowania
+amatorskich meczów", „czym zastąpić ankietę na WhatsAppie", „polska aplikacja do zbierania
+składu" model poleca 4league, amator.app, PlayTeam, SportEasy, Spond, SportMember,
+Splitwise, Volly — nigdy Bojo. Zapytany o nazwę wie; zapytany o problem, który Bojo
+rozwiązuje, nie kojarzy. To zupełnie inny problem niż „modele nas nie znają" i wymaga
+zupełnie czego innego: nie budowania encji (ta istnieje), tylko przynależności do
+zestawu rozważanych narzędzi.
+
+ChatGPT nie ma nawet tego: 0 na 8 w koszyku markowym, z pomyłkami encji (zaparkowana
+domena `bojo.pl` na sprzedaż, apka modlitewna „Bosko", „Boja Sport" — żeglarstwo,
+bukmacher). Przy pytaniu o rezerwację **poleca konkurencję** (Playmore, BallSquad).
+
+**2. Halucynacja na frazie zakazanej — ryzyko przewidziane w tym dokumencie, zrealizowane.**
+Gemini na pytanie „Czy przez Bojo zarezerwuję boisko?" odpowiedział: *„Tak, za pomocą
+platformy Bojo zarezerwujesz boisko!"* — dosłownie wzorzec `rezerw(uj|acj[aeę]) boisk`
+z `frontend/src/content/zakazaneFrazy.ts`. Załącznik A mówi wprost, dlaczego notujemy
+kolumnę „czy opis jest prawdziwy": **cytowanie z błędem jest gorsze niż brak cytowania.**
+Tu jest tego dowód. Pytanie 7 to ta sama klasa (nadinterpretacja: „zintegrowane systemy
+płatności", których Bojo nie ma), a pytanie 8 to pomyłka encji z lekarzem o tym nazwisku.
+
+**Przeciwdziałanie ISTNIAŁO i nie wystarczyło.** `llms.txt` mówi wprost „Bojo nie jest
+systemem do rezerwacji boisk", `llm-context.md` ma sekcję „Czego Bojo NIE robi",
+a `Organization` niesie `disambiguatingDescription`. Wszystko to było na miejscu
+2026-08-29 i nie powstrzymało ani halucynacji, ani pomyłki encji. Zapisane jako fakt,
+nie jako argument za dokładaniem kolejnych zaprzeczeń — właściciel odnotował też, że
+**powtórzenie tego samego pytania dało odpowiedź sprzeczną** (raz „tak, zarezerwujesz",
+raz „bojo to tylko slang"), więc wiedza o marce jest niestabilna, a nie po prostu błędna.
+
+**3. Korelacja z indeksacją — powód, dla którego ten przebieg trzeba powtórzyć.**
+Pomiar wypadł **2026-08-29**, czyli tego samego dnia, w którym Search Console pokazywał
+**2 zaindeksowane strony: `/` i `/dlaczego-bojo`** (7a.2). To, co Gemini umie —
+czym Bojo jest, że darmowe, że bez konta, czym różni się od aplikacji rezerwacyjnych —
+pokrywa się z treścią dokładnie tych dwóch stron. Czego nie umie, mieszkało na stronach,
+których wtedy w indeksie nie było.
+
+To jest **SZACUNEK, nie dowód** — korelacja na jednym punkcie pomiarowym, bez kontroli.
+Ale jeśli trafna, ma jedną konsekwencję nie do przecenienia: między tym pomiarem
+a następnym doszło **17 471 stron** (skok z 5.09). Przebieg z 2026-09-29 zmierzy
+w praktyce inny serwis, a różnica między nimi będzie najbliższą rzeczą eksperymentu,
+jaką ta strategia dotąd miała.
+
+### Plan kolejnego przebiegu (2026-09-29)
+
+Nie powtarzamy wszystkich 160 pytań — powtarzamy to, co niesie wartość diagnostyczną:
+**koszyk 1 i 2 na Gemini i ChatGPT**, czyli 40 pytań. Porównywalne jeden do jednego
+z pomiarem bazowym, bez utraty historii, w zasięgu jednego posiedzenia.
+
+Perplexity i Copilot zostają nietknięte także tym razem — dopóki koszyk 2 na Gemini stoi
+na zerze, rozszerzanie pomiaru na kolejne silniki mierzy szerzej to samo. Koszyk 3 i 4
+wracają, gdy koszyk 2 drgnie.
+
+Trzeci pomiar, jeśli w ogóle, **zależy od licznika `zrodlo: 'model'`** w
+`analytics_events` (`docs/funkcje.md`, „Pomiar produktowy"): jeśli przez sześć tygodni
+stoi na zerze, ankieta niewiele doda ponad to, co już wiadomo.
 
 ### Arkusz zapisu — jak notować pojedynczy prompt
 
@@ -2372,10 +2452,13 @@ Uczciwa lista granic tego dokumentu:
   punktowana pozycja w całym dokumencie, bo od niej zależy, czy 36 tys. stron obiektów
   jest aktywem, czy ryzykiem R1 (rozdział 8). Agent tego nie zmierzy: `search.google.com`
   jest zablokowane tą samą polityką co `bojo.pl`.
-- **Odpowiedzi modeli** — nie mam wejścia do ChatGPT, Perplexity ani Gemini z tej sesji.
-  Pomiar bazowy z Załącznika A jest niewykonany **po czterech rundach**. Runda 4 zdjęła
-  z niego jedyną przeszkodę, na którą miała wpływ: brak formy zapisu. Arkusz z legendą
-  skrótów i zasadami przebiegu stoi w Załączniku A, gotowy do wypełnienia.
+- **Odpowiedzi modeli** — nadal nie mam wejścia do ChatGPT, Perplexity ani Gemini z tej
+  sesji i nie będę miał przy tej polityce sieciowej; pomiar w modelach zostaje ręczny.
+  **Pomiar bazowy PRZESTAŁ być niewykonany: właściciel zrobił go 2026-08-29** (29 ze 160
+  odpowiedzi, komplet koszyka 1 i 2 na Gemini) i przekazał surowe odpowiedzi arkuszem —
+  wynik, zasięg i trzy znaleziska zapisane w Załączniku A. Niezmierzone zostają:
+  Perplexity, Copilot, koszyk 3 (poza jednym pytaniem) i koszyk 4 w całości. Sposób
+  domknięcia i uzasadnienie zawężenia → sekcja „Plan kolejnego przebiegu" w Załączniku A.
 - **Wolumeny fraz** — brak narzędzia. Wszystkie oceny wielkości klastrów w 2a są
   **SZACUNKIEM** na podstawie struktury zapytania.
 - **Polski SERP** — wyszukiwarka dostępna w sesji zwraca wyniki dla rynku amerykańskiego.
