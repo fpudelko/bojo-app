@@ -21,6 +21,7 @@
 --   [DEMO-LANDING]  seed_landing_demo.sql
 --   [PRZED]         seed_przedpremiera.sql
 --   [DWA]           seed_dwa_konta.sql
+--   [TUR]           seed_turnieje.sql  (turnieje, nie mecze — patrz sekcja 2b)
 --
 -- Uczestnicy, rozmowy, wyniki, numery BLIK i wpisy w kolejce znikają razem
 -- z meczem (`ON DELETE CASCADE`) — nie trzeba ich kasować osobno.
@@ -62,6 +63,17 @@ WHERE description LIKE '[TEST]%' OR description LIKE '[TEST-G]%'
 GROUP BY 1
 ORDER BY 1;
 
+-- Turnieje liczone osobno — inna tabela, inny marker.
+SELECT
+  left(opis, 20)  AS marker,
+  count(*)        AS turniejow,
+  min(data_startu) AS od,
+  max(data_startu) AS do
+FROM turnieje
+WHERE opis LIKE '[TUR]%' OR opis LIKE '[TURNIEJ-TEST]%'
+GROUP BY 1
+ORDER BY 1;
+
 -- ── 2. KASOWANIE ────────────────────────────────────────────────────────
 -- Odkomentuj (usuń `/*` i `*/`) i uruchom ponownie.
 /*
@@ -85,6 +97,12 @@ DELETE FROM groups WHERE name IN (
 -- Rozmowa prywatna z seed_dwa_konta.sql — jedyny seed, który dokłada DM;
 -- content, nie description (dm_messages nie ma osobnej kolumny na opis testu).
 DELETE FROM dm_messages WHERE content LIKE '[DWA]%';
+
+-- 2b. TURNIEJE (seed_turnieje.sql, migracja 145). Osobne zapytanie, bo turniej
+-- NIE jest meczem: `turnieje` to własna tabela, a kasowanie po `events` nigdy
+-- ich nie ruszy. Drużyny, składy, mecze turniejowe, zdarzenia i ogłoszenia
+-- lecą kaskadą razem z turniejem.
+DELETE FROM turnieje WHERE opis LIKE '[TUR]%' OR opis LIKE '[TURNIEJ-TEST]%';
 
 COMMIT;
 */

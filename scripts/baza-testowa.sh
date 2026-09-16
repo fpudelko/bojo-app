@@ -115,7 +115,7 @@ done
 # dokłada się niezależnie, każdy pod swoim markerem.
 for seed in seed_test_data.sql seed_test_groups.sql seed_test_jan.sql \
             seed_regresja.sql seed_taktyka.sql seed_dwa_konta.sql \
-            seed_przedpremiera.sql; do
+            seed_przedpremiera.sql seed_turnieje.sql; do
   echo "→ Seed: $seed"
   if ! psql -q -v ON_ERROR_STOP=1 -d bojo -f "$KATALOG/supabase/$seed" 2>"$DANE/blad"; then
     echo "✗ SEED PADŁ: $seed" >&2

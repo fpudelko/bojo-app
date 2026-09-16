@@ -511,6 +511,20 @@ mecz przez grupę, tablica), imienne zaproszenie na mecz, rozliczenie po meczu
 i „Obserwuję". Dokłada jedną wiadomość w rozmowie prywatnej między kontami, żeby
 `/rozmowy` nie startowało pusto. Marker `[DWA]`, tytuły `D01`…`D12`.
 
+`supabase/seed_turnieje.sql` — **6 turniejów zatrzymanych na różnych etapach**
+(`TU1`…`TU6`, marker `[TUR]`): zakończony z finałem na karne, faza grupowa w połowie,
+drabinka po półfinałach, liga koszykarska w 2/3, puchar z walkowerem, mecz na żywo.
+Powstał, bo pozostałe seedy turniejowe zostawiają turniej na ZAPISACH, a widoki, które
+warto obejrzeć, zaczynają się po pierwszym gwizdku: tabela grupy z podświetleniem
+awansu, drabinka z wynikami, klasyfikacja strzelców, walkower, karne. Doprowadzenie
+turnieju do finału przez interfejs to kilkadziesiąt kliknięć — czyli w praktyce nikt
+tych ekranów nie oglądał inaczej niż na produkcji. Gole wchodzą jako **zdarzenia**
+(migracja `147`), więc wynik przelicza ten sam wyzwalacz co przy prowadzeniu meczu
+z konsoli; bez `147` seed zapisuje wynik wprost i tylko strzelcy zostają puści.
+Kto awansuje z grupy, liczy `pg_temp.z_grupy()` — **ta sama kolejność sortowania co
+`posortujTabele()`**, bo rozjazd tych dwóch produkowałby drabinkę z drużyną, której
+tabela obok nie stawia w strefie awansu.
+
 `supabase/wyczysc-testowe.sql` — sprząta WSZYSTKIE seedy po markerach, przed
 wpuszczeniem ludzi. Trzy sekcje: podgląd (liczy), kasowanie (zakomentowane, trzeba
 odkomentować świadomie) i lista meczów BEZ markera — czyli tych zrobionych ręką przy

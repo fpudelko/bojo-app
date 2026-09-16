@@ -2,7 +2,7 @@
 // `przelicz_wynik_meczu()` (migracja 147) do OPTYMISTYCZNEGO odświeżenia
 // konsoli prowadzącego (kliknięcie ma pokazać nowy wynik natychmiast, nie po
 // odpowiedzi serwera) — baza i tak liczy jeszcze raz i to jej wynik wygrywa.
-import type { MeczFaza, MeczStatus, TurniejZdarzenie } from '@/types';
+import type { MeczFaza, MeczStatus, TurniejMecz, TurniejZdarzenie } from '@/types';
 
 /**
  * Suma zdarzeń piłkarskich/koszykarskich na wynik meczu. SAMOBÓJCZY dolicza
@@ -50,6 +50,25 @@ export function wymaganeKarne(faza: MeczFaza, wynikA: number, wynikB: number): b
 export function zwyciezcaZKarnych(karneA?: number, karneB?: number): 'a' | 'b' | null {
   if (karneA === undefined || karneB === undefined || karneA === karneB) return null;
   return karneA > karneB ? 'a' : 'b';
+}
+
+/**
+ * Po której stronie karty stoi zwycięzca — 'a', 'b' albo `null` (remis, mecz
+ * nierozstrzygnięty, walkower bez wskazanej drużyny).
+ *
+ * Czyta `zwyciezca_id`, a NIE porównuje wyniku, bo to jedyna odpowiedź zgodna
+ * z bazą we wszystkich trzech przypadkach, w których wynik kłamie: walkower
+ * (0:0, a zwycięzca jest), karne (1:1, a zwycięzca jest) i siatkówka, gdzie
+ * `wynik_a`/`wynik_b` to wygrane SETY. `zakoncz_mecz()` (migracja 147) ustawia
+ * tę kolumnę raz, przy zamknięciu meczu.
+ */
+export function stronaZwyciezcy(
+  mecz: Pick<TurniejMecz, 'druzynaAId' | 'druzynaBId' | 'zwyciezcaId'>,
+): 'a' | 'b' | null {
+  if (!mecz.zwyciezcaId) return null;
+  if (mecz.zwyciezcaId === mecz.druzynaAId) return 'a';
+  if (mecz.zwyciezcaId === mecz.druzynaBId) return 'b';
+  return null;
 }
 
 /**
