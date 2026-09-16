@@ -17,12 +17,19 @@
  * Plan → `docs/turnieje-plan-duze-klocki.md` i
  * `docs/turnieje-plan-srednie-klocki.md`.
  *
- * WŁĄCZONA od zakończenia Etapu 4 (150: ogłoszenia, BLIK, „zamień drużynę
- * w ekipę"). Wejście: `/moje-gry` i `/profil` (link „🏆 Turnieje"), link
- * udostępniony. Dolna nawigacja zostaje nietknięta — produktowa decyzja
- * z planu, nie oszczędność.
+ * WYŁĄCZONA PONOWNIE od 2026-09-17, tymczasowo — decyzja właściciela po
+ * przeglądzie modułu na żywo. Powód nie jest techniczny: moduł działa, ale
+ * pierwsze wrażenie jeszcze nie jest gotowe dla kogoś z ulicy (m.in. dane
+ * testowe wgrane na produkcję, brak „obserwuj turniej", status turnieju liczony
+ * z kolumny, a nie z terminarza). Wejścia z `/moje-gry` i `/profil` znikają;
+ * TRASA ZOSTAJE DOSTĘPNA — kto wejdzie na `/turnieje` świadomie albo z linku
+ * udostępnionego, zobaczy wszystko. Tak samo działa każda flaga w tym pliku:
+ * chowa wejścia w nawigacji, nie trasy.
+ *
+ * Wcześniej włączona od zakończenia Etapu 4 (150: ogłoszenia, BLIK, „zamień
+ * drużynę w ekipę").
  */
-export const SHOW_TURNIEJE = true;
+export const SHOW_TURNIEJE = false;
 
 /**
  * Game alerts — "Powiadom mnie, gdy się pojawi": a saved sport + place + radius

@@ -12,7 +12,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 
 | Flaga | Wartość | Co chowa | Gdzie warunkuje |
 |---|---|---|---|
-| `SHOW_TURNIEJE` | `true` | nic — **włączona 2026-09-16** (Etap 4: ogłoszenia, BLIK, „zamień drużynę w ekipę", domknięcie i odmrożenie). Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | `app/moje-gry/page.tsx` (link „🏆 Turnieje"), `app/profil/page.tsx` (wiersz „Turnieje") |
+| `SHOW_TURNIEJE` | `false` | Moduł turniejowy — **wyłączona ponownie 2026-09-17, tymczasowo** (decyzja właściciela po przeglądzie na żywo: moduł działa, ale pierwsze wrażenie nie jest gotowe). Trasa `/turnieje` **odpowiada normalnie** — znikają wyłącznie wejścia w nawigacji. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | `app/moje-gry/page.tsx` (link „🏆 Turnieje”), `app/profil/page.tsx` (wiersz „Turnieje”) |
 | `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (przycisk „Powiadom mnie, gdy się pojawi" w pustym stanie listy) |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
 | `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
@@ -31,7 +31,9 @@ wpisze adres ręcznie — flaga (`SHOW_RECURRING`) usuwa tylko linki w nawigacji
 `robots.ts` blokuje jej skanowanie, dopóki flaga jest wyłączona. Dlatego trasy za flagami nie
 trafiają do `llms.txt` ani do `sitemap.ts`: reklamowanie ich wyszukiwarce obiecuje coś, czego
 użytkownik nie znajdzie w interfejsie. `/turnieje` zeszło z tej listy 2026-09-16 razem
-z odmrożeniem `SHOW_TURNIEJE` — dziś odpowiada normalnie i jest w obu plikach.
+z odmrożeniem `SHOW_TURNIEJE`, a **wróciło na nią 2026-09-17**, gdy flaga została
+wyłączona ponownie — wpis zniknął z `llms.txt`, a `/turnieje` dołączyło do `DISALLOW`
+w `robots.ts`. Pilnuje tego `npm run check:docs` (sekcja 2).
 
 ---
 
@@ -4252,6 +4254,43 @@ siebie od `md:`, bez rysowanych linii łączących na razie) i klasyfikacja strz
 asystentów/MVP (`Klasyfikacja.tsx`, za ścianą logowania, jak skład drużyny). Konsola
 prowadzącego (`/turnieje/[id]/mecz/[meczId]`) dostała przy okazji picker asysty przy
 golu — bez tego klasyfikacja asystentów byłaby zawsze pusta.
+
+**Przebudowa po przeglądzie na żywo (2026-09-17, bez migracji).** Dzień po scaleniu
+sześciu zakładek przegląd modułu na telefonie (niezalogowany, 390×844) pokazał, że sześć
+to wciąż za dużo: pasek nie mieścił się w szerokości ekranu, więc „Drabinka" była UCIĘTA
+i istniała tylko dla kogoś, kto pomyślał, żeby przewinąć w bok. Dziś są **trzy**:
+
+| Zakładka | Zawiera |
+|---|---|
+| Mecze | przełącznik Najbliższe / Rozegrane + klasyfikacje pod spodem |
+| Tabela i drabinka | tabele grup ze zwijanymi wynikami, pod nimi drabinka |
+| Drużyny | drużyny pogrupowane po grupach |
+
+**Info przestało być zakładką** — to nagłówek turnieju, nie jedna z rzeczy do porównania,
+więc stoi na górze KAŻDEJ zakładki. Dostało stały szablon: Kiedy · Gdzie (+ Nawiguj) ·
+Format (z opisem) · Zasady (czas meczu, przerwa, punktacja, karne) · Koszt **od drużyny** ·
+Organizator (link do profilu). Wcześniej była tam data, boisko i licznik drużyn — czytający
+nie wiedział, czy 50 zł to od drużyny czy od gracza, ani kto turniej organizuje.
+
+**Pasek „co dotyczy mnie"** pod Info dla kogoś, kto gra: nazwa drużyny, następny mecz jako
+odnośnik, stan wpisowego dla kapitana. Bez niego turniej był zestawem tabelek dla widza,
+a wchodzi w niego przede wszystkim uczestnik.
+
+**Stare adresy prowadzą tam, gdzie ich treść dziś mieszka** — `?tab=terminarz` otwiera
+Mecze w widoku Najbliższe, `?tab=wyniki` w widoku Rozegrane, `?tab=drabinka` → Tabela.
+Link wysłany komuś tydzień temu nie może lądować na czymś innym.
+
+**Termin ma jeden zapis w całym module** (`etykietaTerminu()` w `lib/turniejEtykiety.ts`):
+„Dziś, 18:00" / „Jutro, 10:00" / „niedz. 20 września, 10:00". Wcześniej ten sam dzień
+pokazywał się w trzech wersjach naraz, a `godzina_startu` (kolumna `time`) szła na ekran
+wprost, z sekundami: „10:00:00".
+
+**Stan turnieju liczy się z TERMINARZA, nie z kolumny** (`stanTurnieju()`). `turnieje.status`
+przestawia organizator ręcznie i nikt nie robi tego za niego, więc cztery turnieje na liście
+miały identyczną plakietkę „Trwa" — w tym jeden sprzed tygodnia i jeden, w którym został sam
+finał. Kolumna dalej rządzi tam, gdzie niesie DECYZJĘ (szkic, odwołany, zamknięte zapisy);
+terminarz dokłada „Na żywo", „Ostatnie mecze", „Zakończony" i drugi wiersz „Finał dziś, 19:00".
+Testy: `turniejTermin.test.ts`.
 
 **Przebudowa zakładek (2026-09-16, bez migracji).** Cztery zakładki
 (Info/Drużyny/Terminarz/Wyniki) odpowiadały na sześć różnych pytań. Dziś:

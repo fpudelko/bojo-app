@@ -9,12 +9,17 @@ const WYKLUCZONE = [
   '/admin', '/api', '/profil', '/moje-gry', '/d/', '/g/', '/t/',
   '/auth/', '/logowanie', '/zglos-blad',
   '/wydarzenia/nowe', '/wydarzenia/*/edytuj', '/grupy/nowe', '/grupy/*/edytuj',
-  '/turnieje/nowe', '/turnieje/*/panel', '/turnieje/*/zglos',
+  // `/turnieje` wraca tu 2026-09-17 razem z ponownym wyłączeniem
+  // `SHOW_TURNIEJE`: skoro w interfejsie nie ma do modułu żadnego wejścia,
+  // reklamowanie go wyszukiwarce obiecuje coś, czego użytkownik sam nie
+  // znajdzie. Gdy flaga wróci na `true`, ta linijka i wpis w `llms.txt`
+  // schodzą razem z nią — `npm run check:docs` (sekcja 2) tego pilnuje.
+  '/turnieje', '/turnieje/nowe', '/turnieje/*/panel', '/turnieje/*/zglos',
   '/cykliczne', '/obiekt', '/rezerwacje', '/gracz/',
 ];
 
 /** Trasy publiczne, które MUSZĄ zostać skanowalne — regresja w drugą stronę. */
-const DOZWOLONE = ['/wydarzenia', '/boisko', '/boiska', '/mapa', '/grupy', '/turnieje', '/faq', '/jak-dziala-bojo', '/dlaczego-bojo'];
+const DOZWOLONE = ['/wydarzenia', '/boisko', '/boiska', '/mapa', '/grupy', '/faq', '/jak-dziala-bojo', '/dlaczego-bojo'];
 
 describe('robots.txt', () => {
   const reguly = robots().rules as { userAgent: string; disallow?: string[] }[];

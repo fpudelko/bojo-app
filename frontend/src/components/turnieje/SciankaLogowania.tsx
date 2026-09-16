@@ -15,7 +15,12 @@ export default function SciankaLogowania({ tytul }: { tytul: string }) {
     <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4 text-center">
       <Lock className="mx-auto mb-2 h-5 w-5 text-slate-400" />
       <p className="text-sm font-semibold text-ink">{tytul}</p>
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Składy i statystyki widzą zalogowani gracze.</p>
+      {/* Mówi, CO się zyskuje, nie kto ma prawo. Poprzednie „Składy
+          i statystyki widzą zalogowani gracze" opisywało regułę dostępu
+          i zostawiało czytającego bez powodu, żeby kliknąć. */}
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        Zaloguj się, żeby zobaczyć składy drużyn i swoje statystyki z turniejów.
+      </p>
       <div className="mt-3 flex flex-col gap-2">
         <Link href={`/logowanie?next=${encodeURIComponent(next)}`}>
           <Button size="sm" className="w-full">Zaloguj się</Button>

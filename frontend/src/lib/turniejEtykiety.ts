@@ -81,3 +81,116 @@ export function odmienDruzyny(n: number): string {
 export function odmienZawodnikow(n: number): string {
   return withCount(n, 'zawodnik', 'zawodnicy', 'zawodników');
 }
+
+// ---------------------------------------------------------------------------
+// Termin i stan — czyste funkcje, bo obie odpowiadają na pytania zadawane
+// w kilku miejscach naraz i obie łatwo policzyć inaczej w każdym z nich.
+// ---------------------------------------------------------------------------
+
+/**
+ * Godzina bez sekund. `turnieje.godzina_startu` to kolumna `time`, którą
+ * PostgREST oddaje jako `"10:00:00"` — wypisana wprost pokazywała użytkownikowi
+ * sekundy, których nikt nigdy nie ustawił.
+ */
+export function bezSekund(godzina: string): string {
+  return godzina.slice(0, 5);
+}
+
+/**
+ * Jeden format terminu dla całego modułu: „śr, 16 września, 18:00", a dla
+ * najbliższych dni „Dziś, 18:00" / „Jutro, 18:00".
+ *
+ * Powstała, bo to samo wydarzenie pokazywało się w trzech zapisach naraz:
+ * „środa, 9 września" (lista), „środa, 16 września · 10:00:00" (turniej)
+ * i „Środa 16.09, 18:00" (karta meczu). Data przeczytana trzy razy inaczej
+ * każe czytającemu sprawdzać, czy to na pewno ten sam mecz.
+ *
+ * `dzisiaj` wstrzykiwalne — inaczej test „Dziś" przechodziłby tylko w dniu,
+ * w którym go napisano.
+ */
+export function etykietaTerminu(
+  data: string,
+  godzina?: string,
+  dzisiaj: Date = new Date(),
+): string {
+  const dzien = new Date(`${data}T00:00:00`);
+  if (Number.isNaN(dzien.getTime())) return godzina ? `${data}, ${bezSekund(godzina)}` : data;
+
+  const doPolnocy = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const roznicaDni = Math.round((doPolnocy(dzien) - doPolnocy(dzisiaj)) / 86_400_000);
+
+  const nazwaDnia = ['niedz.', 'pon.', 'wt.', 'śr.', 'czw.', 'pt.', 'sob.'][dzien.getDay()];
+  const miesiace = ['stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca',
+                    'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia'];
+  const dataTekst =
+    roznicaDni === 0 ? 'Dziś'
+      : roznicaDni === 1 ? 'Jutro'
+      : roznicaDni === -1 ? 'Wczoraj'
+      : `${nazwaDnia} ${dzien.getDate()} ${miesiace[dzien.getMonth()]}`;
+
+  return godzina ? `${dataTekst}, ${bezSekund(godzina)}` : dataTekst;
+}
+
+export interface StanTurnieju {
+  label: string;
+  ton: string;
+  /** Drugi wiersz na karcie — `undefined`, gdy nie ma nic konkretnego do dodania. */
+  szczegol?: string;
+}
+
+/**
+ * Stan turnieju liczony z TERMINARZA, nie z samej kolumny `status`.
+ *
+ * SKĄD TO. `turnieje.status` zmienia organizator ręcznie i nikt tego za niego
+ * nie robi — więc turniej sprzed tygodnia, w którym rozegrano wszystkie mecze,
+ * nadal miał plakietkę „Trwa". Cztery turnieje na liście wyglądały wtedy
+ * identycznie, choć jeden czekał na finał, a drugi skończył się dawno.
+ * Kolumna dalej rządzi tam, gdzie niesie decyzję organizatora (szkic, odwołany,
+ * zamknięte zapisy) — terminarz dokłada to, czego kolumna nie wie.
+ */
+export function stanTurnieju(
+  t: Pick<Turniej, 'status' | 'dataStartu'>,
+  mecze: readonly { status: string; zaplanowanyAt?: string; faza: MeczFaza }[],
+  dzisiaj: Date = new Date(),
+): StanTurnieju {
+  if (t.status === 'odwolany') return { label: 'Odwołany', ton: 'bg-red-50 text-red-600' };
+  if (t.status === 'szkic') return { label: 'W przygotowaniu', ton: 'bg-slate-100 text-slate-600' };
+  if (t.status === 'zapisy') {
+    return { label: 'Trwają zapisy', ton: 'bg-primary-50 text-primary-700',
+             szczegol: `Start ${etykietaTerminu(t.dataStartu, undefined, dzisiaj).toLowerCase()}` };
+  }
+
+  const rozegrane = mecze.filter((m) => m.status === 'zakonczony' || m.status === 'walkower');
+  const zostalo = mecze.filter((m) => m.status !== 'zakonczony' && m.status !== 'walkower');
+  const naZywo = mecze.find((m) => m.status === 'trwa');
+
+  if (naZywo) return { label: 'Na żywo', ton: 'bg-primary-50 text-primary-700', szczegol: 'Mecz w toku' };
+
+  // Komplet rozegrany to koniec, choćby kolumna twierdziła inaczej.
+  if (mecze.length > 0 && zostalo.length === 0) {
+    return { label: 'Zakończony', ton: 'bg-slate-100 text-slate-600' };
+  }
+  if (t.status === 'zakonczony') return { label: 'Zakończony', ton: 'bg-slate-100 text-slate-600' };
+
+  const najblizszy = zostalo
+    .filter((m) => m.zaplanowanyAt)
+    .sort((a, b) => a.zaplanowanyAt!.localeCompare(b.zaplanowanyAt!))[0];
+  const szczegol = najblizszy?.zaplanowanyAt
+    ? `${FAZA_LABEL[najblizszy.faza]} ${etykietaTerminu(
+        najblizszy.zaplanowanyAt.slice(0, 10),
+        najblizszy.zaplanowanyAt.slice(11, 16),
+        dzisiaj,
+      ).toLowerCase()}`
+    : undefined;
+
+  if (t.status === 'zamkniete_zapisy') {
+    return { label: 'Zapisy zamknięte', ton: 'bg-slate-100 text-slate-600', szczegol };
+  }
+  // `trwa` z niepustym terminarzem: rozróżniamy początek od końcówki, bo
+  // „zostały dwa mecze" i „nic jeszcze nie rozegrano" to dla widza dwa różne
+  // turnieje, a kolumna nazywa oba tak samo.
+  if (rozegrane.length > 0 && zostalo.length <= 2) {
+    return { label: 'Ostatnie mecze', ton: 'bg-primary-50 text-primary-700', szczegol };
+  }
+  return { label: 'Trwa', ton: 'bg-primary-50 text-primary-700', szczegol };
+}

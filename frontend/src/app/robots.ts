@@ -25,8 +25,11 @@ import type { MetadataRoute } from 'next';
 //      „reklamowanie ich wyszukiwarce obiecuje coś, czego użytkownik nie
 //      znajdzie w interfejsie". Flagi chowają wejścia w nawigacji, nie trasy
 //      — te odpowiadają normalnie.
-//      `/turnieje` ZDJĘTE stąd wraz z odmrożeniem `SHOW_TURNIEJE` (Etap 4,
-//      migracja `150`) — moduł jest dziś realną, publiczną funkcją.
+//      `/turnieje` WRÓCIŁO tu 2026-09-17, gdy `SHOW_TURNIEJE` została
+//      tymczasowo wyłączona: skoro w interfejsie nie ma do modułu żadnego
+//      wejścia, reklamowanie go wyszukiwarce obiecuje coś, czego użytkownik
+//      sam nie znajdzie. Trasa nadal odpowiada — blokada dotyczy skanowania,
+//      nie dostępu.
 //
 // /gracz/ to publiczne profile graczy: imię, statystyki, historia meczów.
 // Decyzja o prywatności, nie o SEO — profil w wynikach wyszukiwania to co
@@ -51,6 +54,7 @@ const DISALLOW = [
   '/wydarzenia/*/edytuj',
   '/grupy/nowe',
   '/grupy/*/edytuj',
+  '/turnieje',
   '/turnieje/nowe',
   '/turnieje/*/panel',
   '/turnieje/*/zglos',

@@ -1,10 +1,8 @@
 // Karta pojedynczego meczu terminarza — używana na publicznej stronie turnieju
 // (zakładka Terminarz) i w panelu organizatora. Reużywana dalej przy drabince
 // i stronie drużyny (Etap 2/3), stąd osobny plik zamiast JSX wprost w kliencie.
-import { format, parseISO } from 'date-fns';
-import { pl } from 'date-fns/locale';
 import { MapPin } from 'lucide-react';
-import { FAZA_LABEL, STATUS_MECZU } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, STATUS_MECZU, etykietaTerminu } from '@/lib/turniejEtykiety';
 import { stronaZwyciezcy } from '@/lib/turniejWynik';
 import type { TurniejMecz } from '@/types';
 
@@ -40,10 +38,13 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, pr
   const nazwaB = nazwaSlotu(mecz, 'b', druzynyPoId, meczePoId);
   const status = STATUS_MECZU[mecz.status];
   const rozegrany = mecz.status === 'zakonczony' || mecz.status === 'walkower' || mecz.status === 'trwa';
-  let godzina: string | null = null;
-  if (mecz.zaplanowanyAt) {
-    try { godzina = format(parseISO(mecz.zaplanowanyAt), 'EEEE d.MM, HH:mm', { locale: pl }); } catch { godzina = null; }
-  }
+  // Ten sam zapis terminu co wszędzie indziej w module (`etykietaTerminu`).
+  // Karta mówiła wcześniej „Niedziela 20.09, 10:00", nagłówek turnieju
+  // „niedziela, 20 września · 10:00:00", a lista jeszcze inaczej — trzy zapisy
+  // tego samego dnia każą sprawdzać, czy to na pewno ten sam mecz.
+  const godzina = mecz.zaplanowanyAt
+    ? etykietaTerminu(mecz.zaplanowanyAt.slice(0, 10), mecz.zaplanowanyAt.slice(11, 16))
+    : null;
   const arena = mecz.arenaId ? arenyPoId.get(mecz.arenaId) : undefined;
 
   // Kto wygrał, widać po WADZE PISMA, nie po samym wyniku. Bez tego drabinka
@@ -86,7 +87,7 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, pr
       </div>
       {(godzina || arena) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-          {godzina && <span className="capitalize">{godzina}</span>}
+          {godzina && <span>{godzina}</span>}
           {arena && (
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3 w-3" /> {arena}

@@ -3,12 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { format, parseISO } from 'date-fns';
-import { pl } from 'date-fns/locale';
-import { ArrowLeft, CalendarDays, MapPin, Users, Navigation, Settings, Share2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, Users, Navigation, Settings, Share2, ChevronDown, Trophy, Wallet, UserRound } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/lib/toast';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import {
@@ -17,7 +16,7 @@ import {
 } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
-import { STATUS_TURNIEJU } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju } from '@/lib/turniejEtykiety';
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
@@ -38,16 +37,28 @@ import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, 
 // „jak poszło", „kto awansuje"). Dziś każde ma swoje miejsce, a zakładki bez
 // treści (tabela bez grup, drabinka bez fazy pucharowej) w ogóle się nie
 // pokazują — pusta zakładka jest gorsza niż jej brak.
-type Zakladka = 'info' | 'druzyny' | 'terminarz' | 'wyniki' | 'tabela' | 'drabinka';
+// TRZY zakładki, nie sześć — po przeglądzie modułu na żywo (2026-09-17).
+//
+// Sześć nie mieściło się w szerokości telefonu: „Drabinka" była ucięta, więc
+// istniała wyłącznie dla kogoś, kto pomyślał, żeby przewinąć pasek w bok.
+// Do tego połowa z nich pokazywała TE SAME karty meczów w innym opakowaniu:
+// Terminarz mecze przyszłe, Wyniki te same karty po rozegraniu, Drabinka
+// jeszcze raz półfinały i finał.
+//
+// Dziś: Mecze (z przełącznikiem Najbliższe/Rozegrane — to jedno pytanie
+// z dwiema odpowiedziami, nie dwa osobne miejsca), Tabela i drabinka (oba
+// odpowiadają na „kto wygrywa"), Drużyny. Info przestało być zakładką
+// i stoi na górze strony: to nie jest jedna z rzeczy do porównania, tylko
+// nagłówek turnieju.
+type Zakladka = 'mecze' | 'tabela' | 'druzyny';
 
 const ETYKIETY_ZAKLADEK: Record<Zakladka, string> = {
-  info: 'Info',
+  mecze: 'Mecze',
+  tabela: 'Tabela i drabinka',
   druzyny: 'Drużyny',
-  terminarz: 'Terminarz',
-  wyniki: 'Wyniki',
-  tabela: 'Tabela',
-  drabinka: 'Drabinka',
 };
+
+type WidokMeczow = 'najblizsze' | 'rozegrane';
 
 /** Rozegrane mecze jednej grupy, zwinięte pod jej tabelą. */
 function MeczeGrupy({
@@ -109,13 +120,19 @@ export default function TurniejClient() {
   const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
   const [ladowanie, setLadowanie] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [widokReczny, setWidokReczny] = useState<WidokMeczow | null>(null);
+  const [organizator, setOrganizator] = useState<string | null>(null);
 
   const tabParam = searchParams.get('tab');
+  // Stare adresy (`?tab=terminarz`, `?tab=wyniki`, `?tab=drabinka`) prowadzą
+  // tam, gdzie ich treść dziś mieszka — link wysłany komuś tydzień temu
+  // nie może wylądować na Info.
   const zakladka: Zakladka =
-    tabParam === 'druzyny' || tabParam === 'terminarz' || tabParam === 'wyniki'
-      || tabParam === 'tabela' || tabParam === 'drabinka'
-      ? tabParam
-      : 'info';
+    tabParam === 'druzyny' ? 'druzyny'
+      : tabParam === 'tabela' || tabParam === 'drabinka' ? 'tabela'
+      : 'mecze';
+  const widokZAdresu: WidokMeczow | null =
+    tabParam === 'wyniki' ? 'rozegrane' : tabParam === 'terminarz' ? 'najblizsze' : null;
 
   useEffect(() => {
     let aktualne = true;
@@ -148,6 +165,11 @@ export default function TurniejClient() {
         // prawo do wiersza — reszta po prostu nie dostanie nic, więc wołanie
         // „na wszelki wypadek" jest bezpieczne i nie wymaga sprawdzania roli
         // z wyprzedzeniem.
+        // Nazwa organizatora osobnym zapytaniem: `turnieje.organizator_id`
+        // wskazuje na `auth.users`, nie na `profiles` — PostgREST nie zbuduje
+        // joinu (patrz docs/baza-danych.md).
+        supabase.from('profiles').select('display_name').eq('id', t.organizatorId).maybeSingle()
+          .then(({ data: p }) => { if (aktualne) setOrganizator((p?.display_name as string | undefined) ?? null); });
         if (t.wpisoweGrosze > 0 && user) {
           getBlikTurnieju(id).then((tel) => { if (aktualne) setBlikTelefon(tel); }).catch(() => {});
         }
@@ -182,7 +204,6 @@ export default function TurniejClient() {
   const druzynyPoId = new Map(druzyny.map((d) => [d.id, d.nazwa]));
   const meczePoId = new Map(mecze.map((m) => [m.id, m]));
   const arenyPoId = new Map(areny.map((a) => [a.id, a.nazwa]));
-  const status = STATUS_TURNIEJU[turniej.status];
 
   const meczeGrupowe = mecze.filter((m) => m.faza === 'grupa' || m.faza === 'liga');
   const meczeDrabinki = mecze.filter((m) => m.faza !== 'grupa' && m.faza !== 'liga');
@@ -227,22 +248,28 @@ export default function TurniejClient() {
         ].filter((sekcja) => sekcja.lista.length > 0)
       : [{ tytul: 'Wszystkie drużyny', lista: druzyny }];
 
+  const tabelaMaTresc = tabeleGrup.length > 0 || meczeDrabinki.length > 0;
+  const stan = stanTurnieju(turniej, mecze);
+
+  // Najbliższy mecz MOJEJ drużyny — do paska „co dotyczy mnie".
+  const mojNastepnyMecz = mojaDruzyna
+    ? meczePrzyszle.find((m) => m.druzynaAId === mojaDruzyna.id || m.druzynaBId === mojaDruzyna.id)
+    : undefined;
+
   const legendaAwansu = opisAwansu(
     tabeleGrup.filter((t) => t.grupa).map((t) => t.wiersze.length),
     turniej.awansujeZGrupy,
   );
 
-  const widoczneZakladki: Zakladka[] = [
-    'info',
-    'druzyny',
-    ...(meczePrzyszle.length > 0 ? ['terminarz' as const] : []),
-    ...(meczeRozegrane.length > 0 ? ['wyniki' as const] : []),
-    ...(tabeleGrup.length > 0 ? ['tabela' as const] : []),
-    ...(meczeDrabinki.length > 0 ? ['drabinka' as const] : []),
-  ];
-  // Wejście z linku na zakładkę, której ten turniej nie ma (np. `?tab=drabinka`
-  // przed wygenerowaniem drabinki), pokazuje Info zamiast pustej strony.
-  const aktywna: Zakladka = widoczneZakladki.includes(zakladka) ? zakladka : 'info';
+  const widoczneZakladki: Zakladka[] = ['mecze', 'tabela', 'druzyny'];
+  const aktywna: Zakladka = tabelaMaTresc || zakladka !== 'tabela' ? zakladka : 'mecze';
+
+  // Domyślny widok meczów zależy od tego, co jest do zobaczenia: przed
+  // turniejem najbliższe, po ostatnim gwizdku rozegrane. Ręczny wybór
+  // i adres biją domyślny.
+  const domyslnyWidok: WidokMeczow = meczePrzyszle.length > 0 ? 'najblizsze' : 'rozegrane';
+  const widokMeczow: WidokMeczow = widokReczny ?? widokZAdresu ?? domyslnyWidok;
+  const listaMeczow = widokMeczow === 'najblizsze' ? meczePrzyszle : meczeRozegrane;
 
   const zawodnicyDoStatystyk = druzyny.flatMap((d) => d.zawodnicy ?? []);
   const mvpPoMeczach = mecze
@@ -253,8 +280,6 @@ export default function TurniejClient() {
   const asystenci = posortujKlasyfikacje(klasyfikacje, 'asysty');
   const mvpList = posortujKlasyfikacje(klasyfikacje, 'mvp');
   const dojazd = linkDojazdu({ lat: turniej.lat, lng: turniej.lng, adres: turniej.miejsceAdres });
-  let dataLabel = turniej.dataStartu;
-  try { dataLabel = format(parseISO(turniej.dataStartu), 'EEEE, d MMMM', { locale: pl }); } catch { /* zostaw surową datę */ }
 
   const udostepnij = async () => {
     const wynik = await udostepnijTurniej(turniej, linkDoTurnieju(id));
@@ -338,79 +363,133 @@ export default function TurniejClient() {
           </div>
         )}
 
-        {aktywna === 'info' && (
-          <>
-            <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">{sportEmoji(turniej.sport)}</span>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
-              </div>
-              <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-                <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                <span>{dataLabel} · {turniej.godzinaStartu}</span>
-              </div>
-              {(turniej.miejsceNazwa || turniej.miejsceAdres) && (
-                <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                  <div className="min-w-0">
-                    {turniej.miejsceNazwa && <div className="font-medium text-ink">{turniej.miejsceNazwa}</div>}
-                    {turniej.miejsceAdres && <div className="text-xs text-slate-400">{turniej.miejsceAdres}</div>}
-                  </div>
-                </div>
-              )}
-              {dojazd && (
-                <a href={dojazd} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600">
-                  <Navigation className="h-4 w-4" /> Nawiguj
-                </a>
-              )}
-              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                <Users className="h-4 w-4 shrink-0 text-slate-400" />
-                <span>{druzyny.length}/{turniej.maxDruzyn} drużyn</span>
-                {turniej.wpisoweGrosze > 0 && <span>· {(turniej.wpisoweGrosze / 100).toFixed(0)} zł wpisowe</span>}
-              </div>
-              {turniej.opis && <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{turniej.opis}</p>}
-              {turniej.regulamin && (
-                <details className="text-sm">
-                  <summary className="cursor-pointer font-medium text-ink">Regulamin</summary>
-                  <p className="mt-2 whitespace-pre-wrap text-slate-600 dark:text-slate-300">{turniej.regulamin}</p>
-                </details>
-              )}
-              <button onClick={udostepnij} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600">
-                <Share2 className="h-4 w-4" /> Udostępnij
-              </button>
-            </div>
+        {/* Info NIE jest zakładką — to nagłówek turnieju, nie jedna z rzeczy
+            do porównania. Stały szablon: Kiedy · Gdzie · Format · Zasady ·
+            Koszt · Organizator. Wcześniej była tu data, boisko, licznik drużyn
+            i tyle: czytający nie wiedział, czy 50 zł to od drużyny czy od
+            gracza, ile trwa mecz ani kto to w ogóle organizuje. */}
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{sportEmoji(turniej.sport)}</span>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
+            {stan.szczegol && <span className="text-xs text-slate-500 dark:text-slate-400">{stan.szczegol}</span>}
+          </div>
 
-            {turniej.wpisoweGrosze > 0 && !!mojaDruzyna && mojaDruzyna.kapitanId === user?.id && (
-              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-1.5 text-sm">
-                <p className="font-medium text-ink">
-                  Wpisowe: {(turniej.wpisoweGrosze / 100).toFixed(0)} zł
-                  {mojaDruzyna.wpisoweOplaconeAt ? (
-                    <span className="ml-2 text-primary-700">Opłacone ✓</span>
-                  ) : (
-                    <span className="ml-2 text-slate-400">jeszcze nieopłacone</span>
-                  )}
-                </p>
-                {blikTelefon ? (
-                  <p className="text-slate-600 dark:text-slate-300">BLIK: {blikTelefon}</p>
-                ) : (
-                  <p className="text-slate-400">Organizator jeszcze nie podał numeru BLIK.</p>
+          <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+            <span>{etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}</span>
+          </div>
+
+          {(turniej.miejsceNazwa || turniej.miejsceAdres) && (
+            <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <div className="min-w-0 flex-1">
+                {turniej.miejsceNazwa && <div className="font-medium text-ink">{turniej.miejsceNazwa}</div>}
+                {turniej.miejsceAdres && <div className="text-xs text-slate-400">{turniej.miejsceAdres}</div>}
+                {dojazd && (
+                  <a href={dojazd} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600">
+                    <Navigation className="h-4 w-4" /> Nawiguj
+                  </a>
                 )}
               </div>
-            )}
+            </div>
+          )}
 
-            <Ogloszenia
-              ogloszenia={ogloszenia}
-              mozeZarzadzac={uprawnienia.mozeEdytowac}
-              onDodaj={dodajOgloszenieAkcja}
-              onUsun={usunOgloszenieAkcja}
-            />
+          <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+            <div className="min-w-0">
+              <div className="font-medium text-ink">{FORMAT_LABEL[turniej.format]}</div>
+              <div className="text-xs text-slate-400">{opisFormatu(turniej, druzyny.length)}</div>
+            </div>
+          </div>
 
-            {przyjmujeZgloszenia(turniej, druzyny.length) && (
-              <Link href={`/turnieje/${id}/zglos`}>
-                <Button className="w-full">Zgłoś drużynę</Button>
-              </Link>
+          <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+            <div className="min-w-0">
+              <div>{druzyny.length}/{turniej.maxDruzyn} drużyn · skład {turniej.minZawodnikow}–{turniej.maxZawodnikow} osób</div>
+              <div className="text-xs text-slate-400">
+                Mecz {turniej.czasMeczuMin} min
+                {turniej.przerwaMin > 0 && `, przerwa ${turniej.przerwaMin} min`}
+                {' · '}zwycięstwo {turniej.punktyZaWygrana} pkt, remis {turniej.punktyZaRemis}
+                {turniej.karnePrzyRemisie && ' · remis w fazie pucharowej rozstrzygają karne'}
+              </div>
+            </div>
+          </div>
+
+          {/* „50 zł" bez tej jednej informacji jest pytaniem, nie odpowiedzią. */}
+          <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+            <span>
+              {turniej.wpisoweGrosze > 0
+                ? `Wpisowe ${(turniej.wpisoweGrosze / 100).toFixed(0)} zł od drużyny`
+                : 'Bez wpisowego'}
+            </span>
+          </div>
+
+          {organizator && (
+            <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <span>Organizuje <Link href={`/gracz/${turniej.organizatorId}`} className="font-medium text-primary-600">{organizator}</Link></span>
+            </div>
+          )}
+
+          {turniej.opis && <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{turniej.opis}</p>}
+          {turniej.regulamin && (
+            <details className="text-sm">
+              <summary className="cursor-pointer font-medium text-ink">Regulamin</summary>
+              <p className="mt-2 whitespace-pre-wrap text-slate-600 dark:text-slate-300">{turniej.regulamin}</p>
+            </details>
+          )}
+          <button onClick={udostepnij} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600">
+            <Share2 className="h-4 w-4" /> Udostępnij
+          </button>
+        </div>
+
+        {/* Pasek „co dotyczy MNIE" — turniej bez niego jest zestawem tabelek
+            dla widza, a wchodzi w niego przede wszystkim uczestnik. */}
+        {mojaDruzyna && (
+          <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4 space-y-1.5">
+            <p className="text-sm font-semibold text-ink">Twoja drużyna: {mojaDruzyna.nazwa}</p>
+            {mojNastepnyMecz ? (
+              <button
+                onClick={() => router.push(`/turnieje/${id}/mecz/${mojNastepnyMecz.id}`)}
+                className="text-sm text-primary-700 dark:text-primary-300"
+              >
+                Następny mecz: {mojNastepnyMecz.zaplanowanyAt
+                  ? etykietaTerminu(mojNastepnyMecz.zaplanowanyAt.slice(0, 10), mojNastepnyMecz.zaplanowanyAt.slice(11, 16))
+                  : FAZA_LABEL[mojNastepnyMecz.faza]} →
+              </button>
+            ) : (
+              <p className="text-sm text-slate-500 dark:text-slate-400">Nie macie już meczów w terminarzu.</p>
             )}
-          </>
+            {turniej.wpisoweGrosze > 0 && mojaDruzyna.kapitanId === user?.id && (
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Wpisowe {(turniej.wpisoweGrosze / 100).toFixed(0)} zł —{' '}
+                {mojaDruzyna.wpisoweOplaconeAt
+                  ? <span className="text-primary-700">opłacone ✓</span>
+                  : blikTelefon
+                    ? <>nieopłacone, BLIK: {blikTelefon}</>
+                    : <>nieopłacone (organizator nie podał jeszcze numeru BLIK)</>}
+              </p>
+            )}
+          </div>
+        )}
+
+        <Ogloszenia
+          ogloszenia={ogloszenia}
+          mozeZarzadzac={uprawnienia.mozeEdytowac}
+          onDodaj={dodajOgloszenieAkcja}
+          onUsun={usunOgloszenieAkcja}
+        />
+
+        {/* Jedno działanie zgodne ze stanem turnieju, widoczne TAKŻE dla
+            niezalogowanego — przegląd złapał stronę bez żadnego przycisku,
+            bo „Zgłoś drużynę" wisiało wyłącznie na zakładce Info, a „Utwórz
+            turniej" tylko dla zalogowanych. */}
+        {przyjmujeZgloszenia(turniej, druzyny.length) && !mojaDruzyna && (
+          <Link href={`/turnieje/${id}/zglos`}>
+            <Button className="w-full">Zgłoś drużynę</Button>
+          </Link>
         )}
 
         {aktywna === 'druzyny' && (
@@ -450,59 +529,71 @@ export default function TurniejClient() {
           </div>
         )}
 
-        {aktywna === 'terminarz' && (
-          <div className="space-y-2">
-            {meczePrzyszle.map((m) => (
-              <KartaMeczu
-                key={m.id}
-                mecz={m}
-                druzynyPoId={druzynyPoId}
-                meczePoId={meczePoId}
-                arenyPoId={arenyPoId}
-                przygaszona={m.status === 'walkower' && !m.zaplanowanyAt}
-                onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
-              />
-            ))}
-          </div>
-        )}
+        {aktywna === 'mecze' && (
+          <div className="space-y-4">
+            {/* Przełącznik zamiast dwóch zakładek: „co jeszcze gramy"
+                i „jak poszło" to jedno pytanie o mecze z dwiema odpowiedziami,
+                a nie dwa osobne miejsca w nawigacji. */}
+            {meczePrzyszle.length > 0 && meczeRozegrane.length > 0 && (
+              <div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+                {(['najblizsze', 'rozegrane'] as WidokMeczow[]).map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => setWidokReczny(w)}
+                    className={[
+                      'flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                      widokMeczow === w ? 'bg-white dark:bg-slate-700 text-ink shadow-sm' : 'text-slate-500',
+                    ].join(' ')}
+                  >
+                    {w === 'najblizsze' ? `Najbliższe (${meczePrzyszle.length})` : `Rozegrane (${meczeRozegrane.length})`}
+                  </button>
+                ))}
+              </div>
+            )}
 
-        {aktywna === 'wyniki' && (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              {meczeRozegrane.map((m) => (
-                <KartaMeczu
-                  key={m.id}
-                  mecz={m}
-                  druzynyPoId={druzynyPoId}
-                  meczePoId={meczePoId}
-                  arenyPoId={arenyPoId}
-                  przygaszona={m.status === 'walkower' && !m.zaplanowanyAt}
-                  onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
-                />
-              ))}
-            </div>
+            {listaMeczow.length === 0 ? (
+              <p className="py-10 text-center text-sm text-slate-400">
+                {uprawnienia.mozeEdytowac ? 'Terminarz jeszcze nie jest wygenerowany.' : 'Terminarz jeszcze nie jest gotowy.'}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {listaMeczow.map((m) => (
+                  <KartaMeczu
+                    key={m.id}
+                    mecz={m}
+                    druzynyPoId={druzynyPoId}
+                    meczePoId={meczePoId}
+                    arenyPoId={arenyPoId}
+                    przygaszona={m.status === 'walkower' && !m.zaplanowanyAt}
+                    onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
+                  />
+                ))}
+              </div>
+            )}
 
-            <div className="space-y-3 border-t border-slate-100 dark:border-slate-700 pt-4">
-              <h2 className="text-sm font-semibold text-slate-500">Statystyki graczy</h2>
-              {!user ? (
-                <SciankaLogowania tytul="Statystyki graczy" />
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej goli</h3>
-                    <Klasyfikacja wpisy={strzelcy} klucz="gole" etykietaKolumny="Gole" pusteMiejsce="Jeszcze nikt nie strzelił." />
+            {meczeRozegrane.length > 0 && (
+              <div className="space-y-3 border-t border-slate-100 dark:border-slate-700 pt-4">
+                <h2 className="text-sm font-semibold text-slate-500">Statystyki graczy</h2>
+                {!user ? (
+                  <SciankaLogowania tytul="Statystyki graczy" />
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej goli</h3>
+                      <Klasyfikacja wpisy={strzelcy} klucz="gole" etykietaKolumny="Gole" pusteMiejsce="Jeszcze nikt nie strzelił." />
+                    </div>
+                    <div>
+                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej asyst</h3>
+                      <Klasyfikacja wpisy={asystenci} klucz="asysty" etykietaKolumny="Asysty" pusteMiejsce="Jeszcze nikt nie zaliczył asysty." />
+                    </div>
+                    <div>
+                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej tytułów MVP</h3>
+                      <Klasyfikacja wpisy={mvpList} klucz="mvp" etykietaKolumny="MVP" pusteMiejsce="MVP jeszcze nie wybrano." />
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej asyst</h3>
-                    <Klasyfikacja wpisy={asystenci} klucz="asysty" etykietaKolumny="Asysty" pusteMiejsce="Jeszcze nikt nie zaliczył asysty." />
-                  </div>
-                  <div>
-                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej tytułów MVP</h3>
-                    <Klasyfikacja wpisy={mvpList} klucz="mvp" etykietaKolumny="MVP" pusteMiejsce="MVP jeszcze nie wybrano." />
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -517,9 +608,6 @@ export default function TurniejClient() {
                 )}
                 <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} />
                 {grupa && (
-                  /* Wyniki grupy pod jej tabelą, zwinięte. Tabela mówi, JAK
-                     stoją; pytanie „po czym" wymagało dotąd wyjścia do innej
-                     zakładki i wyłowienia z niej meczów tej jednej grupy. */
                   <MeczeGrupy
                     mecze={meczeGrupowe.filter((m) => m.grupaId === grupa.id && rozegrany(m))}
                     druzynyPoId={druzynyPoId}
@@ -531,26 +619,37 @@ export default function TurniejClient() {
               </div>
             ))}
 
-            {/* JEDNA legenda pod wszystkimi tabelami, nie pod każdą z osobna:
-                reguła awansu jest wspólna dla całego turnieju, a powtórzona
-                przy każdej grupie czyta się jak osobna informacja o tej grupie. */}
             {legendaAwansu && (
               <p className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <span className="h-3 w-[3px] shrink-0 rounded-full bg-primary-600" aria-hidden />
                 {legendaAwansu}
               </p>
             )}
-          </div>
-        )}
 
-        {aktywna === 'drabinka' && (
-          <Drabinka
-            mecze={meczeDrabinki}
-            druzynyPoId={druzynyPoId}
-            meczePoId={meczePoId}
-            arenyPoId={arenyPoId}
-            onKlikMeczu={(meczId) => router.push(`/turnieje/${id}/mecz/${meczId}`)}
-          />
+            {/* Drabinka pod tabelami, nie w osobnej zakładce: obie odpowiadają
+                na „kto wygrywa", a rozdzielone kazały przeskakiwać tam i z powrotem
+                przy każdym pytaniu o to, kto z kim zagra w półfinale. */}
+            {meczeDrabinki.length > 0 && (
+              <div className={tabeleGrup.length > 0 ? 'space-y-2 border-t border-slate-100 dark:border-slate-700 pt-5' : 'space-y-2'}>
+                <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Drabinka
+                </h2>
+                <Drabinka
+                  mecze={meczeDrabinki}
+                  druzynyPoId={druzynyPoId}
+                  meczePoId={meczePoId}
+                  arenyPoId={arenyPoId}
+                  onKlikMeczu={(meczId) => router.push(`/turnieje/${id}/mecz/${meczId}`)}
+                />
+              </div>
+            )}
+
+            {!tabelaMaTresc && (
+              <p className="py-10 text-center text-sm text-slate-400">
+                Tabela pojawi się po pierwszym rozegranym meczu.
+              </p>
+            )}
+          </div>
         )}
       </main>
       {oknoPotwierdzenia}
