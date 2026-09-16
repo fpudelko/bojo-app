@@ -1360,7 +1360,7 @@ miesiące nie odróżnimy poprawy od wrażenia poprawy.
 
 | Miernik | Czym | Jak często | Wartość bazowa |
 |---|---|---|---|
-| Pokrycie indeksu (ile stron realnie w Google) | Search Console → Strony | miesięcznie | **rośnie: 2 (29.08) → 59 (4.09.2026)** zaindeksowanych; 32 400 wykrytych przez sitemapę; sygnał R1 jeszcze nieuruchomiony — kolejne odczyty 2026-09-15 i 2026-09-29 rozstrzygną — patrz 7a.2 |
+| Pokrycie indeksu (ile stron realnie w Google) | Search Console → Strony | miesięcznie | **skok 5.09.2026: 59 → 17 473 zaindeksowanych** (530 nie zindeksowanych, 4 z 6 przyczyn zweryfikowane w kodzie jako zamierzone); **R1 rozstrzygnięty na 2026-09-15: nie uruchomiony** (0,5% udział); drugi termin 2026-09-29 sprawdza dalszy wzrost — patrz 7a.2 |
 | Wyświetlenia i pozycje wg klastra z 2a | Search Console → Skuteczność | miesięcznie | **zmierzone 2026-08-29** — 0 kliknięć / 56 wyświetleń / CTR 0% / śr. pozycja 9,4 (3 mies.), wyłącznie zapytania markowe — patrz 7a.2 |
 | Obecność w odpowiedziach modeli | 40 promptów z Załącznika A | co 6 tygodni | **niezmierzona** |
 | Wzmianki marki poza domeną | wyszukiwanie nazwy z kwalifikatorem | co 6 tygodni | **zero znanych** |
@@ -1562,8 +1562,90 @@ z zaindeksowanymi, czy zamiast nich. „Strona zawiera przekierowanie" (1) najpe
 „Duplikat bez kanonicznej" (1) jest zbyt mały, żeby coś znaczył sam w sobie — nie
 identyfikowany bez adresu URL, do sprawdzenia przy okazji, nie pilnie.
 
-**NIEZWERYFIKOWANE z tej sesji:** wszystkie liczby wyżej pochodzą ze zrzutów ekranu
-właściciela, tak jak w 7a.1 — ta sesja nie ma własnego dostępu do Search Console.
+**ODCZYT ROZSTRZYGAJĄCY (2026-09-15/16, zgłoszony przez właściciela, z eksportem CSV
+z Search Console) — pierwszy z dwóch zaplanowanych terminów. Wynik: R1 NIE
+uruchomiony, wyraźnie.** Właściciel dołączył pełny eksport raportu *Indeksowanie →
+Strony* (`Wykres.csv`, `Problemy krytyczne.csv`), nie tylko zrzut ekranu — pierwszy
+raz w tej rundzie mamy dzienny szereg, nie punktowy odczyt.
+
+**Skok, nie wzrost.** Dzienne dane pokazują, że 59 → 17 473 zaindeksowanych nie
+nastąpiło stopniowo: liczba stała w miejscu (2, potem 59) do **2026-09-04**, a
+**2026-09-05 skoczyła jednym ruchem na 17 473** (nie zindeksowano: 5 → 530) i od tego
+dnia stoi w tym samym miejscu — dokładnie 17 473 / 530, bez ruchu w żadną stronę, przez
+dziesięć kolejnych dni (do 2026-09-14 włącznie, ostatni wiersz eksportu). To wygląda na
+jedną zbiorczą ocenę partii adresów przez Google, nie na organiczne, dzień-po-dniu
+odkrywanie — spójne z tym, że `wykryte strony` w raporcie *Mapy witryn* nie zmieniło
+się od 1.09 (32 400): Google miał cały katalog na widoku od dawna, a 5.09 osądził
+naraz dużą jego część.
+
+**Pełne rozbicie 530 niezaindeksowanych** (`Problemy krytyczne.csv`, stan 14.09.2026):
+
+| Przyczyna | Źródło | Strony |
+|---|---|---|
+| Alternatywna strona zawierająca prawidłowy tag strony kanonicznej | Strona internetowa | 233 |
+| Strona wykluczona za pomocą tagu „noindex" | Strona internetowa | 111 |
+| Duplikat, użytkownik nie oznaczył strony kanonicznej | Strona internetowa | 54 |
+| Strona zawiera przekierowanie | Strona internetowa | 45 |
+| Strona zablokowana przez plik robots.txt | Strona internetowa | 2 |
+| Strona zeskanowana, ale jeszcze nie zindeksowana | Systemy Google | 85 |
+
+**Werdykt R1: nie uruchomiony.** Sygnał ostrzegawczy z rozdziału 9 to dwie konkretne
+pozycje — „Zeskanowano — obecnie bez indeksu" i „Wykryto — obecnie bez indeksu" —
+mające urosnąć do dziesiątek tysięcy. Tu jest 85 i 0 (drugi wiersz nie istnieje w
+tabeli przyczyn, więc jest zerowy) na 18 003 znanych adresów łącznie — 0,5%. Nie jest
+to kwestia progu czy interpretacji: różnica rzędu wielkości jest jednoznaczna.
+
+**Cztery z sześciu przyczyn zweryfikowane w kodzie jako ZAMIERZONE, nie błąd:**
+
+- **„noindex" (111)** — `app/boisko/[id]/page.tsx:205`: `robots: { index:
+  field.seoTier !== 3, follow: true }`. Obiekty Tier 3 (dane skąpe/niepotwierdzone,
+  migracja 112) mają `noindex` z premedytacją, dokładnie z tego samego powodu co
+  filtr `.in('seo_tier',[1,2])` na hubach (D11) — nie marnować budżetu skanowania na
+  strony bez treści wartej indeksowania. Przykład z eksportu
+  (`/boisko/boisko-sportowe`, nazwa rodzajowa bez szczegółów) pasuje do profilu
+  Tier 3.
+- **„Alternatywna strona z prawidłowym canonical" (233) + „przekierowanie" (45)** —
+  `page.tsx:79-88`: każdy obiekt ma dwa klucze URL, **kanoniczny** (nazwa +
+  identyfikator) i **historyczny** (sama nazwa, dla starych linków). Nazwy rodzajowe
+  z importu OSM („Boisko piłkarskie") powtarzają się tysiące razy, więc klucz
+  historyczny z definicji trafia w przypadkowy obiekt — strona pod tym adresem
+  **przekierowuje** na kanoniczny, zamiast renderować treść. To jest źródło obu tych
+  liczb: zaprojektowany mechanizm przekierowań z adresów historycznych/rodzajowych na
+  kanoniczne, nie wyciek ani duplikacja treści.
+- **„Zeskanowano, jeszcze nie zindeksowano" (85)** — dokładnie kategoria, którą
+  śledzi R1; przy 0,5% udziału to normalny zapas kolejki przy tej skali, nie sygnał.
+
+**Jedna pozycja BEZ wyjaśnienia w kodzie: „Duplikat, użytkownik nie oznaczył strony
+kanonicznej" (54).** To nie pasuje do żadnego ze zidentyfikowanych mechanizmów —
+każda strona obiektu deklaruje własny `canonical` (`page.tsx:201`), więc dwie strony
+uznane za duplikat bez canonicala między nimi sugerują dwa **osobne wiersze w
+`fields`** o niemal identycznej treści (nazwa, adres) — najpewniej podwójny import
+tego samego obiektu z OSM. To pytanie o jakość danych katalogu, nie o kod strony;
+54 na 18 tys. to niski priorytet, ale warte jednego zapytania SQL przy okazji
+(`SELECT name, address, count(*) FROM fields GROUP BY name, address HAVING
+count(*) > 1`), nie w tej rundzie.
+
+**Poza raportem *Strony* — sygnał, którego jeszcze nie ma tu wpisanego:**
+`Wykres.csv` niesie też dzienne wyświetlenia, i tam jest druga duża zmiana: z
+poziomu kilkunastu/dzień przez cały sierpień i początek września, **10–14.09 skacze
+na 317 → 1545 → 2686 → 2500 → 1628**. To potencjalnie ważniejsza liczba niż sama
+indeksacja — realne pojawianie się w wynikach wyszukiwania, nie tylko w bazie
+Google — ale ten eksport nie niesie kliknięć, CTR ani pozycji ani listy zapytań, więc
+**do potwierdzenia osobnym zrzutem raportu *Skuteczność*** (ten sam widok co
+w pierwszym pomiarze z 7a.2) zamiast zgadywania z samych wyświetleń.
+
+**Wniosek na termin 2026-09-15: zamknięty, pozytywnie.** Problemem była wyłącznie
+brakująca sitemapa (ustalenie z 29.08); po zgłoszeniu Google ocenił katalog jedną
+zbiorczą decyzją, nie stopniowo, i zaakceptował zdecydowaną większość. Drugi termin,
+**2026-09-29**, sprawdza co innego: czy 17 473 rośnie dalej (kolejna partia z
+pozostałych ~14 tys. nieodkrytych z 32 400) czy zamroziło się na stałe — zamrożenie
+przez dwa tygodnie z rzędu byłoby dopiero wtedy realnym pytaniem, nie teraz przy
+dziesięciu dniach.
+
+**NIEZWERYFIKOWANE z tej sesji:** wszystkie liczby wyżej pochodzą z eksportu CSV
+i zrzutów ekranu właściciela, tak jak w 7a.1 — ta sesja nie ma własnego dostępu do
+Search Console. Hipoteza o podwójnym imporcie w `fields` (54 duplikaty) jest
+wnioskowaniem z kształtu danych, nie zapytaniem do produkcyjnej bazy.
 
 ### 7b. Progi sukcesu
 
