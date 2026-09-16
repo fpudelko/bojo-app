@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Link from 'next/link';
@@ -13,6 +13,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { fieldPhotoUrl, surfaceLabel } from '@/lib/labels';
 import { externalUrl, zWielkiejLitery, slugBoiska } from '@/lib/utils';
 import { etykietaOdleglosci, type PobliskiObiekt } from '@/lib/pobliskieObiekty';
+import { track, zrodloWejscia, type ZrodloWejscia } from '@/lib/analytics';
 import { getAvailableSlots, createBooking } from '@/lib/bookings';
 import { getField } from '@/lib/api';
 import { showBookingForField } from '@/config/features';
@@ -103,7 +104,7 @@ function NaglowekTop({ nazwa, backHref }: { nazwa: string; backHref: string }) {
  */
 function OpisIPowiazane({
   opis, zdanieMeczow, zdanieUgc, adres, wojewodztwoSlug, wojewodztwoLabel, sportSlug, sportEtykieta,
-  pobliskie,
+  pobliskie, onPobliskieClick,
 }: {
   opis?: string;
   /** F3 SEO/GEO (roadmapa poz. 21): ślad rozegranych meczów, `null` przy zerze. */
@@ -120,6 +121,7 @@ function OpisIPowiazane({
   /** Pobliskie obiekty tego samego sportu — jedyna treść na tej stronie unikalna
    *  dla NIEJ, dostępna bez ani jednego rozegranego meczu (lib/pobliskieObiekty.ts). */
   pobliskie?: readonly PobliskiObiekt[];
+  onPobliskieClick?: (celId: string, pozycja: number) => void;
 }) {
   return (
     <div className="space-y-1.5 rounded-2xl border border-slate-100 bg-white p-4">
@@ -142,9 +144,13 @@ function OpisIPowiazane({
             Inne boiska w okolicy
           </h2>
           <ul className="mt-1 flex flex-col items-start gap-1">
-            {pobliskie.map((o) => (
+            {pobliskie.map((o, i) => (
               <li key={o.id} className="text-xs">
-                <Link href={`/boisko/${slugBoiska(o.name, o.id)}`} className="text-primary-600 hover:underline">
+                <Link
+                  href={`/boisko/${slugBoiska(o.name, o.id)}`}
+                  className="text-primary-600 hover:underline"
+                  onClick={() => onPobliskieClick?.(o.id, i)}
+                >
                   {o.name}
                 </Link>
                 <span className="text-slate-500"> · {etykietaOdleglosci(o.odlegloscKm)}</span>
@@ -213,6 +219,37 @@ export default function VenueDetailClient({
   pobliskie?: readonly PobliskiObiekt[];
 }) {
   const id = fieldId;
+
+  // POMIAR RUCHU Z KATALOGU (2026-09-16). Strona obiektu zbiera dziś cały ruch
+  // organiczny Bojo — 980 z 1000 stron z wyświetleniami w Search Console to
+  // `/boisko/*` — i do tej pory nie emitowała ani jednego zdarzenia. Bez tego
+  // nie da się odpowiedzieć na pytanie, od którego zależy sens całej warstwy SEO:
+  // czy ci ludzie robią cokolwiek poza obejrzeniem adresu.
+  //
+  // `useRef` zamiast samego `useEffect([])`, bo `reactStrictMode` w next.config.mjs
+  // montuje komponent DWA razy w trybie deweloperskim — bez tej blokady każde
+  // wejście liczyłoby się podwójnie i to lokalnie, czyli tam, gdzie najłatwiej
+  // uznać liczbę za prawdziwą.
+  const zrodloRef = useRef<ZrodloWejscia | null>(null);
+  const wyslanoWejscie = useRef(false);
+  useEffect(() => {
+    if (wyslanoWejscie.current) return;
+    wyslanoWejscie.current = true;
+    const zrodlo = zrodloWejscia(document.referrer, window.location.hostname);
+    zrodloRef.current = zrodlo;
+    void track('boisko_otwarte', { fieldId, zrodlo });
+  }, [fieldId]);
+
+  // `zrodlo` jedzie też przy konwersji, żeby dało się policzyć ją OSOBNO dla ruchu
+  // z wyszukiwarki — bez tego wejścia wewnętrzne (mapa, wyszukiwarka w aplikacji)
+  // rozmyłyby jedyną liczbę, dla której ten pomiar powstał.
+  const zorganizujTutaj = useCallback(() => {
+    void track('boisko_zorganizuj', { fieldId, zrodlo: zrodloRef.current });
+  }, [fieldId]);
+
+  const pobliskieClick = useCallback((celId: string, pozycja: number) => {
+    void track('boisko_pobliskie', { fieldId, celId, pozycja });
+  }, [fieldId]);
   const { user, loading: authLoading } = useAuth();
   const isAdmin = useAdmin();
 
@@ -392,6 +429,7 @@ export default function VenueDetailClient({
             sportSlug={sportSlug}
             sportEtykieta={sportEtykieta}
             pobliskie={pobliskie}
+            onPobliskieClick={pobliskieClick}
           />
         </main>
         <SiteFooter />
@@ -839,7 +877,7 @@ export default function VenueDetailClient({
           )}
 
           <div className="mt-5 space-y-2 pt-4 border-t border-slate-100">
-            <Link href={`/wydarzenia/nowe?fieldId=${field.id}`}>
+            <Link href={`/wydarzenia/nowe?fieldId=${field.id}`} onClick={zorganizujTutaj}>
               <Button className="w-full">Zorganizuj tutaj</Button>
             </Link>
             {/* Powrót na mapę wycelowaną w TEN obiekt. Bez tego jedyną drogą
@@ -871,6 +909,7 @@ export default function VenueDetailClient({
           sportSlug={sportSlug}
           sportEtykieta={sportEtykieta}
           pobliskie={pobliskie}
+          onPobliskieClick={pobliskieClick}
         />
 
         {/* Atrybucja OpenStreetMap. Nie ozdoba — ODbL wymaga uznania autorstwa
