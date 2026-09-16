@@ -4241,8 +4241,18 @@ remis w fazie pucharowej wymaga karnych, sety siatkówki) — patrz
 [domena.md](./domena.md#turniej-rozgrywka-na-żywo-147). Karty meczu na Terminarzu
 (`/turnieje/[id]` i panel) prowadzą teraz do tej strony.
 
-Kolejne etapy (tabela i statystyki, ogłoszenia, „zamień drużynę w ekipę") dochodzą
-w osobnych PR-ach — plan już je rozpisuje co do pliku i funkcji.
+**Etap 3 (bez nowej migracji) — zbudowane:** tabela i statystyki, liczone w
+przeglądarce (`lib/turniejTabela.ts`, `lib/turniejStatystyki.ts`) — patrz
+[domena.md](./domena.md#turniej-tabela-i-statystyki-bez-nowej-migracji). Nowa
+zakładka **Wyniki** na `/turnieje/[id]`: tabela grupy/ligi (`TabelaGrupy.tsx`, publiczna),
+drabinka pucharowa (`Drabinka.tsx` — pionowa lista rund na telefonie, kolumny obok
+siebie od `md:`, bez rysowanych linii łączących na razie) i klasyfikacja strzelców/
+asystentów/MVP (`Klasyfikacja.tsx`, za ścianą logowania, jak skład drużyny). Konsola
+prowadzącego (`/turnieje/[id]/mecz/[meczId]`) dostała przy okazji picker asysty przy
+golu — bez tego klasyfikacja asystentów byłaby zawsze pusta.
+
+Kolejne etapy (ogłoszenia, „zamień drużynę w ekipę", domknięcie i odmrożenie flagi)
+dochodzą w osobnych PR-ach — plan już je rozpisuje co do pliku i funkcji.
 
 ---
 

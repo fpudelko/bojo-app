@@ -252,6 +252,19 @@ export async function getZdarzenia(meczId: string): Promise<TurniejZdarzenie[]> 
   return (data ?? []).map(toZdarzenie);
 }
 
+/** Wszystkie zdarzenia turnieju naraz — do klasyfikacji strzelców/asyst/MVP
+ *  (zakładka Wyniki), żeby nie odpytywać osobno o każdy mecz. `turniej_id`
+ *  jest denormalizowane wyzwalaczem (147) właśnie pod takie zapytania. */
+export async function getZdarzeniaTurnieju(turniejId: string): Promise<TurniejZdarzenie[]> {
+  const { data, error } = await supabase
+    .from('turniej_zdarzenia')
+    .select('*')
+    .eq('turniej_id', turniejId)
+    .order('created_at');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toZdarzenie);
+}
+
 export interface NoweZdarzenie {
   druzynaId: string;
   typ: ZdarzenieTyp;

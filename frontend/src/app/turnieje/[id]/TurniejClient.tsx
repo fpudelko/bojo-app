@@ -12,21 +12,26 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { getTurniej, uprawnieniaTurnieju, getMojaOsobe, przyjmujeZgloszenia } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
-import { getMecze, getAreny } from '@/lib/turniejMecze';
+import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
 import { STATUS_TURNIEJU, STATUS_DRUZYNY, odmienZawodnikow } from '@/lib/turniejEtykiety';
+import { obliczTabele, posortujTabele } from '@/lib/turniejTabela';
+import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDojazdu } from '@/lib/utils';
 import { sportEmoji } from '@/lib/sports';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
-import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena } from '@/types';
+import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
+import Drabinka from '@/components/turnieje/Drabinka';
+import Klasyfikacja from '@/components/turnieje/Klasyfikacja';
+import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie } from '@/types';
 
-type Zakladka = 'info' | 'druzyny' | 'terminarz';
+type Zakladka = 'info' | 'druzyny' | 'terminarz' | 'wyniki';
 
-function SciankaLogowania({ nazwaDruzyny }: { nazwaDruzyny: string }) {
+function SciankaLogowania({ tytul }: { tytul: string }) {
   const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '';
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4 text-center">
       <Lock className="mx-auto mb-2 h-5 w-5 text-slate-400" />
-      <p className="text-sm font-semibold text-ink">Skład drużyny {nazwaDruzyny}</p>
+      <p className="text-sm font-semibold text-ink">{tytul}</p>
       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Składy i statystyki widzą zalogowani gracze.</p>
       <div className="mt-3 flex flex-col gap-2">
         <Link href={`/logowanie?next=${encodeURIComponent(next)}`}>
@@ -54,7 +59,7 @@ function KartaDruzyny({ d, zalogowany }: { d: TurniejDruzyna; zalogowany: boolea
       {rozwinieta && (
         <div className="border-t border-slate-100 dark:border-slate-700 p-3.5">
           {!zalogowany ? (
-            <SciankaLogowania nazwaDruzyny={d.nazwa} />
+            <SciankaLogowania tytul={`Skład drużyny ${d.nazwa}`} />
           ) : d.zawodnicy && d.zawodnicy.length > 0 ? (
             <ul className="space-y-1.5">
               {d.zawodnicy.map((z) => (
@@ -88,11 +93,14 @@ export default function TurniejClient() {
   const [osoba, setOsoba] = useState<TurniejOsoba | null>(null);
   const [mecze, setMecze] = useState<TurniejMecz[]>([]);
   const [areny, setAreny] = useState<TurniejArena[]>([]);
+  const [grupy, setGrupy] = useState<TurniejGrupa[]>([]);
+  const [zdarzenia, setZdarzenia] = useState<TurniejZdarzenie[]>([]);
   const [ladowanie, setLadowanie] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   const tabParam = searchParams.get('tab');
-  const zakladka: Zakladka = tabParam === 'druzyny' ? 'druzyny' : tabParam === 'terminarz' ? 'terminarz' : 'info';
+  const zakladka: Zakladka =
+    tabParam === 'druzyny' ? 'druzyny' : tabParam === 'terminarz' ? 'terminarz' : tabParam === 'wyniki' ? 'wyniki' : 'info';
 
   useEffect(() => {
     let aktualne = true;
@@ -102,17 +110,21 @@ export default function TurniejClient() {
         if (!aktualne) return;
         if (!t) { setNotFound(true); setLadowanie(false); return; }
         setTurniej(t);
-        const [d, o, m, a] = await Promise.all([
+        const [d, o, m, a, g, z] = await Promise.all([
           user ? getDruzynyZeSkladem(id) : getDruzyny(id),
           user ? getMojaOsobe(id, user.id) : Promise.resolve(null),
           getMecze(id),
           getAreny(id),
+          getGrupy(id),
+          getZdarzeniaTurnieju(id),
         ]);
         if (!aktualne) return;
         setDruzyny(d);
         setOsoba(o);
         setMecze(m);
         setAreny(a);
+        setGrupy(g);
+        setZdarzenia(z);
       })
       .catch(() => { if (aktualne) setNotFound(true); })
       .finally(() => { if (aktualne) setLadowanie(false); });
@@ -145,6 +157,38 @@ export default function TurniejClient() {
   const meczePoId = new Map(mecze.map((m) => [m.id, m]));
   const arenyPoId = new Map(areny.map((a) => [a.id, a.nazwa]));
   const status = STATUS_TURNIEJU[turniej.status];
+
+  const meczeGrupowe = mecze.filter((m) => m.faza === 'grupa' || m.faza === 'liga');
+  const meczeDrabinki = mecze.filter((m) => m.faza !== 'grupa' && m.faza !== 'liga');
+  const pozycjeReczne = new Map(
+    druzyny.filter((d) => d.pozycjaRecznie !== undefined).map((d) => [d.id, d.pozycjaRecznie!]),
+  );
+  const opcjeTabeli = { punktyZaWygrana: turniej.punktyZaWygrana, punktyZaRemis: turniej.punktyZaRemis };
+  const tabeleGrup: { grupa?: TurniejGrupa; wiersze: ReturnType<typeof posortujTabele> }[] =
+    grupy.length > 0
+      ? grupy.map((g) => ({
+          grupa: g,
+          wiersze: posortujTabele(
+            obliczTabele(
+              meczeGrupowe.filter((m) => m.grupaId === g.id),
+              druzyny.filter((d) => d.grupaId === g.id),
+              opcjeTabeli,
+            ),
+            pozycjeReczne,
+          ),
+        }))
+      : meczeGrupowe.length > 0 || turniej.format === 'liga'
+        ? [{ grupa: undefined, wiersze: posortujTabele(obliczTabele(meczeGrupowe, druzyny, opcjeTabeli), pozycjeReczne) }]
+        : [];
+
+  const zawodnicyDoStatystyk = druzyny.flatMap((d) => d.zawodnicy ?? []);
+  const mvpPoMeczach = mecze
+    .filter((m) => m.status === 'zakonczony' || m.status === 'walkower')
+    .map((m) => ({ mvpZawodnikId: m.mvpZawodnikId }));
+  const klasyfikacje = obliczKlasyfikacje(zdarzenia, mvpPoMeczach, zawodnicyDoStatystyk, druzynyPoId);
+  const strzelcy = posortujKlasyfikacje(klasyfikacje, 'gole');
+  const asystenci = posortujKlasyfikacje(klasyfikacje, 'asysty');
+  const mvpList = posortujKlasyfikacje(klasyfikacje, 'mvp');
   const dojazd = linkDojazdu({ lat: turniej.lat, lng: turniej.lng, adres: turniej.miejsceAdres });
   let dataLabel = turniej.dataStartu;
   try { dataLabel = format(parseISO(turniej.dataStartu), 'EEEE, d MMMM', { locale: pl }); } catch { /* zostaw surową datę */ }
@@ -174,7 +218,7 @@ export default function TurniejClient() {
           )}
         </div>
         <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
-          {(['info', 'druzyny', 'terminarz'] as Zakladka[]).map((z) => (
+          {(['info', 'druzyny', 'terminarz', 'wyniki'] as Zakladka[]).map((z) => (
             <button
               key={z}
               onClick={() => router.push(`/turnieje/${id}?tab=${z}`)}
@@ -183,7 +227,7 @@ export default function TurniejClient() {
                 zakladka === z ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800',
               ].join(' ')}
             >
-              {z === 'info' ? 'Info' : z === 'druzyny' ? `Drużyny (${druzyny.length})` : 'Terminarz'}
+              {z === 'info' ? 'Info' : z === 'druzyny' ? `Drużyny (${druzyny.length})` : z === 'terminarz' ? 'Terminarz' : 'Wyniki'}
             </button>
           ))}
         </div>
@@ -282,6 +326,56 @@ export default function TurniejClient() {
               ))}
             </div>
           )
+        )}
+
+        {zakladka === 'wyniki' && (
+          <div className="space-y-6">
+            {tabeleGrup.map(({ grupa, wiersze }) => (
+              <div key={grupa?.id ?? 'liga'} className="space-y-2">
+                {grupa && <h2 className="text-sm font-semibold text-slate-500">Grupa {grupa.nazwa}</h2>}
+                <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} />
+              </div>
+            ))}
+
+            {meczeDrabinki.length > 0 && (
+              <div className="space-y-2">
+                <h2 className="text-sm font-semibold text-slate-500">Drabinka</h2>
+                <Drabinka
+                  mecze={meczeDrabinki}
+                  druzynyPoId={druzynyPoId}
+                  meczePoId={meczePoId}
+                  arenyPoId={arenyPoId}
+                  onKlikMeczu={(meczId) => router.push(`/turnieje/${id}/mecz/${meczId}`)}
+                />
+              </div>
+            )}
+
+            {tabeleGrup.length === 0 && meczeDrabinki.length === 0 && (
+              <p className="py-10 text-center text-sm text-slate-400">Jeszcze nie ma czego pokazać — poczekaj na pierwsze wyniki.</p>
+            )}
+
+            <div className="space-y-3 border-t border-slate-100 dark:border-slate-700 pt-4">
+              <h2 className="text-sm font-semibold text-slate-500">Statystyki graczy</h2>
+              {!user ? (
+                <SciankaLogowania tytul="Statystyki graczy" />
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej goli</h3>
+                    <Klasyfikacja wpisy={strzelcy} klucz="gole" etykietaKolumny="Gole" pusteMiejsce="Jeszcze nikt nie strzelił." />
+                  </div>
+                  <div>
+                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej asyst</h3>
+                    <Klasyfikacja wpisy={asystenci} klucz="asysty" etykietaKolumny="Asysty" pusteMiejsce="Jeszcze nikt nie zaliczył asysty." />
+                  </div>
+                  <div>
+                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej tytułów MVP</h3>
+                    <Klasyfikacja wpisy={mvpList} klucz="mvp" etykietaKolumny="MVP" pusteMiejsce="MVP jeszcze nie wybrano." />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </main>
     </div>

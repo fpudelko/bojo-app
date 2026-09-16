@@ -988,7 +988,48 @@ sprzed propagacji zwycięzcy do kolejnej rundy jest ryzykowne (kolejny mecz móg
 korzystać z tej drużyny) i nie ma go w planie. „Cofnij" dotyczy wyłącznie pomyłki przy
 OSTATNIM kliknięciu w trwającym meczu.
 
-**Konsola nie zbiera asysty ani nie wymusza wskazania strzelca.** Pole
-`asysta_zawodnik_id` istnieje w schemacie (pod przyszłe statystyki, Etap 3), ale UI go
-dziś nie wypełnia — wskazanie zawodnika przy golu/kartce jest OPCJONALNE, żeby
-zapisanie zdarzenia w trakcie gry było jednym kliknięciem, nie dwoma wyborami z listy.
+**Konsola nie wymusza wskazania strzelca ani asysty.** Wskazanie zawodnika przy
+golu/kartce jest OPCJONALNE, żeby zapisanie zdarzenia w trakcie gry dało się zrobić
+jednym kliknięciem, gdy prowadzący nie zdążył/nie chce wybierać z listy — dopisany
+później (Etap 3) picker asysty przy golu jest równie opcjonalny, z tego samego powodu.
+
+## Turniej: tabela i statystyki (bez nowej migracji)
+
+Tabela ligowa/grupowa i klasyfikacje indywidualne (strzelcy, asystenci, MVP) liczą się
+WYŁĄCZNIE w przeglądarce (`lib/turniejTabela.ts`, `lib/turniejStatystyki.ts`) z już
+pobranych meczów/zdarzeń — zero widoku SQL. Ten sam powód co przy generatorze
+terminarza (146): widok czytałby tabele wprost, z pominięciem polityk RLS nałożonych
+na `turniej_mecze`/`turniej_zawodnicy` — dwie drogi do tych samych danych to gwarancja,
+że kiedyś się rozjadą.
+
+**Tabela liczy się z fazy, nie z formatu turnieju.** Mecze `faza IN ('grupa','liga')`
+idą do tabeli, reszta (`1/32`…`final`, `o_3_miejsce`) do drabinki — sprawdzane wprost
+na każdym meczu, nie przez `turnieje.format`. Dzięki temu `grupy_puchar` (dziś: tylko
+faza grupowa generowana automatycznie, patrz sekcja wyżej) dostanie drabinkę za darmo,
+gdy tylko organizator (ręcznie, przyszły etap) doda mecze pucharowe — kod czytający
+wynik nie będzie wymagał zmiany.
+
+**Remis w tabeli liczy się z `zwyciezca_id IS NULL`, nie z porównania wyniku.** To samo
+pole, które `zakoncz_mecz()` (147) ustawia raz, przy kończeniu meczu — dzięki temu
+walkower (0:0, a jednak jest zwycięzca) liczy się poprawnie jako zwycięstwo, nie remis.
+
+**Pozycja ręczna (`turniej_druzyny.pozycja_recznie`) jest zaprojektowana i przetestowana,
+ale BEZ INTERFEJSU do jej ustawienia w tej iteracji.** `posortujTabele()` już respektuje
+tę kolumnę (wstawia drużynę na wskazane miejsce, resztę sortuje kryteriami wokół niej) —
+brakuje wyłącznie panelu, w którym organizator wpisałby wartość. Świadomy, ograniczony
+zakres: to jest rozstrzygnięcie rzadkiego przypadku (remis bezpośredni, kartki —
+kryteriów, których ta wersja NIE liczy), a nie ścieżka główna.
+
+**Klasyfikacja pokazuje wyłącznie zawodników z choć jednym zdarzeniem.** Bojo nie
+śledzi pełnego składu wyjściowego ani zmian — `mecze` w wierszu klasyfikacji to
+PRZYBLIŻENIE (liczba różnych meczów, w których zawodnik ma choć jedno zdarzenie), nie
+prawdziwa liczba rozegranych minut. Zawodnik bez ani jednego gola/asysty/kartki w całym
+turnieju nie pojawia się w klasyfikacji wcale — tabela ma sens tylko dla tych, którzy
+w niej COŚ zrobili.
+
+**Statystyki graczy są za ścianą logowania, tabela drużyn nie jest.** Zakładka Wyniki
+pokazuje tabelę/drabinkę każdemu (dane na poziomie DRUŻYNY są publiczne), ale sekcję
+klasyfikacji indywidualnej — dopiero zalogowanemu, bo imiona zawodników czyta wyłącznie
+`auth.uid() IS NOT NULL` (145). Bez tego rozróżnienia klasyfikacja dla niezalogowanego
+po prostu wyszłaby PUSTA (brak nazwisk do dopasowania) zamiast wprost poprosić
+o zalogowanie — myląca cisza zamiast jasnego komunikatu.
