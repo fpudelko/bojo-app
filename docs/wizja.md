@@ -147,14 +147,14 @@ Legenda:
 | (później) zarezerwuj obiekt przez apkę | `ZBUDOWANE, UKRYTE` | **Wyprzedza roadmapę.** `lib/bookings.ts`, `/obiekt/*`, `/rezerwacje`; flaga `FEATURE_RESERVATIONS` |
 | (później) rozliczanie płatności | `CZĘŚCIOWO` | Rejestrowanie kto zapłacił — tak. Realny przepływ pieniędzy (BLIK/Stripe) — nie |
 | (później) wynajmij sędziego | `NIE ZNALEZIONO` | — |
-| (później) turniej firmowy, liga | `CZĘŚCIOWO` | **Wyprzedza roadmapę, w przebudowie od 2026-09-13.** Dawny „BOJO Cup" (`lib/tournaments.ts`, `tournament_*`, `SHOW_CUP`) skasowany — zastąpiony nowym modułem budowanym etapami za flagą `SHOW_TURNIEJE`, plan → [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało) |
+| (później) turniej firmowy, liga | `ZBUDOWANE` | **Wyprzedzało roadmapę, przebudowane 2026-09-13 do 2026-09-16.** Dawny „BOJO Cup" (`lib/tournaments.ts`, `tournament_*`, `SHOW_CUP`) skasowany — zastąpiony nowym modułem, `SHOW_TURNIEJE` włączona, plan → [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało) |
 
 ### B. Poziom socjalny
 
 | Propozycja wartości | Status | Szczegóły |
 |---|---|---|
 | (później) Rywalizacja i statystyki — **gole, asysty, liczba gier** | `ZBUDOWANE` | RPC `get_player_stats`, tabele `player_goals`, `match_results`, `player_stats` |
-| …**MVP** | `CZĘŚCIOWO` | Nowy moduł turniejowy planuje MVP meczu i turnieju (prowadzący wybiera ręcznie) — patrz [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało) |
+| …**MVP** | `ZBUDOWANE` | Moduł turniejowy: MVP meczu i turnieju wybiera prowadzący ręcznie (`turniej_mecze.mvp_zawodnik_id`, bez głosowania graczy) — patrz [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało) |
 | …statystyki dla **zamkniętych grup** | `ZBUDOWANE` | `getGroupPlayerStats` w `lib/eventFeatures.ts` |
 | …**rankingi publiczne** | `NIE ZNALEZIONO` | — |
 | (później) Profil gracza | `ZBUDOWANE` | `/gracz/[id]`, `lib/players.ts` |
@@ -201,5 +201,6 @@ roadmapie, czy zostawić do czasu, aż będzie na to popyt.
 
 **Turniej** przeszedł tę decyzję 2026-09-13: dawny „BOJO Cup" wyprzedzał roadmapę bez
 popytu (jedna edycja wpisana seedem, admin jako jedyny organizator) i został skasowany
-na rzecz modułu, w którym turniej zakłada każdy organizator — patrz
+na rzecz modułu, w którym turniej zakłada każdy organizator. Zbudowany etapami do
+2026-09-16 i odmrożony (`SHOW_TURNIEJE`) — patrz
 [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało).

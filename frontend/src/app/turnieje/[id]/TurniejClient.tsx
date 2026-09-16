@@ -5,24 +5,30 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { ArrowLeft, CalendarDays, MapPin, Users, Navigation, Settings, Lock } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, Users, Navigation, Settings, Lock, Share2, Repeat } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
-import { getTurniej, uprawnieniaTurnieju, getMojaOsobe, przyjmujeZgloszenia } from '@/lib/turnieje';
-import { getDruzyny, getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
+import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
+import {
+  getTurniej, uprawnieniaTurnieju, getMojaOsobe, przyjmujeZgloszenia,
+  getOgloszenia, dodajOgloszenie, usunOgloszenie, getBlikTurnieju,
+} from '@/lib/turnieje';
+import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
 import { STATUS_TURNIEJU, STATUS_DRUZYNY, odmienZawodnikow } from '@/lib/turniejEtykiety';
 import { obliczTabele, posortujTabele } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
+import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
 import { linkDojazdu } from '@/lib/utils';
 import { sportEmoji } from '@/lib/sports';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
 import Drabinka from '@/components/turnieje/Drabinka';
 import Klasyfikacja from '@/components/turnieje/Klasyfikacja';
-import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie } from '@/types';
+import Ogloszenia from '@/components/turnieje/Ogloszenia';
+import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie, TurniejOgloszenie } from '@/types';
 
 type Zakladka = 'info' | 'druzyny' | 'terminarz' | 'wyniki';
 
@@ -42,7 +48,11 @@ function SciankaLogowania({ tytul }: { tytul: string }) {
   );
 }
 
-function KartaDruzyny({ d, zalogowany }: { d: TurniejDruzyna; zalogowany: boolean }) {
+function KartaDruzyny({
+  d, zalogowany, czyMoja, onZamienWEkipe,
+}: {
+  d: TurniejDruzyna; zalogowany: boolean; czyMoja: boolean; onZamienWEkipe: (d: TurniejDruzyna) => void;
+}) {
   const [rozwinieta, setRozwinieta] = useState(false);
   const status = STATUS_DRUZYNY[d.status];
   return (
@@ -57,7 +67,7 @@ function KartaDruzyny({ d, zalogowany }: { d: TurniejDruzyna; zalogowany: boolea
         <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
       </button>
       {rozwinieta && (
-        <div className="border-t border-slate-100 dark:border-slate-700 p-3.5">
+        <div className="border-t border-slate-100 dark:border-slate-700 p-3.5 space-y-3">
           {!zalogowany ? (
             <SciankaLogowania tytul={`Skład drużyny ${d.nazwa}`} />
           ) : d.zawodnicy && d.zawodnicy.length > 0 ? (
@@ -75,6 +85,14 @@ function KartaDruzyny({ d, zalogowany }: { d: TurniejDruzyna; zalogowany: boolea
           ) : (
             <p className="text-sm text-slate-400">Skład jeszcze pusty.</p>
           )}
+          {czyMoja && (
+            <button
+              onClick={() => onZamienWEkipe(d)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600"
+            >
+              <Repeat className="h-3.5 w-3.5" /> Zamień drużynę w ekipę
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -87,6 +105,7 @@ export default function TurniejClient() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
 
   const [turniej, setTurniej] = useState<Turniej | null>(null);
   const [druzyny, setDruzyny] = useState<TurniejDruzyna[]>([]);
@@ -95,6 +114,9 @@ export default function TurniejClient() {
   const [areny, setAreny] = useState<TurniejArena[]>([]);
   const [grupy, setGrupy] = useState<TurniejGrupa[]>([]);
   const [zdarzenia, setZdarzenia] = useState<TurniejZdarzenie[]>([]);
+  const [ogloszenia, setOgloszenia] = useState<TurniejOgloszenie[]>([]);
+  const [mojaDruzyna, setMojaDruzyna] = useState<TurniejDruzyna | null>(null);
+  const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
   const [ladowanie, setLadowanie] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -110,13 +132,15 @@ export default function TurniejClient() {
         if (!aktualne) return;
         if (!t) { setNotFound(true); setLadowanie(false); return; }
         setTurniej(t);
-        const [d, o, m, a, g, z] = await Promise.all([
+        const [d, o, m, a, g, z, og, mj] = await Promise.all([
           user ? getDruzynyZeSkladem(id) : getDruzyny(id),
           user ? getMojaOsobe(id, user.id) : Promise.resolve(null),
           getMecze(id),
           getAreny(id),
           getGrupy(id),
           getZdarzeniaTurnieju(id),
+          getOgloszenia(id),
+          user ? getMojaDruzyne(id, user.id) : Promise.resolve(null),
         ]);
         if (!aktualne) return;
         setDruzyny(d);
@@ -125,6 +149,15 @@ export default function TurniejClient() {
         setAreny(a);
         setGrupy(g);
         setZdarzenia(z);
+        setOgloszenia(og);
+        setMojaDruzyna(mj);
+        // BLIK: tylko organizator/zarządzający i kapitanowie mają RLS-owe
+        // prawo do wiersza — reszta po prostu nie dostanie nic, więc wołanie
+        // „na wszelki wypadek" jest bezpieczne i nie wymaga sprawdzania roli
+        // z wyprzedzeniem.
+        if (t.wpisoweGrosze > 0 && user) {
+          getBlikTurnieju(id).then((tel) => { if (aktualne) setBlikTelefon(tel); }).catch(() => {});
+        }
       })
       .catch(() => { if (aktualne) setNotFound(true); })
       .finally(() => { if (aktualne) setLadowanie(false); });
@@ -193,12 +226,47 @@ export default function TurniejClient() {
   let dataLabel = turniej.dataStartu;
   try { dataLabel = format(parseISO(turniej.dataStartu), 'EEEE, d MMMM', { locale: pl }); } catch { /* zostaw surową datę */ }
 
-  const kopiujLink = async () => {
+  const udostepnij = async () => {
+    const wynik = await udostepnijTurniej(turniej, linkDoTurnieju(id));
+    if (wynik === 'copied') toast('Link skopiowany');
+    else if (wynik === 'failed') toast('Nie udało się udostępnić', 'error');
+  };
+
+  const dodajOgloszenieAkcja = async (tresc: string) => {
+    if (!user) return;
     try {
-      await navigator.clipboard.writeText(window.location.href);
-      toast('Link skopiowany');
-    } catch {
-      toast('Nie udało się skopiować linku', 'error');
+      await dodajOgloszenie(id, user.id, tresc);
+      setOgloszenia(await getOgloszenia(id));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się opublikować ogłoszenia', 'error');
+    }
+  };
+
+  const usunOgloszenieAkcja = async (ogloszenieId: string) => {
+    try {
+      await usunOgloszenie(ogloszenieId);
+      setOgloszenia((poprzednie) => poprzednie.filter((o) => o.id !== ogloszenieId));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się usunąć ogłoszenia', 'error');
+    }
+  };
+
+  const zamienWEkipeAkcja = async (d: TurniejDruzyna) => {
+    const wynik = await potwierdz({
+      tytul: `Zamienić ${d.nazwa} w ekipę?`,
+      konsekwencje: [
+        'Cały skład z kontem w Bojo dołączy jako członkowie nowej ekipy',
+        'Będziesz mógł umawiać z nimi mecze poza turniejami',
+      ],
+      potwierdzLabel: 'Zamień w ekipę',
+    });
+    if (wynik !== 'tak') return;
+    try {
+      const grupaId = await zamienDruzyneWEkipe(d.id);
+      toast('Ekipa utworzona');
+      router.push(`/grupy/${grupaId}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się utworzyć ekipy', 'error');
     }
   };
 
@@ -277,8 +345,35 @@ export default function TurniejClient() {
                   <p className="mt-2 whitespace-pre-wrap text-slate-600 dark:text-slate-300">{turniej.regulamin}</p>
                 </details>
               )}
-              <button onClick={kopiujLink} className="text-sm font-medium text-primary-600">Kopiuj link</button>
+              <button onClick={udostepnij} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600">
+                <Share2 className="h-4 w-4" /> Udostępnij
+              </button>
             </div>
+
+            {turniej.wpisoweGrosze > 0 && !!mojaDruzyna && mojaDruzyna.kapitanId === user?.id && (
+              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-1.5 text-sm">
+                <p className="font-medium text-ink">
+                  Wpisowe: {(turniej.wpisoweGrosze / 100).toFixed(0)} zł
+                  {mojaDruzyna.wpisoweOplaconeAt ? (
+                    <span className="ml-2 text-primary-700">Opłacone ✓</span>
+                  ) : (
+                    <span className="ml-2 text-slate-400">jeszcze nieopłacone</span>
+                  )}
+                </p>
+                {blikTelefon ? (
+                  <p className="text-slate-600 dark:text-slate-300">BLIK: {blikTelefon}</p>
+                ) : (
+                  <p className="text-slate-400">Organizator jeszcze nie podał numeru BLIK.</p>
+                )}
+              </div>
+            )}
+
+            <Ogloszenia
+              ogloszenia={ogloszenia}
+              mozeZarzadzac={uprawnienia.mozeEdytowac}
+              onDodaj={dodajOgloszenieAkcja}
+              onUsun={usunOgloszenieAkcja}
+            />
 
             {przyjmujeZgloszenia(turniej, druzyny.length) && (
               <Link href={`/turnieje/${id}/zglos`}>
@@ -300,7 +395,15 @@ export default function TurniejClient() {
               <p className="py-10 text-center text-sm text-slate-400">Nikt się jeszcze nie zgłosił.</p>
             ) : (
               <div className="space-y-2">
-                {druzyny.map((d) => <KartaDruzyny key={d.id} d={d} zalogowany={!!user} />)}
+                {druzyny.map((d) => (
+                  <KartaDruzyny
+                    key={d.id}
+                    d={d}
+                    zalogowany={!!user}
+                    czyMoja={d.id === mojaDruzyna?.id && d.kapitanId === user?.id}
+                    onZamienWEkipe={zamienWEkipeAkcja}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -378,6 +481,7 @@ export default function TurniejClient() {
           </div>
         )}
       </main>
+      {oknoPotwierdzenia}
     </div>
   );
 }

@@ -7,21 +7,22 @@
 /**
  * Moduł turniejowy (`/turnieje/*`) — turniej z zapisami drużyn, terminarzem
  * generowanym automatycznie i wynikami wpisywanymi na żywo przez prowadzącego.
- * Kod: `lib/turnieje.ts`, `lib/turniejDruzyny.ts`, migracja `145`.
+ * Kod: `lib/turnieje.ts`, `lib/turniejDruzyny.ts`, migracje `145`–`150`.
  *
  * Nie mylić ze starym „BOJO Cup" (`SHOW_CUP`, usunięty 2026-09-13 razem z
- * `lib/tournaments.ts` i tabelami `tournament_*` — kasowane osobno migracją
- * `151_zegnaj_stary_turniej.sql`, gdy ten moduł zastąpi go w całości): tamten turniej zakładał
- * wyłącznie admin, był jeden, a drużyny umawiały mecze same przez tygodnie.
- * Ten zakłada każdy organizator, wielu naraz, z terminarzem z góry na jeden
- * dzień/weekend. Plan → `docs/turnieje-plan-duze-klocki.md` i
+ * `lib/tournaments.ts`; tabele `tournament_*` skasowane migracją `151` razem
+ * z odmrożeniem tej flagi): tamten turniej zakładał wyłącznie admin, był
+ * jeden, a drużyny umawiały mecze same przez tygodnie. Ten zakłada każdy
+ * organizator, wielu naraz, z terminarzem z góry na jeden dzień/weekend.
+ * Plan → `docs/turnieje-plan-duze-klocki.md` i
  * `docs/turnieje-plan-srednie-klocki.md`.
  *
- * WYŁĄCZONA do zakończenia Etapu 4 (domknięcie + odmrożenie) — moduł powstaje
- * etapami, każdy w osobnym PR-ze, i do samego końca nikt poza deweloperem nie
- * ma jak wejść na te trasy.
+ * WŁĄCZONA od zakończenia Etapu 4 (150: ogłoszenia, BLIK, „zamień drużynę
+ * w ekipę"). Wejście: `/moje-gry` i `/profil` (link „🏆 Turnieje"), link
+ * udostępniony. Dolna nawigacja zostaje nietknięta — produktowa decyzja
+ * z planu, nie oszczędność.
  */
-export const SHOW_TURNIEJE = false;
+export const SHOW_TURNIEJE = true;
 
 /**
  * Game alerts — "Powiadom mnie, gdy się pojawi": a saved sport + place + radius

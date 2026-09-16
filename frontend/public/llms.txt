@@ -32,6 +32,8 @@
 - [Rozmowy](/rozmowy): wszystkie rozmowy — mecze, ekipy i wiadomości prywatne — w jednym miejscu, od najnowszej
 - [Grupy](/grupy): stałe ekipy — mecze, rozmowa, statystyki i uprawnienia
   współorganizatorów w jednym miejscu; dołączanie wyłącznie kodem zaproszenia
+- [Turnieje](/turnieje): zgłoszenia drużyn, terminarz generowany automatycznie, wyniki
+  na żywo, tabela i statystyki graczy
 - [Profil](/profil): imię, awatar, telefon, usunięcie konta
 
 ## Boiska

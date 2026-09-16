@@ -1,7 +1,8 @@
 # Baza danych
 
-147 migracji (`001`–`149`, z lukami w numeracji — dwóch numerów tuż przed `082` brak) w
-`supabase/migrations/`. Modele domenowe → [domena.md](./domena.md).
+150 migracji (`001`–`152`, z lukami w numeracji — dwóch numerów tuż przed `082` brak,
+`150`/`151` nie są bezpośrednio przed `152`) w `supabase/migrations/`. Modele domenowe →
+[domena.md](./domena.md).
 
 ---
 
@@ -140,7 +141,7 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `team_proposals` | `059` | Propozycje składów od uczestników |
 | `team_proposal_picks` | `059` | Przypisania graczy w propozycji |
 | `team_proposal_votes` | `059` | Poparcia propozycji |
-| `tournaments` i 5 tabel `tournament_*` | `029` | **MARTWE** — dawny „BOJO Cup", zastąpiony modułem niżej. Kod usunięty z frontu; tabele kasuje osobna migracja `151`, uruchamiana świadomie, gdy nowy moduł zastąpi go w całości |
+| ~~`tournaments` i 6 tabel `tournament_*`~~ | `029` | **SKASOWANE migracją `151`** — dawny „BOJO Cup", zastąpiony modułem niżej w całości. Kod usunięty z frontu już w Etapie 0 (2026-09-13) |
 | `event_delegates` | `089` | Delegowanie uprawnień organizatora (`can_edit`/`can_manage_squad`/`can_manage_payments`) — patrz `090` niżej |
 | `push_subscriptions` | `102` | Subskrypcje web-push, jedna na przeglądarkę. Każdy widzi i kasuje wyłącznie swoje |
 | `konfiguracja_push` | `102` | Adres funkcji `send-push` i sekret wyzwalacza. RLS bez polityk — przez API nieczytelna |
@@ -155,6 +156,8 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `turniej_areny` | `146` | Boiska turnieju — jeden turniej gra zwykle na 2-3 naraz. Wyzwalacz `utworz_domyslna_arene()` zakłada „Boisko 1" przy każdym nowym turnieju (kreator o nie nie pyta) |
 | `turniej_mecze` | `146` | Terminarz. `zrodlo_a_mecz_id`/`zrodlo_b_mecz_id` + `zrodlo_a_typ`/`zrodlo_b_typ` łączą mecze drabinki w drzewo (wzajemne odwołania w JEDNYM wielorzędowym INSERCIE — UUID-y meczów nadaje przeglądarka). Wyzwalacz `propaguj_zwyciezce()` przenosi zwycięzcę/przegranego do kolejnej rundy po `UPDATE ... SET status IN ('zakonczony','walkower')` |
 | `turniej_zdarzenia` | `147` | Gole/kartki/punkty (piłka nożna, koszykówka). Siatkówka/plażówka NIE korzysta z tej tabeli — wynik trzyma się w `turniej_mecze.sety`. Wyzwalacz `trg_zdarzenia_przelicz` (`AFTER INSERT OR DELETE`) przelicza `turniej_mecze.wynik_a`/`wynik_b` przez `przelicz_wynik_meczu()`; samobójczy dolicza się PRZECIWNIKOWI drużyny z `druzyna_id` |
+| `turniej_ogloszenia` | `150` | Ogłoszenia organizatora — **publiczne** (`SELECT USING (true)`, jak terminarz), inaczej niż skład. Pisze wyłącznie `czy_zarzadza_turniejem()`. Wyzwalacz notyfikuje każdego zawodnika z kontem w przyjętej drużynie (typ `turniej_ogloszenie`) |
+| `turniej_blik` | `150` | Numer BLIK organizatora do wpisowego — osobna tabela z tego samego powodu co `event_blik` (`120`): RLS wierszowe, `turnieje` czyta każdy. Widzi zarządzający i kapitan KAŻDEJ drużyny (także rezerwowej) |
 
 **Tabela `games` (`001`) jest martwa** — powstała w pierwszym schemacie i została
 zastąpiona przez `events` (`002`). Żaden kod jej nie używa.
@@ -270,7 +273,7 @@ powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 | `set_event_teams_published` | Publikacja składów. `SECURITY DEFINER` + `can_manage_squad()` od `090` (wcześniej `SECURITY INVOKER` z `organizer_id` wpisanym wprost w `WHERE`) |
 | `generate_join_code` | Kod dołączenia do meczu |
 | `add_group_creator_as_member` | Trigger — twórca grupy zostaje członkiem |
-| `tournament_team_count`, `shared_availability_days`, `admin_team_contacts` | **Martwe** — dawny „BOJO Cup" (`029`), kasowane migracją `151` razem z tabelami |
+| ~~`tournament_team_count`, `shared_availability_days`, `admin_team_contacts`~~ | **SKASOWANE migracją `151`** — dawny „BOJO Cup" (`029`), razem z tabelami |
 | `czy_organizator_turnieju`, `czy_zarzadza_turniejem`, `czy_zarzadza_druzynami`, `czy_kapitan_druzyny` | Nowy moduł turniejowy (`145`) — funkcje pomocnicze do polityk RLS, wzorem `can_edit_event()`/`czy_czlonek_grupy()` |
 | `dolacz_do_druzyny_kodem` | Jedyna droga wejścia do drużyny turniejowej (`/t/[kod]`): kapitanat, przypisanie do wolnego wpisu składu albo dopisanie nowego — jedna transakcja (`SECURITY DEFINER`, `145`) |
 | `turniej_kontakty` | Telefon i e-mail kapitanów — wyłącznie dla zarządzających turniejem, bo kolumny są odebrane grantem (`SECURITY DEFINER`, `145`) |
@@ -279,6 +282,7 @@ powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 | `przesun_terminarz` | Przesuwa wskazany mecz i wszystkie kolejne wciąż-zaplanowane o N minut, powiadamia zawodników z kontem (`SECURITY DEFINER`, `146`) |
 | `przelicz_wynik_meczu` | Sumuje `turniej_zdarzenia` na `wynik_a`/`wynik_b` meczu — wołana wyzwalaczem po każdym dopisaniu/skasowaniu zdarzenia, nigdy ręcznie z klienta (`SECURITY DEFINER`, `147`) |
 | `zakoncz_mecz` | Wyznacza zwycięzcę (albo `NULL` przy remisie w grupie/lidze), zapisuje karne i MVP. Odmawia remisu w fazie pucharowej bez rozstrzygających karnych — inaczej `propaguj_zwyciezce` (146) nie miałby kogo przenieść dalej (`SECURITY DEFINER`, `147`) |
+| `zamien_druzyne_w_ekipe` | Zakłada `groups` z nazwy drużyny turniejowej i dopisuje do `group_members` cały skład z `user_id`. Sprawdza wprost `kapitan_id = auth.uid()` — to przycisk kapitana, nie zarządzającego turniejem (`SECURITY DEFINER`, `150`) |
 | `sync_reserve_claim` | Utrzymuje kolejkę ofert zwolnionego miejsca i powiadamia o ofercie (`SECURITY DEFINER`, `062`) |
 | `zglos_brak_pelnej_nazwy` | Wołana z przeglądarki (`supabase.rpc()`) przez świeżo zalogowanego użytkownika bez pełnego imienia i nazwiska — wstawia powiadomienie `uzupelnij_profil`, chyba że już istnieje (`SECURITY DEFINER`, `086`) |
 | `accept_team_proposal` | Przenosi propozycję składów na realne drużyny (`SECURITY DEFINER`) |

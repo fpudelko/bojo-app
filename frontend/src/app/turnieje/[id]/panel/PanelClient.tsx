@@ -11,13 +11,15 @@ import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
+import { blikPhoneDigits, formatBlikPhone } from '@/lib/payments';
 import {
   getTurniej, uprawnieniaTurnieju, getOsobyTurnieju, setUprawnieniaOsoby,
   usunOsobeZTurnieju, updateTurniej, setStatusTurnieju, deleteTurniej,
+  getBlikTurnieju, ustawBlikTurnieju,
 } from '@/lib/turnieje';
 import {
   getDruzynyZeSkladem, setStatusDruzyny, dodajDruzyneRecznie, getKontakty, usunDruzyne,
-  ustawGrupeDruzyny,
+  ustawGrupeDruzyny, setWpisowe,
 } from '@/lib/turniejDruzyny';
 import {
   getGrupy, dodajGrupe, usunGrupe, getAreny, dodajArene, zmienNazweAreny, usunArene,
@@ -68,6 +70,8 @@ export default function PanelClient() {
   const [podglad, setPodglad] = useState<NowyMecz[] | null>(null);
   const [przesunMeczId, setPrzesunMeczId] = useState('');
   const [przesunMinuty, setPrzesunMinuty] = useState(15);
+  const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
+  const [blikWpis, setBlikWpis] = useState('');
 
   const tabParam = searchParams.get('tab');
   const zakladka: PanelTab =
@@ -83,6 +87,11 @@ export default function PanelClient() {
     setGrupy(g);
     setAreny(a);
     setMecze(m);
+    if (t && t.wpisoweGrosze > 0) {
+      const tel = await getBlikTurnieju(id).catch(() => null);
+      setBlikTelefon(tel);
+      setBlikWpis(tel ? formatBlikPhone(tel) : '');
+    }
   };
 
   useEffect(() => {
@@ -196,6 +205,25 @@ export default function PanelClient() {
       URL.revokeObjectURL(url);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się pobrać kontaktów', 'error');
+    }
+  };
+
+  const przelaczOplacone = async (d: TurniejDruzyna) => {
+    try {
+      await setWpisowe(d.id, !d.wpisoweOplaconeAt);
+      await wczytaj();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać wpisowego', 'error');
+    }
+  };
+
+  const zapiszBlikAkcja = async () => {
+    try {
+      await ustawBlikTurnieju(id, blikPhoneDigits(blikWpis));
+      setBlikTelefon(blikPhoneDigits(blikWpis));
+      toast('Numer BLIK zapisany');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać numeru BLIK', 'error');
     }
   };
 
@@ -406,6 +434,14 @@ export default function PanelClient() {
                 <div key={d.id} className="flex items-center gap-2 rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
                   <span className="min-w-0 flex-1 truncate text-ink">{d.nazwa}</span>
                   <span className="text-xs text-slate-400">{odmienZawodnikow(d.liczbaZawodnikow ?? 0)}</span>
+                  {turniej.wpisoweGrosze > 0 && (
+                    <button
+                      onClick={() => przelaczOplacone(d)}
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${d.wpisoweOplaconeAt ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-500'}`}
+                    >
+                      {d.wpisoweOplaconeAt ? 'Opłacone ✓' : 'Nieopłacone'}
+                    </button>
+                  )}
                   <button onClick={() => kopiuj(`${window.location.origin}/t/${d.kodDolaczenia}`, 'Link drużyny')} className="text-slate-400 hover:text-ink" aria-label="Kopiuj link"><Copy className="h-4 w-4" /></button>
                   <button onClick={() => usunDruzyneZTurnieju(d)} className="text-slate-400 hover:text-red-500" aria-label="Usuń drużynę"><XIcon className="h-4 w-4" /></button>
                 </div>
@@ -626,6 +662,26 @@ export default function PanelClient() {
                 className={inputCls}
               />
             </div>
+
+            {turniej.wpisoweGrosze > 0 && (
+              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Numer BLIK do wpisowego {blikTelefon && <span className="font-normal text-primary-700">— zapisany</span>}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    value={blikWpis}
+                    onChange={(e) => setBlikWpis(formatBlikPhone(e.target.value))}
+                    placeholder="500 600 700"
+                    className={inputCls}
+                  />
+                  <Button size="sm" onClick={zapiszBlikAkcja} disabled={blikPhoneDigits(blikWpis).length !== 9} className="shrink-0">
+                    Zapisz
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-400">Zobaczą go kapitanowie zgłoszonych drużyn.</p>
+              </div>
+            )}
 
             <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
               <Button variant="outline" onClick={zamknijLubOtworzZapisy} className="w-full">

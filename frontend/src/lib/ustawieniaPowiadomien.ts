@@ -258,6 +258,14 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     opis: 'Organizator przesunął godziny meczów Twojego turnieju',
     wazne: true,
   },
+  // Ogłoszenie organizatora (migracja 150) — jedyna wiadomość w tym module,
+  // więc `wazne`, tak jak terminarz.
+  {
+    typ: 'turniej_ogloszenie',
+    nazwa: 'Ogłoszenie w turnieju',
+    opis: 'Organizator napisał coś do wszystkich drużyn',
+    wazne: true,
+  },
   {
     // Alert o nowym meczu w okolicy (`game_alerts`). WSTAWIA GO FUNKCJA
     // BRZEGOWA `notify-game-alert`, nie migracja — i właśnie dlatego przez rok

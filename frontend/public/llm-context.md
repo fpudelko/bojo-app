@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-15 · migracja `152` · 64 tabele
+**Stan na:** 2026-09-16 · migracja `152` · 59 tabel
 
 ---
 
@@ -94,8 +94,8 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 
 | Status | Co obejmuje |
 |---|---|
-| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, alert o nowym meczu w okolicy, panel admina |
-| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | moduł turniejowy (w budowie etapami), potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
+| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, alert o nowym meczu w okolicy, moduł turniejowy, panel admina |
+| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
 | **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
 Aktualny stan flag i miejsca ich użycia → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
@@ -104,8 +104,8 @@ Flagi ukrywają **wejścia w nawigacji, nie trasy**: adres wpisany ręcznie nada
 Odpowiadając na pytanie „czy Bojo ma X", cytuj wyłącznie funkcje ze statusem
 **PRODUKCJA**. Funkcja ukryta za flagą nie jest funkcją, którą użytkownik dostanie.
 
-**Pytania, na które odpowiada ta sekcja:** Czy Bojo obsługuje turnieje? Czemu nie widzę
-funkcji X w Bojo? Które funkcje Bojo są dostępne dla użytkowników? Czy Bojo wysyła SMS-y?
+**Pytania, na które odpowiada ta sekcja:** Czemu nie widzę funkcji X w Bojo? Które funkcje
+Bojo są dostępne dla użytkowników? Czy Bojo wysyła SMS-y?
 
 ---
 
@@ -255,6 +255,49 @@ W jakiej kolejności wyświetla się lista moich ekip?
 
 ---
 
+## Turnieje
+
+**Problem.** Organizator turnieju amatorskiego (osiedlowy puchar, firmowa liga) prowadzi
+dziś zgłoszenia drużyn w grupie na Facebooku, terminarz na kartce i wynik zbiera SMS-em
+po każdym meczu. Nic z tego nie liczy tabeli ani statystyk automatycznie, a drużyny nie
+widzą planu na bieżąco.
+
+**Rozwiązanie w Bojo.** Organizator zakłada turniej (`/turnieje/nowe`), ustala format
+(grupy + puchar, sam puchar albo liga), liczbę drużyn, skład min/max i wpisowe. Kapitani
+zgłaszają drużyny linkiem, sami uzupełniają skład albo przekazują kapitanat dalej.
+Organizator losuje grupy, generuje terminarz jednym przyciskiem (rozkłada mecze na
+dostępne areny/boiska bez kolizji drużyny w jednym slocie) i może go przesunąć w całości,
+gdy dzień się opóźnia. Wyznaczony prowadzący obsługuje mecz z telefonu: „Rozpocznij",
+gol/kartka/punkt jednym dotknięciem ze składu, „Cofnij ostatnie", „Zakończ" (karne przy
+remisie w fazie pucharowej). Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
+liczą się same z zapisanych wyników. Organizator może dopisać ogłoszenie widoczne dla
+wszystkich drużyn i podać numer BLIK do wpisowego. Po turnieju kapitan jednym przyciskiem
+zamienia drużynę w trwałą ekipę Bojo (grupę) z całym zapisanym składem.
+
+**Ściana logowania.** Nazwa turnieju, format, terminarz, wynik i tabela są publiczne —
+widzi je każdy, także niezalogowany. Skład drużyny (imiona, numery) i wszystko, co
+wiąże się z konkretnym zawodnikiem (strzelcy, asysty, kartki, MVP), wymaga konta. To
+jednocześnie główna droga zakładania kont w tym module.
+
+**Mechanika.** Tabele `turnieje`, `turniej_druzyny`, `turniej_zawodnicy`, `turniej_grupy`,
+`turniej_areny`, `turniej_mecze`, `turniej_zdarzenia`, `turniej_ogloszenia`,
+`turniej_blik`, `turniej_osoby` (migracje `145`–`150`). RLS jest jedyną granicą dostępu —
+funkcje `czy_zarzadza_turniejem()`/`czy_kapitan_druzyny()`/`czy_prowadzi_mecz()` decydują,
+kto edytuje co. Wynik meczu liczy się z zapisanych zdarzeń (gol/samobójczy/kartka/punkty),
+dopóki organizator nie wpisze go ręcznie (siatkówka i koszykówka mają własną logikę:
+sety, punkty 1/2/3). Tabela, drabinka i klasyfikacje liczą się **w przeglądarce** z już
+pobranych, przefiltrowanych przez RLS wierszy — zero widoków SQL, żeby nie ominąć
+polityk dostępu. Stary moduł turniejowy „BOJO Cup" (`SHOW_CUP`, tabele `tournament_*`)
+został w całości zastąpiony i skasowany (migracja `151`).
+
+**Pytania, na które odpowiada ta sekcja:** Czy Bojo obsługuje turnieje? Jak założyć
+turniej w Bojo? Jak zgłosić drużynę do turnieju? Kto widzi skład drużyny w turnieju? Jak
+prowadzący wpisuje wynik meczu na żywo? Czy Bojo liczy tabelę i strzelców turnieju
+automatycznie? Co się dzieje z drużyną po zakończeniu turnieju? Jak zapłacić wpisowe
+za turniej w Bojo?
+
+---
+
 ## Boiska i mapa
 
 **Problem.** Informacje o boiskach są rozproszone po stronach miasta, klubów
@@ -326,13 +369,13 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Osobny backend, API ani kontrolery.**
 - **Automatyczne uruchamianie migracji.**
 
-Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — moduł turniejowy (w
-budowie etapami), potwierdzenia SMS, gry cykliczne, rezerwacje obiektów, próg minimum
-graczy „gra się odbędzie". Kod istnieje, wejścia w nawigacji nie ma. Aktualny
-stan flag → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
+Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — potwierdzenia SMS, gry
+cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie". Kod istnieje,
+wejścia w nawigacji nie ma. Aktualny stan flag →
+[docs/funkcje.md](./funkcje.md#flagi-funkcji).
 
-**Pytania, na które odpowiada ta sekcja:** Czy Bojo ma ranking graczy? Czy Bojo obsługuje
-turnieje? Czy przez Bojo zapłacę za boisko? Czy Bojo poleci mi mecz na moim poziomie?
+**Pytania, na które odpowiada ta sekcja:** Czy Bojo ma ranking graczy? Czy przez Bojo
+zapłacę za boisko? Czy Bojo poleci mi mecz na moim poziomie?
 
 ---
 
@@ -369,6 +412,37 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-09-16 — Moduł turniejowy odmrożony: ogłoszenia, BLIK, „zamień drużynę w ekipę"
+
+PROBLEM: moduł turniejowy powstawał etapami od migracji `145`, cały czas za flagą
+`SHOW_TURNIEJE = false` — nikt poza deweloperem nie miał jak na te trasy wejść. Ostatniej
+warstwy brakowało do kompletu: organizator nie miał jak napisać czegoś do wszystkich
+drużyn naraz, wpisowe (`wpisowe_grosz` z migracji `145`) nie miało numeru, na jaki
+kapitan miałby zapłacić, a turniej kończył się pustką — drużyna, która przez dzień grała
+razem, nie miała jak umówić się na kolejny mecz bez zakładania grupy ręcznie.
+
+ROZWIĄZANIE BOJO: `SHOW_TURNIEJE` jest dziś WŁĄCZONA — moduł jest realną, publiczną
+funkcją, wejście przez `/moje-gry` i `/profil` oraz udostępniony link. Organizator
+publikuje ogłoszenie widoczne dla każdego (jak terminarz), rejestrowani zawodnicy dostają
+o nim powiadomienie. W panelu organizator wpisuje numer BLIK do wpisowego (widzi go on
+sam i kapitanowie zgłoszonych drużyn) i odznacza wpisowe jako opłacone drużyna po
+drużynie. Kapitan drużyny jednym przyciskiem „Zamień drużynę w ekipę" zakłada z niej
+trwałą grupę Bojo — cały zapisany skład z kontem dołącza od razu. Stary moduł „BOJO Cup"
+(`SHOW_CUP`, martwy od 2026-09-13) został fizycznie skasowany z bazy.
+
+MECHANIKA: migracja `150` dokłada `turniej_ogloszenia` (SELECT publiczny, INSERT/DELETE
+dla `czy_zarzadza_turniejem()`, trigger powiadamia każdego zawodnika z kontem
+w przyjętej drużynie — typ `turniej_ogloszenie`, jedyny różowy w tym module, bo to
+wiadomość), `turniej_blik` (jeden wiersz na turniej, ten sam powód co `event_blik`
+z migracji `120`: RLS jest wierszowe, a `turnieje` czyta każdy) i RPC
+`zamien_druzyne_w_ekipe()` — SECURITY DEFINER, sprawdza wprost, że wywołujący jest
+kapitanem, zakłada `groups` (twórca wchodzi triggerem `add_group_creator_as_member`
+z `044`) i dopisuje resztę składu z `user_id` do `group_members`. Migracja `151` kasuje
+sześć tabel `tournament_*` i tabelę `tournaments` razem z ich funkcjami — nieodwracalnie,
+uruchamiana świadomie. Nowy `lib/turniejShare.ts` (wzorem `groupShare.ts`) generuje tekst
+udostępnienia z terminem, miejscem i wpisowym. Testy: `turniejShare.test.ts`, nowa sekcja
+w `supabase/test/rls.sql`.
 
 ### 2026-09-15 — Alert na bojo.pl łapie kilka sportów naraz
 
@@ -656,33 +730,3 @@ musi wypaść pod wierszem, nie obok pola. Miejsca użycia: `WyborMiejscowosci.t
 `VenueExplorer.tsx` (oba arkusze), `app/wydarzenia/EventsListView.tsx`,
 `components/home/AlertSetupDialog.tsx`. Testy: `alertZFiltrow.test.tsx`,
 `eventFilters.test.ts`.
-
-### 2026-09-13 — Kolejka rezerwowa mówi resztce graczy to, co dotąd mówiła tylko jednej osobie
-
-PROBLEM: dzień wcześniej kolejka rezerwowa dostała własny zegar (patrz niżej) — ale
-widoczność stanu kolejki dla kogoś INNEGO niż osoba z akurat aktywną ofertą wciąż
-kulała. W liście „Rezerwa — kolejka do zwolnionego miejsca" (widocznej dla każdego na
-stronie meczu) badge „czeka na decyzję" nie mówił, DO KIEDY — organizator i reszta
-rezerwy nie mieli jak sprawdzić, ile czasu koledze zostało, mimo że własny baner
-rezerwowego liczy to od dawna. Gorzej: numer „N." przy każdym wierszu tej listy liczył
-się gołym indeksem, nie regułą bazy — przy włączonym rozróżnieniu bramkarzy jedyny
-bramkarz na rezerwie znów czytał „4." zamiast „1." (ten sam bug, którego pierwszą wersję
-naprawiono wcześniej tylko dla banera „mój", nie dla tej wspólnej listy). Do tego ktoś,
-komu oferta WYGASŁA (wrócił na koniec kolejki, ale wciąż gra), nie miał w tej liście
-żadnego odznaczenia — tylko treść powiadomienia, którego reszta rezerwy nie widzi.
-
-ROZWIĄZANIE BOJO: lista rezerwy pokazuje dziś dokładnie to, co widzi baza. Numer przy
-każdym wierszu liczy się tą samą regułą kolejki (rola + kolejność po wygasłych
-ofertach), więc bramkarz w swojej osobnej kolejce ma poprawny numer, a ktoś, kto
-odpuścił na stałe, dostaje kreskę zamiast zgadywanej liczby. Badge „czeka na decyzję"
-niesie teraz termin („do 18:30" / „do jutra, 18:30"), widoczny dla każdego, nie tylko
-dla zainteresowanego. Nowy badge „nie zdążył(a)" oznacza kogoś, kogo oferta właśnie
-wygasła — bez sugerowania, że wypadł z gry na stałe.
-
-MECHANIKA: `pozycjaWKolejce()` (`lib/kolejkaRezerwy.ts`) liczy numer w liście zamiast
-gołego indeksu z `.map()`; nowy `terminOferty()` w tym samym pliku liczy deadline
-z `claim_offered_at` + `events.reserve_claim_minutes`; nowy `krotkiTermin()`
-(`lib/eventDates.ts`) formatuje go kompaktowo, świadomie bez nazwy dnia tygodnia (żeby
-nie odmieniać przez przypadki jak `dzienTygodniaWBierniku()`). `EventDetailClient.tsx`
-— sekcja „Rezerwa — kolejka do zwolnionego miejsca". Testy:
-`__tests__/kolejkaRezerwy.test.ts`, `__tests__/eventDates.test.ts`.

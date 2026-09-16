@@ -12,7 +12,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 
 | Flaga | Wartość | Co chowa | Gdzie warunkuje |
 |---|---|---|---|
-| `SHOW_TURNIEJE` | `false` | Moduł turniejowy (`/turnieje/*`) — w budowie, etapami. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | jeszcze nigdzie — wejścia (`/profil`, `/moje-gry`) dochodzą w Etapie 4 |
+| `SHOW_TURNIEJE` | `true` | nic — **włączona 2026-09-16** (Etap 4: ogłoszenia, BLIK, „zamień drużynę w ekipę", domknięcie i odmrożenie). Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | `app/moje-gry/page.tsx` (link „🏆 Turnieje"), `app/profil/page.tsx` (wiersz „Turnieje") |
 | `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (przycisk „Powiadom mnie, gdy się pojawi" w pustym stanie listy) |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
 | `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
@@ -26,11 +26,12 @@ Ostatnia: `frontend/src/config/features.ts` (zmienna środowiskowa).
 flaga globalna jest włączona **albo** dany obiekt ma `fields.booking_enabled = true`.
 Czyli rezerwacje można włączyć pojedynczemu boisku bez odmrażania całej funkcji.
 
-**Flagi ukrywają wejścia, nie trasy.** Trasa `/turnieje` odpowiada normalnie, jeśli ktoś
-wpisze adres ręcznie — flaga (`SHOW_TURNIEJE`) usuwa tylko linki w nawigacji, a dodatkowo
+**Flagi ukrywają wejścia, nie trasy.** Trasa `/cykliczne` odpowiada normalnie, jeśli ktoś
+wpisze adres ręcznie — flaga (`SHOW_RECURRING`) usuwa tylko linki w nawigacji, a dodatkowo
 `robots.ts` blokuje jej skanowanie, dopóki flaga jest wyłączona. Dlatego trasy za flagami nie
 trafiają do `llms.txt` ani do `sitemap.ts`: reklamowanie ich wyszukiwarce obiecuje coś, czego
-użytkownik nie znajdzie w interfejsie.
+użytkownik nie znajdzie w interfejsie. `/turnieje` zeszło z tej listy 2026-09-16 razem
+z odmrożeniem `SHOW_TURNIEJE` — dziś odpowiada normalnie i jest w obu plikach.
 
 ---
 
@@ -4197,9 +4198,10 @@ i szybszą drogą jest własny mecz plus link do znajomych.
 
 ---
 
-## Moduł turniejowy (`/turnieje/*`) — w budowie etapami
+## Moduł turniejowy (`/turnieje/*`)
 
-Za flagą `SHOW_TURNIEJE` (dziś `false`). Pełny plan produktowy i techniczny →
+Flaga `SHOW_TURNIEJE` — **włączona od 2026-09-16** (Etap 4, migracja `150`), po pięciu
+etapach budowanych w osobnych PR-ach. Pełny plan produktowy i techniczny →
 [docs/turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) i
 [docs/turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md); stan wdrożenia
 etapów → [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało).
@@ -4251,8 +4253,21 @@ asystentów/MVP (`Klasyfikacja.tsx`, za ścianą logowania, jak skład drużyny)
 prowadzącego (`/turnieje/[id]/mecz/[meczId]`) dostała przy okazji picker asysty przy
 golu — bez tego klasyfikacja asystentów byłaby zawsze pusta.
 
-Kolejne etapy (ogłoszenia, „zamień drużynę w ekipę", domknięcie i odmrożenie flagi)
-dochodzą w osobnych PR-ach — plan już je rozpisuje co do pliku i funkcji.
+**Etap 4 (migracja `150`, kasowanie `151`) — zbudowane, moduł domknięty:** ogłoszenia
+organizatora — publiczne (jak terminarz), widoczne na zakładce **Info**
+(`components/turnieje/Ogloszenia.tsx`), z powiadomieniem do każdego zawodnika z kontem
+w przyjętej drużynie (typ `turniej_ogloszenie`, jedyny różowy w tym module — patrz
+[domena.md](./domena.md#turniej-ogłoszenia-blik-i-zamień-drużynę-w-ekipę-150)). Numer
+BLIK do wpisowego — organizator ustawia go w panelu (zakładka Ustawienia), widzą go on
+sam i kapitanowie zgłoszonych drużyn; przełącznik „opłacone" per drużyna (zakładka
+Drużyny panelu) używa pola `wpisowe_oplacone_at` z Etapu 0, dotąd niepodpiętego do
+żadnego przycisku. **„Zamień drużynę w ekipę"** — przycisk przy własnej drużynie
+(zakładka Drużyny na `/turnieje/[id]`, wyłącznie dla kapitana): RPC
+`zamien_druzyne_w_ekipe()` zakłada `groups` i przenosi cały zapisany skład z kontem.
+Karta udostępnienia turnieju (`lib/turniejShare.ts`, `Web Share API` z fallbackiem do
+schowka) i obraz OG per turniej (`/turnieje/[id]/opengraph-image.tsx`, wzorem
+`/wydarzenia/[id]`). Stary moduł „BOJO Cup" (`tournaments` i sześć tabel
+`tournament_*`) skasowany migracją `151` — front zniknął już w Etapie 0.
 
 ---
 

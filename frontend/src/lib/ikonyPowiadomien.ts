@@ -107,6 +107,9 @@ export const IKONY: Record<string, IkonaPowiadomienia> = {
   // do podjęcia ani awaria.
   turniej_terminarz_gotowy:   { Ikona: CalendarPlus,  klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Terminarz' },
   turniej_zmiana_terminu:     { Ikona: CalendarClock, klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Nowy termin' },
+  // Ogłoszenie organizatora (migracja 150) — różowy, bo to wiadomość, tak
+  // samo jak `ogloszenie_w_grupie`. Jedyny różowy typ w tym module.
+  turniej_ogloszenie:         { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Ogłoszenie' },
 };
 
 export const IKONA_DOMYSLNA: IkonaPowiadomienia = { Ikona: Bell, klasa: 'bg-slate-100 text-slate-500', rodzaj: 'Powiadomienie' };

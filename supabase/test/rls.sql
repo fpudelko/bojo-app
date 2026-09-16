@@ -1180,6 +1180,135 @@ SELECT _oczekuj('remis w lidze dozwolony BEZ karnych — zwycięzca NULL',
                 (SELECT count(*) FROM turniej_mecze
                   WHERE id = :T_MECZ_LIGA::uuid AND status = 'zakonczony' AND zwyciezca_id IS NULL), 1);
 
+SELECT _sekcja('Turniej: ogłoszenia (migracja 150)');
+
+-- Obie drużyny dostają status 'przyjeta' PRZEZ ORGANIZATORA — sekcja 145
+-- sprawdziła już, że kapitan i obcy nie mogą zrobić tego sami (trigger
+-- `pilnuj_wlasnej_druzyny`). Ten sam trigger odpala się też na UPDATE-ie
+-- wykonanym jako ambientny superuser (bo sprawdza `czy_zarzadza_turniejem`,
+-- nie rolę Postgresa), więc bez impersonacji organizatora status wróciłby
+-- do 'zgloszona' po cichu — a to potrzebny jest stan „przyjęta", żeby
+-- powiadomienie o ogłoszeniu miało kogo trafić.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+UPDATE turniej_druzyny SET status = 'przyjeta' WHERE id IN (:T_DRUZYNA1::uuid, :T_DRUZYNA2::uuid);
+RESET ROLE;
+SELECT _oczekuj('obie drużyny przyjęte przez organizatora, przygotowanie do sekcji ogłoszeń',
+                (SELECT count(*) FROM turniej_druzyny
+                  WHERE id IN (:T_DRUZYNA1::uuid, :T_DRUZYNA2::uuid) AND status = 'przyjeta'), 2);
+
+\set T_OGLOSZENIE '''ffffffff-0000-4000-8000-000000000018'''
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+INSERT INTO turniej_ogloszenia (id, turniej_id, autor_id, tresc)
+VALUES (:T_OGLOSZENIE::uuid, :TURNIEJ::uuid, :T_ORGANIZATOR::uuid, 'Start opóźniony 15 minut.');
+RESET ROLE;
+
+SELECT _oczekuj('powiadomienie o ogłoszeniu trafiło do OBU kapitanów z kontem',
+                (SELECT count(*) FROM notifications
+                  WHERE turniej_id = :TURNIEJ::uuid AND type = 'turniej_ogloszenie'
+                    AND user_id IN (:T_KAPITAN1::uuid, :T_KAPITAN2::uuid)), 2);
+
+SET ROLE anon;
+SELECT _oczekuj('ogłoszenie czyta niezalogowany — publiczne, jak terminarz',
+                (SELECT count(*) FROM turniej_ogloszenia WHERE turniej_id = :TURNIEJ::uuid), 1);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('obcy nie napisze ogłoszenia w cudzym turnieju', format(
+  'INSERT INTO turniej_ogloszenia (turniej_id, autor_id, tresc) VALUES (%L, %L, %L)',
+  :TURNIEJ, :OBCY, 'Wcinam się'));
+RESET ROLE;
+
+-- Prowadzący ma `moze_prowadzic`, ale NIE `moze_edytowac` — ogłoszenie to
+-- narzędzie zarządzającego turniejem, nie każdego z jakimkolwiek uprawnieniem.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+SELECT _oczekuj_odmowe('prowadzący bez moze_edytowac nie napisze ogłoszenia', format(
+  'INSERT INTO turniej_ogloszenia (turniej_id, autor_id, tresc) VALUES (%L, %L, %L)',
+  :TURNIEJ, :T_PROWADZACY, 'Ja też chcę'));
+DELETE FROM turniej_ogloszenia WHERE id = :T_OGLOSZENIE::uuid;
+RESET ROLE;
+SELECT _oczekuj('prowadzący nie skasował ogłoszenia organizatora — USING filtruje do zera',
+                (SELECT count(*) FROM turniej_ogloszenia WHERE id = :T_OGLOSZENIE::uuid), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+DELETE FROM turniej_ogloszenia WHERE id = :T_OGLOSZENIE::uuid;
+RESET ROLE;
+SELECT _oczekuj('organizator kasuje własne ogłoszenie',
+                (SELECT count(*) FROM turniej_ogloszenia WHERE id = :T_OGLOSZENIE::uuid), 0);
+
+SELECT _sekcja('Turniej: BLIK organizatora (migracja 150)');
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+INSERT INTO turniej_blik (turniej_id, blik_telefon) VALUES (:TURNIEJ::uuid, '500600700');
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN1, false);
+SELECT _oczekuj('kapitan drużyny w turnieju widzi numer BLIK organizatora',
+                (SELECT count(*) FROM turniej_blik
+                  WHERE turniej_id = :TURNIEJ::uuid AND blik_telefon = '500600700'), 1);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj('obcy nie widzi numeru BLIK — nie jest ani kapitanem, ani organizatorem',
+                (SELECT count(*) FROM turniej_blik WHERE turniej_id = :TURNIEJ::uuid), 0);
+-- NIE `_oczekuj_odmowe`: obcy nie jest zarządzającym, więc USING polityki
+-- „Blik turnieju pisze zarzadzajacy" filtruje go do ZERA dopasowanych
+-- wierszy — Postgres kończy to jako zwykłe „UPDATE 0", bez wyjątku (ta sama
+-- pułapka co przy „obcy nie przyjął cudzej drużyny" w sekcji 145).
+UPDATE turniej_blik SET blik_telefon = '111222333' WHERE turniej_id = :TURNIEJ::uuid;
+RESET ROLE;
+SELECT _oczekuj('obcy nie nadpisze numeru BLIK — bez zmian',
+                (SELECT count(*) FROM turniej_blik
+                  WHERE turniej_id = :TURNIEJ::uuid AND blik_telefon = '500600700'), 1);
+
+-- Kapitan CZYTA numer, ale nie może go zmienić — USING filtruje wiersz do
+-- zera, ta sama figura co przy „prowadzący nie skasował ogłoszenia" wyżej.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN1, false);
+UPDATE turniej_blik SET blik_telefon = '999888777' WHERE turniej_id = :TURNIEJ::uuid;
+RESET ROLE;
+SELECT _oczekuj('kapitan nie zmienił numeru BLIK organizatora',
+                (SELECT count(*) FROM turniej_blik
+                  WHERE turniej_id = :TURNIEJ::uuid AND blik_telefon = '500600700'), 1);
+
+SELECT _sekcja('Turniej: zamień drużynę w ekipę (migracja 150)');
+
+-- Dopisujemy drugiego zawodnika z kontem do D1, żeby sprawdzić, że RPC
+-- przenosi CAŁY skład z kontem, nie tylko kapitana.
+\set T_CZLONEK '''eeeeeeee-0000-4000-8000-000000000006'''
+INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data)
+VALUES (:T_CZLONEK::uuid, 'rls-turniej-czlonek@example.com', now(), '{"display_name":"Cyryl Członek"}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, user_id, imie)
+VALUES (:T_DRUZYNA1::uuid, :TURNIEJ::uuid, :T_CZLONEK::uuid, 'Cyryl Członek');
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy — nie kapitan — nie zamieni cudzej drużyny w ekipę',
+  format('SELECT zamien_druzyne_w_ekipe(%L::uuid)', :T_DRUZYNA1));
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN1, false);
+SELECT zamien_druzyne_w_ekipe(:T_DRUZYNA1::uuid) AS nowa_grupa \gset
+RESET ROLE;
+
+SELECT _oczekuj('powstała nowa grupa o nazwie drużyny, sport przeniesiony z turnieju',
+                (SELECT count(*) FROM groups
+                  WHERE id = :'nowa_grupa'::uuid AND name = 'Drużyna Jeden' AND sport = 'piłka nożna'), 1);
+SELECT _oczekuj('kapitan i zawodnik z kontem są członkami nowej ekipy (kapitan przez trigger, reszta przez RPC)',
+                (SELECT count(*) FROM group_members
+                  WHERE group_id = :'nowa_grupa'::uuid
+                    AND user_id IN (:T_KAPITAN1::uuid, :T_CZLONEK::uuid)), 2);
+
 -- ── ALERT: wyłącznik z maila (migracja 149) ──────────────────────────────────
 -- Nowa ścieżka dostępu dla `anon`: funkcja `wylacz_alert_tokenem()`. Jest
 -- SECURITY DEFINER, czyli omija RLS z definicji — więc jedyne, co stoi między

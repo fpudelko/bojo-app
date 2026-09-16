@@ -6,7 +6,7 @@ import { supabase } from './supabase';
 import { validateName, sanitizeDescription } from './validation';
 import { track } from './analytics';
 import { zaktualizujJedenWiersz } from './zapytania';
-import type { Turniej, TurniejCreate, TurniejOsoba, TurniejStatus, TurniejUprawnienia } from '@/types';
+import type { Turniej, TurniejCreate, TurniejOsoba, TurniejOgloszenie, TurniejStatus, TurniejUprawnienia } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toTurniej(row: any): Turniej {
@@ -278,5 +278,73 @@ export async function usunOsobeZTurnieju(turniejId: string, userId: string): Pro
     .delete()
     .eq('turniej_id', turniejId)
     .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------------------
+// Ogłoszenia — publiczne, pisze wyłącznie zarządzający turniejem (migracja `150`)
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toOgloszenie(row: any): TurniejOgloszenie {
+  return {
+    id: row.id,
+    turniejId: row.turniej_id,
+    autorId: row.autor_id,
+    tresc: row.tresc,
+    createdAt: row.created_at,
+  };
+}
+
+export async function getOgloszenia(turniejId: string): Promise<TurniejOgloszenie[]> {
+  const { data, error } = await supabase
+    .from('turniej_ogloszenia')
+    .select('*')
+    .eq('turniej_id', turniejId)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toOgloszenie);
+}
+
+export async function dodajOgloszenie(turniejId: string, autorId: string, tresc: string): Promise<string> {
+  const bezpieczneTresc = sanitizeDescription(tresc).trim();
+  if (!bezpieczneTresc) throw new Error('Treść ogłoszenia nie może być pusta.');
+  const { data, error } = await supabase
+    .from('turniej_ogloszenia')
+    .insert({ turniej_id: turniejId, autor_id: autorId, tresc: bezpieczneTresc })
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id as string;
+}
+
+export async function usunOgloszenie(id: string): Promise<void> {
+  const { error } = await supabase.from('turniej_ogloszenia').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------------------
+// BLIK organizatora — osobna tabela, ten sam powód co `event_blik` (migracja
+// `120`): RLS jest wierszowe, a `turnieje` czyta każdy (migracja `150`).
+// ---------------------------------------------------------------------------
+
+export async function getBlikTurnieju(turniejId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('turniej_blik')
+    .select('blik_telefon')
+    .eq('turniej_id', turniejId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.blik_telefon ?? null;
+}
+
+/** Organizator ustawia/zmienia numer. RLS (migracja `150`) przepuszcza
+ *  wyłącznie zarządzającego turniejem. */
+export async function ustawBlikTurnieju(turniejId: string, telefon: string): Promise<void> {
+  const bezpiecznyTelefon = telefon.trim();
+  if (!bezpiecznyTelefon) throw new Error('Podaj numer telefonu.');
+  const { error } = await supabase
+    .from('turniej_blik')
+    .upsert({ turniej_id: turniejId, blik_telefon: bezpiecznyTelefon }, { onConflict: 'turniej_id' });
   if (error) throw new Error(error.message);
 }

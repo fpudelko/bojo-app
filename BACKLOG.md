@@ -186,7 +186,7 @@ Jedno miejsce, jeden przełącznik. Pełna tabela z miejscami użycia →
 
 | Flaga | Co chowa | Dlaczego schowane |
 |---|---|---|
-| `SHOW_TURNIEJE` | Moduł turniejowy (`/turnieje/*`) — zapisy drużyn, terminarz, wyniki na żywo | Powstaje etapami; odmrożenie po Etapie 4. Zastąpił flagę `SHOW_CUP` (stary „BOJO Cup" usunięty z frontu 2026-09-13, tabele `tournament_*` kasuje migracja `151`) |
+| ~~`SHOW_TURNIEJE`~~ | — | **WŁĄCZONA 2026-09-16**, po pięciu etapach. Zastąpiła flagę `SHOW_CUP` (stary „BOJO Cup" usunięty z frontu 2026-09-13, tabele `tournament_*` skasowane migracją `151`). Szczegóły → §6 |
 | ~~`SHOW_GAME_ALERTS`~~ | — | **WŁĄCZONA 2026-09-12.** Powód wyłączenia (brak kanału) zniknął — kanał istnieje (§3). Wejście: „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów |
 | `SHOW_SMS_FEATURES` | Potwierdzenie SMS + przypomnienia | Brak podpiętej bramki SMS |
 | `SHOW_RECURRING` | Gry cykliczne | Skupienie na meczach jednorazowych — patrz §1.3 |
@@ -439,11 +439,12 @@ gęstość poza Poznaniem wciąż będzie odstawać), gdy ten import się domkni
 
 ## 6. Turniej — stan i co zostało
 
-**Przebudowa w toku od 2026-09-13.** Dawny moduł (`lib/tournaments.ts`, 455 linii, 6 tabel
+**Przebudowa zakończona 2026-09-16.** Dawny moduł (`lib/tournaments.ts`, 455 linii, 6 tabel
 `tournament_*` z migracji `029`–`030`, trasy `/turniej/*`, flaga `SHOW_CUP`) był kompletny,
 ale wyprzedzał roadmapę bez popytu: turniej zakładał wyłącznie admin, była jedna edycja
-wpisana seedem, a drużyny umawiały mecze same przez tygodnie. **Skasowany** — front w
-Etapie 0 przebudowy, tabele osobną migracją (`149`), gdy nowy moduł go zastąpi w całości.
+wpisana seedem, a drużyny umawiały mecze same przez tygodnie. **Skasowany** — front
+w Etapie 0 przebudowy (2026-09-13), tabele migracją `151` w Etapie 4, gdy nowy moduł
+zastąpił go w całości.
 
 **Nowy moduł** — pełny plan produktowy i techniczny w
 [docs/turnieje-plan-duze-klocki.md](./docs/turnieje-plan-duze-klocki.md) i
@@ -456,20 +457,25 @@ jest głównym mechanizmem zakładania kont w tym module. Tabele: `turnieje`, `t
 `turniej_zdarzenia`, `turniej_ogloszenia`, `turniej_blik` — polskie nazwy celowo, żeby nie
 kolidować ze starym schematem podczas przenosin.
 
-Flaga `SHOW_TURNIEJE` (`frontend/src/lib/features.ts`), pięć etapów/PR-ów (fundament i
-zgłoszenia → terminarz → rozgrywka na żywo → tabela i statystyki → domknięcie i
-odmrożenie), migracje `145`–`149`.
+Flaga `SHOW_TURNIEJE` (`frontend/src/lib/features.ts`) — **włączona od 2026-09-16**, po
+pięciu etapach/PR-ach (fundament i zgłoszenia → terminarz → rozgrywka na żywo → tabela
+i statystyki → domknięcie i odmrożenie), migracje `145`–`150` (`151` kasuje stary moduł).
 
-**Zrobione: Etap 0 (`145`), Etap 1 (`146`), Etap 2 (`147`) i Etap 3 (bez migracji).**
-Terminarz — generator w `lib/turniejFormat.ts`, zakładka Terminarz na `/turnieje/[id]`
-i w panelu (losowanie grup, areny, generowanie/podgląd/zapis terminarza, przesunięcie
-o N minut). Rozgrywka na żywo — nowa trasa `/turnieje/[id]/mecz/[meczId]` (podgląd
-publiczny + konsola prowadzącego: start meczu, zdarzenia/sety, „Cofnij ostatnie",
-zakończenie z karnymi i MVP), czyste funkcje w `lib/turniejWynik.ts`. Tabela
-i statystyki — nowa zakładka Wyniki (tabela grupy/ligi, drabinka, klasyfikacja
-strzelców/asyst/MVP za ścianą logowania), czyste funkcje w `lib/turniejTabela.ts`
-i `lib/turniejStatystyki.ts`. Następny: Etap 4 — ogłoszenia, „zamień drużynę w ekipę",
-domknięcie i odmrożenie flagi.
+**Zrobione: wszystkie 5 etapów.** Etap 0 (`145`) — turniej, zgłoszenia, skład, panel.
+Etap 1 (`146`) — terminarz: generator w `lib/turniejFormat.ts`, zakładka Terminarz na
+`/turnieje/[id]` i w panelu (losowanie grup, areny, generowanie/podgląd/zapis
+terminarza, przesunięcie o N minut). Etap 2 (`147`) — rozgrywka na żywo: trasa
+`/turnieje/[id]/mecz/[meczId]` (podgląd publiczny + konsola prowadzącego: start meczu,
+zdarzenia/sety, „Cofnij ostatnie", zakończenie z karnymi i MVP), czyste funkcje w
+`lib/turniejWynik.ts`. Etap 3 (bez migracji) — tabela i statystyki: zakładka Wyniki
+(tabela grupy/ligi, drabinka, klasyfikacja strzelców/asyst/MVP za ścianą logowania),
+czyste funkcje w `lib/turniejTabela.ts` i `lib/turniejStatystyki.ts`. Etap 4 (`150`,
+kasowanie `151`) — ogłoszenia publiczne z powiadomieniem do zawodników
+(`components/turnieje/Ogloszenia.tsx`), numer BLIK do wpisowego w panelu i przełącznik
+„opłacone" per drużyna (pole istniało od Etapu 0, bez UI), „Zamień drużynę w ekipę"
+(RPC `zamien_druzyne_w_ekipe()` — przycisk kapitana, nie organizatora), obraz OG per
+turniej, `lib/turniejShare.ts`, odmrożenie `SHOW_TURNIEJE` i wejścia w `/moje-gry`
+i `/profil`, fizyczne skasowanie starego „BOJO Cup" (migracja `151`).
 
 ### Świadomie NIE budujemy (zapisane w planie, nie zapomniane)
 - Czatu turniejowego, głosowania graczy na MVP (prowadzący wybiera ręcznie), płatności
@@ -487,6 +493,13 @@ domknięcie i odmrożenie flagi.
 - [ ] Panel do ustawienia `turniej_druzyny.pozycja_recznie` — `posortujTabele()` (Etap 3)
       już respektuje tę kolumnę, brakuje wyłącznie interfejsu, w którym organizator by
       ją wpisał (rozstrzygnięcie remisu bezpośredniego/kartek, których tabela nie liczy)
+- [ ] `supabase/seed_turniej.sql` (marker `[TUR]`) z pierwotnego planu — nie powstał.
+      Moduł jest dziś ręcznie sprawdzony przez każdy etap (`baza-testowa.sh` + `rls.sql`),
+      ale nie ma jednego gotowego stanu do klikania w SQL Editorze, jak przy meczach
+      (`seed_test_data.sql`)
+- [ ] `e2e/turniej.spec.ts` (scenariusze za logowaniem, plan Etapu 2) — nie powstał.
+      Konsola prowadzącego i przepływ zgłoszenia drużyny nie mają dziś testu
+      klikalności na pełnym stosie Supabase, tylko manualne smoke-testy SQL
 
 ---
 
