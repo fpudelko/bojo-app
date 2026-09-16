@@ -7,12 +7,13 @@ import type { WierszTabeli } from '@/types';
 export interface TabelaGrupyProps {
   wiersze: readonly WierszTabeli[];
   /**
-   * Ile pierwszych miejsc awansuje — podświetla wiersz, dokłada pionowy pasek
-   * przy pozycji i legendę pod tabelą.
+   * Ile pierwszych miejsc awansuje — podświetla wiersz i dokłada pionowy pasek
+   * przy pozycji.
    *
-   * LEGENDA JEST CZĘŚCIĄ ZNACZNIKA, nie ozdobą. Samo tło mówi „te wiersze są
-   * inne" i zostawia czytającego z pytaniem, czym inne — a to jest jedyne
-   * pytanie, z którym ktoś wchodzi w tabelę grupy przed ostatnią kolejką.
+   * SAM ZNACZNIK NIE WYSTARCZA: tło mówi „te wiersze są inne" i zostawia
+   * czytającego z pytaniem, czym inne. Podpis dokłada WYWOŁUJĄCY, raz pod
+   * kompletem tabel (`opisAwansu()` w `lib/turniejTabela.ts`) — powtórzony przy
+   * każdej grupie czytałby się jak informacja o tej jednej grupie.
    */
   awansujeZGrupy?: number;
 }
@@ -78,12 +79,6 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy }: TabelaGrupyProp
           ))}
         </tbody>
       </table>
-      {miejscaAwansu > 0 && (
-        <p className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-700 px-2 py-2 text-xs text-slate-500 dark:text-slate-400">
-          <span className="h-3 w-[3px] shrink-0 rounded-full bg-primary-600" aria-hidden />
-          {miejscaAwansu === 1 ? 'Pierwsze miejsce awansuje' : `Pierwsze ${miejscaAwansu} miejsca awansują`} do fazy pucharowej
-        </p>
-      )}
     </div>
   );
 }

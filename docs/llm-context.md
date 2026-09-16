@@ -270,10 +270,12 @@ dostępne areny/boiska bez kolizji drużyny w jednym slocie) i może go przesun�
 gdy dzień się opóźnia. Wyznaczony prowadzący obsługuje mecz z telefonu: „Rozpocznij",
 gol/kartka/punkt jednym dotknięciem ze składu, „Cofnij ostatnie", „Zakończ" (karne przy
 remisie w fazie pucharowej). Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
-liczą się same z zapisanych wyników. W drabince zwycięzca meczu jest pogrubiony,
-a pod wynikiem stoją rzuty karne, gdy to one rozstrzygnęły; w tabeli grupy miejsca
-awansujące mają pasek przy pozycji i podpis, ile pierwszych miejsc wychodzi do fazy
-pucharowej. Organizator może dopisać ogłoszenie widoczne dla
+liczą się same z zapisanych wyników. Strona turnieju dzieli to na zakładki:
+Info, Drużyny (pogrupowane po grupach, skład prowadzi do profilu gracza), Terminarz
+(mecze jeszcze nierozegrane), Wyniki (rozegrane), Tabela i Drabinka. W drabince
+zwycięzca meczu jest pogrubiony, a pod wynikiem stoją rzuty karne, gdy to one
+rozstrzygnęły; w tabeli grupy miejsca awansujące mają pasek przy pozycji, a podpis,
+ile pierwszych miejsc wychodzi do fazy pucharowej, stoi raz pod kompletem tabel. Organizator może dopisać ogłoszenie widoczne dla
 wszystkich drużyn i podać numer BLIK do wpisowego. Po turnieju kapitan jednym przyciskiem
 zamienia drużynę w trwałą ekipę Bojo (grupę) z całym zapisanym składem.
 
@@ -415,6 +417,34 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-09-16 — Turniej: jedna zakładka na jedno pytanie, lista jako karty
+
+PROBLEM: strona turnieju miała cztery zakładki, a odpowiadała na sześć pytań.
+„Terminarz" i „Wyniki" pokazywały TEN SAM komplet meczów, więc żeby sprawdzić, co
+jeszcze przed nami, trzeba było przewijać przez mecze już rozegrane. Tabela grup
+i drabinka siedziały razem w „Wynikach", jedna pod drugą. Drużyny szły jedną listą
+ośmiu kart, bez śladu podziału na grupy, a nazwisko w składzie nie prowadziło nigdzie,
+mimo że Bojo ma profil gracza. Lista `/turnieje` układała sekcje jedna pod drugą, więc
+turniej, w którym się gra, bywał na trzecim ekranie w dół.
+
+ROZWIĄZANIE BOJO: sześć zakładek, każda na jedno pytanie — Info, Drużyny, Terminarz
+(wyłącznie mecze nierozegrane, trwający na górze), Wyniki (wyłącznie rozegrane, od
+najnowszego, plus klasyfikacje), Tabela, Drabinka. Zakładka bez treści nie pokazuje się
+wcale. Drużyny stoją pod nagłówkami swoich grup. Pod każdą tabelą grupy da się rozwinąć
+wyniki właśnie tej grupy, a podpis „Pierwsze 2 miejsca w grupie awansują do fazy
+pucharowej" stoi RAZ pod kompletem tabel. Zawodnik z kontem w składzie prowadzi do
+swojego profilu. Lista turniejów to karty: Biorę udział → Zapisy → Trwają → Zakończone,
+otwiera się pierwsza niepusta.
+
+MECHANIKA: `app/turnieje/[id]/TurniejClient.tsx` (podział meczów na rozegrane
+i nierozegrane, sekcje drużyn po grupach, lista widocznych zakładek),
+`app/turnieje/TurniejeClient.tsx` (karty; wybór w stanie komponentu, nie w adresie —
+`useSearchParams()` wywróciłby build produkcyjny). `opisAwansu()` w
+`lib/turniejTabela.ts` zwraca `null`, gdy podpis nic nie wnosi: w lidze i w grupie,
+z której awansują wszyscy. `components/turnieje/KartaDruzyny.tsx`
+i `SciankaLogowania.tsx` wyszły z klienta do wspólnych komponentów. Testy:
+`kartaDruzyny.test.tsx`, `turniejTabela.test.ts`.
 
 ### 2026-09-16 — Turniej: widać, kto wygrał mecz i kto wychodzi z grupy
 
@@ -705,22 +735,3 @@ swój przystanek, więc stare adresy nie przestawiają promienia. Miejsca użyci
 `components/map/VenueExplorer.tsx` (suwak tylko przy braku miejscowości) oraz
 `app/wydarzenia/EventsListView.tsx`. Lokalne stałe `RADIUS_MIN`/`RADIUS_MAX` (1–20,
 liniowo) usunięte z obu widoków. Testy: `promienSuwaka.test.ts`.
-### 2026-09-14 — Mecz z czekającą prośbą znowu da się usunąć
-
-PROBLEM: organizator, który włączył „Wymagaj akceptacji" i miał choćby jedną
-nierozpatrzoną prośbę o dołączenie, NIE MÓGŁ usunąć swojego meczu. Kliknięcie „Usuń"
-nie robiło nic — mecz zostawał na liście, a jedyna informacja o przyczynie szła do
-konsoli przeglądarki jako błąd klucza obcego. Nie było obejścia w interfejsie:
-odrzucenie wszystkich czekających próśb najpierw działało, ale nikt nie miał powodu
-zgadywać takiego związku.
-
-ROZWIĄZANIE BOJO: usunięcie meczu działa niezależnie od tego, kto na nim czeka. Osoba
-z nierozpatrzoną prośbą nie dostaje przy tym „Organizator nie przyjął Twojej prośby",
-bo nikt jej nie odrzucił — o zniknięciu meczu mówi osobne powiadomienie `mecz_usuniety`.
-Odrzucenie POJEDYNCZEJ prośby powiadamia dalej, bez zmian.
-
-MECHANIKA: migracja `148` — `powiadom_o_odrzuceniu_prosby()` (wyzwalacz `BEFORE DELETE`
-na `event_participants`) wychodzi bez zapisu, gdy wiersza meczu już nie ma, czyli gdy
-DELETE przyszedł kaskadą z `events`. Osłonę wprowadziła `116`, a `135` zdjęła ją po cichu,
-biorąc ciało funkcji z `076`. Regresję pilnuje teraz `supabase/test/kasowanie-meczu.sql`
-uruchamiany przez `scripts/baza-testowa.sh`, czyli w CI.

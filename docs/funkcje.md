@@ -4253,6 +4253,36 @@ asystentów/MVP (`Klasyfikacja.tsx`, za ścianą logowania, jak skład drużyny)
 prowadzącego (`/turnieje/[id]/mecz/[meczId]`) dostała przy okazji picker asysty przy
 golu — bez tego klasyfikacja asystentów byłaby zawsze pusta.
 
+**Przebudowa zakładek (2026-09-16, bez migracji).** Cztery zakładki
+(Info/Drużyny/Terminarz/Wyniki) odpowiadały na sześć różnych pytań. Dziś:
+
+| Zakładka | Zawiera | Pokazuje się, gdy |
+|---|---|---|
+| Info | parametry, ogłoszenia, wpisowe | zawsze |
+| Drużyny | drużyny **pogrupowane po grupach** + „Bez grupy" | zawsze |
+| Terminarz | mecze NIEROZEGRANE, trwający na górze | jest co najmniej jeden |
+| Wyniki | mecze rozegrane (od najnowszego) + klasyfikacje | jest co najmniej jeden |
+| Tabela | tabele grup, pod każdą zwijane wyniki tej grupy | są grupy albo liga |
+| Drabinka | faza pucharowa | są mecze poza grupą/ligą |
+
+Zakładka bez treści **nie pokazuje się wcale**, a wejście z linku na nieistniejącą
+(`?tab=drabinka` przed wygenerowaniem drabinki) ląduje na Info. Podpis „ile awansuje"
+stoi RAZ pod kompletem tabel (`opisAwansu()` w `lib/turniejTabela.ts`), nie pod każdą
+grupą — reguła jest wspólna dla turnieju, a powtórzona brzmiała jak informacja o tej
+jednej grupie. `KartaDruzyny.tsx` i `SciankaLogowania.tsx` wyszły przy okazji
+z `TurniejClient.tsx` do `components/turnieje/`: skład jest za ścianą logowania, więc
+nie widzi go żaden zrzut i regułę „zawodnik z kontem prowadzi do `/gracz/[id]`,
+dopisany z ręki nie prowadzi nigdzie" pilnuje dopiero `kartaDruzyny.test.tsx`.
+
+**Lista `/turnieje` to karty, nie sekcje jedna pod drugą (2026-09-16).** Kolejność
+kart jest kolejnością pytań, z którymi się tam wchodzi: **Biorę udział** (tylko
+zalogowany) → **Zapisy** → **Trwają** → **Zakończone**. Domyślnie otwiera się pierwsza
+NIEPUSTA — bez tego każdy, kto w niczym nie gra, dostawał pustą stronę na start.
+„Zamknięte zapisy" liczą się do **Trwają**, nie do **Zapisów**: do takiego turnieju nie
+da się już dopisać drużyny, a karta „Zapisy" ma zawierać wyłącznie to, co realnie
+przyjmuje zgłoszenia. Wybór karty siedzi w stanie komponentu, NIE w adresie —
+`useSearchParams()` na tej trasie wywróciłby build produkcyjny (patrz AGENTS.md).
+
 **Etap 4 (migracja `150`, kasowanie `151`) — zbudowane, moduł domknięty:** ogłoszenia
 organizatora — publiczne (jak terminarz), widoczne na zakładce **Info**
 (`components/turnieje/Ogloszenia.tsx`), z powiadomieniem do każdego zawodnika z kontem

@@ -23,6 +23,8 @@
 -- WYMAGANIA:
 --   • konto franekks@gmail.com w auth.users (zaloguj się raz do apki)
 --   • migracje 145 i 146 — bez nich nie ma czego wypełniać
+--   • konta zawodników zakłada SAM SEED (`gracz01`…`gracz60@example.com`,
+--     hasło `test1234`) — patrz sekcja „Konta zawodników" niżej
 --   • migracja 147 jest OPCJONALNA: z nią gole wchodzą jako zdarzenia i działa
 --     klasyfikacja strzelców, bez niej wynik zapisuje się wprost, a strzelcy
 --     zostają puści. Skrypt sam sprawdza, co jest w bazie.
@@ -40,6 +42,68 @@ BEGIN
   IF to_regclass('public.turniej_mecze') IS NULL THEN
     RAISE EXCEPTION 'Brak tabeli `turniej_mecze` — uruchom migracje 145 i 146.';
   END IF;
+END $$;
+
+
+-- ── Konta zawodników ────────────────────────────────────────────────────────
+-- KAŻDY zawodnik w tym seedzie ma konto — bez tego jego nazwisko jest martwym
+-- napisem: karta drużyny prowadzi do profilu gracza (`/gracz/[id]`), a bez
+-- `turniej_zawodnicy.user_id` nie ma dokąd prowadzić. Taki skład nie pokazuje
+-- też, czym ekran naprawdę jest dla zalogowanego.
+--
+-- Pula ma 60 kont, bo indeks `idx_zawodnik_raz_w_turnieju` pilnuje JEDNEJ
+-- drużyny na osobę w turnieju, a największy turniej ma 8 drużyn po 7 zawodników.
+-- Konta są WSPÓLNE dla wszystkich sześciu turniejów — ci sami ludzie grają
+-- w kolejnych turniejach, dokładnie jak na osiedlu.
+--
+-- Wzorzec wstawiania jest ten sam co w `seed-test-users.sql`: wiersz w
+-- `auth.users` + tożsamość e-mail, żeby logowanie hasłem działało jak przy
+-- koncie założonym z panelu. Konto, które już istnieje, jest pomijane.
+DO $$
+DECLARE
+  imiona   CONSTANT text[] := ARRAY['Kamil','Bartek','Michał','Tomek','Paweł',
+                                    'Adrian','Sebastian','Marcin','Łukasz','Damian'];
+  nazwiska CONSTANT text[] := ARRAY['Krawczyk','Sikora','Zawadzki','Mazur','Baran','Pietrzak'];
+  v_email text;
+  v_nazwa text;
+  v_id    uuid;
+  i int;
+BEGIN
+  FOR i IN 1 .. 60 LOOP
+    v_email := 'gracz' || lpad(i::text, 2, '0') || '@example.com';
+    CONTINUE WHEN EXISTS (SELECT 1 FROM auth.users WHERE email = v_email);
+
+    -- 10 imion × 6 nazwisk = 60 różnych osób bez wypisywania ich z ręki.
+    v_nazwa := imiona[((i - 1) % 10) + 1] || ' ' || nazwiska[((i - 1) / 10) + 1];
+    v_id := gen_random_uuid();
+
+    INSERT INTO auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at,
+      raw_app_meta_data, raw_user_meta_data,
+      confirmation_token, recovery_token, email_change_token_new, email_change
+    ) VALUES (
+      '00000000-0000-0000-0000-000000000000', v_id, 'authenticated', 'authenticated',
+      v_email, extensions.crypt('test1234', extensions.gen_salt('bf')),
+      now(), now(), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      jsonb_build_object('display_name', v_nazwa,
+                         'avatar_url', 'https://randomuser.me/api/portraits/men/' || ((i * 7) % 90) || '.jpg'),
+      '', '', '', ''
+    );
+
+    INSERT INTO auth.identities (
+      provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+    ) VALUES (
+      v_id::text, v_id,
+      jsonb_build_object('sub', v_id::text, 'email', v_email, 'email_verified', true),
+      'email', now(), now(), now()
+    );
+
+    UPDATE profiles SET display_name = v_nazwa, email = v_email,
+                        avatar_url = 'https://randomuser.me/api/portraits/men/' || ((i * 7) % 90) || '.jpg'
+     WHERE id = v_id;
+  END LOOP;
 END $$;
 
 
@@ -79,15 +143,30 @@ BEGIN
 END $$;
 
 -- Drużyna razem ze składem: 7 zawodników z numerami 1–7, kapitan z numerem 1.
--- Skład jest tu po to, żeby gole miały komu się przypisać w klasyfikacji.
+-- Skład jest tu po to, żeby gole miały komu się przypisać w klasyfikacji,
+-- a karta drużyny miała dokąd prowadzić.
+--
+-- KAŻDY zawodnik dostaje konto z puli wyżej, a `test1@example.com` jest
+-- zawsze pierwszym zawodnikiem PIERWSZEJ drużyny — czyli gra w każdym z sześciu
+-- turniejów. Dzięki temu jedno logowanie pokazuje wszystkie stany naraz:
+-- turniej zakończony, trwający i taki w zapisach, każdy z perspektywy gracza.
+--
+-- Numer drużyny liczy się z bazy, a nie z parametru: wywołania siedzą
+-- w kilku tablicach (`a[]`, `b[]`), więc przekazywanie offsetu z ręki
+-- byłoby czwartą rzeczą do zsynchronizowania przy dopisaniu drużyny.
 CREATE OR REPLACE FUNCTION pg_temp.druzyna(
   p_turniej uuid, p_nazwa text, p_grupa uuid, p_rozstawienie int
 ) RETURNS uuid LANGUAGE plpgsql AS $$
 DECLARE
-  v_id uuid;
-  imiona CONSTANT text[] := ARRAY['Kamil','Bartek','Michał','Tomek','Paweł','Adrian','Sebastian'];
-  j int;
+  v_id      uuid;
+  v_nr      int;
+  v_user    uuid;
+  v_imie    text;
+  j         int;
+  v_indeks  int;
 BEGIN
+  SELECT count(*) + 1 INTO v_nr FROM turniej_druzyny WHERE turniej_id = p_turniej;
+
   INSERT INTO turniej_druzyny (
     turniej_id, nazwa, status, grupa_id, rozstawienie, dodana_recznie,
     regulamin_zaakceptowany_at, wpisowe_oplacone_at
@@ -96,9 +175,26 @@ BEGIN
   ) RETURNING id INTO v_id;
 
   FOR j IN 1 .. 7 LOOP
-    INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, imie, numer, kapitan)
-    VALUES (v_id, p_turniej, imiona[j] || ' ' || left(p_nazwa, 1) || '.', j, j = 1);
+    -- Pulę bierzemy CO ÓSMĄ pozycję, nie po kolei: przy siedmiu kolejnych
+    -- indeksach cała drużyna trafiała w ten sam blok nazwisk i wychodziło
+    -- siedmiu Krawczyków w jednym składzie. Skok o 8 (największy turniej ma
+    -- 8 drużyn) daje wciąż jednoznaczne przypisanie — maksimum to 56, a pula
+    -- ma 60 kont — i miesza imiona z nazwiskami w każdej drużynie.
+    v_indeks := (v_nr - 1) + (j - 1) * 8 + 1;
+    SELECT u.id, coalesce(p.display_name, 'Gracz') INTO v_user, v_imie
+      FROM auth.users u LEFT JOIN profiles p ON p.id = u.id
+     WHERE u.email = CASE WHEN v_indeks = 1 THEN 'test1@example.com'
+                          ELSE 'gracz' || lpad((v_indeks - 1)::text, 2, '0') || '@example.com' END;
+
+    INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, user_id, imie, numer, kapitan)
+    VALUES (v_id, p_turniej, v_user, v_imie, j, j = 1);
   END LOOP;
+
+  -- Kapitanem drużyny jest jej pierwszy zawodnik — dzięki temu `test1` widzi
+  -- w pierwszej drużynie także widok kapitana, nie tylko szeregowego gracza.
+  UPDATE turniej_druzyny SET kapitan_id =
+    (SELECT z.user_id FROM turniej_zawodnicy z WHERE z.druzyna_id = v_id AND z.numer = 1)
+   WHERE id = v_id;
   RETURN v_id;
 END $$;
 
