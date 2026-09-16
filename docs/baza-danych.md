@@ -638,7 +638,9 @@ przy prowadzeniu z konsoli — seed wstawia GOLE do `turniej_zdarzenia`, a `wyni
 `wynik_b` liczy wyzwalacz `trg_zdarzenia_przelicz` (`147`). Gdy `147` nie jest wgrana,
 seed wykrywa to przez `to_regclass` i zapisuje wynik wprost; puste zostają wtedy tylko
 klasyfikacje strzelców. Pomocnicze funkcje siedzą w `pg_temp`, czyli znikają razem
-z sesją SQL Editora — nic w aplikacji ich nie widzi.
+z sesją SQL Editora — nic w aplikacji ich nie widzi. Seed zakłada też własną pulę
+60 kont zawodników (`gracz01`…`gracz60@example.com`), bo skład bez `user_id` nie
+prowadzi do niczyjego profilu; `test1@example.com` gra w każdym z sześciu turniejów.
 
 **Seedy sprawdzają schemat, zanim cokolwiek zapiszą.** `seed_test_data.sql`,
 `seed_regresja.sql` i `seed_przedpremiera.sql` zaczynają od sprawdzenia po jednym

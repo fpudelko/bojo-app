@@ -48,23 +48,31 @@ function KartaTurnieju({ t }: { t: Turniej }) {
   );
 }
 
-function Sekcja({ tytul, turnieje }: { tytul: string; turnieje: Turniej[] }) {
-  if (turnieje.length === 0) return null;
-  return (
-    <div className="space-y-3">
-      <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{tytul}</h2>
-      <div className="space-y-3">
-        {turnieje.map((t) => <KartaTurnieju key={t.id} t={t} />)}
-      </div>
-    </div>
-  );
-}
+type Karta = 'moje' | 'zapisy' | 'trwaja' | 'zakonczone';
+
+const ETYKIETY: Record<Karta, string> = {
+  moje: 'Biorę udział',
+  zapisy: 'Zapisy',
+  trwaja: 'Trwają',
+  zakonczone: 'Zakończone',
+};
+
+const PUSTE: Record<Karta, string> = {
+  moje: 'Nie grasz jeszcze w żadnym turnieju — kapitan Twojej drużyny wyśle Ci link, gdy się zgłosicie.',
+  zapisy: 'Żaden turniej nie przyjmuje teraz zgłoszeń.',
+  trwaja: 'Nic się teraz nie rozgrywa.',
+  zakonczone: 'Żaden turniej jeszcze się nie zakończył.',
+};
 
 export default function TurniejeClient() {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [publiczne, setPubliczne] = useState<Turniej[]>([]);
   const [moje, setMoje] = useState<Turniej[]>([]);
   const [ladowanie, setLadowanie] = useState(true);
+  // `null` = użytkownik jeszcze nie wybrał, więc obowiązuje karta domyślna
+  // liczona z danych. Zwykły `useState('moje')` pokazałby pustą kartę każdemu,
+  // kto w niczym nie gra — czyli większości wchodzących.
+  const [wybrana, setWybrana] = useState<Karta | null>(null);
 
   useEffect(() => {
     let aktualne = true;
@@ -78,14 +86,28 @@ export default function TurniejeClient() {
     return () => { aktualne = false; };
   }, [user]);
 
-  const idMoich = new Set(moje.map((t) => t.id));
-  const trwajace = publiczne.filter((t) => t.status === 'trwa');
-  const nadchodzace = publiczne.filter((t) => t.status !== 'trwa' && !idMoich.has(t.id));
+  // „Zamknięte zapisy" idą do TRWAJĄCYCH, nie do zapisów: wejść się już nie da,
+  // a turniej dzieje się lada chwila. Karta „Zapisy" ma zawierać wyłącznie to,
+  // do czego da się dopisać drużynę — inaczej kliknięcie kończy się ślepą uliczką.
+  const zawartosc: Record<Karta, Turniej[]> = {
+    moje,
+    zapisy: publiczne.filter((t) => t.status === 'zapisy'),
+    trwaja: publiczne.filter((t) => t.status === 'trwa' || t.status === 'zamkniete_zapisy'),
+    zakonczone: publiczne.filter((t) => t.status === 'zakonczony'),
+  };
+
+  // Kolejność kart jest kolejnością pytań, z którymi się tu wchodzi: najpierw
+  // „co z moimi", potem „gdzie mogę wejść", potem „co się dzieje".
+  const karty: Karta[] = user ? ['moje', 'zapisy', 'trwaja', 'zakonczone'] : ['zapisy', 'trwaja', 'zakonczone'];
+  const domyslna: Karta = karty.find((k) => zawartosc[k].length > 0) ?? (user ? 'moje' : 'zapisy');
+  const aktywna: Karta = wybrana && karty.includes(wybrana) ? wybrana : domyslna;
+  const widoczne = zawartosc[aktywna];
+  const pustoWszedzie = karty.every((k) => zawartosc[k].length === 0);
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header />
-      <main className="mx-auto w-full max-w-2xl flex-1 space-y-6 px-4 py-8">
+      <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-8">
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">Turnieje</h1>
           {user && (
@@ -97,38 +119,51 @@ export default function TurniejeClient() {
 
         {ladowanie ? (
           <div className="py-16 text-center text-sm text-slate-400">Ładuję…</div>
+        ) : pustoWszedzie ? (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 py-16 text-center">
+            <Trophy className="h-8 w-8 text-slate-300" />
+            <p className="font-medium text-ink">Nie ma jeszcze żadnego turnieju</p>
+            {user ? (
+              <>
+                <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
+                  Organizujesz turniej? Bojo poprowadzi zapisy drużyn, terminarz i wyniki na żywo.
+                </p>
+                <Link href="/turnieje/nowe" className="mt-1"><Button size="sm">Utwórz turniej</Button></Link>
+              </>
+            ) : (
+              <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
+                Zaloguj się, żeby założyć własny turniej.
+              </p>
+            )}
+          </div>
         ) : (
           <>
-            <Sekcja tytul="Trwają teraz" turnieje={trwajace} />
-            <Sekcja tytul="Moje turnieje" turnieje={moje} />
-            <Sekcja tytul="Nadchodzące" turnieje={nadchodzace} />
+            <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+              {karty.map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setWybrana(k)}
+                  className={[
+                    'shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                    aktywna === k ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800',
+                  ].join(' ')}
+                >
+                  {ETYKIETY[k]}
+                  {zawartosc[k].length > 0 && (
+                    <span className={aktywna === k ? 'ml-1.5 text-primary-600' : 'ml-1.5 text-slate-400'}>
+                      {zawartosc[k].length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
 
-            {trwajace.length === 0 && moje.length === 0 && nadchodzace.length === 0 && (
-              <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 py-16 text-center">
-                <Trophy className="h-8 w-8 text-slate-300" />
-                {user ? (
-                  <>
-                    <p className="font-medium text-ink">Nie ma jeszcze żadnego turnieju</p>
-                    <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
-                      Organizujesz turniej? Bojo poprowadzi zapisy drużyn, terminarz i wyniki na żywo.
-                    </p>
-                    <Link href="/turnieje/nowe" className="mt-1"><Button size="sm">Utwórz turniej</Button></Link>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-medium text-ink">Nie ma jeszcze żadnego turnieju</p>
-                    <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
-                      Zaloguj się, żeby założyć własny turniej.
-                    </p>
-                  </>
-                )}
+            {widoczne.length === 0 ? (
+              <p className="py-12 text-center text-sm text-slate-400">{PUSTE[aktywna]}</p>
+            ) : (
+              <div className="space-y-3">
+                {widoczne.map((t) => <KartaTurnieju key={t.id} t={t} />)}
               </div>
-            )}
-
-            {!authLoading && user && moje.length === 0 && (trwajace.length > 0 || nadchodzace.length > 0) && (
-              <p className="text-center text-xs text-slate-400">
-                Nie grasz jeszcze w żadnym turnieju — kapitan Twojej drużyny wyśle Ci link, gdy się zgłosicie.
-              </p>
             )}
           </>
         )}

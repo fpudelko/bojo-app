@@ -2,6 +2,7 @@
 // w przeglądarce z już pobranych meczów i drużyn, żeby nie omijać RLS drugą
 // drogą do tych samych danych (widok SQL czytałby tabele wprost, z pominięciem
 // polityk nałożonych na `turniej_mecze`/`turniej_druzyny`).
+import { plural } from './plural';
 import type { TurniejMecz, WierszTabeli } from '@/types';
 
 export interface OpcjeTabeli {
@@ -109,4 +110,22 @@ export function posortujTabele(
   }
   let i = 0;
   return wynik.map((slot) => slot ?? bezRecznej[i++]);
+}
+
+/**
+ * Podpis pod KOMPLETEM tabel grup — jeden na turniej, nie jeden na grupę.
+ * Reguła awansu jest wspólna dla całego turnieju; powtórzona przy każdej
+ * grupie czyta się jak osobna informacja właśnie o tej grupie.
+ *
+ * `null`, gdy podpis nie niósłby nic: nie ma grup (liga — jedna tabela, nie ma
+ * dokąd awansować) albo z żadnej grupy nikt nie odpada, bo awansuje tylu, ilu
+ * gra. `rozmiaryGrup` to liczba drużyn w kolejnych grupach.
+ */
+export function opisAwansu(rozmiaryGrup: readonly number[], awansujeZGrupy: number): string | null {
+  if (awansujeZGrupy < 1) return null;
+  if (!rozmiaryGrup.some((n) => n > awansujeZGrupy)) return null;
+  const miejsca = plural(awansujeZGrupy, 'miejsce', 'miejsca', 'miejsc');
+  const awansuja = plural(awansujeZGrupy, 'awansuje', 'awansują', 'awansuje');
+  const liczba = awansujeZGrupy === 1 ? 'Pierwsze' : `Pierwsze ${awansujeZGrupy}`;
+  return `${liczba} ${miejsca} w grupie ${awansuja} do fazy pucharowej`;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { obliczTabele, posortujTabele } from '@/lib/turniejTabela';
+import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import type { TurniejMecz } from '@/types';
 
 const OPCJE = { punktyZaWygrana: 3, punktyZaRemis: 1 };
@@ -124,5 +124,29 @@ describe('posortujTabele', () => {
   it('bez żadnej pozycji ręcznej rozstrzygnietyRecznie jest zawsze false', () => {
     const wiersze = obliczTabele([], DRUZYNY, OPCJE);
     expect(posortujTabele(wiersze).every((w) => !w.rozstrzygnietyRecznie)).toBe(true);
+  });
+});
+
+describe('opisAwansu', () => {
+  it('jeden podpis dla całego turnieju, z odmianą liczebnika', () => {
+    expect(opisAwansu([4, 4], 2)).toBe('Pierwsze 2 miejsca w grupie awansują do fazy pucharowej');
+    expect(opisAwansu([4, 4], 1)).toBe('Pierwsze miejsce w grupie awansuje do fazy pucharowej');
+    expect(opisAwansu([8], 5)).toBe('Pierwsze 5 miejsc w grupie awansuje do fazy pucharowej');
+  });
+
+  it('bez grup nie ma podpisu — liga to jedna tabela, nie ma dokąd awansować', () => {
+    expect(opisAwansu([], 2)).toBeNull();
+  });
+
+  it('gdy nikt nie odpada, podpis nic nie wnosi', () => {
+    // Trzy drużyny w grupie, awansują trzy — podświetlenie objęłoby całą tabelę.
+    expect(opisAwansu([3, 3], 3)).toBeNull();
+    expect(opisAwansu([2], 4)).toBeNull();
+  });
+
+  it('wystarczy JEDNA grupa, z której ktoś odpada', () => {
+    // Grupy bywają nierówne (7 drużyn to 4 + 3). Z czwórki ktoś odpada,
+    // więc reguła awansu jest realna i podpis ma się pokazać.
+    expect(opisAwansu([4, 3], 3)).toBe('Pierwsze 3 miejsca w grupie awansują do fazy pucharowej');
   });
 });

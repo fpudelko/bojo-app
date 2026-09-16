@@ -525,6 +525,16 @@ Kto awansuje z grupy, liczy `pg_temp.z_grupy()` — **ta sama kolejność sortow
 `posortujTabele()`**, bo rozjazd tych dwóch produkowałby drabinkę z drużyną, której
 tabela obok nie stawia w strefie awansu.
 
+**Każdy zawodnik ma konto, a `test1@example.com` gra w KAŻDYM z sześciu turniejów.**
+Seed zakłada własną pulę 60 kont (`gracz01`…`gracz60@example.com`, hasło `test1234`)
+tym samym wzorcem co `seed-test-users.sql`. Powód nie jest kosmetyczny: skład drużyny
+prowadzi do profilu gracza (`/gracz/[id]`), a zawodnik bez `user_id` jest martwym
+napisem — czyli seed bez kont pokazywałby ekran, którego w produkcji nie ma. Pula ma
+60 kont, bo `idx_zawodnik_raz_w_turnieju` pilnuje jednej drużyny na osobę w turnieju,
+a największy turniej ma 8 drużyn po 7 zawodników. Konta bierze się CO ÓSMĄ pozycję,
+nie po kolei — przy siedmiu kolejnych indeksach cała drużyna trafiała w ten sam blok
+nazwisk i wychodziło siedmiu Krawczyków w jednym składzie.
+
 `supabase/wyczysc-testowe.sql` — sprząta WSZYSTKIE seedy po markerach, przed
 wpuszczeniem ludzi. Trzy sekcje: podgląd (liczy), kasowanie (zakomentowane, trzeba
 odkomentować świadomie) i lista meczów BEZ markera — czyli tych zrobionych ręką przy
