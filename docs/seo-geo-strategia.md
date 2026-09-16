@@ -1361,7 +1361,7 @@ miesiące nie odróżnimy poprawy od wrażenia poprawy.
 | Miernik | Czym | Jak często | Wartość bazowa |
 |---|---|---|---|
 | Pokrycie indeksu (ile stron realnie w Google) | Search Console → Strony | miesięcznie | **skok 5.09.2026: 59 → 17 473 zaindeksowanych** (530 nie zindeksowanych, 4 z 6 przyczyn zweryfikowane w kodzie jako zamierzone); **R1 rozstrzygnięty na 2026-09-15: nie uruchomiony** (0,5% udział); drugi termin 2026-09-29 sprawdza dalszy wzrost — patrz 7a.2 |
-| Wyświetlenia i pozycje wg klastra z 2a | Search Console → Skuteczność | miesięcznie | **zmierzone 2026-08-29** — 0 kliknięć / 56 wyświetleń / CTR 0% / śr. pozycja 9,4 (3 mies.), wyłącznie zapytania markowe — patrz 7a.2 |
+| Wyświetlenia i pozycje wg klastra z 2a | Search Console → Skuteczność | miesięcznie | **skok od 10.09.2026**: 0 kl./56 wyśw. (3 mies. do 29.08) → **116 kl./8 733 wyśw.** w 7 dni do 14.09, CTR 1,3%, poz. 7,5; gęsty long tail nazw obiektów, marka „bojo" nadal 0 kliknięć — patrz 7a.2 |
 | Obecność w odpowiedziach modeli | 40 promptów z Załącznika A | co 6 tygodni | **niezmierzona** |
 | Wzmianki marki poza domeną | wyszukiwanie nazwy z kwalifikatorem | co 6 tygodni | **zero znanych** |
 | Ruch crawlerów AI | logi Vercela wg `User-Agent` z `robots.ts:12-19` | miesięcznie | nieznana |
@@ -1633,6 +1633,46 @@ indeksacja — realne pojawianie się w wynikach wyszukiwania, nie tylko w bazie
 Google — ale ten eksport nie niesie kliknięć, CTR ani pozycji ani listy zapytań, więc
 **do potwierdzenia osobnym zrzutem raportu *Skuteczność*** (ten sam widok co
 w pierwszym pomiarze z 7a.2) zamiast zgadywania z samych wyświetleń.
+
+**POTWIERDZENIE (ten sam dzień, eksport CSV raportu *Skuteczność*, „ostatnich 7 dni"
+z GSC, kończy się 14.09.2026) — realne kliknięcia, nie tylko wyświetlenia.**
+
+| Metryka (7 dni, 8–14.09) | Wartość |
+|---|---|
+| Kliknięcia | **116** |
+| Wyświetlenia | **8 733** |
+| CTR średni | 1,3% |
+| Pozycja średnia | 7,5 |
+
+Dzienny rozkład potwierdza ten sam skok co w raporcie *Strony*: 0 kliknięć 8.09 →
+**24–38 kliknięć/dzień** od 11.09. Rozkład urządzeń: mobile 101 kl. / 7 513 wyśw.
+(CTR 1,34%, poz. 6,8), desktop 15 kl. / 1 195 wyśw. (CTR 1,26%, poz. 11,1 — wyraźnie
+gorsza pozycja na desktopie niż na telefonie, odwrotnie niż zwykle bywa; niewyjaśnione,
+zbyt mała próbka, żeby wyciągać wniosek). 114 z 116 kliknięć z Polski — sanity check
+przechodzi, to nie ruch przypadkowy z innych rynków.
+
+**Kształt ruchu: gęsty long tail, nie kilka wygranych fraz.** Lista *Zapytania*
+(388 unikalnych fraz w top, suma tylko 5 kliknięć z nazwanych zapytań) kontra
+raport *Strony* (1000 stron w top, suma 116 kliknięć) pokazuje, że **zdecydowana
+większość kliknięć pochodzi z zapytań zbyt rzadkich, żeby Google pokazał je
+pojedynczo** (próg anonimizacji) — każde z osobna to prawdopodobnie ktoś szukający
+konkretnego obiektu po nazwie („tor wyścigów konnych służewiec", „legion
+tomaszowice"). Najlepsza strona wg kliknięć: `/boisko/tor-wyscigow-konnych-sluzewiec-boisko-pilkarskie`
+(4 kl. / 10 wyśw., poz. 4,3) — żadna pojedyncza strona nie dominuje. To dokładnie
+profil ruchu, jakiego oczekuje strategia z rozdziału 8 dla klastra „Lokalne: obiekt":
+tysiące cienkich, specyficznych trafień, nie kilka dużych.
+
+**Marka nadal nie konwertuje — zgodnie z 2c.** Zapytanie „bojo": 30 wyśw., pozycja
+6,97 (poprawa z 9,4 w pierwszym pomiarze), **0 kliknięć**. „bojo co to" i „co to
+bojo" — też 0 kliknięć każde. Ktoś widzi Bojo na tej pozycji dla zapytania o markę
+i nadal nie klika — dokładnie problem z kolizją nazwy, opisany w 2c, teraz z drugim
+punktem pomiaru w czasie zamiast jednorazowego odczytu.
+
+**„Wygląd w wyszukiwarce"** — pusty eksport, zero wierszy: żadne rich results (FAQ,
+HowTo) jeszcze się nie pojawiają w wynikach, mimo że `faqJsonLd`/`howToJsonLd` są
+emitowane w kodzie. Zbyt wcześnie, żeby to czytać jako problem — Google zwykle
+potrzebuje więcej czasu i autorytetu domeny, zanim zacznie renderować rich snippets,
+nie tylko poprawnego JSON-LD.
 
 **Wniosek na termin 2026-09-15: zamknięty, pozytywnie.** Problemem była wyłącznie
 brakująca sitemapa (ustalenie z 29.08); po zgłoszeniu Google ocenił katalog jedną
