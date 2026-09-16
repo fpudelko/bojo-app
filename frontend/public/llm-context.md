@@ -270,7 +270,10 @@ dostępne areny/boiska bez kolizji drużyny w jednym slocie) i może go przesun�
 gdy dzień się opóźnia. Wyznaczony prowadzący obsługuje mecz z telefonu: „Rozpocznij",
 gol/kartka/punkt jednym dotknięciem ze składu, „Cofnij ostatnie", „Zakończ" (karne przy
 remisie w fazie pucharowej). Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
-liczą się same z zapisanych wyników. Organizator może dopisać ogłoszenie widoczne dla
+liczą się same z zapisanych wyników. W drabince zwycięzca meczu jest pogrubiony,
+a pod wynikiem stoją rzuty karne, gdy to one rozstrzygnęły; w tabeli grupy miejsca
+awansujące mają pasek przy pozycji i podpis, ile pierwszych miejsc wychodzi do fazy
+pucharowej. Organizator może dopisać ogłoszenie widoczne dla
 wszystkich drużyn i podać numer BLIK do wpisowego. Po turnieju kapitan jednym przyciskiem
 zamienia drużynę w trwałą ekipę Bojo (grupę) z całym zapisanym składem.
 
@@ -412,6 +415,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-09-16 — Turniej: widać, kto wygrał mecz i kto wychodzi z grupy
+
+PROBLEM: zakładka „Wyniki" turnieju pokazywała komplet danych, a mimo to nie odpowiadała
+na dwa pytania, z którymi się w nią wchodzi. W drabince karta meczu podawała sam wynik
+(„1:1"), więc kto przeszedł dalej, trzeba było wywnioskować z następnej rundy — a przy
+walkowerze (0:0) i przy karnych (1:1) porównanie liczb daje po prostu złą odpowiedź.
+Rzuty karne nie były na karcie widoczne wcale, choć rozstrzygały mecz. W tabeli grupy
+wiersze drużyn awansujących miały blade tło i nic nie mówiło, czym ten kolor jest —
+czytający widział, że dwa wiersze są inne, bez informacji, dlaczego.
+
+ROZWIĄZANIE BOJO: na karcie meczu zwycięzca jest pogrubiony, przegrany wyszarzony, a pod
+wynikiem stoi druga linijka „k. 4:3", gdy mecz rozstrzygnęły karne. Tabela grupy dokłada
+do podświetlenia pionowy pasek przy pozycji i podpis pod tabelą — „Pierwsze 2 miejsca
+awansują do fazy pucharowej". Podpis pojawia się tylko wtedy, gdy ktoś realnie odpada:
+w lidze (jedna tabela, nie ma dokąd awansować) i w grupie, z której wychodzą wszyscy,
+znacznika nie ma, bo nie niósłby żadnej informacji.
+
+MECHANIKA: `stronaZwyciezcy()` w `lib/turniejWynik.ts` czyta `turniej_mecze.zwyciezca_id`
+— kolumnę ustawianą przez `zakoncz_mecz()` (migracja `147`) — a NIE porównuje wyniku;
+to jedyna odpowiedź poprawna dla walkowera, karnych i siatkówki (gdzie `wynik_a` to
+wygrane sety). Prezentacja w `components/turnieje/KartaMeczu.tsx` (drabinka i terminarz)
+oraz `components/turnieje/TabelaGrupy.tsx`. Dane do oglądania tych stanów bez
+kilkudziesięciu kliknięć: `supabase/seed_turnieje.sql` — sześć turniejów zatrzymanych na
+różnych etapach. Testy: `turniejWynik.test.ts`.
 
 ### 2026-09-16 — Moduł turniejowy odmrożony: ogłoszenia, BLIK, „zamień drużynę w ekipę"
 
@@ -696,37 +724,3 @@ na `event_participants`) wychodzi bez zapisu, gdy wiersza meczu już nie ma, czy
 DELETE przyszedł kaskadą z `events`. Osłonę wprowadziła `116`, a `135` zdjęła ją po cichu,
 biorąc ciało funkcji z `076`. Regresję pilnuje teraz `supabase/test/kasowanie-meczu.sql`
 uruchamiany przez `scripts/baza-testowa.sh`, czyli w CI.
-
-
-### 2026-09-14 — Arkusz filtrów: mniej napisów, sport czytany pod ikonami
-
-PROBLEM: arkusz filtrów na mapie i liście meczów otwierał się trzema rzędami
-poświęconymi wyłącznie temu, gdzie szukać: nagłówek „Gdzie szukam", akapit tłumaczący
-słowami to, co robi kontrolka pod nim, i osobny przycisk na całą szerokość „Ustaw
-pinezkę na mojej lokalizacji" nad polem miejscowości. Pierwsza rzecz do dotknięcia
-wypadała nisko. Osobno: ikony sportów pokazywały nazwę dopiero po wybraniu, więc
-wybrana ikona rosła w poziomie i przestawiała cały rząd — ikony skakały pod palcem, a
-przy dwóch wybranych rząd łamał się na dwa wiersze. W rzędzie stała też piąta ikona
-„Wszystkie sporty", czyli dodatkowy cel dotyku na powrót do stanu domyślnego i jedyna
-pozycja, która nie jest sportem.
-
-ROZWIĄZANIE BOJO: nagłówek „Gdzie szukam" i akapit pod nim zniknęły — pole mówi
-„Miejscowość albo kod pocztowy" swoim placeholderem. Pinezka stoi jako ikona po prawej
-stronie tego pola, w jednym wierszu z nim, zamiast osobnego przycisku nad nim. Rząd
-sportów to cztery ikony o stałej szerokości, bez piątej „Wszystkie sporty": nic
-niewybrane znaczy wszystkie. Co jest wybrane, mówi jedna linijka pod rzędem — wymienia
-nazwy po przecinku, nie liczbę. Okno alertu o nowym meczu dostało przy okazji
-przełączanie wyboru: ma wybór pojedynczy, więc dotknięcie już wybranego sportu go
-odznacza i wraca do „Dowolnego sportu".
-
-MECHANIKA: `components/ui/SportChip.tsx` renderuje sam emoji w kwadracie 44×44 px
-(WCAG 2.5.5), nazwa zostaje w `aria-label`/`title`. Podpis pod rzędem składa
-`multiLabel()` z `lib/eventFilters.ts`, przepisane tak, żeby wymieniało nazwy zamiast
-zwracać „N wybrane" — funkcja nie miała dotąd ani jednego wywołania w interfejsie,
-więc nic się na tej zmianie nie opierało. `PrzyciskMojaLokalizacja.tsx` dostał
-`wariant` (`pelny` | `ikona`); wariant ikony przyjmuje pole adresu jako `children`
-i sam składa wiersz, bo to on trzyma komunikat o odmowie zgody na lokalizację, a ten
-musi wypaść pod wierszem, nie obok pola. Miejsca użycia: `WyborMiejscowosci.tsx`,
-`VenueExplorer.tsx` (oba arkusze), `app/wydarzenia/EventsListView.tsx`,
-`components/home/AlertSetupDialog.tsx`. Testy: `alertZFiltrow.test.tsx`,
-`eventFilters.test.ts`.

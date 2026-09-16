@@ -90,6 +90,7 @@ const seedyKont  = ['seed-test-users.sql'];
 const seedyScenariuszy = [
   'seed_test_data.sql', 'seed_test_groups.sql', 'seed_test_jan.sql',
   'seed_regresja.sql', 'seed_taktyka.sql', 'seed_dwa_konta.sql', 'seed_przedpremiera.sql',
+  'seed_turnieje.sql',
 ];
 
 // Konta organizatorów zakładane hasłem, bo świeży projekt nie ma jeszcze

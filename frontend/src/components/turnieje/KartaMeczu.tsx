@@ -5,6 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { MapPin } from 'lucide-react';
 import { FAZA_LABEL, STATUS_MECZU } from '@/lib/turniejEtykiety';
+import { stronaZwyciezcy } from '@/lib/turniejWynik';
 import type { TurniejMecz } from '@/types';
 
 function nazwaSlotu(
@@ -45,6 +46,18 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, pr
   }
   const arena = mecz.arenaId ? arenyPoId.get(mecz.arenaId) : undefined;
 
+  // Kto wygrał, widać po WADZE PISMA, nie po samym wyniku. Bez tego drabinka
+  // każe czytającemu porównywać dwie liczby przy każdym meczu z osobna —
+  // a przy walkowerze (0:0) i karnych (1:1) porównanie daje złą odpowiedź.
+  const zwyciezca = rozegrany && mecz.status !== 'trwa' ? stronaZwyciezcy(mecz) : null;
+  const tonDruzyny = (strona: 'a' | 'b') =>
+    zwyciezca === strona ? 'font-semibold text-ink'
+      : zwyciezca ? 'font-medium text-slate-400'
+      : 'font-medium text-ink';
+  const karne = mecz.karneA !== undefined && mecz.karneB !== undefined
+    ? `k. ${mecz.karneA}:${mecz.karneB}`
+    : null;
+
   const Wrapper = onClick ? 'button' : 'div';
 
   return (
@@ -60,13 +73,16 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, pr
         <span className={`rounded-full px-2 py-0.5 font-medium ${status.ton}`}>{status.label}</span>
       </div>
       <div className="mt-2 flex items-center justify-between gap-3">
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{nazwaA}</span>
+        <span className={`min-w-0 flex-1 truncate text-sm ${tonDruzyny('a')}`}>{nazwaA}</span>
         {rozegrany ? (
-          <span className="shrink-0 font-mono text-sm font-semibold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
+          <span className="shrink-0 text-center">
+            <span className="block font-mono text-sm font-semibold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
+            {karne && <span className="block font-mono text-[10px] leading-tight text-slate-400">{karne}</span>}
+          </span>
         ) : (
           <span className="shrink-0 text-xs text-slate-400">vs</span>
         )}
-        <span className="min-w-0 flex-1 truncate text-right text-sm font-medium text-ink">{nazwaB}</span>
+        <span className={`min-w-0 flex-1 truncate text-right text-sm ${tonDruzyny('b')}`}>{nazwaB}</span>
       </div>
       {(godzina || arena) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">

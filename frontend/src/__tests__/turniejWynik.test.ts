@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   wynikZeZdarzen, mozeZapisywacZdarzenia, mozeZakonczycMecz, wymaganeKarne,
-  zwyciezcaZKarnych, ustawPunktSetu, wygranSetow, setOsiagnalProg,
+  zwyciezcaZKarnych, stronaZwyciezcy, ustawPunktSetu, wygranSetow, setOsiagnalProg,
   jestSportemSetowym, jestKoszykowka,
 } from '@/lib/turniejWynik';
 
@@ -148,5 +148,29 @@ describe('jestSportemSetowym / jestKoszykowka', () => {
   it('tylko koszykówka liczy punkty 1/2/3', () => {
     expect(jestKoszykowka('koszykówka')).toBe(true);
     expect(jestKoszykowka('piłka nożna')).toBe(false);
+  });
+});
+
+describe('stronaZwyciezcy', () => {
+  const mecz = { druzynaAId: 'A', druzynaBId: 'B' };
+
+  it('wskazuje stronę po `zwyciezcaId`', () => {
+    expect(stronaZwyciezcy({ ...mecz, zwyciezcaId: 'A' })).toBe('a');
+    expect(stronaZwyciezcy({ ...mecz, zwyciezcaId: 'B' })).toBe('b');
+  });
+
+  it('remis i mecz nierozegrany nie mają zwycięzcy', () => {
+    expect(stronaZwyciezcy({ ...mecz, zwyciezcaId: undefined })).toBeNull();
+  });
+
+  it('zwycięzca spoza tego meczu to null, nie zgadywanie', () => {
+    // Może się zdarzyć po przepięciu drużyny w drabince — karta ma wtedy
+    // nikogo nie pogrubiać, a nie wskazać przypadkowej strony.
+    expect(stronaZwyciezcy({ ...mecz, zwyciezcaId: 'C' })).toBeNull();
+  });
+
+  it('walkower 0:0 ma zwycięzcę — dlatego NIE porównujemy wyniku', () => {
+    // Gdyby karta czytała wynik, walkower wyglądałby na remis.
+    expect(stronaZwyciezcy({ ...mecz, zwyciezcaId: 'B' })).toBe('b');
   });
 });

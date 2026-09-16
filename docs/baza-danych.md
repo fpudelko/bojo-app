@@ -629,6 +629,17 @@ boisk dostały przy tej okazji `ON CONFLICT (id) DO NOTHING`: bez tego drugie ur
 paczki `04` (najzwyklejsza rzecz — dołożyć brakujący scenariusz) padało na kluczu głównym
 `fields`, zanim doszło do wydarzeń.
 
+**Turnieje mają własny seed: `seed_turnieje.sql` (marker `[TUR]`, `TU1`…`TU6`).**
+Sześć turniejów zatrzymanych na RÓŻNYCH etapach — od zakończonego z finałem na karne po
+mecz trwający na żywo. Kasowanie idzie po `turnieje.opis`, nie po `events.description`:
+turniej nie jest meczem i żaden warunek na `events` go nie ruszy (dlatego
+`wyczysc-testowe.sql` ma dla niego osobne zapytanie). Wynik meczu powstaje tak samo jak
+przy prowadzeniu z konsoli — seed wstawia GOLE do `turniej_zdarzenia`, a `wynik_a`/
+`wynik_b` liczy wyzwalacz `trg_zdarzenia_przelicz` (`147`). Gdy `147` nie jest wgrana,
+seed wykrywa to przez `to_regclass` i zapisuje wynik wprost; puste zostają wtedy tylko
+klasyfikacje strzelców. Pomocnicze funkcje siedzą w `pg_temp`, czyli znikają razem
+z sesją SQL Editora — nic w aplikacji ich nie widzi.
+
 **Seedy sprawdzają schemat, zanim cokolwiek zapiszą.** `seed_test_data.sql`,
 `seed_regresja.sql` i `seed_przedpremiera.sql` zaczynają od sprawdzenia po jednym
 znaczniku na wymaganą migrację (kolumna `events.reserve_claim_minutes` dla `118`,
