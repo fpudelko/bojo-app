@@ -3,6 +3,7 @@
 // jest czystymi funkcjami w `lib/turniejFormat.ts`; tu tylko baza.
 import { supabase } from './supabase';
 import { zaktualizujJedenWiersz } from './zapytania';
+import { track } from './analytics';
 import type { NowyMecz } from './turniejFormat';
 import type { TurniejArena, TurniejGrupa, TurniejMecz, TurniejZdarzenie, ZdarzenieTyp } from '@/types';
 
@@ -330,4 +331,5 @@ export async function zakonczMecz(
     p_mvp_zawodnik_id: opcje.mvpZawodnikId ?? null,
   });
   if (error) throw new Error(error.message);
+  track('turniej_mecz_poprowadzony', { meczId });
 }

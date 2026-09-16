@@ -50,7 +50,10 @@ export type AnalyticsEvent =
   /** Mecz poprowadzony do końca konsolą prowadzącego (Etap 2). */
   | 'turniej_mecz_poprowadzony'
   /** Organizator wysłał link do turnieju/drużyny dalej. */
-  | 'turniej_udostepniony';
+  | 'turniej_udostepniony'
+  // ── MODUŁ TURNIEJOWY (150, Etap 4) ───────────────────────────────────────
+  /** Kapitan zamienił drużynę turniejową w trwałą ekipę jednym przyciskiem. */
+  | 'turniej_zamieniony_w_ekipe';
 
 export async function track(
   eventType: AnalyticsEvent,

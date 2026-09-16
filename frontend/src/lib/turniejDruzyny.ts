@@ -269,6 +269,19 @@ export async function dolaczDoDruzyny(
   };
 }
 
+/** „Zamień drużynę w ekipę" — RPC `zamien_druzyne_w_ekipe` (150). Tylko
+ *  kapitan drużyny (RLS/RPC sprawdza to wprost, nie tylko zarządzający
+ *  turniejem — to jego przycisk). Zwraca id nowo powstałej grupy. */
+export async function zamienDruzyneWEkipe(druzynaId: string, nazwa?: string): Promise<string> {
+  const { data, error } = await supabase.rpc('zamien_druzyne_w_ekipe', {
+    p_druzyna: druzynaId,
+    p_nazwa: nazwa?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  track('turniej_zamieniony_w_ekipe', { druzynaId, grupaId: data as string });
+  return data as string;
+}
+
 // ---------------------------------------------------------------------------
 // Czyste funkcje
 // ---------------------------------------------------------------------------

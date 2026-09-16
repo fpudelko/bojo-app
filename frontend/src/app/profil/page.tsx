@@ -4,10 +4,11 @@ import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { User, Check, LogOut, Trash2, Phone, AlertTriangle, BarChart2, Building2, Sun, Moon, ChevronRight, MessageSquareWarning } from 'lucide-react';
+import { User, Check, LogOut, Trash2, Phone, AlertTriangle, BarChart2, Building2, Sun, Moon, ChevronRight, MessageSquareWarning, Trophy } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
+import { SHOW_TURNIEJE } from '@/lib/features';
 import { isPelneImie } from '@/lib/profileName';
 import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
@@ -213,6 +214,16 @@ export default function ProfilePage() {
             >
               <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
               <span className="flex-1 text-sm font-medium text-slate-700">Moje obiekty</span>
+              <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+            </Link>
+          )}
+          {SHOW_TURNIEJE && (
+            <Link
+              href="/turnieje"
+              className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors"
+            >
+              <Trophy className="w-4 h-4 text-slate-400 shrink-0" />
+              <span className="flex-1 text-sm font-medium text-slate-700">Turnieje</span>
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
             </Link>
           )}

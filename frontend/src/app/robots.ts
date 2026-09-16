@@ -17,11 +17,16 @@ import type { MetadataRoute } from 'next';
 //   2. Kreatory i edycja: /wydarzenia/nowe, /grupy/nowe, */edytuj. Formularze
 //      za logowaniem; /wydarzenia/nowe jest przy tym linkowane ze stopki
 //      i z czterech CTA landingu, więc realnie zbierało odesłania.
-//   3. Funkcje ZA WYŁĄCZONYMI FLAGAMI: /turnieje (SHOW_TURNIEJE), /cykliczne
-//      (SHOW_RECURRING), /obiekt i /rezerwacje (FEATURE_RESERVATIONS).
-//      docs/funkcje.md mówi wprost: „reklamowanie ich wyszukiwarce obiecuje
-//      coś, czego użytkownik nie znajdzie w interfejsie". Flagi chowają
-//      wejścia w nawigacji, nie trasy — te odpowiadają normalnie.
+//      /turnieje/nowe, /turnieje/*/panel i /turnieje/*/zglos dołączają tu
+//      z odmrożeniem `SHOW_TURNIEJE` — ta sama para „kreator + panel
+//      organizatora za logowaniem", co przy meczu i grupie.
+//   3. Funkcje ZA WYŁĄCZONYMI FLAGAMI: /cykliczne (SHOW_RECURRING), /obiekt
+//      i /rezerwacje (FEATURE_RESERVATIONS). docs/funkcje.md mówi wprost:
+//      „reklamowanie ich wyszukiwarce obiecuje coś, czego użytkownik nie
+//      znajdzie w interfejsie". Flagi chowają wejścia w nawigacji, nie trasy
+//      — te odpowiadają normalnie.
+//      `/turnieje` ZDJĘTE stąd wraz z odmrożeniem `SHOW_TURNIEJE` (Etap 4,
+//      migracja `150`) — moduł jest dziś realną, publiczną funkcją.
 //
 // /gracz/ to publiczne profile graczy: imię, statystyki, historia meczów.
 // Decyzja o prywatności, nie o SEO — profil w wynikach wyszukiwania to co
@@ -46,7 +51,9 @@ const DISALLOW = [
   '/wydarzenia/*/edytuj',
   '/grupy/nowe',
   '/grupy/*/edytuj',
-  '/turnieje',
+  '/turnieje/nowe',
+  '/turnieje/*/panel',
+  '/turnieje/*/zglos',
   '/cykliczne',
   '/obiekt',
   '/rezerwacje',

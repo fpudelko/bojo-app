@@ -862,9 +862,10 @@ per profil publiczny. Nie mylić obu — patrzą na różne tabele i różne kon
 
 ## Turniej: ściana logowania i uprawnienia
 
-Moduł turniejowy (migracja `145`+, za flagą `SHOW_TURNIEJE`) zastępuje dawny „BOJO Cup"
-(`029`/`030`) — pełny plan → [funkcje.md](./funkcje.md#moduł-turniejowy-turnieje--w-budowie-etapami)
-i [BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało).
+Moduł turniejowy (migracje `145`–`150`, `SHOW_TURNIEJE` włączona od 2026-09-16) zastąpił
+dawny „BOJO Cup" (`029`/`030`, tabele skasowane migracją `151`) — pełny plan →
+[funkcje.md](./funkcje.md#moduł-turniejowy-turnieje) i
+[BACKLOG.md §6](../BACKLOG.md#6-turniej--stan-i-co-zostało).
 
 **Ściana logowania jest głównym mechanizmem zakładania kont w tym module**, nie efektem
 ubocznym. Skład drużyny (`turniej_zawodnicy`) czyta wyłącznie zalogowany — polityka RLS
@@ -1033,3 +1034,57 @@ klasyfikacji indywidualnej — dopiero zalogowanemu, bo imiona zawodników czyta
 `auth.uid() IS NOT NULL` (145). Bez tego rozróżnienia klasyfikacja dla niezalogowanego
 po prostu wyszłaby PUSTA (brak nazwisk do dopasowania) zamiast wprost poprosić
 o zalogowanie — myląca cisza zamiast jasnego komunikatu.
+
+## Turniej: ogłoszenia, BLIK i „zamień drużynę w ekipę" (150)
+
+**Ogłoszenie jest publiczne, tak jak terminarz i wynik — nie jak skład.** `turniej_ogloszenia`
+ma politykę SELECT `USING (true)`. To świadoma różnica wobec `turniej_zawodnicy`: skład
+to dziesiątki imion i jest za ścianą logowania z powodów RODO i konwersji (patrz sekcja
+wyżej), a ogłoszenie organizatora („Start opóźniony 15 minut") ma dotrzeć do każdego, kto
+akurat patrzy na stronę turnieju, także bez konta. Piszą wyłącznie zarządzający
+(`czy_zarzadza_turniejem()`) — to jest kanał organizatora do wszystkich, nie tablica
+dyskusyjna.
+
+**Powiadomienie o ogłoszeniu idzie do zawodnika, nie do kapitana.** Trigger notyfikuje
+każdy wiersz `turniej_zawodnicy` z `user_id IS NOT NULL` w drużynie o statusie `przyjeta`
+— nie tylko kapitanów. Ekipa turniejowa ma zwykle więcej niż jedno konto z dostępem do
+telefonu; ograniczenie do kapitanów zostawiłoby resztę składu bez informacji, dokładnie
+tak samo jak wpis na tablicy grupy (`group_posts`, 093) trafia do każdego
+`group_members`, nie tylko do założyciela.
+
+**BLIK organizatora żyje w osobnej tabeli z tego samego powodu co `event_blik` (120):**
+RLS jest wierszowe, a `turnieje` ma politykę SELECT `USING (true)` — trzymanie numeru
+telefonu bezpośrednio w tej tabeli wypuściłoby go do każdego, kto o turniej zapyta.
+`turniej_blik` widzi zarządzający (ustawił numer) i kapitan KAŻDEJ drużyny w turnieju —
+**nie tylko przyjętej**. To świadomie szersze niż ogłoszenia: drużyna na liście
+rezerwowej może chcieć zapłacić wpisowe z góry, żeby nie stracić miejsca, gdy ktoś się
+wycofa, więc widoczność numeru nie czeka na decyzję organizatora.
+
+**Wpisowe „opłacone" istniało od Etapu 0 (`wpisowe_oplacone_at`, `setWpisowe()`), ale bez
+przycisku.** `turniej_druzyny.wpisowe_oplacone_at` i funkcja zapisująca ją były gotowe od
+migracji `145` — czekały wyłącznie na miejsce w interfejsie. Panel dostał je dopiero
+teraz (zakładka Drużyny — plakietka „Opłacone ✓ / Nieopłacone" obok każdej przyjętej
+drużyny), razem z numerem BLIK, bo dopiero para „gdzie zapłacić" + „kto już zapłacił" ma
+sens dla organizatora. Ten sam wzorzec co przy migracji `146`, gdzie `createdAt`/`updatedAt`
+czekały w typie na pierwszego konsumenta.
+
+**„Zamień drużynę w ekipę" to przycisk KAPITANA, nie organizatora turnieju.** RPC
+`zamien_druzyne_w_ekipe()` sprawdza wprost `d.kapitan_id = auth.uid()` — nie
+`czy_zarzadza_turniejem()`/`czy_zarzadza_druzynami()`. Gdyby organizator mógł zrobić to
+za kapitana, zakładałby grupy z cudzych drużyn bez pytania nikogo o zgodę; to jest
+decyzja kapitana o WŁASNYM zespole, nie administracyjne domknięcie turnieju. Nowa
+`groups.sport`/`city` dziedziczy z turnieju, `name` z nazwy drużyny (albo własnej, jeśli
+kapitan ją poda) — kapitan wchodzi jako założyciel przez istniejący trigger
+`add_group_creator_as_member` (044), reszta składu z `user_id` dopisywana jest wprost do
+`group_members`, bo ta tabela nie ma polityki INSERT dla zwykłego użytkownika od
+migracji `094` (jedyna droga samodzielnego wejścia to kod zaproszenia). Zawodnicy bez
+konta (wpisani samym imieniem) zostają w turnieju — RPC nie ma jak założyć im konta ani
+dodać do grupy.
+
+**Domknięcie: stary „BOJO Cup" skasowany fizycznie, nie tylko z frontu.** Migracja `151`
+usuwa `tournaments` i sześć tabel `tournament_*` razem z ich funkcjami
+(`admin_team_contacts`, `tournament_team_count`, `shared_availability_days`) — front
+zniknął już w Etapie 0 (2026-09-13), ale tabele zostały świadomie, dopóki nowy moduł nie
+zastąpił go w całości. `SHOW_TURNIEJE` odmraża się w TYM SAMYM PR-ze co ta migracja: nie
+ma okresu przejściowego, w którym oba moduły turniejowe byłyby jednocześnie „prawie
+gotowe".

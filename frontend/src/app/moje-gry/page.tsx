@@ -18,7 +18,7 @@ import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo 
 import { doRozliczenia } from '@/lib/myEvents';
 import PustyStanMeczow from '@/components/home/dashboard/PustyStanMeczow';
 import { useMyInvites } from '@/lib/useMyInvites';
-import { SHOW_RECURRING } from '@/lib/features';
+import { SHOW_RECURRING, SHOW_TURNIEJE } from '@/lib/features';
 import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
 import type { EventItem } from '@/types';
 
@@ -224,6 +224,17 @@ function MojeGryContent() {
             className="flex items-center justify-between rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
           >
             <span className="text-sm font-semibold text-ink">🔁 Stałe gierki</span>
+            <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
+          </Link>
+        )}
+
+        {/* Turnieje — moduł za flagą, jedno z dwóch wejść (drugie: /profil). */}
+        {SHOW_TURNIEJE && (
+          <Link
+            href="/turnieje"
+            className="flex items-center justify-between rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
+          >
+            <span className="text-sm font-semibold text-ink">🏆 Turnieje</span>
             <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
           </Link>
         )}
