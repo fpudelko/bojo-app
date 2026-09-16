@@ -352,6 +352,35 @@ Pomijasz to celowo tylko wtedy, gdy kolumna ma być NIECZYTELNA przez API — ta
 Kosztowało to migrację `138`; asercja w `supabase/test/rls.sql` pilnuje, żeby się nie
 powtórzyło.
 
+## ⚠️ Nie ma klucza obcego do `profiles` — PostgREST nie zbuduje joinu
+
+Każda kolumna wskazująca użytkownika w tym repo (`user_id`, `organizator_id`,
+`kapitan_id`, `autor_id`…) ma `REFERENCES auth.users`. **Żadna tabela nie odwołuje się
+do `profiles`.** Nazwa i awatar leżą w `profiles` (migracja `005`, `022`), ale sklejenie
+ich z wierszem to zadanie dla drugiego zapytania, nie dla zagnieżdżenia:
+
+```ts
+// ŹLE — PGRST200: „Could not find a relationship between 'turniej_osoby' and 'profiles'"
+.from('turniej_osoby').select('*, profiles(display_name, avatar_url)')
+
+// DOBRZE — dwa zapytania, sklejenie po `id` w JS
+const { data: osoby } = await supabase.from('turniej_osoby').select('*').eq(…);
+const { data: profile } = await supabase.from('profiles')
+  .select('id, display_name, avatar_url').in('id', osoby.map((o) => o.user_id));
+```
+
+Wzorce w kodzie: `getEventDelegates()` (`lib/eventDelegates.ts`),
+`getEventInvitesWithNames()` (`lib/playerInvites.ts`), `getOsobyTurnieju()`
+(`lib/turnieje.ts`). `profiles` jest publicznie czytelne, więc drugie zapytanie nie
+wymaga żadnego dodatkowego grantu.
+
+Pułapka jest cicha po stronie repo: treść `select()` to zwykły łańcuch, więc `tsc` jej
+nie przeczyta, Vitest nie ma bazy, a błąd wychodzi dopiero w przeglądarce na żywej
+bazie. Panel turnieju wywracał się tak od migracji `145`. Pilnuje tego dziś
+`joinDoProfili.test.ts` (Vitest, skanuje `frontend/src` i migracje) — gdyby kiedyś
+powstał prawdziwy klucz obcy do `profiles`, spada asercja w tym teście i to ona się
+zmienia, nie zapytanie.
+
 ## Konwencja nowych migracji
 
 Kolejny numer + krótka nazwa: `058_nazwa_zmiany.sql`. W nagłówku komentarz mówiący
