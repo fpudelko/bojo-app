@@ -53,7 +53,78 @@ export type AnalyticsEvent =
   | 'turniej_udostepniony'
   // ── MODUŁ TURNIEJOWY (150, Etap 4) ───────────────────────────────────────
   /** Kapitan zamienił drużynę turniejową w trwałą ekipę jednym przyciskiem. */
-  | 'turniej_zamieniony_w_ekipe';
+  | 'turniej_zamieniony_w_ekipe'
+  // ── KATALOG BOISK W WYNIKACH WYSZUKIWANIA (2026-09-16) ────────────────────
+  // Powód jest liczbowy. Od 5.09.2026 Google ma w indeksie 17 473 stron Bojo,
+  // a eksport Search Console z 16.09 pokazał, że **980 z 1000 stron zbierających
+  // wyświetlenia to `/boisko/*`** — cały ruch z wyszukiwarki wchodzi dziś przez
+  // katalog. I do tej pory NIC z tego nie było mierzone: `track()` wołały
+  // wyłącznie strona meczu i kreator, więc o 116 osobach tygodniowo wiedzieliśmy
+  // tyle, że kliknęły w Google, i ani słowa o tym, co zrobiły dalej.
+  //
+  // To jest ta sama luka, którą lejek organizatora wyżej sam sobie wypomniał:
+  // bez niej kolejność napraw na stronie obiektu jest sądem, nie pomiarem. Różnica
+  // polega na tym, że tamtych danych dawało się nie mieć — a tych nie da się
+  // odtworzyć wstecz: każdy tydzień bez pomiaru to tydzień ruchu stracony bezpowrotnie.
+  /** Wejście na stronę obiektu (`{ fieldId, zrodlo }`). `zrodlo` z `zrodloWejscia()` —
+   *  rozdziela ruch z wyszukiwarki, z modelu językowego, wewnętrzny i bezpośredni. */
+  | 'boisko_otwarte'
+  /** Kliknięcie „Zorganizuj tutaj" (`{ fieldId, zrodlo }`) — jedyna realna konwersja
+   *  na tej stronie i jedyny pomost między ruchem z katalogu a fazą 1 (organizatorzy). */
+  | 'boisko_zorganizuj'
+  /** Kliknięcie w pobliski obiekt (`{ fieldId, celId, pozycja }`) — czy warstwa
+   *  dołożona 2026-09-02 (`lib/pobliskieObiekty.ts`) w ogóle żyje, czy jest ozdobą. */
+  | 'boisko_pobliskie';
+
+/** Skąd przyszedł człowiek — wyprowadzone z `document.referrer`. */
+export type ZrodloWejscia = 'wyszukiwarka' | 'model' | 'wewnetrzne' | 'bezposrednie' | 'zewnetrzne';
+
+const WYSZUKIWARKI = [
+  'google.', 'bing.com', 'duckduckgo.com', 'search.yahoo.', 'yandex.',
+  'ecosia.org', 'search.brave.com', 'startpage.com', 'seznam.cz', 'onet.pl/szukaj',
+];
+
+// Silniki generatywne osobno od wyszukiwarek — to jest JEDYNY sposób, żeby
+// odpowiedzieć na pytanie, wokół którego kręci się cała warstwa GEO strategii:
+// czy modele w ogóle odsyłają ludzi na bojo.pl. Załącznik A próbuje to zmierzyć
+// ręcznie, czterdziestoma promptami raz na sześć tygodni; ta lista mierzy skutek,
+// nie deklarację. Uwaga na granice metody: część klientów (aplikacje mobilne,
+// odpowiedzi bez linku) nie przekazuje referrera wcale i wpadnie w „bezposrednie",
+// więc liczba jest DOLNYM oszacowaniem, nigdy pełnym.
+const MODELE = [
+  'chatgpt.com', 'chat.openai.com', 'perplexity.ai', 'claude.ai',
+  'gemini.google.com', 'bard.google.com', 'copilot.microsoft.com', 'you.com',
+];
+
+/**
+ * Czysta funkcja, żeby dało się ją sprawdzić bez przeglądarki — `document.referrer`
+ * bywa pusty z powodów, których nie da się odtworzyć w teście (polityka referrera
+ * po stronie strony wysyłającej, przejście z HTTPS na HTTP, otwarcie z aplikacji).
+ *
+ * `wlasnaDomena` podajemy zamiast czytać `window.location`, żeby test mógł podstawić
+ * dowolną — na podglądzie Vercela domena jest inna niż na produkcji, a wejście
+ * z jednej podstrony na drugą ma się liczyć jako wewnętrzne w obu środowiskach.
+ */
+export function zrodloWejscia(referrer: string | null | undefined, wlasnaDomena: string): ZrodloWejscia {
+  const ref = (referrer ?? '').trim().toLowerCase();
+  if (!ref) return 'bezposrednie';
+
+  let host: string;
+  try {
+    host = new URL(ref).hostname;
+  } catch {
+    // Referrer nie do sparsowania zdarza się realnie (rozszerzenia, klienty pocztowe).
+    // „zewnetrzne" jest uczciwsze niż odgadywanie po fragmencie tekstu.
+    return 'zewnetrzne';
+  }
+
+  if (host === wlasnaDomena.toLowerCase() || host.endsWith(`.${wlasnaDomena.toLowerCase()}`)) {
+    return 'wewnetrzne';
+  }
+  if (MODELE.some((m) => host === m || host.endsWith(`.${m}`))) return 'model';
+  if (WYSZUKIWARKI.some((w) => host.includes(w))) return 'wyszukiwarka';
+  return 'zewnetrzne';
+}
 
 export async function track(
   eventType: AnalyticsEvent,

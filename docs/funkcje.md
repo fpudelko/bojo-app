@@ -4301,6 +4301,40 @@ schowka) i obraz OG per turniej (`/turnieje/[id]/opengraph-image.tsx`, wzorem
 
 ---
 
+## Pomiar produktowy — co mierzymy i gdzie to czytać
+
+Tabela `analytics_events` (migracja `047`), zapis przez `track()` w
+`frontend/src/lib/analytics.ts`, odczyt w `/admin/analityka`. Bez plików cookie
+i bez zewnętrznych narzędzi; polityka INSERT dopuszcza `user_id IS NULL`, więc
+zdarzenie powstaje też dla niezalogowanych — i wtedy **nie niesie żadnego
+identyfikatora**, co opisuje punkt 11 polityki prywatności.
+
+**Ruch z katalogu (od 2026-09-16).** Trzy zdarzenia na stronie obiektu, dołożone po
+odczycie Search Console, który pokazał, że 980 z 1000 stron zbierających wyświetlenia
+to `/boisko/*` — cały ruch organiczny Bojo wchodzi dziś przez katalog, a strona
+obiektu nie emitowała dotąd niczego:
+
+| Zdarzenie | Kiedy | Metadane |
+|---|---|---|
+| `boisko_otwarte` | wejście na `/boisko/[id]` | `fieldId`, `zrodlo` |
+| `boisko_zorganizuj` | kliknięcie „Zorganizuj tutaj" | `fieldId`, `zrodlo` |
+| `boisko_pobliskie` | kliknięcie pobliskiego obiektu | `fieldId`, `celId`, `pozycja` |
+
+`zrodlo` liczy `zrodloWejscia()` z `document.referrer`: `wyszukiwarka`, **`model`**,
+`wewnetrzne`, `bezposrednie`, `zewnetrzne`. Kategoria `model` (ChatGPT, Perplexity,
+Claude, Gemini, Copilot) jest osobno celowo — to jedyny sposób, żeby zmierzyć SKUTEK
+warstwy GEO, podczas gdy Załącznik A strategii mierzy ręcznie samą obecność w
+odpowiedziach. **Liczba jest dolnym oszacowaniem**: część klientów nie przekazuje
+referrera wcale i wpada wtedy w `bezposrednie`.
+
+Kolejność sprawdzania ma znaczenie i jest przypięta testem: `gemini.google.com`
+musi wyjść jako `model`, mimo że lista wyszukiwarek zawiera `google.`
+(`src/__tests__/zrodloWejscia.test.ts`).
+
+`event_type` to zwykły `TEXT` bez ograniczenia, więc nowe zdarzenie nie wymaga
+migracji — wymaga za to dopisania etykiety do `TYPE_LABELS` w
+`app/admin/analityka/page.tsx`, inaczej panel pokaże surową nazwę.
+
 ## Czego NIE ma
 
 Zapora przed zmyślaniem. Poniższe **nie istnieje** w kodzie — jeśli piszesz dokumentację

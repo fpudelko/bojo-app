@@ -34,6 +34,9 @@ const TYPE_LABELS: Record<AnalyticsEvent | string, string> = {
   guest_joined: 'Zapis bez konta',
   guest_claimed: 'Gość założył konto',
   settlement_shared: 'Wysłał rozliczenie',
+  boisko_otwarte: 'Wszedł na stronę boiska',
+  boisko_zorganizuj: 'Kliknął „Zorganizuj tutaj”',
+  boisko_pobliskie: 'Kliknął pobliskie boisko',
 };
 
 const DAY = 24 * 60 * 60 * 1000;

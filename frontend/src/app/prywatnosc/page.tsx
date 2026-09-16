@@ -185,9 +185,24 @@ export default function PrywatnosePage() {
             </table>
           </div>
           <p className="mt-2">
-            Nie używamy plików cookie do śledzenia aktywności ani celów reklamowych.
-            Przyszłe funkcje analityczne (o ile zostaną wprowadzone) będą wymagały
-            odrębnej zgody i zostaną opisane w aktualizacji niniejszej polityki.
+            Nie używamy plików cookie do śledzenia aktywności ani do celów reklamowych
+            i nie przekazujemy danych o ruchu do zewnętrznych narzędzi analitycznych
+            (nie korzystamy z Google Analytics ani podobnych).
+          </p>
+          <p className="mt-2">
+            Prowadzimy natomiast <strong>własny pomiar produktowy bez plików cookie</strong>:
+            zapisujemy zdarzenia takie jak otwarcie strony obiektu, kliknięcie przycisku
+            „Zorganizuj tutaj” czy utworzenie meczu — wraz z adresem podstrony i informacją,
+            czy wejście nastąpiło z wyszukiwarki, z serwisu zewnętrznego, czy bezpośrednio.
+            Służy to wyłącznie rozwojowi serwisu: pokazuje, które kroki sprawiają trudność.
+          </p>
+          <p className="mt-2">
+            Dla osób <strong>niezalogowanych zapis nie zawiera żadnego identyfikatora</strong> —
+            ani konta, ani adresu e-mail, ani identyfikatora urządzenia czy przeglądarki —
+            więc poszczególnych wizyt nie da się ze sobą powiązać ani przypisać do konkretnej
+            osoby. Dla osób zalogowanych zdarzenie niesie identyfikator konta, żeby dało się
+            odtworzyć ścieżkę w aplikacji; dotyczą ich te same prawa co pozostałych danych
+            konta, w tym prawo do usunięcia (punkt 9).
           </p>
         </LegalSection>
 
