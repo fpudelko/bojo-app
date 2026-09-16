@@ -460,12 +460,16 @@ Flaga `SHOW_TURNIEJE` (`frontend/src/lib/features.ts`), pięć etapów/PR-ów (f
 zgłoszenia → terminarz → rozgrywka na żywo → tabela i statystyki → domknięcie i
 odmrożenie), migracje `145`–`149`.
 
-**Zrobione: Etap 0 (`145`), Etap 1 (`146`) i Etap 2 (`147`).** Terminarz — generator w
-`lib/turniejFormat.ts`, zakładka Terminarz na `/turnieje/[id]` i w panelu (losowanie
-grup, areny, generowanie/podgląd/zapis terminarza, przesunięcie o N minut). Rozgrywka na
-żywo — nowa trasa `/turnieje/[id]/mecz/[meczId]` (podgląd publiczny + konsola
-prowadzącego: start meczu, zdarzenia/sety, „Cofnij ostatnie", zakończenie z karnymi
-i MVP), czyste funkcje w `lib/turniejWynik.ts`. Następny: Etap 3 — tabela i statystyki.
+**Zrobione: Etap 0 (`145`), Etap 1 (`146`), Etap 2 (`147`) i Etap 3 (bez migracji).**
+Terminarz — generator w `lib/turniejFormat.ts`, zakładka Terminarz na `/turnieje/[id]`
+i w panelu (losowanie grup, areny, generowanie/podgląd/zapis terminarza, przesunięcie
+o N minut). Rozgrywka na żywo — nowa trasa `/turnieje/[id]/mecz/[meczId]` (podgląd
+publiczny + konsola prowadzącego: start meczu, zdarzenia/sety, „Cofnij ostatnie",
+zakończenie z karnymi i MVP), czyste funkcje w `lib/turniejWynik.ts`. Tabela
+i statystyki — nowa zakładka Wyniki (tabela grupy/ligi, drabinka, klasyfikacja
+strzelców/asyst/MVP za ścianą logowania), czyste funkcje w `lib/turniejTabela.ts`
+i `lib/turniejStatystyki.ts`. Następny: Etap 4 — ogłoszenia, „zamień drużynę w ekipę",
+domknięcie i odmrożenie flagi.
 
 ### Świadomie NIE budujemy (zapisane w planie, nie zapomniane)
 - Czatu turniejowego, głosowania graczy na MVP (prowadzący wybiera ręcznie), płatności
@@ -477,8 +481,12 @@ i MVP), czyste funkcje w `lib/turniejWynik.ts`. Następny: Etap 3 — tabela i s
 - [ ] Kolory drużyn w interfejsie (dziś: pełne nazwy, żeby nie kolidować z rezerwacją
       kolorów różowy/niebieski/pomarańczowy z AGENTS.md)
 - [ ] Integracja statystyk turniejowych z publicznym profilem gracza (`get_player_stats`)
-- [ ] Drabinka jako prawdziwe drzewko na desktopie ponad listą rund (v1 ma listę wszędzie
-      na telefonie, drzewko z liniami dopiero od `md:`)
+- [ ] Linie łączące mecze w drabince na `md:` — dziś (Etap 3) kolumny obok siebie
+      z wyrównaniem `justify-around` przybliżają drzewko, ale bez rysowanych połączeń
+      (wymagałoby liczenia współrzędnych z pozycji DOM, kruche przy zmianie szerokości)
+- [ ] Panel do ustawienia `turniej_druzyny.pozycja_recznie` — `posortujTabele()` (Etap 3)
+      już respektuje tę kolumnę, brakuje wyłącznie interfejsu, w którym organizator by
+      ją wpisał (rozstrzygnięcie remisu bezpośredniego/kartek, których tabela nie liczy)
 
 ---
 

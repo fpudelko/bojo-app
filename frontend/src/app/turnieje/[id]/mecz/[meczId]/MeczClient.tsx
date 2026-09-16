@@ -42,6 +42,8 @@ export default function MeczClient() {
 
   const [wybranyA, setWybranyA] = useState('');
   const [wybranyB, setWybranyB] = useState('');
+  const [asystaA, setAsystaA] = useState('');
+  const [asystaB, setAsystaB] = useState('');
   const [aktualnySet, setAktualnySet] = useState({ a: 0, b: 0 });
   const [pokazZakoncz, setPokazZakoncz] = useState(false);
   const [karneA, setKarneA] = useState(0);
@@ -110,16 +112,17 @@ export default function MeczClient() {
     setMecz((m) => (m ? { ...m, wynikA, wynikB } : m));
   };
 
-  const dodajZdarzenieAkcja = async (druzynaId: string, typ: ZdarzenieTyp, zawodnikId?: string) => {
+  const dodajZdarzenieAkcja = async (druzynaId: string, typ: ZdarzenieTyp, zawodnikId?: string, asystaZawodnikId?: string) => {
     const tymczasowe: TurniejZdarzenie = {
       id: `tymczasowe-${Date.now()}`, meczId, turniejId: turniej?.id ?? id, druzynaId,
-      zawodnikId: zawodnikId || undefined, typ, wartosc: 1, createdAt: new Date().toISOString(),
+      zawodnikId: zawodnikId || undefined, asystaZawodnikId: asystaZawodnikId || undefined,
+      typ, wartosc: 1, createdAt: new Date().toISOString(),
     };
     const nowaLista = [...zdarzenia, tymczasowe];
     setZdarzenia(nowaLista);
     przeliczLokalnie(nowaLista);
     try {
-      const realne = await dodajZdarzenie(meczId, { druzynaId, typ, zawodnikId: zawodnikId || undefined });
+      const realne = await dodajZdarzenie(meczId, { druzynaId, typ, zawodnikId: zawodnikId || undefined, asystaZawodnikId: asystaZawodnikId || undefined });
       setZdarzenia((obecne) => obecne.map((z) => (z.id === tymczasowe.id ? realne : z)));
     } catch (e) {
       const cofnieta = nowaLista.filter((z) => z.id !== tymczasowe.id);
@@ -247,9 +250,9 @@ export default function MeczClient() {
         {prowadzi && trwajacy && !setowy && obieDruzynyZnane && (
           <div className="space-y-3">
             {([
-              { druzyna: druzynaA, druzynaId: mecz.druzynaAId!, wybrany: wybranyA, setWybrany: setWybranyA },
-              { druzyna: druzynaB, druzynaId: mecz.druzynaBId!, wybrany: wybranyB, setWybrany: setWybranyB },
-            ] as const).map(({ druzyna, druzynaId, wybrany, setWybrany }) => (
+              { druzyna: druzynaA, druzynaId: mecz.druzynaAId!, wybrany: wybranyA, setWybrany: setWybranyA, asysta: asystaA, setAsysta: setAsystaA },
+              { druzyna: druzynaB, druzynaId: mecz.druzynaBId!, wybrany: wybranyB, setWybrany: setWybranyB, asysta: asystaB, setAsysta: setAsystaB },
+            ] as const).map(({ druzyna, druzynaId, wybrany, setWybrany, asysta, setAsysta }) => (
               <div key={druzynaId} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 space-y-2">
                 <p className="text-sm font-medium text-ink">{druzyna?.nazwa}</p>
                 {druzyna?.zawodnicy && druzyna.zawodnicy.length > 0 && (
@@ -260,6 +263,16 @@ export default function MeczClient() {
                   >
                     <option value="">Bez wskazania zawodnika</option>
                     {druzyna.zawodnicy.map((z) => <option key={z.id} value={z.id}>{z.imie}</option>)}
+                  </select>
+                )}
+                {!koszykowka && druzyna?.zawodnicy && druzyna.zawodnicy.length > 1 && (
+                  <select
+                    value={asysta}
+                    onChange={(e) => setAsysta(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-2.5 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100"
+                  >
+                    <option value="">Bez asysty</option>
+                    {druzyna.zawodnicy.filter((z) => z.id !== wybrany).map((z) => <option key={z.id} value={z.id}>Asysta: {z.imie}</option>)}
                   </select>
                 )}
                 <div className="flex flex-wrap gap-2">
@@ -275,7 +288,7 @@ export default function MeczClient() {
                     ))
                   ) : (
                     <>
-                      <button onClick={() => dodajZdarzenieAkcja(druzynaId, 'gol', wybrany)} className="rounded-lg bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700">{ETYKIETA_ZDARZENIA.gol}</button>
+                      <button onClick={() => dodajZdarzenieAkcja(druzynaId, 'gol', wybrany, asysta)} className="rounded-lg bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700">{ETYKIETA_ZDARZENIA.gol}</button>
                       <button onClick={() => dodajZdarzenieAkcja(druzynaId, 'samobojczy', wybrany)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600">{ETYKIETA_ZDARZENIA.samobojczy}</button>
                       <button onClick={() => dodajZdarzenieAkcja(druzynaId, 'zolta', wybrany)} className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700">{ETYKIETA_ZDARZENIA.zolta}</button>
                       <button onClick={() => dodajZdarzenieAkcja(druzynaId, 'czerwona', wybrany)} className="rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600">{ETYKIETA_ZDARZENIA.czerwona}</button>
@@ -365,11 +378,15 @@ export default function MeczClient() {
             {zdarzenia.map((z) => {
               const nazwaDruzyny = z.druzynaId === mecz.druzynaAId ? druzynaA?.nazwa : druzynaB?.nazwa;
               const zawodnik = wszyscyZawodnicy.find((zw) => zw.id === z.zawodnikId);
+              const asysta = wszyscyZawodnicy.find((zw) => zw.id === z.asystaZawodnikId);
               return (
                 <div key={z.id} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                   <span>{ETYKIETA_ZDARZENIA[z.typ]}</span>
                   <span className="text-slate-400">—</span>
-                  <span className="min-w-0 truncate">{zawodnik ? `${zawodnik.imie} (${nazwaDruzyny})` : nazwaDruzyny}</span>
+                  <span className="min-w-0 truncate">
+                    {zawodnik ? `${zawodnik.imie} (${nazwaDruzyny})` : nazwaDruzyny}
+                    {asysta && <span className="text-slate-400"> · asysta: {asysta.imie}</span>}
+                  </span>
                 </div>
               );
             })}
