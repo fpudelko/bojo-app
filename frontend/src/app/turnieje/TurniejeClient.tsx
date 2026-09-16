@@ -2,21 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { format, parseISO } from 'date-fns';
-import { pl } from 'date-fns/locale';
 import { Trophy, Plus, CalendarDays, MapPin } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { getTurniejePubliczne, getMojeTurnieje } from '@/lib/turnieje';
-import { STATUS_TURNIEJU } from '@/lib/turniejEtykiety';
+import { stanTurnieju, etykietaTerminu } from '@/lib/turniejEtykiety';
 import { sportEmoji } from '@/lib/sports';
 import type { Turniej } from '@/types';
 
 function KartaTurnieju({ t }: { t: Turniej }) {
-  const status = STATUS_TURNIEJU[t.status];
-  let data = t.dataStartu;
-  try { data = format(parseISO(t.dataStartu), 'EEEE, d MMMM', { locale: pl }); } catch { /* zostaw surową datę */ }
+  // Stan liczony z terminarza. Lista pokazywała CZTERY turnieje z identyczną
+  // plakietką „Trwa" — w tym jeden sprzed tygodnia i jeden, w którym został
+  // sam finał. Karta bez meczów (lista ich nie pobiera) dostaje to, co da się
+  // powiedzieć z samej kolumny; szczegół dokłada strona turnieju.
+  const stan = stanTurnieju(t, []);
 
   return (
     <Link
@@ -31,12 +31,17 @@ function KartaTurnieju({ t }: { t: Turniej }) {
           ) : sportEmoji(t.sport)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="min-w-0 flex-1 truncate font-display font-semibold text-ink">{t.nazwa}</h3>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
+          <div className="flex items-start gap-2">
+            {/* Dwie linijki, nie `truncate`: nazwy turniejów bywają długie
+                („Liga Koszykarska — 3 z 5 kolejek") i ucięte w połowie nie
+                mówią, o który turniej chodzi. */}
+            <h3 className="min-w-0 flex-1 font-display font-semibold text-ink line-clamp-2">{t.nazwa}</h3>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-            <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{data}</span>
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="h-3.5 w-3.5" />{etykietaTerminu(t.dataStartu, t.godzinaStartu)}
+            </span>
             {t.miejsceNazwa && (
               <span className="inline-flex min-w-0 items-center gap-1"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{t.miejsceNazwa}</span></span>
             )}
@@ -110,11 +115,12 @@ export default function TurniejeClient() {
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-8">
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">Turnieje</h1>
-          {user && (
-            <Link href="/turnieje/nowe">
-              <Button size="sm" className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Utwórz turniej</Button>
-            </Link>
-          )}
+          {/* Widoczny TAKŻE bez konta — kliknięcie prowadzi przez logowanie.
+              Przegląd złapał listę bez ani jednego przycisku, bo cały kreator
+              wisiał za `user`: funkcja nie miała wejścia dla nikogo z ulicy. */}
+          <Link href={user ? '/turnieje/nowe' : '/logowanie?next=%2Fturnieje%2Fnowe'}>
+            <Button size="sm" className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Utwórz turniej</Button>
+          </Link>
         </div>
 
         {ladowanie ? (

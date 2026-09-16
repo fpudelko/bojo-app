@@ -94,7 +94,7 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 
 | Status | Co obejmuje |
 |---|---|
-| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, alert o nowym meczu w okolicy, moduł turniejowy, panel admina |
+| **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, alert o nowym meczu w okolicy, panel admina |
 | **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
 | **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
@@ -270,9 +270,9 @@ dostępne areny/boiska bez kolizji drużyny w jednym slocie) i może go przesun�
 gdy dzień się opóźnia. Wyznaczony prowadzący obsługuje mecz z telefonu: „Rozpocznij",
 gol/kartka/punkt jednym dotknięciem ze składu, „Cofnij ostatnie", „Zakończ" (karne przy
 remisie w fazie pucharowej). Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
-liczą się same z zapisanych wyników. Strona turnieju dzieli to na zakładki:
-Info, Drużyny (pogrupowane po grupach, skład prowadzi do profilu gracza), Terminarz
-(mecze jeszcze nierozegrane), Wyniki (rozegrane), Tabela i Drabinka. W drabince
+liczą się same z zapisanych wyników. Strona turnieju ma trzy zakładki — Mecze
+(przełącznik Najbliższe/Rozegrane), Tabela i drabinka, Drużyny — a nad nimi nagłówek
+z parametrami turnieju. W drabince
 zwycięzca meczu jest pogrubiony, a pod wynikiem stoją rzuty karne, gdy to one
 rozstrzygnęły; w tabeli grupy miejsca awansujące mają pasek przy pozycji, a podpis,
 ile pierwszych miejsc wychodzi do fazy pucharowej, stoi raz pod kompletem tabel. Organizator może dopisać ogłoszenie widoczne dla
@@ -444,6 +444,35 @@ MECHANIKA: `metaOpisObiektu()` w `frontend/src/content/opisObiektu.ts`, używana
 mieści się w 160 znakach, powyżej których wyszukiwarka ucina opis. Test:
 `src/__tests__/opisObiektu.test.ts`. Bez migracji. Dane źródłowe: eksport Search Console
 z 2026-09-16, opisany w `docs/seo-geo-strategia.md`, sekcja 7a.2.
+
+### 2026-09-17 — Turniej schowany przed userami, a w środku posprzątany
+
+PROBLEM: przegląd modułu na żywo (telefon, użytkownik bez konta) pokazał, że turniej działa,
+ale pierwsze wrażenie jest złe. Pasek sześciu zakładek nie mieścił się w szerokości ekranu,
+więc „Drabinka" była ucięta i istniała tylko dla kogoś, kto pomyślał, żeby przewinąć w bok.
+Info było niemal puste: data, boisko, „8/16 drużyn · 50 zł wpisowe" — bez odpowiedzi, czy
+50 zł to od drużyny czy od gracza, ile trwa mecz i kto to organizuje. Ten sam dzień
+pokazywał się w trzech zapisach naraz, a godzina startu szła na ekran z sekundami
+(„10:00:00"). Cztery turnieje miały identyczną plakietkę „Trwa" — w tym jeden sprzed
+tygodnia i jeden, w którym został sam finał. Na liście nie było ani jednego przycisku,
+bo kreator wisiał za logowaniem.
+
+ROZWIĄZANIE BOJO: wejścia do turniejów zniknęły z `/moje-gry` i `/profil` — moduł jest
+tymczasowo niewidoczny dla użytkownika, a `bojo.pl/turnieje` nadal odpowiada każdemu, kto
+wejdzie świadomie albo z udostępnionego linku. Sama strona turnieju ma dziś trzy zakładki
+(Mecze z przełącznikiem Najbliższe/Rozegrane, Tabela i drabinka, Drużyny), Info jako
+nagłówek nad nimi ze stałym szablonem Kiedy · Gdzie · Format · Zasady · Koszt od drużyny ·
+Organizator, oraz pasek „Twoja drużyna: … · następny mecz" dla tego, kto gra. Termin ma
+jeden zapis w całej aplikacji („Dziś, 18:00", „niedz. 20 września, 10:00"), a stan turnieju
+liczy się z terminarza: „Na żywo", „Ostatnie mecze", „Zakończony", z drugim wierszem
+„Finał dziś, 19:00".
+
+MECHANIKA: `SHOW_TURNIEJE = false` (`lib/features.ts`) chowa wejścia w nawigacji, nie trasy —
+`/turnieje` wróciło przy tym do `DISALLOW` w `robots.ts` i zeszło z `llms.txt`, czego pilnuje
+`npm run check:docs`. `etykietaTerminu()` i `stanTurnieju()` w `lib/turniejEtykiety.ts` to
+czyste funkcje z wstrzykiwanym „dzisiaj". Stare adresy zakładek (`?tab=terminarz`,
+`?tab=wyniki`, `?tab=drabinka`) prowadzą tam, gdzie ich treść dziś mieszka. Testy:
+`turniejTermin.test.ts`.
 
 ### 2026-09-16 — Turniej: jedna zakładka na jedno pytanie, lista jako karty
 
@@ -694,42 +723,4 @@ stoi w obu arkuszach filtrów (w oknie alertu już NIE — patrz wpis o alercie 
 Kolumny `days_of_week`, `godzina_od`/`godzina_do` i `expires_at` z migracji `149`
 zostają w bazie nietknięte — okno przestało o nie pytać. Testy: `alertKoniec.test.ts`,
 `eventFilters.test.ts`, `szukaj-domyslnie-mecze.klikalnosc.spec.ts`.
-
-### 2026-09-14 — Alert o meczach: pora dnia, czas życia i wyłącznik z maila
-
-PROBLEM: alert o nowych meczach w okolicy miał jeden wymiar czasu — dni tygodnia. Nie
-miał pory dnia, więc ktoś pracujący do 17 dostawał powiadomienia o meczach o 10 rano.
-Nie miał też własnego czasu życia: raz założony działał w nieskończoność, a jedyną drogą
-wyłączenia było zalogowanie się i znalezienie okna alertu. Osobno: typ powiadomienia
-`game_alert` nie figurował na żadnej z trzech list w aplikacji, bo wstawia go funkcja
-brzegowa, a strażnik sprawdzał tylko migracje — alert lądował więc pod szarym dzwonkiem
-bez ikony i nie dało się go wyłączyć na telefonie. Okno alertu miało do tego własny
-przycisk lokalizacji, własne pole miasta i własny suwak promienia, choć pyta dokładnie
-o to samo co arkusz filtrów, tyle że w węższym zakresie kilometrów.
-
-ROZWIĄZANIE BOJO: alert pyta osobno o dwie różne rzeczy i nazywa je osobno — „Powiadamiaj
-o meczach" (kiedy ma być mecz: dni tygodnia i pora dnia) oraz „Jak długo powiadamiać"
-(jak długo ma żyć alert). Domyślnie alert jest bezterminowy, a każda wiadomość niesie
-link „nie chcę więcej takich wiadomości", który gasi go jednym kliknięciem, bez
-logowania — bo mail czyta się w skrzynce, często na innym urządzeniu i długo po
-założeniu alertu. Okno pokazuje trzy kanały: dzwonek w aplikacji (zawsze), mail
-(do wyboru) i powiadomienie na telefon, przy którym Bojo sprawdza, czy ta przeglądarka
-w ogóle je obsługuje, i mówi wprost, co trzeba zrobić, gdy nie — na iPhonie dodać Bojo
-do ekranu głównego. Alert o nowym meczu da się teraz wyciszyć w ustawieniach powiadomień
-jak każde inne. Miejsce i promień wybiera się tymi samymi kontrolkami co w filtrach.
-
-MECHANIKA: migracja `149` dokłada do `game_alerts` kolumny `expires_at` (NULL =
-bezterminowo), `godzina_od`/`godzina_do` (parami albo wcale, pilnuje `CHECK`),
-`kanal_email` i `wylacz_token`, oraz poszerza promień do 1–100 km. Wyłączanie linkiem
-robi `wylacz_alert_tokenem()` (`SECURITY DEFINER`, dostępna dla `anon`) — nie polityka
-RLS, bo polityka otworzyłaby całą tabelę na `UPDATE`, a potrzebna jest jedna operacja;
-asercje w `supabase/test/rls.sql`. Trasa `/alert/wylacz/[token]` jest `noindex`
-i wyłącza alert od razu po wejściu. `notify-game-alert` respektuje wygaśnięcie, okno
-godzin i kanał mailowy, a treść maila składa się per adresat, bo link wyłączający niesie
-token jego alertu. Push nie dostał drugiego przełącznika: jedzie z wiersza
-w `notifications` (wyzwalacz z `102`) i wyłącza się w ustawieniach powiadomień — typ
-`game_alert` dopisany do `ikonyPowiadomien.ts` i `ustawieniaPowiadomien.ts`, a
-`typyPowiadomien.test.ts` skanuje teraz także `supabase/functions/**`. Okno alertu
-(`AlertSetupDialog.tsx`) używa `WyborMiejscowosci` i `SportChip`. Testy: `alertGry.test.ts`,
-`alertZFiltrow.test.ts`, `typyPowiadomien.test.ts`.
 
