@@ -52,15 +52,15 @@ function toTurniej(row: any): Turniej {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toOsoba(row: any): TurniejOsoba {
+function toOsoba(row: any, profil?: { display_name?: string | null; avatar_url?: string | null }): TurniejOsoba {
   return {
     turniejId: row.turniej_id,
     userId: row.user_id,
     mozeEdytowac: row.moze_edytowac,
     mozeProwadzic: row.moze_prowadzic,
     mozeZarzadzacDruzynami: row.moze_zarzadzac_druzynami,
-    imie: row.profiles?.display_name ?? undefined,
-    avatarUrl: row.profiles?.avatar_url ?? undefined,
+    imie: profil?.display_name?.trim() || undefined,
+    avatarUrl: profil?.avatar_url ?? undefined,
   };
 }
 
@@ -236,13 +236,35 @@ export async function getMojeTurnieje(userId: string): Promise<Turniej[]> {
 // Uprawnienia osób
 // ---------------------------------------------------------------------------
 
+/**
+ * Osoby z uprawnieniami razem z nazwą i awatarem — dla panelu turnieju.
+ *
+ * Dwa zapytania, nie jeden `select` z zagnieżdżeniem: `turniej_osoby.user_id`
+ * ma klucz obcy do `auth.users`, nie do `profiles` (migracja `145`), więc
+ * PostgREST nie ma jak wbudować tego joinem i odpowiada `PGRST200`
+ * („Could not find a relationship between 'turniej_osoby' and 'profiles'").
+ * Ten sam wzorzec co `getEventInvitesWithNames()` w `lib/playerInvites.ts`.
+ * `profiles` jest publicznie czytelne (migracja `005`), więc drugie zapytanie
+ * nie wymaga dodatkowych uprawnień.
+ */
 export async function getOsobyTurnieju(turniejId: string): Promise<TurniejOsoba[]> {
   const { data, error } = await supabase
     .from('turniej_osoby')
-    .select('*, profiles(display_name, avatar_url)')
+    .select('*')
     .eq('turniej_id', turniejId);
   if (error) throw new Error(error.message);
-  return (data ?? []).map(toOsoba);
+  const wiersze = data ?? [];
+  if (wiersze.length === 0) return [];
+
+  const { data: profile, error: bladProfili } = await supabase
+    .from('profiles')
+    .select('id, display_name, avatar_url')
+    .in('id', wiersze.map((r) => r.user_id as string));
+  if (bladProfili) throw new Error(bladProfili.message);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wgId = new Map((profile ?? []).map((p: any) => [p.id as string, p]));
+
+  return wiersze.map((r) => toOsoba(r, wgId.get(r.user_id as string)));
 }
 
 export async function getMojaOsobe(turniejId: string, userId: string): Promise<TurniejOsoba | null> {
