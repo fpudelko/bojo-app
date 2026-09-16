@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { zdanieORozegranychMeczach, opisObiektu, zdaniePotwierdzen } from '@/content/opisObiektu';
+import { zdanieORozegranychMeczach, opisObiektu, zdaniePotwierdzen, metaOpisObiektu } from '@/content/opisObiektu';
 import type { PotwierdzeniaZliczone } from '@/lib/potwierdzeniaObiektu';
 
 // F3 SEO/GEO (roadmapa poz. 21): ślad rozegranych meczów na stronie obiektu.
@@ -123,5 +123,88 @@ describe('zdaniePotwierdzen', () => {
     expect(zdaniePotwierdzen(zliczone)).toBe(
       'Gracze potwierdzili na Bojo: jest oświetlenie, nawierzchnia to sztuczna trawa.',
     );
+  });
+});
+
+// `<meta name="description">` strony obiektu — zdanie widoczne w wyniku wyszukiwania.
+//
+// Powód istnienia tych asercji jest liczbowy, nie estetyczny. Eksport Search Console
+// z 2026-09-16 (7 dni do 14.09): strony obiektów zebrały 5 844 wyświetlenia przy
+// dobrych pozycjach — dziesiątki zapytań w pierwszej piątce — i mimo to 58 zapytań
+// stojących w TOP5 nie dostało ANI JEDNEGO kliknięcia (20% wszystkich wyświetleń).
+// Poprzedni opis powtarzał nazwę i adres z tytułu, a potem obiecywał „nadchodzące
+// mecze", których na 99,9% obiektów nie ma (ryzyko R2 z rozdz. 9 strategii).
+describe('metaOpisObiektu — opis pod wynik wyszukiwania', () => {
+  const BOISKO = {
+    name: 'Boisko w Robakowie',
+    sport: ['piłka nożna'],
+    city: 'Robakowo',
+    address: 'ul. Polna 4, 62-023 Robakowo',
+    surface: 'artificial',
+    isIndoor: false,
+    lit: true,
+  };
+
+  it('niesie fakty rozstrzygające o wyborze boiska', () => {
+    const opis = metaOpisObiektu(BOISKO);
+    expect(opis).toContain('Sztuczna trawa');
+    expect(opis).toContain('oświetlenie');
+    expect(opis).toContain('obiekt otwarty');
+  });
+
+  it('NIE obiecuje nadchodzących meczów — na 99,9% obiektów żadnego nie ma', () => {
+    const opis = metaOpisObiektu(BOISKO);
+    expect(opis).not.toMatch(/nadchodząc/i);
+    expect(opis).not.toMatch(/zbierz skład/i);
+  });
+
+  it('nie powtarza nazwy ani sportu — tytuł wyniku niesie je tuż nad opisem', () => {
+    const opis = metaOpisObiektu(BOISKO);
+    expect(opis).not.toContain('Boisko w Robakowie');
+    expect(opis).not.toMatch(/piłka nożna/i);
+  });
+
+  it('nie odmienia miejscowości, bo miejscownika nie da się wyprowadzić regułą', () => {
+    // „w Robakowo"/„w Bieruń" to błąd, którego nie naprawi żadna reguła przy
+    // dziesiątkach tysięcy nazw z katalogu — stąd opis w ogóle nie używa tej formy.
+    expect(metaOpisObiektu(BOISKO)).not.toMatch(/\bw Robakowo\b/);
+  });
+
+  it('mieści się w długości, której wyszukiwarka nie ucina', () => {
+    expect(metaOpisObiektu(BOISKO).length).toBeLessThanOrEqual(160);
+  });
+
+  it('dokłada adres, gdy się mieści — po ulicy wybiera się między boiskami w jednym mieście', () => {
+    expect(metaOpisObiektu(BOISKO)).toContain('ul. Polna 4');
+  });
+
+  it('adres wypada, gdy nie mieści się w limicie — fakt o nawierzchni jest ważniejszy', () => {
+    const opis = metaOpisObiektu({
+      ...BOISKO,
+      address: 'aleja Marszałka Józefa Piłsudskiego 145B lokal 7, 43-150 Bystrzyca Kłodzka-Zabłocie',
+    });
+    expect(opis.length).toBeLessThanOrEqual(160);
+    expect(opis).toContain('Sztuczna trawa');
+    expect(opis).not.toContain('Piłsudskiego');
+  });
+
+  it('obiekt kryty mówi o tym wprost', () => {
+    expect(metaOpisObiektu({ ...BOISKO, isIndoor: true })).toContain('obiekt kryty');
+  });
+
+  it('brak nawierzchni nie zostawia dziury w zdaniu', () => {
+    const opis = metaOpisObiektu({ ...BOISKO, surface: '', lit: false });
+    expect(opis).toContain('Obiekt otwarty');
+    expect(opis).not.toMatch(/ ,|, \./);
+  });
+
+  it('obiekt bez adresu zwraca poprawne zdanie, nie urwane', () => {
+    const opis = metaOpisObiektu({ ...BOISKO, address: undefined });
+    expect(opis).toBe('Sztuczna trawa, obiekt otwarty, oświetlenie. Szczegóły obiektu i organizacja gry na Bojo.');
+  });
+
+  it('zaczyna się wielką literą, bo to samodzielne zdanie w wyniku', () => {
+    const opis = metaOpisObiektu(BOISKO);
+    expect(opis[0]).toBe(opis[0].toUpperCase());
   });
 });
