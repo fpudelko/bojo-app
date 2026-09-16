@@ -204,15 +204,30 @@ export default function NowyTurniejPage() {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className={labelCls}>Ile drużyn</label>
-              <input type="number" min={2} max={64} value={maxDruzyn} onChange={(e) => setMaxDruzyn(Number(e.target.value) || 2)} className={inputCls} />
+              <input
+                type="number" min={2} max={64} value={maxDruzyn || ''}
+                onChange={(e) => setMaxDruzyn(e.target.value === '' ? 0 : Number(e.target.value))}
+                onBlur={() => setMaxDruzyn((v) => Math.min(64, Math.max(2, v || 2)))}
+                className={inputCls}
+              />
             </div>
             <div>
               <label className={labelCls}>Min. skład</label>
-              <input type="number" min={1} max={30} value={minZawodnikow} onChange={(e) => setMinZawodnikow(Number(e.target.value) || 1)} className={inputCls} />
+              <input
+                type="number" min={1} max={30} value={minZawodnikow || ''}
+                onChange={(e) => setMinZawodnikow(e.target.value === '' ? 0 : Number(e.target.value))}
+                onBlur={() => setMinZawodnikow((v) => Math.min(30, Math.max(1, v || 1)))}
+                className={inputCls}
+              />
             </div>
             <div>
               <label className={labelCls}>Maks. skład</label>
-              <input type="number" min={1} max={40} value={maxZawodnikow} onChange={(e) => setMaxZawodnikow(Number(e.target.value) || 1)} className={inputCls} />
+              <input
+                type="number" min={1} max={40} value={maxZawodnikow || ''}
+                onChange={(e) => setMaxZawodnikow(e.target.value === '' ? 0 : Number(e.target.value))}
+                onBlur={() => setMaxZawodnikow((v) => Math.min(40, Math.max(1, v || 1)))}
+                className={inputCls}
+              />
             </div>
           </div>
           {!skladOk && (

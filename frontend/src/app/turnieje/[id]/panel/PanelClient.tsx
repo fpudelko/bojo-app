@@ -547,7 +547,8 @@ export default function PanelClient() {
                       type="number"
                       min={1}
                       value={liczbaGrupWybor ?? liczbaGrupDomyslna}
-                      onChange={(e) => setLiczbaGrupWybor(Number(e.target.value) || 1)}
+                      onChange={(e) => setLiczbaGrupWybor(e.target.value === '' ? null : Number(e.target.value))}
+                      onBlur={() => setLiczbaGrupWybor((v) => (v ? Math.max(1, v) : null))}
                       className={`${inputCls} w-20`}
                     />
                     <Button size="sm" onClick={losujGrupy} disabled={wTurnieju.length < 2}>Losuj grupy</Button>
@@ -628,7 +629,11 @@ export default function PanelClient() {
                     </div>
                     <div>
                       <label className="block text-xs text-slate-500">O ile minut</label>
-                      <input type="number" value={przesunMinuty} onChange={(e) => setPrzesunMinuty(Number(e.target.value) || 0)} className={`${inputCls} w-24 py-1.5`} />
+                      <input
+                        type="number" value={przesunMinuty || ''}
+                        onChange={(e) => setPrzesunMinuty(e.target.value === '' ? 0 : Number(e.target.value))}
+                        className={`${inputCls} w-24 py-1.5`}
+                      />
                     </div>
                     <Button size="sm" variant="outline" onClick={przesunAkcja} disabled={!przesunMeczId}>Przesuń</Button>
                   </div>
