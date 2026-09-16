@@ -7,7 +7,7 @@ import { slugBoiska, slugify, isUuid } from '@/lib/utils';
 import { sportLabel } from '@/lib/sports';
 import { breadcrumbsJsonLd, venueAmenityFeatures } from '@/lib/structuredData';
 import { pobierzPotwierdzenia } from '@/lib/potwierdzeniaObiektu';
-import { opisObiektu, zdanieORozegranychMeczach, zdaniePotwierdzen } from '@/content/opisObiektu';
+import { opisObiektu, zdanieORozegranychMeczach, zdaniePotwierdzen, metaOpisObiektu } from '@/content/opisObiektu';
 import { pobliskieObiekty } from '@/lib/pobliskieObiekty';
 import { WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
 import type { Field } from '@/types';
@@ -191,11 +191,15 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   return {
     // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
     title: `${field.name} — ${sportsStr}${gdzie}`,
-    // NIE „zarezerwuj termin”: rezerwacje siedzą za wyłączoną flagą
-    // FEATURE_RESERVATIONS, a to zdanie szło do wyszukiwarek przy każdej z ponad
-    // 30 tysięcy stron obiektów — obietnica bez pokrycia i sygnał, że Bojo jest
-    // systemem rezerwacji, czyli odwrotność tego, czym jest.
-    description: `${field.name}, ${field.address}. Sporty: ${sportsStr}. Zobacz nadchodzące mecze i zbierz skład na Bojo.`,
+    // Opis pod WYNIK WYSZUKIWANIA — fakty o obiekcie, nie obietnica meczów.
+    // Pełne uzasadnienie przy `metaOpisObiektu()` w content/opisObiektu.ts; w skrócie:
+    // poprzednia wersja powtarzała nazwę i adres stojące w tytule tuż nad nią, a potem
+    // obiecywała „nadchodzące mecze", których na 99,9% obiektów nie ma. Eksport Search
+    // Console z 2026-09-16 pokazał 58 zapytań stojących w TOP5 z ZEREM kliknięć — przy
+    // dobrej pozycji problemem nie jest ranking, tylko to, co widać w wyniku.
+    // (Wcześniej padło tu też „zarezerwuj termin" — rezerwacje siedzą za wyłączoną
+    // flagą FEATURE_RESERVATIONS; tamta obietnica zniknęła 2026-08-23, ta teraz.)
+    description: metaOpisObiektu(field),
     // Canonical points at the slug URL — the page also resolves by raw id,
     // and both must collapse into one address for crawlers.
     alternates: { canonical: `/boisko/${slugBoiska(field.name, field.id)}` },

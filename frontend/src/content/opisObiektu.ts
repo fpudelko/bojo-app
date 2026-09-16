@@ -47,6 +47,10 @@ function sportyWBierniku(sporty: readonly string[]): string {
   return sporty.map((s) => SPORT_BIERNIK[s] ?? s).join(', ');
 }
 
+/** Powyżej tego wyszukiwarka ucina opis wielokropkiem, więc fakt za granicą jest tym
+ *  samym co brak faktu. */
+const LIMIT_OPISU = 160;
+
 export function opisObiektu(field: ObiektDoOpisu): string {
   const sporty = sportyWBierniku(field.sport);
   const gdzie = field.city ? ` w miejscowości ${field.city}` : '';
@@ -113,4 +117,72 @@ export function zdaniePotwierdzen(zliczone: readonly PotwierdzeniaZliczone[]): s
 
   if (fakty.length === 0) return null;
   return `Gracze potwierdzili na Bojo: ${fakty.join(', ')}.`;
+}
+
+/**
+ * `<meta name="description">` strony obiektu — czyli zdanie, które człowiek widzi
+ * w wynikach wyszukiwania, zanim zdecyduje, czy kliknąć.
+ *
+ * PO CO OSOBNA FUNKCJA, SKORO JEST `opisObiektu()`. Tamta pisze do CZYTELNIKA, który
+ * już wszedł, i kończy zachętą do zorganizowania meczu. Ta pisze do kogoś, kto jeszcze
+ * nie wszedł i porównuje kilka wyników naraz — ma odpowiedzieć na pytanie „czy to jest
+ * to miejsce, o które pytałem", a nie sprzedawać.
+ *
+ * SKĄD TA ZMIANA (Search Console, eksport z 2026-09-16, 7 dni do 14.09):
+ * po zaindeksowaniu katalogu strony obiektów zebrały 5 844 wyświetlenia i 114 kliknięć.
+ * Pozycje są DOBRE — dziesiątki zapytań w pierwszej piątce, sporo w pierwszej trójce
+ * („boisko robakowo osiedle" poz. 2,6 · „gminny stadion sportowy w latowiczu" poz. 2,0)
+ * — ale **58 zapytań stojących w TOP5 nie dostało ANI JEDNEGO kliknięcia**, co daje
+ * 20% wszystkich wyświetleń zmarnowanych na pozycji, o którą inni walczą miesiącami.
+ * Przy dobrej pozycji i zerowym CTR problem nie jest w rankingu, tylko w tym, co widać
+ * w wyniku.
+ *
+ * A widać było: „«nazwa», «adres». Sporty: «sport». Zobacz nadchodzące mecze i zbierz
+ * skład na Bojo." Dwie wady naraz. Po pierwsze zdanie o nadchodzących meczach jest
+ * **obietnicą bez pokrycia na 99,9% obiektów** — mecz rozegrano na ~40 z 36 268, więc
+ * klikający trafiał na pustą listę (dokładnie ryzyko R2 z rozdziału 9 strategii:
+ * „treść obiecuje więcej, niż produkt daje"). Po drugie marnowała połowę miejsca na
+ * powtórzenie nazwy i adresu, które i tak stoją w tytule wyniku tuż nad nią.
+ *
+ * Dziś w to miejsce idą wyłącznie FAKTY, których NIE MA w tytule wyniku — nawierzchnia,
+ * oświetlenie, kryte czy otwarte. Sport i miejscowość wypadły świadomie: tytuł
+ * (`${field.name} — ${sportsStr}, ${miejscowosc}`) niesie je tuż nad opisem, a do tego
+ * „w «miejscowość»" wymagałoby miejscownika, którego nie da się wyprowadzić regułą —
+ * `content/miasta.ts` trzyma odmiany jako DANE dokładnie z tego powodu i obejmuje trzy
+ * miasta, nie dziesiątki tysięcy z katalogu (ta sama pułapka, którą opisuje komentarz
+ * przy tytule w `app/boisko/[id]/page.tsx`).
+ * To nie jest nowa treść: te same pola napędzają już `opisObiektu()` i `amenityFeature`
+ * w danych strukturalnych. Nowe jest to, że trafiają tam, gdzie decyduje się kliknięcie.
+ *
+ * Limit 160 znaków — dłuższy opis wyszukiwarka ucina wielokropkiem, więc fakt za granicą
+ * jest tym samym co brak faktu.
+ */
+export function metaOpisObiektu(field: ObiektDoOpisu & { address?: string }): string {
+  // Fakty w kolejności malejącej przydatności przy wyborze boiska. Nawierzchnia
+  // pierwsza, bo to ona rozstrzyga, czy w ogóle da się grać w danych butach.
+  const fakty: string[] = [];
+  const nawierzchnia = surfaceLabel(field.surface);
+  if (nawierzchnia) fakty.push(nawierzchnia);
+  fakty.push(field.isIndoor ? 'obiekt kryty' : 'obiekt otwarty');
+  if (field.lit) fakty.push('oświetlenie');
+  fakty[0] = zWielkiej(fakty[0]);
+
+  const zdanieFaktow = `${fakty.join(', ')}.`;
+  // Bez obietnicy meczów, których na tym obiekcie może nie być. „Szczegóły" odnoszą
+  // się do strony, która na pewno istnieje, nie do listy, która bywa pusta.
+  const zdanieBojo = 'Szczegóły obiektu i organizacja gry na Bojo.';
+  const adres = field.address?.trim();
+
+  // Adres wchodzi tylko wtedy, gdy się mieści — dwie osoby wybierające między
+  // boiskami w tej samej miejscowości rozstrzygają po ulicy, ale fakt o nawierzchni
+  // jest ważniejszy i nie może przez adres wypaść za wielokropek.
+  const zAdresem = adres ? `${zdanieFaktow} ${adres}. ${zdanieBojo}` : null;
+  if (zAdresem && zAdresem.length <= LIMIT_OPISU) return zAdresem;
+
+  const bezAdresu = `${zdanieFaktow} ${zdanieBojo}`;
+  return bezAdresu.length <= LIMIT_OPISU ? bezAdresu : zdanieFaktow;
+}
+
+function zWielkiej(tekst: string): string {
+  return tekst.charAt(0).toUpperCase() + tekst.slice(1);
 }

@@ -418,6 +418,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-16 — Opis strony boiska w wynikach wyszukiwania mówi o nawierzchni, nie o meczach
+
+PROBLEM: Po zaindeksowaniu katalogu (17 473 stron od 5 września) strony boisk Bojo zaczęły
+pojawiać się w Google na zapytania o konkretne obiekty — i to wysoko: dziesiątki zapytań
+w pierwszej piątce wyników, część w pierwszej trójce. Mimo to prawie nikt nie klikał:
+58 zapytań stojących w TOP5 nie dostało ani jednego kliknięcia, co dało 20% wszystkich
+wyświetleń zmarnowanych na pozycji, o którą inni walczą miesiącami. Przyczyną było to,
+co widać w wyniku: opis powtarzał nazwę i adres stojące w tytule tuż nad nim, a potem
+obiecywał „Zobacz nadchodzące mecze" — a mecz rozegrano na około 40 obiektach z ponad
+36 tysięcy, więc dla niemal każdego boiska ta obietnica była pusta.
+
+ROZWIĄZANIE BOJO: Opis strony boiska w wynikach wyszukiwania niesie dziś wyłącznie fakty,
+których nie ma w tytule: nawierzchnię, oświetlenie oraz to, czy obiekt jest kryty czy
+otwarty — czyli rzeczy, po których człowiek wybiera boisko. Gdy starcza miejsca, dochodzi
+adres z ulicą, bo po niej rozstrzyga się między boiskami w tej samej miejscowości. Zdanie
+o nadchodzących meczach zniknęło: Bojo nie obiecuje w wyszukiwarce czegoś, czego na danym
+obiekcie może nie być. Sport i miejscowość też wypadły — niesie je tytuł wyniku, a forma
+„w «miejscowość»" wymagałaby odmiany, której nie da się poprawnie wyprowadzić dla
+dziesiątek tysięcy nazw z katalogu.
+
+MECHANIKA: `metaOpisObiektu()` w `frontend/src/content/opisObiektu.ts`, używana przez
+`generateMetadata()` w `app/boisko/[id]/page.tsx`. Fakty budowane z pól `surface`
+(przez `surfaceLabel()`), `isIndoor` i `lit`; adres dokładany tylko wtedy, gdy całość
+mieści się w 160 znakach, powyżej których wyszukiwarka ucina opis. Test:
+`src/__tests__/opisObiektu.test.ts`. Bez migracji. Dane źródłowe: eksport Search Console
+z 2026-09-16, opisany w `docs/seo-geo-strategia.md`, sekcja 7a.2.
+
 ### 2026-09-16 — Turniej: jedna zakładka na jedno pytanie, lista jako karty
 
 PROBLEM: strona turnieju miała cztery zakładki, a odpowiadała na sześć pytań.
@@ -706,32 +733,3 @@ w `notifications` (wyzwalacz z `102`) i wyłącza się w ustawieniach powiadomie
 (`AlertSetupDialog.tsx`) używa `WyborMiejscowosci` i `SportChip`. Testy: `alertGry.test.ts`,
 `alertZFiltrow.test.ts`, `typyPowiadomien.test.ts`.
 
-### 2026-09-14 — Suwak odległości z narastającą podziałką, jeden zamiast dwóch
-
-PROBLEM: promień wyszukiwania wokół miejscowości wybierało się z czterech wartości
-(5, 10, 25, 50 km), więc między 10 a 25 km nie istniał żaden wybór. Tam, gdzie promień
-był suwakiem (lista meczów), chodził liniowo od 1 do 20 km — a „dalej niż 20" znaczyło
-od razu „bez limitu", czyli między sąsiednim osiedlem a całą Polską nie było nic.
-Osobno: arkusz filtrów na mapie pokazywał suwak „Odległość" RAZEM z promieniem pod
-wybraną miejscowością, choć przy wybranej miejscowości ten pierwszy nie robił już nic —
-stał na ekranie, dawał się przesuwać i nie zmieniał wyników.
-
-ROZWIĄZANIE BOJO: promień to jeden suwak od 1 do 100 km, z podziałką gęstą na dole
-i rzadką u góry. Kilometry nie są równo ważne: różnica między 2 a 3 km decyduje, czy
-idzie się pieszo, a między 80 a 90 km nie znaczy nic. Dlatego 50 km wypada wyraźnie
-po prawej stronie suwaka, a nie w połowie, i cały realny zakres decyzji (1–10 km)
-dostaje trzecią część długości zamiast jednej dziesiątej. Kontrolka odległości jest
-dokładnie jedna i zawsze ta, która działa: przy wybranej miejscowości promień siedzi
-pod nią, bez miejscowości — liczy się od pozycji gracza i pyta o to suwak „Odległość
-od Ciebie". „Bez limitu" zostaje jako ostatni przystanek za setką.
-
-MECHANIKA: `PROMIENIE_SUWAK_KM` w `lib/miejscowosci.ts` (1, 2, 3, 5, 7, 10, 15, 20, 25,
-30, 40, 50, 65, 80, 100) plus `indeksPromienia()` i `promienZIndeksu()`; suwak
-`RangeSlider` chodzi po indeksie tablicy, nie po kilometrach. Wartość spoza skali
-(stary link, zapisany filtr) trafia na najbliższy przystanek, a przy remisie na
-NIŻSZY — filtr nie ma poszerzać się sam. Wszystkie cztery dawne wartości pigułek mają
-swój przystanek, więc stare adresy nie przestawiają promienia. Miejsca użycia:
-`components/map/WyborMiejscowosci.tsx` (promień pod miejscowością),
-`components/map/VenueExplorer.tsx` (suwak tylko przy braku miejscowości) oraz
-`app/wydarzenia/EventsListView.tsx`. Lokalne stałe `RADIUS_MIN`/`RADIUS_MAX` (1–20,
-liniowo) usunięte z obu widoków. Testy: `promienSuwaka.test.ts`.
