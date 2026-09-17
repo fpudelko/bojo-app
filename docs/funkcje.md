@@ -4370,6 +4370,21 @@ Kolejność sprawdzania ma znaczenie i jest przypięta testem: `gemini.google.co
 musi wyjść jako `model`, mimo że lista wyszukiwarek zawiera `google.`
 (`src/__tests__/zrodloWejscia.test.ts`).
 
+**Odczyt w panelu (od 2026-09-17).** `/admin/analityka` ma sekcję „Ruch na stronach
+boisk (7 dni)" z rozbiciem wejść po źródle, licznikami kliknięć i konwersją, a każdy
+wiersz logu pokazuje ścieżkę i źródło. Powstało, bo przez pierwszą dobę panel pokazywał
+wyłącznie typ zdarzenia — `zrodlo`, jedyny powód istnienia tego pomiaru, dało się
+odczytać tylko zapytaniem SQL, a z samego logu nie szło nawet rozstrzygnąć, czy dziewięć
+wejść pod rząd to dziewięć odsłon, czy jedna licząca się dziewięć razy.
+
+**Konwersję liczymy WYŁĄCZNIE na ruchu spoza Bojo** (`konwersjaZKatalogu()`): przejście
+z mapy Bojo na stronę boiska nie jest pozyskaniem i rozmyłoby jedyną liczbę, dla której
+ten pomiar powstał. Przy zerze wejść z zewnątrz funkcja zwraca `null`, nie `0%` — zero
+procent czyta się jak zmierzona porażka, a to jest brak danych. Reguły są czystymi
+funkcjami w `lib/analytics.ts` (`zrodloZdarzenia`, `rozbicieWgZrodla`,
+`konwersjaZKatalogu`), testowanymi w `src/__tests__/odczytPomiaru.test.ts` — w `.tsx`
+Vitest ich nie zaimportuje.
+
 `event_type` to zwykły `TEXT` bez ograniczenia, więc nowe zdarzenie nie wymaga
 migracji — wymaga za to dopisania etykiety do `TYPE_LABELS` w
 `app/admin/analityka/page.tsx`, inaczej panel pokaże surową nazwę.
