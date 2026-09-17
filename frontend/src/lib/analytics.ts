@@ -144,3 +144,59 @@ export async function track(
     console.warn('[analytics]', eventType, e);
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ODCZYT POMIARU — funkcje czyste, używane przez `/admin/analityka`.
+//
+// Wydzielone z JSX tym samym wzorcem co `lib/hubKatalogu.ts` i z tego samego
+// powodu: Vitest nie transformuje `.tsx` w tym repo, a reguła „co liczy się do
+// pozyskania" jest dokładnie tą, której nie wolno zepsuć po cichu. Panel
+// pokazywał dotąd wyłącznie typ zdarzenia, więc `zrodlo` — jedyny powód, dla
+// którego ten pomiar powstał — dało się odczytać tylko zapytaniem SQL.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ZRODLA_ZNANE: readonly string[] = [
+  'wyszukiwarka', 'model', 'zewnetrzne', 'bezposrednie', 'wewnetrzne',
+];
+
+/** Źródło ze zdarzenia. Wartość spoza listy traktujemy jak brak — metadane
+ *  przychodzą z przeglądarki, więc nie są kontraktem, tylko danymi wejściowymi. */
+export function zrodloZdarzenia(metadata: unknown): string {
+  const z = (metadata as { zrodlo?: unknown } | null | undefined)?.zrodlo;
+  return typeof z === 'string' && ZRODLA_ZNANE.includes(z) ? z : 'nieznane';
+}
+
+/** Rozbicie wejść po źródle, malejąco, bez pozycji zerowych. */
+export function rozbicieWgZrodla(
+  zdarzenia: readonly { metadata: unknown }[],
+): { zrodlo: string; ile: number }[] {
+  const licznik = new Map<string, number>();
+  for (const z of zdarzenia) {
+    const k = zrodloZdarzenia(z.metadata);
+    licznik.set(k, (licznik.get(k) ?? 0) + 1);
+  }
+  // `Array.from`, nie spread — `tsconfig` celuje niżej niż ES2015 dla iteratorów,
+  // więc `[...mapa.entries()]` nie kompiluje się bez `downlevelIteration`.
+  return Array.from(licznik.entries())
+    .map(([zrodlo, ile]) => ({ zrodlo, ile }))
+    .sort((a, b) => b.ile - a.ile || a.zrodlo.localeCompare(b.zrodlo));
+}
+
+/**
+ * Konwersja na „Zorganizuj tutaj", liczona WYŁĄCZNIE na ruchu spoza Bojo.
+ *
+ * Wejścia wewnętrzne (mapa, wyszukiwarka w aplikacji, powrót z innego boiska)
+ * rozmyłyby jedyną liczbę, dla której ten pomiar powstał: ilu ludzi Z ZEWNĄTRZ
+ * robi krok w stronę zostania organizatorem. `null` przy zerowym mianowniku —
+ * „0%" sugerowałoby zmierzoną porażkę tam, gdzie nie ma jeszcze czego mierzyć.
+ */
+export function konwersjaZKatalogu(
+  wejscia: readonly { metadata: unknown }[],
+  klikniecia: number,
+): { zZewnatrz: number; procent: number | null } {
+  const zZewnatrz = wejscia.filter((w) => zrodloZdarzenia(w.metadata) !== 'wewnetrzne').length;
+  return {
+    zZewnatrz,
+    procent: zZewnatrz > 0 ? Math.round((klikniecia / zZewnatrz) * 1000) / 10 : null,
+  };
+}

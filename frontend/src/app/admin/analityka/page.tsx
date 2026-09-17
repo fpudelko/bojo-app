@@ -9,7 +9,7 @@ import {
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import type { AnalyticsEvent } from '@/lib/analytics';
+import { rozbicieWgZrodla, konwersjaZKatalogu, zrodloZdarzenia, type AnalyticsEvent } from '@/lib/analytics';
 
 interface Row {
   id: string;
@@ -38,6 +38,19 @@ const TYPE_LABELS: Record<AnalyticsEvent | string, string> = {
   boisko_zorganizuj: 'Kliknął „Zorganizuj tutaj”',
   boisko_pobliskie: 'Kliknął pobliskie boisko',
 };
+
+/** Nazwy źródeł po polsku — `zrodloWejscia()` zwraca klucze, panel pokazuje ludziom. */
+const ETYKIETY_ZRODEL: Record<string, string> = {
+  wyszukiwarka: 'Wyszukiwarka',
+  model: 'Model językowy',
+  zewnetrzne: 'Inna strona',
+  bezposrednie: 'Bezpośrednio',
+  wewnetrzne: 'Wewnątrz Bojo',
+  nieznane: 'Bez źródła',
+};
+
+/** Osobna stała, bo polski cudzysłów zamykający w atrybucie JSX urywa łańcuch. */
+const KLIK_ZORGANIZUJ = '„Zorganizuj tutaj”';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -116,7 +129,24 @@ export default function AnalyticsAdminPage() {
       });
     }
 
+    // RUCH Z KATALOGU (2026-09-16). Strona obiektu zbiera cały ruch organiczny Bojo,
+    // ale sam licznik wejść nie mówi nic bez rozbicia na źródło: wejście z wyszukiwarki
+    // to pozyskanie, a wejście z mapy w aplikacji to zwykła nawigacja. Kategoria `model`
+    // jest osobno, bo odpowiada na pytanie, którego nie da się zadać inaczej: czy
+    // silniki generatywne odsyłają kogokolwiek na bojo.pl (docs/funkcje.md,
+    // „Pomiar produktowy"). Bez tej sekcji dane były zbierane i nieczytelne — panel
+    // pokazywał wyłącznie typ zdarzenia, więc `zrodlo` dało się odczytać tylko SQL-em.
+    const wejscia7 = week.filter((r) => r.event_type === 'boisko_otwarte');
+    const zorganizuj7 = countType(week, 'boisko_zorganizuj');
+    const { zZewnatrz, procent } = konwersjaZKatalogu(wejscia7, zorganizuj7);
+
     return {
+      wgZrodla: rozbicieWgZrodla(wejscia7),
+      wejscia7: wejscia7.length,
+      wejsciaZZewnatrz: zZewnatrz,
+      zorganizuj7,
+      pobliskie7: countType(week, 'boisko_pobliskie'),
+      konwersjaPct: procent,
       activeToday: distinctUsers(today),
       active7: distinctUsers(week),
       active30: totalUsers30,
@@ -223,6 +253,48 @@ export default function AnalyticsAdminPage() {
           <StatCard icon={UserPlus} label="Dołączenia do grup / 7 dni" value={stats.groupsJoined7} />
         </div>
 
+        {/* Ruch z katalogu — rozbicie po źródle */}
+        <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
+          <p className="font-semibold text-ink">Ruch na stronach boisk (7 dni)</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Strony boisk zbierają dziś cały ruch z wyszukiwarki. „Wewnętrzne" to przejścia
+            wewnątrz Bojo — nie liczą się do pozyskania i są wyłączone z konwersji niżej.
+          </p>
+
+          {stats.wejscia7 === 0 ? (
+            <p className="mt-4 text-sm text-slate-500">
+              Brak wejść w ostatnich 7 dniach.
+            </p>
+          ) : (
+            <>
+              <ul className="mt-4 space-y-1.5">
+                {stats.wgZrodla.map((z) => (
+                  <li key={z.zrodlo} className="flex items-center gap-3 text-sm">
+                    <span className="w-28 shrink-0 text-slate-600">{ETYKIETY_ZRODEL[z.zrodlo] ?? z.zrodlo}</span>
+                    <span className="h-2 rounded-full bg-primary-600" style={{ width: `${(z.ile / stats.wejscia7) * 60}%`, minWidth: '0.5rem' }} />
+                    <span className="tabular-nums font-medium text-ink">{z.ile}</span>
+                    <span className="text-xs text-slate-400">
+                      {Math.round((z.ile / stats.wejscia7) * 100)}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 md:grid-cols-3">
+                <StatCard icon={Users} label="Wejścia spoza Bojo" value={stats.wejsciaZZewnatrz} />
+                <StatCard icon={CalendarPlus} label={KLIK_ZORGANIZUJ} value={stats.zorganizuj7} accent />
+                <StatCard icon={UserPlus} label="Klik w pobliskie boisko" value={stats.pobliskie7} />
+              </div>
+
+              <p className="mt-3 text-xs text-slate-500">
+                {stats.konwersjaPct === null
+                  ? 'Konwersja policzy się, gdy pojawi się pierwsze wejście spoza Bojo.'
+                  : `Konwersja na „Zorganizuj tutaj": ${String(stats.konwersjaPct).replace('.', ',')}% wejść spoza Bojo.`}
+              </p>
+            </>
+          )}
+        </div>
+
         {/* Daily activity chart */}
         <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
           <p className="font-semibold text-ink mb-4">Aktywność dzienna (14 dni)</p>
@@ -260,6 +332,14 @@ export default function AnalyticsAdminPage() {
                   </span>
                   <span className="flex-1 min-w-0 truncate text-slate-600">
                     {r.user_email ?? <span className="text-slate-400">anonim</span>}
+                    {/* Ścieżka i źródło przy wierszu — bez nich nie dało się odróżnić
+                        dwóch wejść na RÓŻNE boiska od dwóch strzałów na to samo. */}
+                    {r.path && <span className="ml-2 text-xs text-slate-400">{r.path}</span>}
+                    {zrodloZdarzenia(r.metadata) !== 'nieznane' && (
+                      <span className="ml-2 text-xs text-slate-400">
+                        · {ETYKIETY_ZRODEL[zrodloZdarzenia(r.metadata)]}
+                      </span>
+                    )}
                   </span>
                   <span className="shrink-0 text-xs text-slate-400">{formatWhen(r.created_at)}</span>
                 </li>
