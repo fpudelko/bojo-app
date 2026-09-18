@@ -484,6 +484,7 @@ const TRASY: Array<[nazwa: string, adres: string]> = [
   ['strona-glowna',        '/'],
   ['dlaczego-bojo',        '/dlaczego-bojo'],
   ['jak-dziala-bojo',      '/jak-dziala-bojo'],
+  ['o-bojo',               '/o-bojo'],
   ['faq',                  '/faq'],
   ['regulamin',            '/regulamin'],
   ['prywatnosc',           '/prywatnosc'],

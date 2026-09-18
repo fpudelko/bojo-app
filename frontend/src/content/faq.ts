@@ -213,9 +213,10 @@ export const FAQ: readonly PytanieFaq[] = [
   {
     kategoria: 'organizator',
     q: 'Jak zrobić stałą, cotygodniową gierkę?',
-    a: 'Stałe gierki (`/cykliczne`) to szablon z ustalonym dniem tygodnia i godziną — ' +
-      'kolejny termin powstaje sam, dziedzicząc ustawienia poprzedniego, a organizator ' +
-      'widzi w jednym miejscu niezawodność zapraszanych osób.',
+    a: 'Bojo nie powiela dziś terminu samo. Po meczu klikasz „Powtórz mecz" — powstaje ' +
+      'nowy termin z tym samym miejscem, liczbą miejsc, ceną i ustawieniami, a zmieniasz ' +
+      'tylko datę. Stała ekipa trzyma się grupy: mecze, składy i historia zostają ' +
+      'w jednym miejscu, więc nie zbierasz ich co tydzień od zera.',
   },
   {
     kategoria: 'organizator',

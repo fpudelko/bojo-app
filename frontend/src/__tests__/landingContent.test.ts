@@ -7,6 +7,8 @@ import {
   LANDING_FAQ,
   LANDING_STATS,
   LANDING_DIRECT_ANSWER,
+  LANDING_MISJA,
+  LANDING_ZAPROSZENIE,
 } from '@/components/home/landing/content';
 import { faqJsonLd } from '@/lib/structuredData';
 import { ZAKAZANE_NA_LANDINGU as FORBIDDEN_PHRASES } from '@/content/zakazaneFrazy';
@@ -35,6 +37,17 @@ function allLandingText(): string {
     LANDING_STATS.timeLabel,
     LANDING_STATS.priceValue,
     LANDING_STATS.priceLabel,
+    LANDING_MISJA.nadtytul,
+    LANDING_MISJA.tytul,
+    ...LANDING_MISJA.akapity,
+    LANDING_MISJA.uczciwie.tytul,
+    ...LANDING_MISJA.uczciwie.punkty,
+    LANDING_MISJA.cta.label,
+    LANDING_ZAPROSZENIE.nadtytul,
+    LANDING_ZAPROSZENIE.tytul,
+    LANDING_ZAPROSZENIE.body,
+    LANDING_ZAPROSZENIE.cta.label,
+    ...LANDING_ZAPROSZENIE.poboczne.map((p) => p.label),
   ].join(' \n ').toLowerCase();
 }
 
@@ -79,6 +92,34 @@ describe('landing H1 — obiecuje tylko to, co dowieziemy', () => {
   });
 });
 
+// Misja i zaproszenie odtwarzają trop z pierwszej wiadomości do organizatora
+// (docs/outreach-organizatorzy.md) — patrz komentarz przy LANDING_MISJA
+// w landing/content.ts. Testy pilnują dwóch rzeczy, których nie widać
+// z samego brzmienia zdania: kierunku korzyści i braku liczby/imion.
+describe('misja na landingu — spójna ze strategią „organizator, nie targowisko"', () => {
+  it('nazywa Bojo z nazwy (zasada „każda sekcja broni się sama")', () => {
+    expect(LANDING_MISJA.akapity.join(' ')).toMatch(/Bojo/);
+  });
+
+  it('mówi wprost, czego jeszcze nie ma w pełnej skali', () => {
+    expect(LANDING_MISJA.uczciwie.punkty.join(' ')).toMatch(/nie działa/i);
+  });
+
+  it('zaproszenie zaczyna się od zastrzeżenia, nie od obietnicy graczy', () => {
+    expect(LANDING_ZAPROSZENIE.body).toMatch(/^Nie obiecujemy/);
+  });
+
+  it('nie prosi organizatora o pomoc w budowaniu naszej masy krytycznej', () => {
+    const t = `${LANDING_MISJA.akapity.join(' ')} ${LANDING_ZAPROSZENIE.body}`;
+    expect(t).not.toMatch(/pomóż nam|wesprzyj nas|dołącz do misji/i);
+  });
+
+  it('nie podaje konkretnej liczby osób w zespole ani imion (decyzja właściciela)', () => {
+    const t = `${LANDING_MISJA.tytul} ${LANDING_MISJA.akapity.join(' ')}`;
+    expect(t).not.toMatch(/dwie osoby|dwóch (ludzi|osób|facetów|gości)/i);
+  });
+});
+
 // Geography rule: the SALES copy (hero, steps, values, stats) speaks about
 // capability and stays city-agnostic, because "stwórz mecz gdziekolwiek"
 // already works today regardless of how dense the venue catalogue is in any
@@ -96,6 +137,10 @@ describe('zasięg — katalog jest ogólnopolski, więc nazwa miasta nie pada ni
     LANDING_STATS.sportsLabel,
     LANDING_STATS.timeLabel,
     LANDING_STATS.priceLabel,
+    LANDING_MISJA.tytul,
+    ...LANDING_MISJA.akapity,
+    ...LANDING_MISJA.uczciwie.punkty,
+    LANDING_ZAPROSZENIE.body,
   ].join(' \n ').toLowerCase();
 
   it('oferta (hero/kroki/wartości/statystyki) nie wymienia Poznania', () => {

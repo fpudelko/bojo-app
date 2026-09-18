@@ -60,3 +60,10 @@ export const TYTUL_DLACZEGO = 'Dlaczego Bojo — aplikacja zamiast grupy na What
  * Rozdzielenie jest celem — nie ujednolicaj tego „dla spójności".
  */
 export const HASLO_PODGLADU = 'Bojo — zbierz ekipę, zagraj dziś';
+
+/** Tytuł i opis `/o-bojo` — misja, etap produktu, czego jeszcze nie ma. */
+export const TYTUL_O_BOJO = 'Kto robi Bojo i po co — misja, etap i czego Bojo nie robi';
+export const OPIS_O_BOJO =
+  'Bojo (bojo.pl) to darmowa aplikacja do organizowania amatorskich meczów, budowana ' +
+  'przez mały zespół. Misja, powód, dla którego Bojo zaczyna od organizatorów, oraz ' +
+  'pełna lista tego, co działa dziś i czego jeszcze nie ma.';
