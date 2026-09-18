@@ -688,19 +688,29 @@ przeszukiwał tylko ten ogryzek.
 
 ROZWIĄZANIE BOJO: filtr „Typ obiektu" zniknął z mapy — zostają sport, nawierzchnia,
 miejscowość z promieniem i „Gry dziś", każdy pytający o co innego. Pod przyciskiem
-„Pokaż N boisk" stoi teraz zakres tej liczby („w Twojej okolicy (15 km), nie w całym
-katalogu", „w tym kadrze mapy", „w promieniu N km od: <miejscowość>"), więc liczba nie
-udaje już rozmiaru katalogu. Liczba w kółku przy oddalonej mapie liczy obiekty, nie ich
-sporty, i zgadza się z liczbą pinezek po przybliżeniu. Filtr nawierzchni działa też przy
-oddalonej mapie, „Gry dziś" przestawia mapę na obiekty z grą z całego kraju zamiast
-zostawiać niezmienione kółka, a filtr „Piłka nożna" pokazuje wreszcie 95 boisk opisanych
-w katalogu wyłącznie jako futsal.
+„Pokaż N boisk" stoi teraz zakres tej liczby, więc liczba nie udaje już rozmiaru
+katalogu. Liczba w kółku przy oddalonej mapie liczy obiekty, nie ich sporty, i zgadza się
+z liczbą pinezek po przybliżeniu. Filtr nawierzchni działa też przy oddalonej mapie,
+„Gry dziś" przestawia mapę na obiekty z grą z całego kraju zamiast zostawiać niezmienione
+kółka, a filtr „Piłka nożna" pokazuje wreszcie 95 boisk opisanych w katalogu wyłącznie
+jako futsal.
+
+DRUGIE ZGŁOSZENIE tego samego dnia, po pierwszej poprawce: liczby wciąż wyglądały za małe
+(884/380/71 dla „Wszystkie sporty"/„Piłka nożna"/„Siatkówka plażowa" przy katalogu na
+36 tysięcy). Pierwsza poprawka NAZWAŁA liczbę („w Twojej okolicy (15 km), nie w całym
+katalogu"), nie zmieniła jej źródła — a źródłem była 15-kilometrowa okolica startowa,
+dokładnie w chwili, gdy użytkownik patrzył na mapę całej Polski. Przy oddalonej mapie i BEZ
+wybranej miejscowości przycisk liczy dziś sumę skupisk KADRU MAPY z filtrami szkicu — tę
+samą liczbę, co nakładka „N boisk w tym widoku" — i zakres mówi wtedy „w tym widoku mapy".
+Lista kart pod mapą zostaje świadomie przy 15 km (dociągnięcie kart dla całego kraju
+zniweczyłoby sens skupisk) i ma własny, uczciwy dopisek — dwa liczniki, dwa różne pytania,
+tak jak licznik nad listą i nakładka nad mapą już wcześniej.
 
 MECHANIKA: `VenueExplorer.tsx` (sekcja „Typ obiektu" usunięta, `?type=` czyszczony
-z adresu, `graDzisWszedzie`, `zakresPodgladu`), `applyHint` w `components/ui/FilterSheet.tsx`,
-`FiltryObiektow` w `lib/api.ts` (filtry zawężają zapytanie po stronie bazy; stronicowanie
-`order('id')` + `range()` zamiast cichego limitu PostgREST), `rozwinSporty()`/
-`pasujeSport()`/`SPORTY_NA_MAPIE` w `lib/sports.ts` (jedna lista sportów mapy zamiast
-trzech kopii), migracja `153_skupiska_licza_obiekty` (`count(DISTINCT f.id)`,
-`p_typy` → `p_nawierzchnie`). `venue_type` zostaje w bazie i na karcie obiektu jako
-informacja. Testy: `filtryMapy.test.ts`.
+z adresu, `graDzisWszedzie`, `previewSkupiskCount`, `zakresPodgladu`), `applyHint` w
+`components/ui/FilterSheet.tsx`, `FiltryObiektow` w `lib/api.ts` (filtry zawężają
+zapytanie po stronie bazy; stronicowanie `order('id')` + `range()` zamiast cichego limitu
+PostgREST), `rozwinSporty()`/`pasujeSport()`/`SPORTY_NA_MAPIE` w `lib/sports.ts` (jedna
+lista sportów mapy zamiast trzech kopii), migracja `153_skupiska_licza_obiekty`
+(`count(DISTINCT f.id)`, `p_typy` → `p_nawierzchnie`). `venue_type` zostaje w bazie i na
+karcie obiektu jako informacja. Testy: `filtryMapy.test.ts`.

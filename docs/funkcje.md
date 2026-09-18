@@ -3426,7 +3426,7 @@ tylko liczą co innego:
 | Gdzie | Co liczy | Źródło |
 |---|---|---|
 | licznik nad listą | to, co na liście pod spodem | `fields.length` |
-| przycisk w arkuszu filtrów | to, co lista pokaże po zatwierdzeniu | `previewFieldsCount` |
+| przycisk w arkuszu filtrów | to, co lista pokaże po zatwierdzeniu — **z jednym wyjątkiem**: przy oddalonej mapie bez wybranej miejscowości liczy to, co widać NA MAPIE (`wKadrze`), nie 15 km listy kart pod nią, patrz „Filtry" niżej | `previewFieldsCount` |
 | nakładka nad mapą | suma skupisk z kadru Leafleta | `wKadrze` |
 | liczba na kółku skupiska | jedna komórka siatki | `skupisko.ile` |
 
@@ -3634,12 +3634,31 @@ dokładnie tyle, ile katalog ma w promieniu 15 km od punktu startowego listy), a
 nie opisywało, więc czytało się ją jako rozmiar całego katalogu — czyli jako błąd
 filtrowania. Licznik nad listą dostał taki dopisek już w sierpniu (`zakresListy`);
 przycisk, czyli jedyne miejsce, gdzie ta liczba widnieje przy OTWARTYCH filtrach, został
-bez niego. Cztery warianty: okolica miejscowości ze szkicu, „w Twojej okolicy (15 km),
-nie w całym katalogu", fraza szukania, kadr mapy.
+bez niego.
 
-Podgląd liczy też „Gry dziś" (`draftOnlyGamesToday`), czego do 2026-09-18 nie robił:
-przełącznik nie ruszał liczby na przycisku ani o jeden, choć po zatwierdzeniu lista
-potrafiła zejść z kilkuset pozycji do trzech.
+**Ten sam dzień, drugie zgłoszenie: liczby wciąż wyglądały za małe** (884/380/71 dla
+„Wszystkie sporty"/„Piłka nożna"/„Siatkówka plażowa"), mimo dopisku wyżej. Powód: dopisek
+NAZWAŁ liczbę, nie zmienił jej źródła — a źródłem była 15-kilometrowa okolica, dokładnie
+w chwili, gdy użytkownik patrzył na mapę całej Polski. Przy oddalonej mapie i BEZ wybranej
+miejscowości podgląd liczy dziś sumę skupisk KADRU MAPY z filtrami szkicu
+(`previewSkupiskCount`, osobne zapytanie RPC, bo szkic filtrów nie jest jeszcze
+zastosowany) — tę samą liczbę, co nakładka „N boisk w tym widoku" (`wKadrze`). Zakres
+mówi wtedy „w tym widoku mapy", nie „w Twojej okolicy".
+
+To ROZWIĄZUJE zgłoszenie, ale świadomie ROZJEŻDŻA przycisk arkusza z listą kart pod mapą:
+ta ostatnia zostaje przy 15 km (dociągnięcie kart dla całego kraju zniweczyłoby sens
+skupisk — patrz „Pusta lista dobiera się SAMA" wyżej), więc po zatwierdzeniu filtra lista
+kart pod mapą pokaże mniejszą liczbę niż ta, którą obiecał przycisk. To NIE jest powrót do
+pierwszego błędu: nakładka nad samą mapą („N boisk w tym widoku") od razu potwierdza dużą
+liczbę, a lista kart ma WŁASNY, uczciwy dopisek („w Twojej okolicy (15 km)") — to ten sam
+wzorzec co „trzy liczniki, trzy różne pytania" opisany przy `zakresListy` niżej, teraz
+czterema licznikami.
+
+**„Gry dziś" wyłącza to zapytanie o skupiska** (`draftOnlyGamesToday` w warunku efektu) —
+skupiska nie wiedzą nic o meczach, więc przy włączonym przełączniku podgląd wraca do
+starego, lokalnego liczenia (15 km) i zakres mówi to wprost. Podgląd liczy „Gry dziś" od
+2026-09-18: przełącznik wcześniej nie ruszał liczby na przycisku ani o jeden, choć po
+zatwierdzeniu lista potrafiła zejść z kilkuset pozycji do trzech.
 
 **Filtry zawężają zapytanie PO STRONIE BAZY** (`FiltryObiektow` w `lib/api.ts` — jedno
 źródło dla `getExplorerFields()` i `getExplorerClusters()`), nie dopiero w przeglądarce.
