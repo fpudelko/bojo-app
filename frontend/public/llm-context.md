@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-16 · migracja `152` · 59 tabel
+**Stan na:** 2026-09-18 · migracja `153` · 59 tabel
 
 ---
 
@@ -671,56 +671,36 @@ filtrów, plus pigułka nad listą na `/mapa`. Goły dzwonek z paska `/wydarzeni
 razem z zapytaniem o stan alertu, a martwy `components/home/NearbyGames.tsx` został
 usunięty. Testy: `wieleAlertow.test.ts`, `mojeAlerty.test.tsx`.
 
-### 2026-09-14 — Wyszukiwarka meczów: mniej kontrolek, prostszy alert
+### 2026-09-18 — Filtry mapy: koniec dublowania kategorii i liczników, które nie zgadzają się ze sobą
 
-PROBLEM: pasek wyszukiwarki meczów łamał się na telefonie na dwa wiersze, bo mieścił
-przełącznik trybu, podpisany przełącznik „Lista | Mapa", dzwonek alertu i ikonę filtrów.
-Dzwonek nie mówił, co się stanie po dotknięciu, a stał obok DRUGIEGO dzwonka
-(powiadomienia), który znaczy coś innego. W arkuszu filtrów suwak „Cena" pytał o górny
-limit w złotych, choć mecze w Bojo są albo za darmo, albo za kilkanaście złotych od
-osoby, a suwak „Wolne miejsca" kazał trafiać palcem w konkretną liczbę na osi przez cały
-ekran. Filtr „Kiedy" był pięciopozycyjnym suwakiem, w którym „Jutro" wykluczało
-DZISIAJ, czyli mecz za dwie godziny, a „Ten miesiąc" pod koniec miesiąca znaczyło co
-innego niż na jego początku. Okno alertu pytało o sport, miejsce, promień, dni tygodnia
-i porę dnia — pięć pytań, z których dwa (dni tygodnia, pora dnia) dublowały „Kiedy"
-z filtrów; a przycisk zapisu był wyszarzony bez podania powodu, gdy nikt nie wskazał
-miejsca.
+PROBLEM: arkusz filtrów mapy na bojo.pl pytał o sport DWA RAZY, w dwóch sekcjach stojących
+jedna pod drugą. Sekcja „Sport" miała siatkówkę, siatkówkę plażową i koszykówkę; sekcja
+„Typ obiektu" — te same nazwy jeszcze raz, licząc przy tym coś zupełnie innego: sport
+`siatkówka` to 2566 publicznych boisk, `venue_type = 'volleyball_outdoor'` — cztery.
+Pozycja „Tenis" obiecywała sport, którego mapa nie pokazuje wcale, więc dawała zawsze zero
+wyników, a cała kolumna `venue_type` jest wypełniona w 539 z 35 952 obiektów (1,5%), więc
+każdy wybór typu wycinał niemal cały katalog. Do tego liczby kłamały w trzech miejscach
+naraz: przycisk „Pokaż 884 boiska" przy katalogu na 36 tysięcy nie mówił, że liczy okolicę
+w promieniu 15 km, a nie Polskę; nakładka nad oddaloną mapą pokazywała 38 314, bo liczyła
+PARY obiekt-sport zamiast obiektów; zapytanie o widoczny kadr przychodziło po cichu ucięte
+do tysiąca wierszy, więc w gęstym mieście część boisk nie miała pinezki, a filtr sportu
+przeszukiwał tylko ten ogryzek.
 
-ROZWIĄZANIE BOJO: przełącznik „Lista | Mapa" niesie dziś ikony zamiast napisów, a wejście
-do alertu jest podpisanym przyciskiem nakładającym się na listę meczów („Powiadom
-o takich meczach", a gdy alert już działa — „Damy znać o nowym meczu"). Filtr ceny
-zniknął. „Wolne miejsca" ustawia się przyciskami − i +, domyślnie na 1 i w górę do 99,
-czyli wyszukiwarka domyślnie pokazuje mecze, do których da się wejść; komplety wracają
-jednym dotknięciem „−", a pusta lista mówi o tym wprost odsyłaczem „Zobacz też mecze
-z kompletem". „Kiedy" to cztery przyciski w jednej linii — Dzisiaj, 3 dni, Tydzień
-i Termin, który odsłania kalendarz „do kiedy"; brak wyboru znaczy wszystkie terminy,
-a dotknięcie wybranego odznacza go. Okno alertu pyta już tylko o dwie rzeczy: jak długo
-powiadamiać (te same cztery przyciski, brak wyboru = bezterminowo) i czym dać znać
-(dzwonek, mail, powiadomienie na telefon, SMS). Dni tygodnia i pora dnia zniknęły
-z okna — dublowały „Kiedy" z filtrów. Sport, miejscowość i promień zostają, wypełnione
-wartościami z filtrów, jeśli te były ustawione: alert da się otworzyć, zanim ktokolwiek
-ruszył filtry, a wtedy miejsce trzeba gdzieś wpisać. Pole przyjmuje nazwę miejscowości
-albo kod pocztowy; pinezka obok jest skrótem, nie jedyną drogą — w przeglądarce
-wbudowanej w inną aplikację geolokalizacja bywa zablokowana. Gdy miejsca nie ma, Bojo
-pisze wprost, dlaczego nie da się zapisać.
+ROZWIĄZANIE BOJO: filtr „Typ obiektu" zniknął z mapy — zostają sport, nawierzchnia,
+miejscowość z promieniem i „Gry dziś", każdy pytający o co innego. Pod przyciskiem
+„Pokaż N boisk" stoi teraz zakres tej liczby („w Twojej okolicy (15 km), nie w całym
+katalogu", „w tym kadrze mapy", „w promieniu N km od: <miejscowość>"), więc liczba nie
+udaje już rozmiaru katalogu. Liczba w kółku przy oddalonej mapie liczy obiekty, nie ich
+sporty, i zgadza się z liczbą pinezek po przybliżeniu. Filtr nawierzchni działa też przy
+oddalonej mapie, „Gry dziś" przestawia mapę na obiekty z grą z całego kraju zamiast
+zostawiać niezmienione kółka, a filtr „Piłka nożna" pokazuje wreszcie 95 boisk opisanych
+w katalogu wyłącznie jako futsal.
 
-MECHANIKA: `SegmentedToggle` przyjmuje `icon` w obu opcjach (nazwa dostępna zostaje
-z `label`). Przycisk alertu na `/mapa` to nakładka `absolute bottom-0` nad listą,
-z odstępem `calc(var(--bottom-nav-h) + 0.75rem)`. Nowy `components/ui/Stepper.tsx`
-zastępuje suwak wolnych miejsc w obu arkuszach (`VenueExplorer.tsx`,
-`wydarzenia/EventsListView.tsx`); `MIN_SPOTS_DOMYSLNIE = 1`, a licznik aktywnych filtrów
-liczy tę pozycję dopiero przy odchyleniu od jedynki. `filterByMaxPrice()` usunięte
-z `lib/eventFilters.ts` razem z filtrem ceny, tak samo martwe `onlyFreeSpots`/
-`onlyNoCost`. Koniec alertu trzymają `koniecDnia()` / `dataWygasniecia()` /
-`najwczesniejszyKoniec()` w `lib/alerts.ts` — wybrany dzień liczy się cały (23:59:59),
-`min` pola daty stoi na jutrze. Okno alertu używa `WyborMiejscowosci` i `SportChip`,
-czyli tych samych kontrolek co arkusz filtrów; `alertZFiltrow.test.tsx` pilnuje, że pole
-miejscowości w nim jest, a nie sam przycisk lokalizacji. `DateFilter` jest jednym
-stringiem także dla własnego
-terminu (`do:2026-09-30`), więc wchodzi do adresu bez drugiego pola; zepsuta data
-zachowuje się jak brak filtra, a nie jak „nic nie pasuje". `components/ui/WyborKiedy.tsx`
-stoi w obu arkuszach filtrów (w oknie alertu już NIE — patrz wpis o alercie wyżej).
-Kolumny `days_of_week`, `godzina_od`/`godzina_do` i `expires_at` z migracji `149`
-zostają w bazie nietknięte — okno przestało o nie pytać. Testy: `alertKoniec.test.ts`,
-`eventFilters.test.ts`, `szukaj-domyslnie-mecze.klikalnosc.spec.ts`.
-
+MECHANIKA: `VenueExplorer.tsx` (sekcja „Typ obiektu" usunięta, `?type=` czyszczony
+z adresu, `graDzisWszedzie`, `zakresPodgladu`), `applyHint` w `components/ui/FilterSheet.tsx`,
+`FiltryObiektow` w `lib/api.ts` (filtry zawężają zapytanie po stronie bazy; stronicowanie
+`order('id')` + `range()` zamiast cichego limitu PostgREST), `rozwinSporty()`/
+`pasujeSport()`/`SPORTY_NA_MAPIE` w `lib/sports.ts` (jedna lista sportów mapy zamiast
+trzech kopii), migracja `153_skupiska_licza_obiekty` (`count(DISTINCT f.id)`,
+`p_typy` → `p_nawierzchnie`). `venue_type` zostaje w bazie i na karcie obiektu jako
+informacja. Testy: `filtryMapy.test.ts`.

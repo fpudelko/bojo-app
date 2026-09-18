@@ -7,7 +7,7 @@ import MapaClient from './MapaClient';
 export const metadata: Metadata = {
   title: 'Mapa boisk i meczów w Polsce',
   description:
-    'Interaktywna mapa boisk i obiektów sportowych w całej Polsce, z aktywnymi meczami. Filtry po sporcie, typie obiektu i nawierzchni.',
+    'Interaktywna mapa boisk i obiektów sportowych w całej Polsce, z aktywnymi meczami. Filtry po sporcie, nawierzchni i okolicy.',
   alternates: { canonical: '/mapa' },
 };
 

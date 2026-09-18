@@ -3166,7 +3166,7 @@ pytania („co jest grane / gdzie się gra") — Gry↔Obiekty na `/wydarzenia` 
 |---|---|---|
 | `Gry \| Obiekty` (`SegmentedToggle`) | NA CO patrzę | pełny przełącznik, zmienia dane |
 | `Lista \| Mapa` (`SegmentedToggle` z `icon`) | JAK patrzę | świadomie WIDOCZNY przełącznik, nie mały guzik z ikoną (guzik nie mówi, w jakim stanie jest teraz — przełącznik pokazuje oba naraz). Od 2026-09-14 segmenty niosą IKONY (`List`/`Map`, kwadraty 36×36) zamiast napisów, bo pasek łamał się na telefonie na dwa wiersze; kształt przełącznika, czyli to, co odróżnia go od guzika, zostaje. Nazwa dostępna dalej brzmi „Lista"/„Mapa" (`aria-label`) — scenariusze klikalności celują w `getByRole('radio', { name: 'Lista' })` |
-| Ikona filtrów, z plakietką liczby aktywnych | CZEGO SZUKAM | reszta (sport, odległość, typ obiektu, nawierzchnia, „Gry dziś", wolne miejsca) zjeżdża do arkusza |
+| Ikona filtrów, z plakietką liczby aktywnych | CZEGO SZUKAM | reszta (miejscowość + promień, sport, nawierzchnia, „Gry dziś", wolne miejsca) zjeżdża do arkusza |
 
 **Dzwonka alertu w tym pasku NIE MA** — stał tu przez jeden dzień (2026-09-14) i wypadł
 tego samego dnia na rzecz podpisanego przycisku nad listą; uzasadnienie w sekcji „Alert
@@ -3372,9 +3372,9 @@ Obie poprawki pilnuje `e2e/mapa-pinezki-i-filtry.klikalnosc.spec.ts`.
 
 **Przycisk „Filtry" ma dziś 44×44 px, chipy filtrów niosą `aria-pressed` — od
 2026-08-30.** Przycisk był `h-9 w-9` (36 px) — poniżej progu WCAG 2.5.5 i mniejszy
-niż sąsiedni `LocateMeButton`, z którym stoi w jednym rzędzie. Sześć grup
+niż sąsiedni `LocateMeButton`, z którym stoi w jednym rzędzie. Grupy
 przełączalnych przycisków w `VenueExplorer.tsx` (sport w trybie gier, sport w
-trybie katalogu, typ obiektu, nawierzchnia) dostało `aria-pressed`, żeby czytnik
+trybie katalogu, nawierzchnia) dostały `aria-pressed`, żeby czytnik
 ekranu mówił, który wybór jest aktywny — `TogglePill` (`components/ui/FilterPill.tsx`)
 już to miał, tylko nie te przyciski w arkuszu filtrów.
 
@@ -3426,6 +3426,7 @@ tylko liczą co innego:
 | Gdzie | Co liczy | Źródło |
 |---|---|---|
 | licznik nad listą | to, co na liście pod spodem | `fields.length` |
+| przycisk w arkuszu filtrów | to, co lista pokaże po zatwierdzeniu | `previewFieldsCount` |
 | nakładka nad mapą | suma skupisk z kadru Leafleta | `wKadrze` |
 | liczba na kółku skupiska | jedna komórka siatki | `skupisko.ile` |
 
@@ -3437,6 +3438,19 @@ który mówi, na jakie pytanie ta liczba odpowiada: `dla „<fraza>"` /
 oddalonej mapie) / `w tym kadrze mapy`. Nakładka nad mapą przy przybliżeniu
 mówi dziś tak samo wprost „N boisk w tym kadrze", zamiast samego „Dotknij
 pinezki".
+
+**Ta sama pułapka wróciła przyciskiem** („Pokaż 884 boiska" przy katalogu na
+36 tysięcy — zgłoszone 18.09.2026), więc dopisek dostał też on
+(`applyHint`/`zakresPodgladu`, patrz „Filtry" niżej). Wniosek na przyszłość:
+KAŻDA liczba boisk w tym interfejsie musi nieść zakres, bo wszystkie wyglądają
+jak odpowiedź na jedno pytanie — „ile jest boisk".
+
+**Jedna z tych liczb liczyła się inaczej niż reszta i to był błąd, nie kwestia
+pytania.** `mapa_skupiska` liczyła `count(*)` po `unnest(f.sport)`, czyli parę
+obiekt-sport zamiast obiektu, i nie miała bramki na sporty mapy — nakładka nad
+mapą przy widoku kraju pokazywała 38 314 (stąd ta liczba w całym repo jako
+„rozmiar katalogu"), gdy publicznych obiektów mapy jest 35 801. Migracja `153`
+zrównuje ją z tym, co realnie pobiera zapytanie o kadr.
 
 ## Filtr „miejscowość + ile km"
 
@@ -3574,49 +3588,95 @@ zamontowaniu, `VenueExplorer` już umiał obsłużyć `?boisko=<id>` po wejściu
 meczu (`EventDetailClient.tsx`) do boiska działa tak samo.
 
 **Filtry — ikona „Filtry" + modal, jak na `/wydarzenia`.** Od 2026-08-23 WSZYSTKO
-(Sport, „Gry dziś", Typ obiektu, Nawierzchnia) siedzi w `FilterSheet` — patrz „Scalona
+(Sport, „Gry dziś", Nawierzchnia) siedzi w `FilterSheet` — patrz „Scalona
 wyszukiwarka" wyżej. Nic z tego nie stoi już w pasku jako osobna, zawsze-widoczna
 pigułka:
 
 | Filtr | Gdzie | Uwaga |
 |---|---|---|
-| Sport | w modalu, sekcja „Sport" | źródło `MAP_FILTER_SPORTS` (`lib/sports.ts`) — **6** opcji, nie 4: dołożone `wielofunkcyjne` (4118 obiektów) i `piłka ręczna` (806), które miały już kolorową pinezkę na mapie, ale nie dało się ich wybrać w filtrze |
-| „Gry dziś" | w modalu, `TogglePill` | bez zmian w działaniu, tylko przeniesiona z paska |
-| Typ obiektu | w modalu | lista bez zmian, tylko przeniesiona z zawsze-widocznego dropdownu |
+| Miejscowość + promień | w modalu, `WyborMiejscowosci` | zawęża po ODLEGŁOŚCI od punktu, nie po nazwie w bazie (`fields.city` jest wypełnione w ~2%) |
+| Sport | w modalu, sekcja „Sport" | źródło `MAP_FILTER_SPORTS` (`lib/sports.ts`) — **6** opcji, nie 4: dołożone `wielofunkcyjne` (4410 obiektów) i `piłka ręczna` (961), które miały już kolorową pinezkę na mapie, ale nie dało się ich wybrać w filtrze |
+| „Gry dziś" | w modalu, `TogglePill` | jedyny filtr liczony z `events`, nie z kolumny obiektu |
 | Nawierzchnia | w modalu | checklist: Trawa naturalna / Sztuczna trawa / Nawierzchnia twarda / Piasek / Beton / Mączka ceglana; etykiety przez `surfaceLabel()` z `lib/labels.ts` |
 
 „Otwarte gry" (obiekt ma co najmniej jeden mecz, na który da się jeszcze dołączyć) było
 tu przez chwilę jako osobny przełącznik — usunięte jako zbędne obok „Gry dziś" i trybu
 „Gry | Obiekty" (patrz niżej), którego tryb „Gry" pokazuje realnie otwarte mecze wprost jako pinezki.
 
-**Dlaczego Typ obiektu przestał być zawsze widoczny, a Nawierzchnia się pojawiła:**
-`venue_type` ma dziś **98,3%** publicznych obiektów jako `NULL` (import z OSM go nie
-ustawia) — wybranie jakiegokolwiek konkretnego typu wyglądało jak zepsuta wyszukiwarka,
-bo odsiewało niemal cały katalog. `surface` ma dane w **37%** wierszy z realnym
-zróżnicowaniem (trawa, nawierzchnia twarda, piasek, beton, sztuczna trawa, mączka) — to
-jest facet, który realnie coś filtruje, mimo że wcześniej nie dało się po nim szukać.
-Kolumna `surface` dołączona do okrojonego `EXPLORER_COLS` w `lib/api.ts` (istniała w
-tabeli, po prostu nie była pobierana) — zero migracji.
+**FILTR „TYP OBIEKTU" ZNIKNĄŁ 2026-09-18** — zgłoszone wprost („niektóre się dublują,
+np. siatkówka jako sport i rodzaj obiektu"). Dwie przyczyny, każda wystarczająca:
 
-Modal ma tę samą mechanikę szkicu co na `/wydarzenia`: wybory w „Typ obiektu"/
-„Nawierzchnia" aplikują się dopiero po „Pokaż N obiektów", „Wyczyść" resetuje szkic bez
-zamykania. Renderowany **raz** na komponent (nie raz na sidebar desktopu i raz na
-mobilny overlay) — oba przyciski „Filtry" otwierają ten sam, współdzielony stan.
+- **Dublował sekcję Sport stojącą wyżej w tym samym arkuszu.** „Siatkówka",
+  „Siatkówka plażowa", „Koszykówka" i „Koszykówka pełna" powtarzały nazwy z listy
+  sportów, licząc przy tym zupełnie co innego: sport `siatkówka` ma 2566 publicznych
+  boisk, `venue_type = 'volleyball_outdoor'` — **cztery**. A pozycja „Tenis" obiecywała
+  sport, którego mapa nie pokazuje wcale (`SPORTY_NA_MAPIE`), więc dawała zawsze zero.
+- **Nie miał danych.** `venue_type` jest wypełniony w **539 z 35 952** publicznych
+  obiektów (1,5%; zrzut z 18.09.2026) — import z OSM go nie ustawia. Każdy wybór typu
+  wycinał ~98% katalogu, czyli wyglądał jak zepsuta wyszukiwarka.
 
-**Licznik „Pokaż N obiektów" w trybie skupisk** (domyślny widok całej Polski, mapa
-oddalona) liczy się z `wKadrze` (suma z kółek skupisk, uwzględnia już filtr sportu),
-nie z `allFields` — w tym trybie `allFields` jest zawsze pustą tablicą (obiekty
-pobiera się dopiero po przybliżeniu, patrz niżej), więc liczenie z niej dawało zawsze
-„Pokaż 0 obiektów" niezależnie od tego, ile realnie było w kadrze. Typ obiektu
-i Nawierzchnia i tak nie mają w tym trybie efektu (brak per-obiektowego rozbicia
-w danych ze skupisk), więc podgląd pokazuje to, co faktycznie widać na mapie.
+Kolumna i `VENUE_TYPE_LABELS` zostają — plakietka na karcie obiektu jest dla tych 539
+wierszy informacją, a nie obietnicą, że da się po niej szukać. Parametr `?type=` jest
+przy każdej zmianie filtrów usuwany z adresu, żeby stary link nie utrwalał zdjętego
+filtra. Wielkość boiska jako facet wróci, gdy będzie ją z czego liczyć (`dimensions_m`).
+`surface` ma dane w **37%** wierszy (13 457) z realnym zróżnicowaniem — to jedyny facet
+obiektu obok sportu, który realnie coś odsiewa.
 
-Filtr nawierzchni działa **tylko w trybie pojedynczych obiektów** (przybliżenie ≥ próg
-skupisk) — w trybie skupisk (oddalona mapa) nie jest przekazywany do
-`getExplorerClusters()`, dokładnie tak jak już wcześniej działało „Gry dziś". Sport
-i Typ obiektu działają w obu trybach — RPC `mapa_skupiska` przyjmuje
-generyczne tablice `p_sporty`/`p_typy`, więc nowe wartości sportu przechodzą bez żadnej
-zmiany funkcji.
+Modal ma tę samą mechanikę szkicu co na `/wydarzenia`: wybory aplikują się dopiero po
+„Pokaż N boisk", „Wyczyść" resetuje szkic bez zamykania. Renderowany **raz** na komponent
+(nie raz na sidebar desktopu i raz na mobilny overlay) — oba przyciski „Filtry" otwierają
+ten sam, współdzielony stan.
+
+**Pod przyciskiem „Pokaż N boisk" stoi ZAKRES tej liczby** (`applyHint` w `FilterSheet`,
+`zakresPodgladu` w `VenueExplorer`) — 2026-09-18, zgłoszone wprost: „jak nie ma filtrów,
+pokazuje 884 boiska, podczas gdy jest ponad 32 tys.". Liczba była prawdziwa (884 to
+dokładnie tyle, ile katalog ma w promieniu 15 km od punktu startowego listy), ale nic jej
+nie opisywało, więc czytało się ją jako rozmiar całego katalogu — czyli jako błąd
+filtrowania. Licznik nad listą dostał taki dopisek już w sierpniu (`zakresListy`);
+przycisk, czyli jedyne miejsce, gdzie ta liczba widnieje przy OTWARTYCH filtrach, został
+bez niego. Cztery warianty: okolica miejscowości ze szkicu, „w Twojej okolicy (15 km),
+nie w całym katalogu", fraza szukania, kadr mapy.
+
+Podgląd liczy też „Gry dziś" (`draftOnlyGamesToday`), czego do 2026-09-18 nie robił:
+przełącznik nie ruszał liczby na przycisku ani o jeden, choć po zatwierdzeniu lista
+potrafiła zejść z kilkuset pozycji do trzech.
+
+**Filtry zawężają zapytanie PO STRONIE BAZY** (`FiltryObiektow` w `lib/api.ts` — jedno
+źródło dla `getExplorerFields()` i `getExplorerClusters()`), nie dopiero w przeglądarce.
+Powód jest twardy: odpowiedź PostgREST jest przycięta do stronicy (patrz „Stronicowanie"
+niżej), więc filtrowanie wyłącznie po stronie klienta znaczyło „pokaż te siatkówki, które
+zmieściły się w pierwszym tysiącu wierszy kadru". `zastosujFiltry()` w komponencie
+zostaje — działa na źródłach, które nie idą przez kadr (wyniki szukania, lista startowa,
+okolica miejscowości) — i używa TYCH SAMYCH funkcji z `lib/sports.ts`, żeby lista i
+pinezki nie mogły się rozjechać.
+
+**Sport i nawierzchnia działają w OBU trybach** (pinezki i skupiska) — RPC
+`mapa_skupiska` dostało `p_nawierzchnie` w migracji `153`. Wcześniej nawierzchnia nie
+zmieniała przy oddalonej mapie ani kółek, ani liczby nad mapą, czyli filtr wyglądał na
+zepsuty dokładnie tam, gdzie mapa się otwiera. **„Gry dziś" wyłącza tryb skupisk**
+(`graDzisWszedzie`) i pokazuje obiekty z grą wprost, z całego kraju: baza nie wie nic
+o meczach, a obiektów z grą dziś są w skali kraju dziesiątki, więc zamiast liczyć je
+w siatce wystarczy pobrać je po identyfikatorach z już wczytanych `events`.
+
+**Bramka „co mapa pokazuje" jest JEDNA** — `SPORTY_NA_MAPIE` w `lib/sports.ts`, liczone
+z `MAP_FILTER_SPORTS`. Do 2026-09-18 ta sama siódemka stała wypisana ręcznie jako
+`EXPLORER_SPORTS` w `lib/api.ts`, a `mapa_skupiska` nie miała jej wcale — więc skupiska
+liczyły tenis, baseball i hokej (151 wierszy), których pinezki nigdy nie przychodziły.
+Lista sportów leci dziś do RPC zawsze, także bez wyboru użytkownika, właśnie po to, żeby
+bramka nie musiała istnieć drugi raz w treści funkcji SQL.
+
+**„Piłka nożna" łapie też obiekty opisane wyłącznie jako `futsal`** (95 publicznych
+wierszy) — `rozwinSporty()`/`pasujeSport()` w `lib/sports.ts`. `FOCUS_SPORTS` celowo nie
+ma futsalu („w interfejsie to ta sama piłka nożna"), ale w katalogu to osobna wartość
+kolumny `sport`: te boiska miały na mapie pinezkę z piłką, a wybranie piłki nożnej
+w filtrze im ją zdejmowało. Pilnuje tego `filtryMapy.test.ts`.
+
+**Stronicowanie zapytania o kadr.** `getExplorerFields()` nie miało limitu ani zakresu,
+a PostgREST urywa odpowiedź na `max-rows` (domyślnie 1000) **bez błędu**. Gęsty kadr przy
+progu skupisk (Warszawa: 2660 obiektów) przychodził więc ucięty do tysiąca wierszy:
+pinezki niekompletne, licznik nad listą pokazywał podejrzanie równe „1000", a filtr
+w przeglądarce przeszukiwał tylko ten ogryzek. Dziś strony są jawne (`order('id')` +
+`range()`), do pięciu po tysiąc.
 
 **Zalogowany na mobile** dostaje w tym samym pływającym wierszu co pole szukania również
 `MobileIdentityRow` (dzwonek + awatar) — Header na tej trasie chowa swój pasek, patrz
@@ -3646,7 +3706,7 @@ i jeden napis rozjechałyby szerokości segmentów, czyli dokładnie to, przed c
 | | „Obiekty" (domyślnie) | „Gry" |
 |---|---|---|
 | Pasek | `Gry\|Obiekty` / `Lista\|Mapa` / Filtry (patrz „Scalona wyszukiwarka" wyżej — identyczny kształt w obu trybach) | jw. |
-| Modal „Filtry" | Sport(6) / „Gry dziś" / Typ obiektu / Nawierzchnia | Miejscowość + promień / Sport(4) / Kiedy / Wolne miejsca (stepper, domyślnie 1) |
+| Modal „Filtry" | Miejscowość + promień / Sport(6) / „Gry dziś" / Nawierzchnia | Miejscowość + promień / Sport(4) / Kiedy / Wolne miejsca (stepper, domyślnie 1) |
 | Pinezki (widok „Mapa") | boiska, `MapLayer`/`WarstwaSkupisk` (bez zmian) | mecze, `GamesMarkersLayer` (emoji sportu + etykieta „kiedy", swipe w panelu, zamykanie kliknięciem w puste miejsce mapy) |
 | Źródło danych | `getExplorerFields`/`getExplorerClusters` (viewport-scoped) | `events` — **to samo**, co już pobierane wyżej dla `fieldStats`; zero nowego zapytania |
 | Karta wyniku (lista/sidebar/karta wybranej pinezki) | `VenueCard` | `EventBrowseCard`, z plakietką „Nowość" (`isNew`) na liście — patrz „Scalona wyszukiwarka" |

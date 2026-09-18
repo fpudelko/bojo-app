@@ -18,7 +18,7 @@ import { WARSTWA } from '@/lib/warstwy';
  * wywołującym. Bez pełnego focus-trapu, tak jak PillDropdown dziś.
  */
 export default function FilterSheet({
-  open, onClose, title, children, onApply, onClear, applyLabel,
+  open, onClose, title, children, onApply, onClear, applyLabel, applyHint,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +27,10 @@ export default function FilterSheet({
   onApply: () => void | Promise<void>;
   onClear: () => void;
   applyLabel: string;
+  /** Czego dotyczy liczba na przycisku. Sama liczba bywa poprawna i mimo to
+   *  myląca: „Pokaż 884 boiska" przy katalogu na 36 tysięcy czyta się jak
+   *  błąd, dopóki nie widać, że to okolica, a nie cała Polska. */
+  applyHint?: string;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -67,21 +71,26 @@ export default function FilterSheet({
 
         <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
 
-        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-sm font-semibold text-slate-500 underline hover:text-slate-700 dark:text-slate-400"
-          >
-            Wyczyść
-          </button>
-          <button
-            type="button"
-            onClick={async () => { await onApply(); onClose(); }}
-            className="flex-1 rounded-xl bg-primary-700 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-primary-800"
-          >
-            {applyLabel}
-          </button>
+        <div className="shrink-0 border-t border-slate-100 px-5 py-4 dark:border-slate-700">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-sm font-semibold text-slate-500 underline hover:text-slate-700 dark:text-slate-400"
+            >
+              Wyczyść
+            </button>
+            <button
+              type="button"
+              onClick={async () => { await onApply(); onClose(); }}
+              className="flex-1 rounded-xl bg-primary-700 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-primary-800"
+            >
+              {applyLabel}
+            </button>
+          </div>
+          {applyHint && (
+            <p className="mt-2 text-center text-xs text-slate-400">{applyHint}</p>
+          )}
         </div>
       </div>
     </div>,
