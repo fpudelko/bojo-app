@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { foldText } from './searchText';
+import { SPORTY_NA_MAPIE, rozwinSporty } from './sports';
 import type { Field, FieldFilters, FieldsResponse, BookingType, MapVisibility } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -75,9 +76,41 @@ function toField(row: any): Field {
 // i `surface`, bo po nich filtruje modal filtrów mapy. Reszta dociągana jest
 // dla widocznych kart przez `getFieldsByIds()`.
 const EXPLORER_COLS = 'id, name, address, lat, lng, sport, venue_type, surface';
-// `wielofunkcyjne` to import z OSM (`sport=multi`) — 162 obiekty w samym
-// lubelskiem odpadały tu po cichu, mimo że przeszły bramkę publikacji.
-const EXPLORER_SPORTS = ['piłka nożna', 'futsal', 'siatkówka', 'siatkówka plażowa', 'koszykówka', 'piłka ręczna', 'wielofunkcyjne'];
+// Sporty mapy liczy `lib/sports.ts` z listy filtra (`MAP_FILTER_SPORTS`
+// + `futsal` przez `rozwinSporty`). Do 2026-09-18 ta sama siódemka stała tu
+// wypisana ręcznie — trzecia kopia jednej listy, w miejscu, które decyduje,
+// czego filtr w ogóle ma prawo znaleźć.
+const EXPLORER_SPORTS = SPORTY_NA_MAPIE;
+
+/**
+ * Filtry obiektu, które liczy SERWER — te same dla pinezek i dla skupisk.
+ *
+ * Dlaczego na serwerze, skoro lista i tak filtruje się w przeglądarce: bo
+ * odpowiedź PostgREST jest przycięta (patrz `STRONA` niżej). Filtrowanie
+ * dopiero po stronie klienta znaczyło „wybierz siatkówkę i zobacz te z niej,
+ * które zmieściły się w pierwszym tysiącu wierszy kadru" — czyli garść pinezek
+ * przy liczniku mówiącym o wszystkich.
+ */
+export interface FiltryObiektow {
+  /** Wartości z `MAP_FILTER_SPORTS`; pusto = wszystkie sporty mapy. */
+  sporty?: string[];
+  /** Kody z kolumny `surface`; pusto = dowolna nawierzchnia. */
+  nawierzchnie?: string[];
+}
+
+// PostgREST oddaje najwyżej `max-rows` wierszy w jednej odpowiedzi (domyślnie
+// 1000) i robi to BEZ BŁĘDU — po prostu urywa. Zapytanie o kadr nie miało
+// dotąd ani limitu, ani stronicowania, więc gęsty kadr (Warszawa przy progu
+// skupisk: 2660 obiektów) przychodził ucięty do tysiąca LOSOWYCH wierszy:
+// pinezki niekompletne, licznik nad listą pokazywał podejrzanie równe „1000",
+// a filtr w przeglądarce przeszukiwał tylko ten ogryzek. Zakres jest jawny
+// (`range`) i uporządkowany (`order`), więc strony się nie nachodzą i nie gubią
+// wierszy niezależnie od tego, jak serwer jest ustawiony.
+const STRONA = 1000;
+// Przy progu skupisk (z11) najgęstszy kadr w kraju to ~2700 obiektów, więc pięć
+// stron jest zapasem, nie granicą. Gdyby katalog kiedyś ją przebił, ogranicza
+// nas i tak Leaflet, nie sieć.
+const MAX_STRON = 5;
 
 /** Prostokąt widoku mapy. */
 export interface Kadr {
@@ -156,18 +189,29 @@ export interface Skupisko {
 export async function getExplorerClusters(
   kadr: Kadr,
   krok: number,
-  sporty?: string[],
-  typy?: string[],
+  filtry?: FiltryObiektow,
 ): Promise<Skupisko[]> {
-  const { data, error } = await supabase.rpc('mapa_skupiska', {
+  // Sporty lecą do bazy ZAWSZE, także bez wyboru użytkownika (wtedy cała
+  // lista sportów mapy). Dzięki temu bramka „co mapa pokazuje" jest jedna,
+  // w `lib/sports.ts`, a nie druga, wpisana w treść funkcji SQL — inaczej
+  // skupiska liczyły tenis i baseball, których pinezek zapytanie o kadr nigdy
+  // nie pobierało, i licznik nad mapą nie zgadzał się z listą po przybliżeniu.
+  const wspolne = {
     p_lat_min: kadr.latMin,
     p_lat_max: kadr.latMax,
     p_lng_min: kadr.lngMin,
     p_lng_max: kadr.lngMax,
     p_krok: krok,
-    p_sporty: sporty?.length ? sporty : null,
-    p_typy: typy?.length ? typy : null,
-  });
+    p_sporty: filtry?.sporty?.length ? rozwinSporty(filtry.sporty) : EXPLORER_SPORTS,
+  };
+  const nawierzchnie = filtry?.nawierzchnie?.length ? filtry.nawierzchnie : null;
+
+  let { data, error } = await supabase.rpc('mapa_skupiska', { ...wspolne, p_nawierzchnie: nawierzchnie });
+  // Migracje puszcza się w Bojo RĘCZNIE, więc funkcji w nowym kształcie
+  // (migracja `153`) może jeszcze nie być. Wtedy pytamy tak jak dotąd —
+  // filtr nawierzchni nie zadziała na kółka, ale mapa ma je czym narysować.
+  // Bez tego między deployem a wklejeniem SQL-a oddalona mapa byłaby pusta.
+  if (error && brakFunkcji(error)) ({ data, error } = await supabase.rpc('mapa_skupiska', wspolne));
   if (error) throw new Error(error.message);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((r: any) => ({
@@ -187,27 +231,39 @@ export async function getExplorerClusters(
  * Prostokąt widoku ogranicza zapytanie tym, co użytkownik faktycznie ogląda,
  * więc rozmiar odpowiedzi zależy od gęstości okolicy, a nie od wielkości bazy.
  */
-export async function getExplorerFields(kadr: Kadr): Promise<Field[]> {
-  let zapytanie = supabase
-    .from('fields')
-    .select(EXPLORER_COLS)
-    // Jedna reguła zamiast dwóch zachodzących na siebie. Wcześniej mapa brała
-    // wszystko poza `hidden`, a potem odsiewała to filtrem „ma telefon albo
-    // stronę albo opis" — proxy jakości z czasów, gdy `map_visibility` ustawiała
-    // analiza satelitarna i nie dało się jej ufać. Import z OSM ustawia je
-    // świadomie (bramka publikacji), więc kolumna wystarcza za całe kryterium.
-    // Bez tej zmiany świeżo zaimportowane boisko nigdy nie trafiłoby na mapę:
-    // z OSM nie przychodzi ani telefon, ani strona, ani opis.
-    .eq('map_visibility', 'public')
-    .overlaps('sport', EXPLORER_SPORTS);
+export async function getExplorerFields(kadr: Kadr, filtry?: FiltryObiektow): Promise<Field[]> {
+  const sporty = filtry?.sporty?.length ? rozwinSporty(filtry.sporty) : EXPLORER_SPORTS;
+  const wynik: Field[] = [];
 
-  zapytanie = zapytanie
-    .gte('lat', kadr.latMin).lte('lat', kadr.latMax)
-    .gte('lng', kadr.lngMin).lte('lng', kadr.lngMax);
+  for (let strona = 0; strona < MAX_STRON; strona++) {
+    let zapytanie = supabase
+      .from('fields')
+      .select(EXPLORER_COLS)
+      // Jedna reguła zamiast dwóch zachodzących na siebie. Wcześniej mapa brała
+      // wszystko poza `hidden`, a potem odsiewała to filtrem „ma telefon albo
+      // stronę albo opis" — proxy jakości z czasów, gdy `map_visibility` ustawiała
+      // analiza satelitarna i nie dało się jej ufać. Import z OSM ustawia je
+      // świadomie (bramka publikacji), więc kolumna wystarcza za całe kryterium.
+      // Bez tej zmiany świeżo zaimportowane boisko nigdy nie trafiłoby na mapę:
+      // z OSM nie przychodzi ani telefon, ani strona, ani opis.
+      .eq('map_visibility', 'public')
+      .overlaps('sport', sporty)
+      .gte('lat', kadr.latMin).lte('lat', kadr.latMax)
+      .gte('lng', kadr.lngMin).lte('lng', kadr.lngMax);
 
-  const { data, error } = await zapytanie;
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(toField);
+    if (filtry?.nawierzchnie?.length) zapytanie = zapytanie.in('surface', filtry.nawierzchnie);
+
+    const { data, error } = await zapytanie
+      .order('id')
+      .range(strona * STRONA, strona * STRONA + STRONA - 1);
+    if (error) throw new Error(error.message);
+
+    const paczka = data ?? [];
+    wynik.push(...paczka.map(toField));
+    if (paczka.length < STRONA) break;
+  }
+
+  return wynik;
 }
 
 /**
@@ -255,6 +311,13 @@ export async function searchExplorerFields(term: string, limit = 30): Promise<Fi
 function brakKolumny(error: { code?: string; message?: string }): boolean {
   return error.code === '42703' || error.code === 'PGRST204'
     || (error.message ?? '').includes('szukaj_norm');
+}
+
+/** Czy błąd znaczy „funkcji o TAKICH argumentach tu nie ma" — czyli, przy
+ *  ręcznie puszczanych migracjach, „ta migracja jeszcze nie poszła".
+ *  PostgREST oddaje `PGRST202`, gdy nie umie dopasować sygnatury. */
+function brakFunkcji(error: { code?: string; message?: string }): boolean {
+  return error.code === 'PGRST202' || error.code === '42883';
 }
 
 export async function getFields(filters?: FieldFilters): Promise<FieldsResponse> {
