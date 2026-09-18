@@ -1570,33 +1570,68 @@ export default function VenueExplorer({
         miejscowosc !== null].filter(Boolean).length
     : [sports.length > 0, surfaces.length > 0, onlyGamesToday,
        miejscowosc !== null].filter(Boolean).length;
-  // Podgląd „Pokaż N boisk" w arkuszu filtrów — MUSI liczyć z tego samego
-  // źródła, co lista pod spodem po zatwierdzeniu, inaczej CTA obiecuje coś
-  // innego niż to, co się faktycznie pokaże (zgłoszone wprost: „Pokaż 0
-  // boisk", mimo że po zastosowaniu wchodziło 47 wyników).
+  /**
+   * PODGLĄD W TRYBIE SKUPISK, BEZ WYBRANEJ MIEJSCOWOŚCI — suma skupisk KADRU
+   * MAPY z filtrami szkicu, ta sama liczba co nakładka „N boisk w tym
+   * widoku" (`wKadrze`). Osobne zapytanie, bo skupiska liczy baza (RPC),
+   * a szkic filtrów jeszcze nie jest zastosowany.
+   *
+   * DOTĄD BYŁO INACZEJ, ŚWIADOMIE: podgląd liczył z 15-kilometrowej listy
+   * startowej (`listaWokolMiejscowosci`/`listaStartowa`), bo to ta lista
+   * realnie wypełnia się pod mapą w tym trybie — komentarz niżej przy
+   * `zakresPodgladu` wprost ostrzegał przed liczeniem z `wKadrze`. Zgłoszone
+   * wprost jako wciąż zbyt małe liczby (884/380/71 przy katalogu 36 tys.):
+   * przy widoku całego kraju każda z tych liczb naprawdę BYŁA tylko okolicą
+   * Poznania, nie tym, co widać na mapie pod arkuszem. Rozjazd z listą pod
+   * spodem (ta zostaje przy 15 km, bo dociągnięcie kart dla całego kraju
+   * zniweczyłoby sens skupisk) jest świadomy i nazwany w `zakresPodgladu` —
+   * to ten sam wzorzec co „trzy liczniki, trzy różne pytania" opisany przy
+   * `zakresListy`.
+   *
+   * „Gry dziś" NIE ma tu efektu — skupiska nie wiedzą nic o meczach — więc
+   * w tej gałęzi pomijamy zapytanie i podgląd wraca do starego, lokalnego
+   * liczenia (patrz `previewFieldsCount` niżej).
+   */
+  const [previewSkupiskCount, setPreviewSkupiskCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!sheetOpen || !trybSkupisk || draftMiejscowosc || draftOnlyGamesToday || !kadr) {
+      setPreviewSkupiskCount(null);
+      return;
+    }
+    let anulowane = false;
+    getExplorerClusters(kadr, krokSiatki(zoom), { sporty: draftSports, nawierzchnie: draftSurfaces })
+      .then((s) => { if (!anulowane) setPreviewSkupiskCount(s.reduce((suma, c) => suma + c.ile, 0)); })
+      .catch(() => { if (!anulowane) setPreviewSkupiskCount(null); });
+    return () => { anulowane = true; };
+  }, [sheetOpen, trybSkupisk, draftMiejscowosc, draftOnlyGamesToday, kadr, zoom, draftSports, draftSurfaces]);
+
+  // Podgląd „Pokaż N boisk" w arkuszu filtrów.
   //
-  // Trzy źródła, w kolejności pierwszeństwa:
+  // Cztery źródła, w kolejności pierwszeństwa:
   //   1. `draftMiejscowosc` ustawiona w arkuszu → świeże zapytanie o TĘ
   //      okolicę (`listaDlaPodgladu` wyżej) — nie o okolicę, która jeszcze
   //      obowiązuje.
-  //   2. Bez miejscowości, w trybie skupisk → to samo źródło co `fields`:
-  //      okolica gracza/Poznania. Liczenie z `wKadrze` (skupiska kadru mapy)
-  //      było błędem po tej samej stronie — inny licznik niż to, co lista
-  //      naprawdę pokazuje.
-  //   3. Bez żadnego z powyższych → klasyczne przybliżenie/szukanie.
+  //   2. Bez miejscowości, w trybie skupisk, bez „Gry dziś" → suma skupisk
+  //      kadru mapy (`previewSkupiskCount` wyżej) — to, co realnie widać na
+  //      mapie pod arkuszem, nie 15-kilometrowa okolica.
+  //   3. Bez miejscowości, w trybie skupisk, Z „Gry dziś" (skupiska go nie
+  //      liczą) → to samo źródło co `fields`: 15-kilometrowa okolica.
+  //   4. Bez żadnego z powyższych → klasyczne przybliżenie/szukanie.
   //
   // `draftSports`, nie `sports`: sport jest teraz częścią tego samego arkusza
   // co Nawierzchnia, więc podgląd „Pokaż N" ma liczyć to, co user WŁAŚNIE
   // wybiera w arkuszu, nie to, co było zastosowane przed jego otwarciem.
   const previewFieldsCount = useMemo(() => {
-    let list: Field[];
     if (draftMiejscowosc) {
-      list = listaDlaPodgladu ?? [];
-    } else if (trybSkupisk) {
-      list = listaWokolMiejscowosci ?? listaStartowa ?? [];
-    } else {
-      list = searchResults ?? allFields;
+      let list = listaDlaPodgladu ?? [];
+      if (draftSports.length > 0) list = list.filter((f) => pasujeSport(f.sport, draftSports));
+      if (draftSurfaces.length > 0) list = list.filter((f) => draftSurfaces.includes(f.surface ?? ''));
+      if (draftOnlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
+      return list.length;
     }
+    if (trybSkupisk && !draftOnlyGamesToday && previewSkupiskCount != null) return previewSkupiskCount;
+
+    let list = trybSkupisk ? (listaWokolMiejscowosci ?? listaStartowa ?? []) : (searchResults ?? allFields);
     if (draftSports.length > 0) list = list.filter((f) => pasujeSport(f.sport, draftSports));
     if (draftSurfaces.length > 0) list = list.filter((f) => draftSurfaces.includes(f.surface ?? ''));
     // „Gry dziś" liczyło się dotąd dopiero PO zatwierdzeniu: przełącznik
@@ -1604,27 +1639,35 @@ export default function VenueExplorer({
     // „Pokaż" lista potrafiła zejść z kilkuset do trzech.
     if (draftOnlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
     return list.length;
-  }, [draftMiejscowosc, listaDlaPodgladu, trybSkupisk, listaWokolMiejscowosci, listaStartowa,
-      allFields, searchResults, draftSports, draftSurfaces, draftOnlyGamesToday, fieldStats]);
+  }, [draftMiejscowosc, listaDlaPodgladu, trybSkupisk, previewSkupiskCount, listaWokolMiejscowosci,
+      listaStartowa, allFields, searchResults, draftSports, draftSurfaces, draftOnlyGamesToday, fieldStats]);
 
   /**
    * CZEGO DOTYCZY LICZBA NA PRZYCISKU — jedno zdanie pod „Pokaż N boisk".
    *
-   * Zgłoszone wprost: „jak nie ma filtrów, pokazuje 884 boiska, podczas gdy
-   * jest ponad 32 tys.". Liczba była prawdziwa (tyle jest w promieniu 15 km od
-   * punktu startowego listy), tylko NIC jej nie opisywało — więc czytało się ją
-   * jako rozmiar całego katalogu i wyglądała na błąd filtrowania. Licznik nad
-   * listą dostał ten dopisek już w sierpniu (`zakresListy`); przycisk, czyli
-   * jedyne miejsce, gdzie ta liczba widnieje przy OTWARTYCH filtrach, został
-   * bez niego.
+   * Zgłoszone wprost 18.09: „jak nie ma filtrów, pokazuje 884 boiska, podczas
+   * gdy jest ponad 32 tys." — i drugi raz, TEGO SAMEGO dnia, po pierwszej
+   * poprawce (dopisek bez zmiany liczby): liczby wciąż wyglądały za małe
+   * (884/380/71 dla „Wszystkie sporty"/„Piłka nożna"/„Siatkówka plażowa").
+   * Pierwsza poprawka nazwała liczbę, nie zmieniła jej źródła — a źródłem
+   * była okolica 15 km, gdy użytkownik patrzył na całą Polskę. Stąd
+   * `previewSkupiskCount` wyżej: przy oddalonej mapie i bez wybranej
+   * miejscowości podgląd liczy DOKŁADNIE to, co widać na mapie pod arkuszem.
    */
   const zakresPodgladu = useMemo(() => {
     if (draftMiejscowosc) return `w promieniu ${draftPromienKm} km od: ${draftMiejscowosc.nazwa}`;
     if (searchResults) return `dla „${search.trim()}"`;
-    if (trybSkupisk) return `w Twojej okolicy (${PROMIEN_LISTY_KM} km), nie w całym katalogu`;
+    if (trybSkupisk) {
+      // „Gry dziś" wyłącza zapytanie o skupiska (patrz `previewSkupiskCount`
+      // wyżej) — podgląd wraca wtedy do lokalnej okolicy i musi to powiedzieć,
+      // inaczej dopisek obiecywałby „widok mapy" liczbie, która go nie liczy.
+      if (draftOnlyGamesToday) return `w Twojej okolicy (${PROMIEN_LISTY_KM} km), nie w całym katalogu`;
+      return previewSkupiskCount != null ? 'w tym widoku mapy' : `w Twojej okolicy (${PROMIEN_LISTY_KM} km), nie w całym katalogu`;
+    }
     if (graDzisWszedzie) return 'z grą dziś w całej Polsce';
     return 'w tym kadrze mapy';
-  }, [draftMiejscowosc, draftPromienKm, searchResults, search, trybSkupisk, graDzisWszedzie]);
+  }, [draftMiejscowosc, draftPromienKm, searchResults, search, trybSkupisk, draftOnlyGamesToday,
+      previewSkupiskCount, graDzisWszedzie]);
 
   /**
    * PODPISANY PRZYCISK ALERTU NAD LISTĄ, zamiast dzwonka w pasku — 2026-09-14,
