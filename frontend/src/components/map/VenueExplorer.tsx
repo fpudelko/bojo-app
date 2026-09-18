@@ -26,7 +26,7 @@ import type { Field, EventItem } from '@/types';
 import {
   getExplorerFields, getFieldsByIds, getExplorerClusters, searchExplorerFields,
   kadrWokol, poszerzKadr,
-  type Kadr, type Skupisko,
+  type Kadr, type Skupisko, type FiltryObiektow,
 } from '@/lib/api';
 import PustaListaObiektow from './PustaListaObiektow';
 import { getPublicEvents } from '@/lib/events';
@@ -37,7 +37,7 @@ import { slugBoiska, externalUrl } from '@/lib/utils';
 import { plural } from '@/lib/plural';
 import { distanceKm, getCurrentLocation, geoErrorMessage, pozycjaBezPytania } from '@/lib/geo';
 import { POZNAN, PROMIEN_LISTY_KM } from '@/lib/startowyPunkt';
-import { FOCUS_SPORTS, MAP_FILTER_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
+import { FOCUS_SPORTS, MAP_FILTER_SPORTS, pasujeSport, sportEmoji, sportLabel } from '@/lib/sports';
 import SportChip from '@/components/ui/SportChip';
 import AlertSetupDialog from '@/components/home/AlertSetupDialog';
 import {
@@ -126,6 +126,27 @@ function gamesWord(n: number): string {
   return 'gier';
 }
 
+/**
+ * Etykiety `venue_type` — DO POKAZANIA NA KARCIE, nie do filtrowania.
+ *
+ * FILTR „TYP OBIEKTU" ZNIKNĄŁ 2026-09-18 (zgłoszone wprost: „niektóre się
+ * dublują, np. siatkówka jako sport i jako rodzaj obiektu"). Dwie osobne
+ * przyczyny, każda wystarczająca:
+ *
+ *  • DUBLOWAŁ SPORT. „Siatkówka", „Siatkówka plażowa", „Koszykówka"
+ *    i „Koszykówka pełna" stały w jednym arkuszu razem z tymi samymi nazwami
+ *    w sekcji Sport, tylko licząc zupełnie inne rzeczy: sport ma 2566 boisk
+ *    do siatkówki, `venue_type = 'volleyball_outdoor'` — CZTERY. A „Tenis"
+ *    obiecywał sport, którego mapa nie pokazuje wcale (`SPORTY_NA_MAPIE`),
+ *    więc dawał zawsze zero wyników.
+ *  • NIE MIAŁ DANYCH. `venue_type` jest wypełniony w 539 z 35 952 publicznych
+ *    obiektów (1,5%) — import z OSM go nie ustawia. Każdy wybór typu wycinał
+ *    więc ~98% katalogu i wyglądał jak zepsuta wyszukiwarka.
+ *
+ * Kolumna i te etykiety zostają: plakietka na karcie obiektu jest dla tych 539
+ * wierszy informacją, a nie obietnicą, że da się po niej szukać. Wielkość
+ * boiska jako facet wróci, gdy będzie ją z czego liczyć (`dimensions_m`).
+ */
 const VENUE_TYPE_LABELS: Record<string, string> = {
   full_size:          'Pełnowymiarowe',
   seven_a_side:       'Siódemka',
@@ -141,18 +162,18 @@ const VENUE_TYPE_LABELS: Record<string, string> = {
   other:              'Inne',
 };
 
-const VENUE_TYPE_OPTIONS = Object.entries(VENUE_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }));
-
 // Sport na mapie czerpie z lib/sports.ts (MAP_FILTER_SPORTS), nie z osobnej
 // hardkodowanej listy — inaczej pinezka i filtr mogą się rozjechać (dokładnie
 // to była przyczyna „ikonek, które się nie zgadzają": wielofunkcyjne i piłka
 // ręczna miały już kolorowe pinezki, ale nie dało się ich wybrać w filtrze).
 const SPORT_OPTIONS = MAP_FILTER_SPORTS.map((value) => ({ value, label: sportLabel(value), emoji: sportEmoji(value) }));
 
-// Nawierzchnia ma dziś dane w 37% wierszy (reszta katalogu z importu OSM jej
-// nie ma) — dużo bardziej użyteczny facet niż `venue_type` (98,3% NULL).
-// Tylko wartości faktycznie występujące w bazie; etykiety przez surfaceLabel()
-// z lib/labels.ts, bez osobnej tabeli.
+// Nawierzchnia ma dziś dane w 37% wierszy (13 457 z 35 952 publicznych; reszta
+// katalogu z importu OSM jej nie ma) — po zdjęciu „Typu obiektu" (patrz
+// VENUE_TYPE_LABELS wyżej) to JEDYNY facet obiektu obok sportu, i jedyny,
+// który realnie coś odsiewa. Tylko wartości faktycznie występujące w bazie
+// (sprawdzone zrzutem: grass 5605, hardcourt 2460, sand 1997, concrete 1890,
+// artificial 1428, clay 77); etykiety przez surfaceLabel() z lib/labels.ts.
 const SURFACE_VALUES = ['grass', 'artificial', 'hardcourt', 'sand', 'concrete', 'clay'];
 const SURFACE_OPTIONS = SURFACE_VALUES.map((value) => ({ value, label: surfaceLabel(value) }));
 
@@ -577,9 +598,19 @@ export default function VenueExplorer({
 
   // Filters live in the URL so they survive back-navigation
   const sports         = useMemo(() => searchParams.getAll('sport'), [searchParams]);
-  const venueTypes     = useMemo(() => searchParams.getAll('type'), [searchParams]);
+  // `?type=` już nie istnieje — filtr „Typ obiektu" zdjęty 2026-09-18, patrz
+  // komentarz przy `VENUE_TYPE_LABELS`. Stary link z tym parametrem otwiera
+  // się dziś po prostu bez niego, zamiast pokazywać 1,5% katalogu.
   const surfaces       = useMemo(() => searchParams.getAll('surface'), [searchParams]);
   const onlyGamesToday = searchParams.get('today') === '1';
+
+  /** Filtry, które umie policzyć SERWER — jedno źródło dla zapytania o pinezki
+   *  i dla zapytania o skupiska, żeby liczba w kółku i liczba pinezek po
+   *  przybliżeniu nigdy nie odpowiadały na dwa różne pytania. */
+  const filtrySerwera = useMemo<FiltryObiektow>(
+    () => ({ sporty: sports, nawierzchnie: surfaces }),
+    [sports, surfaces],
+  );
 
   // MIEJSCOWOŚĆ + PROMIEŃ siedzą w adresie tak samo jak reszta filtrów, więc
   // wracają z „wstecz" i dają się wysłać komuś linkiem. Punkt trzymamy jako
@@ -629,17 +660,16 @@ export default function VenueExplorer({
   }, [searchParams]);
 
   function updateParams(patch: {
-    sport?: string[]; type?: string[]; surface?: string[]; today?: boolean; gry?: boolean;
+    sport?: string[]; surface?: string[]; today?: boolean; gry?: boolean;
     miejscowosc?: Miejscowosc | null; promienKm?: number;
   }) {
     const p = new URLSearchParams(searchParams.toString());
+    // Zdjęty filtr zostawiłby w adresie własny ślad na zawsze — a ten adres
+    // wraca z „wstecz" i idzie do ludzi linkiem.
+    p.delete('type');
     if (patch.sport !== undefined) {
       p.delete('sport');
       patch.sport.forEach((s) => p.append('sport', s));
-    }
-    if (patch.type !== undefined) {
-      p.delete('type');
-      patch.type.forEach((t) => p.append('type', t));
     }
     if (patch.surface !== undefined) {
       p.delete('surface');
@@ -706,13 +736,12 @@ export default function VenueExplorer({
   // na listę otwartych meczów.
   const [widok, setWidok] = useState<'lista' | 'mapa'>(showGames ? 'lista' : 'mapa');
 
-  // Modal Typ obiektu/Nawierzchnia/Sport — szkic w tym samym stylu co na
+  // Modal Sport/Nawierzchnia — szkic w tym samym stylu co na
   // dawnym /wydarzenia: wybory aplikują się dopiero na „Pokaż N obiektów".
   // Sport dołączył tu z paska (D-scalenie): przełączenie Gry↔Obiekty
   // przestawiało dawniej pigułkę sportu razem z resztą paska, a teraz pasek
   // ma stały kształt niezależnie od trybu.
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [draftTypes, setDraftTypes] = useState<string[]>(venueTypes);
   const [draftSurfaces, setDraftSurfaces] = useState<string[]>(surfaces);
   const [draftSports, setDraftSports] = useState<string[]>(sports);
   const [draftMiejscowosc, setDraftMiejscowosc] = useState<Miejscowosc | null>(miejscowosc);
@@ -782,7 +811,6 @@ export default function VenueExplorer({
   const [draftOnlyGamesToday, setDraftOnlyGamesToday] = useState(onlyGamesToday);
 
   const openSheet = () => {
-    setDraftTypes(venueTypes);
     setDraftSurfaces(surfaces);
     setDraftSports(sports);
     setDraftMiejscowosc(miejscowosc);
@@ -959,38 +987,6 @@ export default function VenueExplorer({
     mapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
   }, [mapInstance, searchResults]);
 
-  // Obiekty albo skupiska — zależnie od przybliżenia i zawsze dla widocznego
-  // kadru. Poniżej progu pobieranie pojedynczych obiektów nie ma sensu: przy
-  // widoku kraju byłoby ich kilkadziesiąt tysięcy, a i tak zobaczyłbyś z nich
-  // kilkanaście kółek z liczbami.
-  useEffect(() => {
-    if (initialFields || !kadr) return;
-    // Aktywne szukanie ma własne źródło danych (searchExplorerFields) —
-    // pobieranie po kadrze byłoby tu tylko zmarnowanym zapytaniem w tle.
-    if (search.trim().length >= 2) return;
-    let cancelled = false;
-
-    if (zoom < ZOOM_SKUPISK) {
-      // Krok siatki maleje z przybliżeniem: przy widoku kraju grube kwadraty,
-      // przy widoku województwa drobniejsze.
-      const krok = krokSiatki(zoom);
-      getExplorerClusters(kadr, krok, sports, venueTypes)
-        .then((s) => { if (!cancelled) { setSkupiska(s); setAllFields([]); } })
-        .catch(() => {});
-    } else {
-      // `ladujeKadr` odróżnia „jeszcze nie wiem" od „wiem, że pusto". Bez tego
-      // przejście przez próg ZOOM_SKUPISK migało komunikatem o pustym kadrze:
-      // gałąź skupisk zeruje `allFields`, więc przez te ~300 ms zapytania
-      // wyglądało to identycznie jak realnie pusty kadr.
-      setLadujeKadr(true);
-      getExplorerFields(poszerzKadr(kadr))
-        .then((f) => { if (!cancelled) { setAllFields(f); setSkupiska([]); } })
-        .catch(() => {})
-        .finally(() => { if (!cancelled) setLadujeKadr(false); });
-    }
-    return () => { cancelled = true; };
-  }, [kadr, zoom, sports, venueTypes, initialFields, search]);
-
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
   const fieldStats = useMemo(() => {
@@ -1006,6 +1002,81 @@ export default function VenueExplorer({
     }
     return stats;
   }, [events, today]);
+
+  /** Obiekty, na których ktoś dziś gra. Garstka w skali kraju, a wiemy o nich
+   *  z `events` — czyli bez żadnego nowego zapytania o listę. */
+  const idsZGraDzis = useMemo(
+    () => Object.keys(fieldStats).filter((id) => fieldStats[id].today),
+    [fieldStats],
+  );
+
+  /**
+   * „GRY DZIŚ" PRZY ODDALONEJ MAPIE POKAZUJE OBIEKTY, NIE KÓŁKA — 2026-09-18.
+   *
+   * Skupiska liczy baza i umie zawęzić je sportem oraz nawierzchnią, ale nie
+   * wie nic o meczach. Do dziś znaczyło to, że włączenie „Gry dziś" na widoku
+   * kraju nie zmieniało ANI kółek, ANI liczby nad mapą — filtr wyglądał na
+   * zepsuty dokładnie tam, gdzie mapa się otwiera. Obiektów z grą dziś są
+   * w skali kraju dziesiątki, więc zamiast liczyć je w siatce po prostu
+   * pokazujemy je wprost, niezależnie od kadru.
+   */
+  const graDzisWszedzie = onlyGamesToday && zoom < ZOOM_SKUPISK && search.trim().length < 2;
+
+  // Obiekty albo skupiska — zależnie od przybliżenia i zawsze dla widocznego
+  // kadru. Poniżej progu pobieranie pojedynczych obiektów nie ma sensu: przy
+  // widoku kraju byłoby ich kilkadziesiąt tysięcy, a i tak zobaczyłbyś z nich
+  // kilkanaście kółek z liczbami.
+  //
+  // FILTRY IDĄ DO BAZY (`filtrySerwera`), nie tylko do `zastosujFiltry` niżej.
+  // Odpowiedź PostgREST jest przycięta do stronicy, więc filtrowanie wyłącznie
+  // po stronie przeglądarki znaczyło „pokaż te siatkówki, które zmieściły się
+  // w pierwszym tysiącu wierszy kadru" — patrz `getExplorerFields` w lib/api.ts.
+  // Obiekty z grą dziś nie zależą od kadru, więc mają własny efekt — inaczej
+  // każde drgnięcie mapy powtarzałoby to samo zapytanie o te same identyfikatory.
+  useEffect(() => {
+    if (initialFields || !graDzisWszedzie) return;
+    let anulowane = false;
+    setLadujeKadr(true);
+    getFieldsByIds(idsZGraDzis)
+      .then((f) => {
+        if (anulowane) return;
+        // Ta sama bramka co w zapytaniu o kadr: mecz bywa na obiekcie, który
+        // nie jest na mapie publiczny, a pinezka nie ma prawa go tu wystawić.
+        setAllFields(f.filter((v) => v.mapVisibility === 'public'));
+        setSkupiska([]);
+      })
+      .catch(() => {})
+      .finally(() => { if (!anulowane) setLadujeKadr(false); });
+    return () => { anulowane = true; };
+  }, [initialFields, graDzisWszedzie, idsZGraDzis]);
+
+  useEffect(() => {
+    if (initialFields || !kadr || graDzisWszedzie) return;
+    // Aktywne szukanie ma własne źródło danych (searchExplorerFields) —
+    // pobieranie po kadrze byłoby tu tylko zmarnowanym zapytaniem w tle.
+    if (search.trim().length >= 2) return;
+    let cancelled = false;
+
+    if (zoom < ZOOM_SKUPISK) {
+      // Krok siatki maleje z przybliżeniem: przy widoku kraju grube kwadraty,
+      // przy widoku województwa drobniejsze.
+      const krok = krokSiatki(zoom);
+      getExplorerClusters(kadr, krok, filtrySerwera)
+        .then((s) => { if (!cancelled) { setSkupiska(s); setAllFields([]); } })
+        .catch(() => {});
+    } else {
+      // `ladujeKadr` odróżnia „jeszcze nie wiem" od „wiem, że pusto". Bez tego
+      // przejście przez próg ZOOM_SKUPISK migało komunikatem o pustym kadrze:
+      // gałąź skupisk zeruje `allFields`, więc przez te ~300 ms zapytania
+      // wyglądało to identycznie jak realnie pusty kadr.
+      setLadujeKadr(true);
+      getExplorerFields(poszerzKadr(kadr), filtrySerwera)
+        .then((f) => { if (!cancelled) { setAllFields(f); setSkupiska([]); } })
+        .catch(() => {})
+        .finally(() => { if (!cancelled) setLadujeKadr(false); });
+    }
+    return () => { cancelled = true; };
+  }, [kadr, zoom, filtrySerwera, initialFields, search, graDzisWszedzie]);
 
   // ── Pusta lista dobiera się SAMA, po współrzędnych ───────────────────
   //
@@ -1143,9 +1214,12 @@ export default function VenueExplorer({
    *  liście", czyli dokładnie to, czego nie da się wytłumaczyć. */
   const zastosujFiltry = useCallback((wejscie: Field[]) => {
     let list = wejscie;
-    if (sports.length > 0)     list = list.filter((f) => f.sport.some((s) => sports.includes(s)));
-    if (venueTypes.length > 0) list = list.filter((f) => venueTypes.includes(f.venueType ?? ''));
-    if (surfaces.length > 0)   list = list.filter((f) => surfaces.includes(f.surface ?? ''));
+    // `pasujeSport`, nie gołe `includes`: „Piłka nożna" ma łapać też obiekty
+    // opisane wyłącznie jako `futsal` (patrz `rozwinSporty` w lib/sports.ts).
+    // Ta sama funkcja zawęża zapytanie po stronie bazy, więc lista i pinezki
+    // nie mogą się tu rozjechać.
+    if (sports.length > 0)   list = list.filter((f) => pasujeSport(f.sport, sports));
+    if (surfaces.length > 0) list = list.filter((f) => surfaces.includes(f.surface ?? ''));
     if (onlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
     // Lokalny filtr tekstowy zostaje jako dodatkowe zawężenie w obrębie
     // wyników z searchExplorerFields — bez efektu, gdy szukanie nieaktywne
@@ -1170,7 +1244,7 @@ export default function VenueExplorer({
         - distanceKm(miejscowosc.lat, miejscowosc.lng, b.lat, b.lng));
     }
     return [...list].sort((a, b) => mortonKey(a.lat, a.lng) - mortonKey(b.lat, b.lng));
-  }, [sports, venueTypes, surfaces, onlyGamesToday, fieldStats, search, miejscowosc, promienKm]);
+  }, [sports, surfaces, onlyGamesToday, fieldStats, search, miejscowosc, promienKm]);
 
   /**
    * CO WIDAĆ NA MAPIE. Wyłącznie to, co leży w bieżącym kadrze (`allFields`) —
@@ -1306,7 +1380,7 @@ export default function VenueExplorer({
   );
 
   // Reset the render window whenever the result set changes (new search/filter).
-  useEffect(() => { setVisibleCount(PAGE); }, [sports, venueTypes, surfaces, onlyGamesToday, search]);
+  useEffect(() => { setVisibleCount(PAGE); }, [sports, surfaces, onlyGamesToday, search]);
 
   // The map plots every field, but the list/carousel render only a window. A pin
   // outside that window would select a venue whose card doesn't exist — the click
@@ -1360,7 +1434,11 @@ export default function VenueExplorer({
   // Aktywne szukanie zawsze pokazuje konkretne pinezki, niezależnie od
   // przybliżenia — kółka ze skupiskami nie odpowiadają na pytanie „gdzie jest
   // to, czego szukam".
-  const trybSkupisk = search.trim().length < 2 && zoom < ZOOM_SKUPISK;
+  // „Gry dziś" wyłącza skupiska tak samo jak szukanie i z tego samego powodu:
+  // ma własne źródło pinezek (patrz `graDzisWszedzie`), a kółko z liczbą
+  // wszystkich boisk w komórce odpowiadałoby wtedy na inne pytanie niż to,
+  // które użytkownik właśnie zadał.
+  const trybSkupisk = search.trim().length < 2 && zoom < ZOOM_SKUPISK && !graDzisWszedzie;
 
   // Ile obiektów widać w tym kadrze. Przy oddaleniu to jedyna liczba, jaką
   // użytkownik może dostać — sumowanie kilkunastu kółek wzrokiem nie jest
@@ -1395,8 +1473,14 @@ export default function VenueExplorer({
     if (searchResults) return 'szukanie';
     // Zapytanie o kadr jeszcze leci — „nie wiem" to nie to samo co „pusto".
     if (ladujeKadr) return null;
+    // Odkąd sport i nawierzchnia zawężają zapytanie PO STRONIE BAZY, pusta
+    // odpowiedź nie znaczy już „w tym wycinku mapy nic nie ma": znaczy „nic
+    // TAKIEGO". Bez tej gałęzi filtr odsiewający wszystko dostawał radę
+    // „oddal mapę", po której wynik nadal był pusty.
+    if (sports.length > 0 || surfaces.length > 0 || onlyGamesToday) return 'filtry';
     return 'kadr';
-  }, [fields.length, trybSkupisk, searchResults, allFields, ladujeKadr]);
+  }, [fields.length, trybSkupisk, searchResults, allFields, ladujeKadr,
+      sports.length, surfaces.length, onlyGamesToday]);
 
   /**
    * ZAKRES LICZNIKA NAD LISTĄ — dopisek, bez którego trzy liczby na jednym
@@ -1414,11 +1498,14 @@ export default function VenueExplorer({
   const zakresListy = useMemo(() => {
     if (searchResults) return `dla „${search.trim()}"`;
     if (miejscowosc) return `w promieniu ${promienKm} km od: ${miejscowosc.nazwa}`;
+    // Obiekty z grą dziś zbierają się z całego kraju, nie z kadru — dopisek
+    // musi to powiedzieć, inaczej licznik wygląda na zawartość widoku.
+    if (graDzisWszedzie) return 'z grą dziś w całej Polsce';
     // Ta sama gałąź co w `fields` — przy oddalonej mapie lista pokazuje
     // okolicę dobraną na starcie, nie zawartość kadru.
-    if (trybSkupiskTeraz && allFields.length === 0) return 'w Twojej okolicy';
+    if (trybSkupiskTeraz && allFields.length === 0) return `w Twojej okolicy (${PROMIEN_LISTY_KM} km)`;
     return 'w tym kadrze mapy';
-  }, [searchResults, search, miejscowosc, promienKm, trybSkupiskTeraz, allFields.length]);
+  }, [searchResults, search, miejscowosc, promienKm, graDzisWszedzie, trybSkupiskTeraz, allFields.length]);
 
   /** Powrót do trybu skupisk — jedyny ruch, który z pustego kadru ZAWSZE
    *  prowadzi do czegoś widocznego. Ten sam cel co przycisk „Przybliż"
@@ -1481,7 +1568,7 @@ export default function VenueExplorer({
     ? [sports.length > 0, gamesDate !== 'wszystkie',
         gamesMinFreeSpots !== MIN_SPOTS_DOMYSLNIE,
         miejscowosc !== null].filter(Boolean).length
-    : [sports.length > 0, venueTypes.length > 0, surfaces.length > 0, onlyGamesToday,
+    : [sports.length > 0, surfaces.length > 0, onlyGamesToday,
        miejscowosc !== null].filter(Boolean).length;
   // Podgląd „Pokaż N boisk" w arkuszu filtrów — MUSI liczyć z tego samego
   // źródła, co lista pod spodem po zatwierdzeniu, inaczej CTA obiecuje coś
@@ -1499,7 +1586,7 @@ export default function VenueExplorer({
   //   3. Bez żadnego z powyższych → klasyczne przybliżenie/szukanie.
   //
   // `draftSports`, nie `sports`: sport jest teraz częścią tego samego arkusza
-  // co Typ/Nawierzchnia, więc podgląd „Pokaż N" ma liczyć to, co user WŁAŚNIE
+  // co Nawierzchnia, więc podgląd „Pokaż N" ma liczyć to, co user WŁAŚNIE
   // wybiera w arkuszu, nie to, co było zastosowane przed jego otwarciem.
   const previewFieldsCount = useMemo(() => {
     let list: Field[];
@@ -1510,12 +1597,34 @@ export default function VenueExplorer({
     } else {
       list = searchResults ?? allFields;
     }
-    if (draftSports.length > 0) list = list.filter((f) => f.sport.some((s) => draftSports.includes(s)));
-    if (draftTypes.length > 0) list = list.filter((f) => draftTypes.includes(f.venueType ?? ''));
+    if (draftSports.length > 0) list = list.filter((f) => pasujeSport(f.sport, draftSports));
     if (draftSurfaces.length > 0) list = list.filter((f) => draftSurfaces.includes(f.surface ?? ''));
+    // „Gry dziś" liczyło się dotąd dopiero PO zatwierdzeniu: przełącznik
+    // w arkuszu nie ruszał liczby na przycisku ani o jeden, choć po kliknięciu
+    // „Pokaż" lista potrafiła zejść z kilkuset do trzech.
+    if (draftOnlyGamesToday) list = list.filter((f) => fieldStats[f.id]?.today);
     return list.length;
   }, [draftMiejscowosc, listaDlaPodgladu, trybSkupisk, listaWokolMiejscowosci, listaStartowa,
-      allFields, searchResults, draftSports, draftTypes, draftSurfaces]);
+      allFields, searchResults, draftSports, draftSurfaces, draftOnlyGamesToday, fieldStats]);
+
+  /**
+   * CZEGO DOTYCZY LICZBA NA PRZYCISKU — jedno zdanie pod „Pokaż N boisk".
+   *
+   * Zgłoszone wprost: „jak nie ma filtrów, pokazuje 884 boiska, podczas gdy
+   * jest ponad 32 tys.". Liczba była prawdziwa (tyle jest w promieniu 15 km od
+   * punktu startowego listy), tylko NIC jej nie opisywało — więc czytało się ją
+   * jako rozmiar całego katalogu i wyglądała na błąd filtrowania. Licznik nad
+   * listą dostał ten dopisek już w sierpniu (`zakresListy`); przycisk, czyli
+   * jedyne miejsce, gdzie ta liczba widnieje przy OTWARTYCH filtrach, został
+   * bez niego.
+   */
+  const zakresPodgladu = useMemo(() => {
+    if (draftMiejscowosc) return `w promieniu ${draftPromienKm} km od: ${draftMiejscowosc.nazwa}`;
+    if (searchResults) return `dla „${search.trim()}"`;
+    if (trybSkupisk) return `w Twojej okolicy (${PROMIEN_LISTY_KM} km), nie w całym katalogu`;
+    if (graDzisWszedzie) return 'z grą dziś w całej Polsce';
+    return 'w tym kadrze mapy';
+  }, [draftMiejscowosc, draftPromienKm, searchResults, search, trybSkupisk, graDzisWszedzie]);
 
   /**
    * PODPISANY PRZYCISK ALERTU NAD LISTĄ, zamiast dzwonka w pasku — 2026-09-14,
@@ -1686,7 +1795,6 @@ export default function VenueExplorer({
       // Typ i Nawierzchnia znikały z adresu w tej samej chwili, w której
       // użytkownik je zatwierdzał. Z zewnątrz: „filtry się resetują".
       onApply={() => updateParams({
-        type: draftTypes,
         surface: draftSurfaces,
         sport: draftSports,
         today: draftOnlyGamesToday,
@@ -1694,10 +1802,11 @@ export default function VenueExplorer({
         promienKm: draftPromienKm,
       })}
       onClear={() => {
-        setDraftTypes([]); setDraftSurfaces([]); setDraftSports([]); setDraftOnlyGamesToday(false);
+        setDraftSurfaces([]); setDraftSports([]); setDraftOnlyGamesToday(false);
         setDraftMiejscowosc(null); setDraftPromienKm(PROMIEN_DOMYSLNY_KM);
       }}
       applyLabel={`Pokaż ${previewFieldsCount} ${boiskoSlowo(previewFieldsCount)}`}
+      applyHint={zakresPodgladu}
     >
       <div className="space-y-6">
         <section>
@@ -1747,21 +1856,13 @@ export default function VenueExplorer({
             active={draftOnlyGamesToday} onClick={() => setDraftOnlyGamesToday((v) => !v)} />
         </section>
 
-        <section>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Typ obiektu</h3>
-          {VENUE_TYPE_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => setDraftTypes(toggleInArray(draftTypes, o.value))}
-              aria-pressed={draftTypes.includes(o.value)}
-              className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 text-sm text-ink hover:bg-slate-50"
-            >
-              <span className="flex-1 text-left">{o.label}</span>
-              {draftTypes.includes(o.value) && <Check className="h-4 w-4 shrink-0 text-primary-700" />}
-            </button>
-          ))}
-        </section>
+        {/* SEKCJI „TYP OBIEKTU" TU JUŻ NIE MA — 2026-09-18, zgłoszone wprost
+            („niektóre się dublują, np. siatkówka jako sport i rodzaj
+            obiektu"). Pełne uzasadnienie przy `VENUE_TYPE_LABELS` na górze
+            pliku: cztery z dwunastu pozycji powtarzały nazwy z sekcji Sport
+            stojącej wyżej w TYM SAMYM arkuszu, licząc przy tym zupełnie co
+            innego (siatkówka: 2566 boisk jako sport, 4 jako typ), a cała
+            kolumna ma dane w 1,5% katalogu. */}
 
         <section>
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Nawierzchnia</h3>

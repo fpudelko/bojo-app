@@ -83,6 +83,39 @@ export const MAP_FILTER_SPORTS = [
   'piłka ręczna',
 ] as const satisfies ReadonlyArray<keyof typeof SPORT_CONFIG>;
 
+/** Sporty, które w interfejsie są JEDNĄ pozycją filtra, a w bazie kilkoma
+ *  wartościami. Dziś tylko piłka: `FOCUS_SPORTS` celowo nie ma „futsalu", bo
+ *  w interfejsie to ta sama piłka nożna — ale w katalogu 95 publicznych
+ *  obiektów ma w `sport` WYŁĄCZNIE `futsal`. Bez tego rozwinięcia miały na
+ *  mapie pinezkę z piłką, a wybranie „Piłka nożna" w filtrze je zdejmowało. */
+const SPORTY_ROWNOWAZNE: Record<string, readonly string[]> = {
+  'piłka nożna': ['piłka nożna', 'futsal'],
+};
+
+/** Wybór z filtra → wartości do porównania z kolumną `sport`. */
+export function rozwinSporty(sporty: readonly string[]): string[] {
+  const wynik: string[] = [];
+  for (const s of sporty) {
+    for (const r of SPORTY_ROWNOWAZNE[s] ?? [s]) if (!wynik.includes(r)) wynik.push(r);
+  }
+  return wynik;
+}
+
+/** Czy obiekt/mecz pasuje do wyboru z filtra sportu. Pusty wybór = wszystko. */
+export function pasujeSport(sporty: readonly string[], wybrane: readonly string[]): boolean {
+  if (wybrane.length === 0) return true;
+  const szukane = rozwinSporty(wybrane);
+  return sporty.some((s) => szukane.includes(s));
+}
+
+/** Sporty, które mapa pokazuje W OGÓLE — bramka zapytań o obiekty i o skupiska.
+ *  Liczone z `MAP_FILTER_SPORTS`, nie wypisane drugi raz: lista, po której da
+ *  się filtrować, i lista, którą mapa pobiera, muszą być tą samą listą. Inaczej
+ *  filtr obiecuje sport, którego pinezki nigdy nie przychodzą (tak było
+ *  z tenisem w „Typie obiektu") albo mapa liczy w skupiskach obiekty, których
+ *  nie da się wybrać (baseball, hokej, tenis — 151 publicznych wierszy). */
+export const SPORTY_NA_MAPIE: string[] = rozwinSporty(MAP_FILTER_SPORTS);
+
 export type SportKey = keyof typeof SPORT_CONFIG;
 
 /** Sports where a goalkeeper / field-player distinction makes sense. Used by
