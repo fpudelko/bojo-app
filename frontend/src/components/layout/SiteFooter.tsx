@@ -65,6 +65,7 @@ export default function SiteFooter() {
           </GrupaLinkow>
 
           <GrupaLinkow tytul="Bojo">
+            <Link href="/o-bojo" className="transition-colors hover:text-white">O Bojo</Link>
             <Link href="/jak-dziala-bojo" className="transition-colors hover:text-white">Jak działa Bojo</Link>
             <Link href="/dlaczego-bojo" className="transition-colors hover:text-white">Dlaczego Bojo</Link>
             <Link href="/faq" className="transition-colors hover:text-white">FAQ</Link>

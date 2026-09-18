@@ -20,6 +20,8 @@
 - [Jak działa Bojo](/jak-dziala-bojo): kreator meczu, wysyłanie linku, zapis gracza bez
   konta, skład i rezerwa, rozliczenie po meczu
 - [Dlaczego Bojo](/dlaczego-bojo): różnice wobec grupy na Facebooku i ankiety na WhatsAppie
+- [Kto robi Bojo i po co](/o-bojo): misja, dlaczego Bojo zaczyna od organizatorów, co
+  działa dziś, a czego jeszcze nie ma
 - [FAQ](/faq): pełna lista pytań i odpowiedzi w sześciu kategoriach
 
 ## Dla graczy
