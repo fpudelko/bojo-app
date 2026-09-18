@@ -418,6 +418,44 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-18 — Strona mówi tym samym językiem, co pierwsza wiadomość do organizatora
+
+PROBLEM: Pierwszy kontakt z organizatorem (docs/outreach-organizatorzy.md) zaczyna się od
+misji („zbieramy społeczność, żeby łatwiej było ogarnąć skład") i od tego, że Bojo buduje
+konkretny, mały zespół. Kto klikał link po takiej wiadomości, lądował na stronie, gdzie
+słowo „misja" nie padało ani razu, za produktem nie stał żaden człowiek, a zamknięcie
+brzmiało „Zorganizuj mecz" zamiast powtórzyć małą prośbę z rozmowy („zorganizuj
+NASTĘPNĄ gierkę"). Najmocniejszy argument rozmowy znikał dokładnie w chwili największej
+uwagi. Do tego `/faq` odsyłało do `/cykliczne`, funkcji schowanej za wyłączoną flagą
+`SHOW_RECURRING` od 2026-08-16 — stopka i nagłówek były opakowane flagą, odpowiedź w FAQ
+nie była, i żaden istniejący test fraz tego nie widział. Modal po świeżej rejestracji
+kierował „Jestem organizatorem" do kreatora GRUPY, choć aktywacją produktu jest pierwszy
+wystawiony MECZ, nie grupa.
+
+ROZWIĄZANIE BOJO: landing dostał sekcję misji (po „Jak to działa") i zamknięcie
+zapraszające do wystawienia jednej gierki (po FAQ, przed stopką) — obie ŚWIADOMIE bez
+liczby osób w zespole i bez imion (decyzja właściciela). Powstała strona `/o-bojo`: kto
+robi Bojo, dlaczego zaczyna od organizatorów, oraz dwie listy wprost — co działa dziś
+i czego jeszcze nie ma (efekt pratfall: przyznanie się do braku PRZED obietnicą).
+`/dlaczego-bojo` dostało sekcję „Co napisać ekipie" — trzy gotowe teksty do skopiowania
+na czat (wrzucanie linku, „po co kolejna apka", „nie chcę podawać maila"), plus lead,
+który przestał brzmieć obronnie. `/faq` przestało odsyłać do `/cykliczne`, opisując
+zamiast tego „Powtórz mecz" (realnie działa). Modal po rejestracji kieruje organizatora
+do `/wydarzenia/nowe`; „Załóż grupę" zostaje jako drugorzędne wyjście dla kogoś ze stałą
+ekipą.
+
+MECHANIKA: `content/oBojo.ts`, `app/o-bojo/page.tsx` (na `StronaTresci`/`SekcjaTresci`/
+`MiniFaq`, jak `/dlaczego-bojo`), `components/home/landing/LandingMisja.tsx`,
+`components/home/landing/LandingZaproszenie.tsx`, `LANDING_MISJA` i `LANDING_ZAPROSZENIE`
+w `landing/content.ts`, `CO_NAPISAC_EKIPIE` w `content/dlaczego.ts`,
+`components/tresc/PrzyciskKopiuj.tsx`, `content/kontakt.ts` (`KONTAKT_HREF`, dziś
+`mailto:bojopolska@gmail.com`, docelowo `kontakt@bojo.pl` po weryfikacji domeny
+w Resend). Zdarzenie `argument_skopiowany` w `lib/analytics.ts` — bez migracji, kolumna
+`event_type` to TEXT bez ograniczenia (migracja `047`). Nowy test w `tresciStron.test.ts`
+pilnuje, żeby żadna jednostka treści nie odsyłała do trasy za wyłączoną flagą — ten sam
+błąd klasy, który przeżył miesiąc w `/faq`. Testy: `landingContent.test.ts`
+(misja/zaproszenie: kierunek korzyści, brak liczby osób), `tresciStron.test.ts`.
+
 ### 2026-09-16 — Opis strony boiska w wynikach wyszukiwania mówi o nawierzchni, nie o meczach
 
 PROBLEM: Po zaindeksowaniu katalogu (17 473 stron od 5 września) strony boisk Bojo zaczęły
@@ -670,57 +708,4 @@ dziś dwa na ekran zamiast trzech-czterech: pusty stan i jeden cichy wiersz w ar
 filtrów, plus pigułka nad listą na `/mapa`. Goły dzwonek z paska `/wydarzenia` odszedł
 razem z zapytaniem o stan alertu, a martwy `components/home/NearbyGames.tsx` został
 usunięty. Testy: `wieleAlertow.test.ts`, `mojeAlerty.test.tsx`.
-
-### 2026-09-14 — Wyszukiwarka meczów: mniej kontrolek, prostszy alert
-
-PROBLEM: pasek wyszukiwarki meczów łamał się na telefonie na dwa wiersze, bo mieścił
-przełącznik trybu, podpisany przełącznik „Lista | Mapa", dzwonek alertu i ikonę filtrów.
-Dzwonek nie mówił, co się stanie po dotknięciu, a stał obok DRUGIEGO dzwonka
-(powiadomienia), który znaczy coś innego. W arkuszu filtrów suwak „Cena" pytał o górny
-limit w złotych, choć mecze w Bojo są albo za darmo, albo za kilkanaście złotych od
-osoby, a suwak „Wolne miejsca" kazał trafiać palcem w konkretną liczbę na osi przez cały
-ekran. Filtr „Kiedy" był pięciopozycyjnym suwakiem, w którym „Jutro" wykluczało
-DZISIAJ, czyli mecz za dwie godziny, a „Ten miesiąc" pod koniec miesiąca znaczyło co
-innego niż na jego początku. Okno alertu pytało o sport, miejsce, promień, dni tygodnia
-i porę dnia — pięć pytań, z których dwa (dni tygodnia, pora dnia) dublowały „Kiedy"
-z filtrów; a przycisk zapisu był wyszarzony bez podania powodu, gdy nikt nie wskazał
-miejsca.
-
-ROZWIĄZANIE BOJO: przełącznik „Lista | Mapa" niesie dziś ikony zamiast napisów, a wejście
-do alertu jest podpisanym przyciskiem nakładającym się na listę meczów („Powiadom
-o takich meczach", a gdy alert już działa — „Damy znać o nowym meczu"). Filtr ceny
-zniknął. „Wolne miejsca" ustawia się przyciskami − i +, domyślnie na 1 i w górę do 99,
-czyli wyszukiwarka domyślnie pokazuje mecze, do których da się wejść; komplety wracają
-jednym dotknięciem „−", a pusta lista mówi o tym wprost odsyłaczem „Zobacz też mecze
-z kompletem". „Kiedy" to cztery przyciski w jednej linii — Dzisiaj, 3 dni, Tydzień
-i Termin, który odsłania kalendarz „do kiedy"; brak wyboru znaczy wszystkie terminy,
-a dotknięcie wybranego odznacza go. Okno alertu pyta już tylko o dwie rzeczy: jak długo
-powiadamiać (te same cztery przyciski, brak wyboru = bezterminowo) i czym dać znać
-(dzwonek, mail, powiadomienie na telefon, SMS). Dni tygodnia i pora dnia zniknęły
-z okna — dublowały „Kiedy" z filtrów. Sport, miejscowość i promień zostają, wypełnione
-wartościami z filtrów, jeśli te były ustawione: alert da się otworzyć, zanim ktokolwiek
-ruszył filtry, a wtedy miejsce trzeba gdzieś wpisać. Pole przyjmuje nazwę miejscowości
-albo kod pocztowy; pinezka obok jest skrótem, nie jedyną drogą — w przeglądarce
-wbudowanej w inną aplikację geolokalizacja bywa zablokowana. Gdy miejsca nie ma, Bojo
-pisze wprost, dlaczego nie da się zapisać.
-
-MECHANIKA: `SegmentedToggle` przyjmuje `icon` w obu opcjach (nazwa dostępna zostaje
-z `label`). Przycisk alertu na `/mapa` to nakładka `absolute bottom-0` nad listą,
-z odstępem `calc(var(--bottom-nav-h) + 0.75rem)`. Nowy `components/ui/Stepper.tsx`
-zastępuje suwak wolnych miejsc w obu arkuszach (`VenueExplorer.tsx`,
-`wydarzenia/EventsListView.tsx`); `MIN_SPOTS_DOMYSLNIE = 1`, a licznik aktywnych filtrów
-liczy tę pozycję dopiero przy odchyleniu od jedynki. `filterByMaxPrice()` usunięte
-z `lib/eventFilters.ts` razem z filtrem ceny, tak samo martwe `onlyFreeSpots`/
-`onlyNoCost`. Koniec alertu trzymają `koniecDnia()` / `dataWygasniecia()` /
-`najwczesniejszyKoniec()` w `lib/alerts.ts` — wybrany dzień liczy się cały (23:59:59),
-`min` pola daty stoi na jutrze. Okno alertu używa `WyborMiejscowosci` i `SportChip`,
-czyli tych samych kontrolek co arkusz filtrów; `alertZFiltrow.test.tsx` pilnuje, że pole
-miejscowości w nim jest, a nie sam przycisk lokalizacji. `DateFilter` jest jednym
-stringiem także dla własnego
-terminu (`do:2026-09-30`), więc wchodzi do adresu bez drugiego pola; zepsuta data
-zachowuje się jak brak filtra, a nie jak „nic nie pasuje". `components/ui/WyborKiedy.tsx`
-stoi w obu arkuszach filtrów (w oknie alertu już NIE — patrz wpis o alercie wyżej).
-Kolumny `days_of_week`, `godzina_od`/`godzina_do` i `expires_at` z migracji `149`
-zostają w bazie nietknięte — okno przestało o nie pytać. Testy: `alertKoniec.test.ts`,
-`eventFilters.test.ts`, `szukaj-domyslnie-mecze.klikalnosc.spec.ts`.
 

@@ -390,3 +390,29 @@ ekranie, nie wróci i jeszcze opowie o tym ekipie.
   do klienta.
 - **Prośby o udostępnienie/polecenie na wstępie.** O to prosi się po tym, jak coś
   realnie zadziałało.
+
+---
+
+## 10. Co linkować w rozmowie
+
+Od 2026-09-18 strona mówi tym samym językiem co ta rozmowa — landing ma sekcję misji
+i zamknięcie „Zorganizuj następną gierkę na Bojo" (`docs/llm-context.md`, wpis
+2026-09-18), a `/dlaczego-bojo` ma gotowe teksty do skopiowania na czat ekipy.
+
+**Wiadomość 2 (wariant A/B, „Wspólny cel").** Zamiast tłumaczyć misję od zera, można
+odesłać do [`/o-bojo`](https://bojo.pl/o-bojo) — jedna strona z misją, powodem, dla
+którego Bojo zaczyna od organizatorów, i uczciwą listą „co działa dziś / czego jeszcze
+nie ma". Nie zastępuje wiadomości 2 (rozmowa ma zostać osobista), ale skraca ją, gdy
+ktoś odpisze „a co to dokładnie".
+
+**Obiekcja „moi ludzie nie założą konta" (§5).** Zamiast pisać odpowiedź od zera, można
+odesłać do [`/dlaczego-bojo#co-napisac-ekipie`](https://bojo.pl/dlaczego-bojo) —
+organizator znajdzie tam gotowy tekst do wklejenia na grupę, z przyciskiem kopiowania.
+To jest dokładnie ta amunicja, o której mówi §2: organizator ma czym przebić własną
+ścianę zakładania kont u graczy, nie tylko my w rozmowie z nim.
+
+**Uwaga o spójności.** Wiadomość 2 (warianty A/B) i `LANDING_MISJA`
+(`components/home/landing/content.ts`) mają brzmieć tym samym zdaniem — zmienia się
+jedno, sprawdza się drugie. Test `tresciStron.test.ts` pilnuje tego samego zdania
+pomiędzy `/o-bojo` i `/dlaczego-bojo`, ale nie porównuje z treścią tego pliku (wiadomości
+prywatne nie są kodem) — rozjazd trzeba złapać ręcznie przy następnej rewizji obu.
