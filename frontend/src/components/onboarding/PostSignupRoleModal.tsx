@@ -98,16 +98,35 @@ export default function PostSignupRoleModal() {
         <div className="space-y-3 px-5 py-4">
           <p className="text-sm text-slate-600">Zanim zaczniesz — kim jesteś?</p>
 
+          {/* Prowadzi do /wydarzenia/nowe, NIE do /grupy/nowe — aktywacja
+              to pierwszy wystawiony mecz, grupa jest retencją. Kto trafia na
+              kreator grupy przed pierwszym meczem, zakłada obiekt, którego
+              jeszcze nie rozumie (ustalenie 2026-09-18, po audycie komunikacji
+              z organizatorem — docs/outreach-organizatorzy.md). */}
           <button
             type="button"
-            onClick={() => wybierz('/grupy/nowe')}
+            onClick={() => wybierz('/wydarzenia/nowe')}
             className="w-full rounded-xl border-2 border-primary-600 bg-primary-50 p-4 text-left"
           >
             <span className="block text-sm font-semibold text-primary-800">🏆 Jestem organizatorem</span>
             <span className="mt-0.5 block text-xs text-primary-700">
-              Załóż grupę i zbierz stałą ekipę na mecze
+              Wystaw pierwszy mecz i wyślij ekipie link — dwie minuty
             </span>
           </button>
+
+          {/* Wejście dla kogoś, kto od razu wie, że chce stałą ekipę, nie
+              pojedynczy mecz — tekstowe, drugorzędne, żeby nie konkurowało
+              z główną ofertą wyżej. */}
+          <p className="text-center text-xs text-slate-500">
+            Masz stałą ekipę?{' '}
+            <button
+              type="button"
+              onClick={() => wybierz('/grupy/nowe')}
+              className="font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-800"
+            >
+              Załóż grupę
+            </button>
+          </p>
 
           <div className="rounded-xl border border-slate-200 p-4">
             <span className="block text-sm font-semibold text-ink">⚽ Jestem graczem</span>
