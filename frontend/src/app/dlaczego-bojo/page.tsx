@@ -3,10 +3,13 @@ import Link from 'next/link';
 import StronaTresci from '@/components/tresc/StronaTresci';
 import SekcjaTresci from '@/components/tresc/SekcjaTresci';
 import MiniFaq from '@/components/tresc/MiniFaq';
-import { DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
+import {
+  DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA, CO_NAPISAC_EKIPIE,
+} from '@/content/dlaczego';
 import { FAQ } from '@/content/faq';
 import { faqJsonLd } from '@/lib/structuredData';
 import { TYTUL_DLACZEGO } from '@/content/metaWyszukiwarki';
+import PrzyciskKopiuj from '@/components/tresc/PrzyciskKopiuj';
 
 export const metadata: Metadata = {
   title: TYTUL_DLACZEGO,
@@ -29,7 +32,7 @@ export default function DlaczegoBojoPage() {
     <StronaTresci
       nadtytul="Dla organizatora"
       h1="Dlaczego Bojo zamiast wątku na Messengerze"
-      lead="Argumenty na wypadek, gdy ktoś z ekipy zapyta, po co kolejna aplikacja."
+      lead="Czym to się różni od postu na grupie i ankiety na WhatsAppie — i co odpisać, gdy ekipa zapyta, po co kolejna aplikacja."
       tytulDlaOkruszkow="Dlaczego Bojo"
     >
       {/* Direct Answer nad pierwszą sekcją — odpowiedź wprost dla kogoś, kto
@@ -84,6 +87,30 @@ export default function DlaczegoBojoPage() {
             </tbody>
           </table>
         </div>
+      </SekcjaTresci>
+
+      {/* Moment, w którym czytelnik jest już przekonany i pyta „ale jak im to
+          powiem" — stąd tuż po tabeli porównawczej, przed sekcjami prozy
+          rozwiewającymi dalsze zastrzeżenia. */}
+      <SekcjaTresci id="co-napisac-ekipie" tytul="Co napisać ekipie — gotowe do skopiowania">
+        <p>
+          Trzy teksty, które odpowiadają na to, co ekipa pyta najczęściej. Skopiuj
+          i wklej tam, gdzie zwykle się umawiacie.
+        </p>
+        <ul className="space-y-3">
+          {CO_NAPISAC_EKIPIE.map((t) => (
+            <li
+              key={t.kiedy}
+              className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.kiedy}</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink">{t.tekst}</p>
+              <div className="mt-3">
+                <PrzyciskKopiuj tekst={t.tekst} wariant={t.kiedy} />
+              </div>
+            </li>
+          ))}
+        </ul>
       </SekcjaTresci>
 
       {DLACZEGO_PROZA.map((sekcja) => (
