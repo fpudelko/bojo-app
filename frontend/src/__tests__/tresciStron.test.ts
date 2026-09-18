@@ -3,7 +3,9 @@ import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { FAQ, FAQ_LANDING, KATEGORIE_FAQ } from '@/content/faq';
 import { JAK_DZIALA, JAK_DZIALA_ODPOWIEDZ } from '@/content/jakDziala';
-import { DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA } from '@/content/dlaczego';
+import {
+  DLACZEGO_ODPOWIEDZ, CO_UWIERA, TABELA_POROWNAWCZA, DLACZEGO_PROZA, CO_NAPISAC_EKIPIE,
+} from '@/content/dlaczego';
 import { GRAJ_LEAD, GRAJ_BRAK_MECZY, SPORT_ODMIANA } from '@/content/graj';
 import { MIASTA, CZYM_BOJO_NIE_JEST, odpowiedzMiasta, zdanieOKatalogu } from '@/content/miasta';
 import { opisObiektu, zdanieORozegranychMeczach, type ObiektDoOpisu } from '@/content/opisObiektu';
@@ -12,8 +14,11 @@ import {
 } from '@/content/kalkulator';
 import { WIDGET_BRAK_MECZOW, WIDGET_STOPKA, WIDGET_NIEZNANY_OBIEKT } from '@/content/widget';
 import { wstepHubuSportu, wstepHubuWojewodztwa, wstepHubuSportuMiasta } from '@/content/boiska';
+import { O_BOJO_ODPOWIEDZ, O_BOJO_DZIALA, O_BOJO_NIE_MA, O_BOJO_PROZA } from '@/content/oBojo';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
+import { SHOW_RECURRING, SHOW_TURNIEJE } from '@/lib/features';
+import { FEATURE_RESERVATIONS } from '@/config/features';
 
 /**
  * Każda widoczna jednostka treści na `/faq`, `/jak-dziala-bojo`,
@@ -41,6 +46,19 @@ function jednostkiTresci(): { etykieta: string; tekst: string }[] {
   for (const w of TABELA_POROWNAWCZA) {
     jednostki.push({ etykieta: `dlaczego-bojo#roznice (${w.co})`, tekst: `${w.fb} ${w.bojo}` });
   }
+  for (const t of CO_NAPISAC_EKIPIE) {
+    jednostki.push({ etykieta: `dlaczego-bojo#co-napisac-ekipie (${t.kiedy})`, tekst: t.tekst });
+  }
+  for (const s of O_BOJO_PROZA) {
+    for (const a of s.akapity) jednostki.push({ etykieta: `o-bojo#${s.id}`, tekst: a });
+  }
+  for (const p of O_BOJO_DZIALA) {
+    jednostki.push({ etykieta: 'o-bojo#dziala', tekst: p });
+  }
+  for (const p of O_BOJO_NIE_MA) {
+    jednostki.push({ etykieta: 'o-bojo#nie-ma', tekst: p });
+  }
+  jednostki.push({ etykieta: 'o-bojo#odpowiedz', tekst: O_BOJO_ODPOWIEDZ });
   jednostki.push({ etykieta: 'graj#lead', tekst: GRAJ_LEAD });
   jednostki.push({ etykieta: 'graj#brak-meczy', tekst: GRAJ_BRAK_MECZY });
   jednostki.push({ etykieta: 'dlaczego#odpowiedz', tekst: DLACZEGO_ODPOWIEDZ });
@@ -131,6 +149,32 @@ function jednostkiLlmsTxt(): { etykieta: string; tekst: string }[] {
 
   return jednostki;
 }
+
+// Odpowiednik sekcji 2 walidatora `check-docs.mjs` ("trasy za flagami nie
+// przeciekają do llms.txt / sitemap.ts"), ale dla TREŚCI zdań, nie dla
+// indeksów tras. Powód: `/faq` odsyłało do „Stałe gierki (/cykliczne)" przez
+// ponad miesiąc po wyłączeniu `SHOW_RECURRING` 2026-08-16 — stopka i nagłówek
+// były opakowane flagą, zdanie w treści FAQ nie było, a żaden istniejący test
+// fraz tego nie widział (zakazaneFrazy.ts pilnuje FUNKCJI, nie TRAS).
+describe('strony treści — żadna jednostka nie odsyła do trasy za wyłączoną flagą', () => {
+  const jednostki = [...jednostkiTresci(), ...jednostkiLlmsTxt()];
+
+  const TRASY_ZA_FLAGAMI: { trasa: string; flaga: string; wlaczona: boolean }[] = [
+    { trasa: '/cykliczne', flaga: 'SHOW_RECURRING', wlaczona: SHOW_RECURRING },
+    { trasa: '/turnieje', flaga: 'SHOW_TURNIEJE', wlaczona: SHOW_TURNIEJE },
+    { trasa: '/rezerwacje', flaga: 'FEATURE_RESERVATIONS', wlaczona: FEATURE_RESERVATIONS },
+    { trasa: '/obiekt', flaga: 'FEATURE_RESERVATIONS', wlaczona: FEATURE_RESERVATIONS },
+  ];
+
+  for (const { trasa, flaga, wlaczona } of TRASY_ZA_FLAGAMI) {
+    if (wlaczona) continue;
+    it(`żadna jednostka treści nie odsyła do ${trasa} (${flaga} wyłączona)`, () => {
+      for (const { etykieta, tekst } of jednostki) {
+        expect(tekst.includes(trasa), `${etykieta}: odsyła do ${trasa}, a ${flaga} jest wyłączona`).toBe(false);
+      }
+    });
+  }
+});
 
 describe('strony treści — brak obietnic bez pokrycia w kodzie', () => {
   const jednostki = [...jednostkiTresci(), ...jednostkiLlmsTxt()];
@@ -239,5 +283,18 @@ describe('FAQ — spójność danych', () => {
       expect(entry.name).toBe(FAQ[i].q);
       expect(entry.acceptedAnswer.text).toBe(FAQ[i].a);
     });
+  });
+});
+
+describe('misja — /o-bojo brzmi tym samym zdaniem co /dlaczego-bojo', () => {
+  it('pierwszy akapit misji jest identyczny w obu miejscach', () => {
+    const oBojoMisja = O_BOJO_PROZA.find((s) => s.id === 'misja')!.akapity[0];
+    const dlaczegoMisja = DLACZEGO_PROZA.find((s) => s.id === 'wczesny-etap')!.akapity[0];
+    expect(oBojoMisja).toBe(dlaczegoMisja);
+  });
+
+  it('/o-bojo nie nazywa liczby osób w zespole ani imion (decyzja właściciela)', () => {
+    const tekst = [O_BOJO_ODPOWIEDZ, ...O_BOJO_PROZA.flatMap((s) => s.akapity)].join(' ');
+    expect(tekst).not.toMatch(/dwie osoby|dwóch (ludzi|osób|facetów|gości)/i);
   });
 });

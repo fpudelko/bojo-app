@@ -33,6 +33,45 @@ export interface WierszPorownania {
   bojo: string;
 }
 
+/** Gotowe teksty do skopiowania — od 2026-09-18. Strategia fazy 1 mówi wprost:
+ *  dać organizatorowi ARGUMENTY, którymi przebije ścianę zakładania kont
+ *  u graczy. Sekcja „Moi gracze nie założą konta" niżej tłumaczy argument
+ *  JEMU; to jest ta różnica — tekst do WYSŁANIA, nie do przeczytania.
+ *
+ *  Każde zdanie ma pokrycie w kodzie. Mail chroni WYŁĄCZNIE przed
+ *  dublowaniem zapisu (ten sam adres nie zapisze się dwa razy na ten sam
+ *  mecz) i przed utratą kontaktu przy zmianie/odwołaniu meczu (migracje
+ *  `133`, `139`, `140` — poczta do gościa z zapisanym adresem) — NIE chroni
+ *  przed obcymi: kto ma link, ten wejdzie (patrz outreach-organizatorzy.md
+ *  §3, ta sama uwaga). Nie dopisywać tu ochrony przed obcymi. */
+export interface TekstDlaEkipy {
+  kiedy: string;
+  tekst: string;
+}
+
+export const CO_NAPISAC_EKIPIE: readonly TekstDlaEkipy[] = [
+  {
+    kiedy: 'Gdy wrzucasz link na grupę',
+    tekst:
+      'Zapisy na ten mecz są tutaj. Klikasz, wpisujesz imię i maila i jesteś ' +
+      'w składzie — bez zakładania konta i bez instalowania czegokolwiek. Widać na ' +
+      'bieżąco, kto gra, kto jest na rezerwie i ile zostało miejsc.',
+  },
+  {
+    kiedy: 'Gdy ktoś pyta „po co kolejna apka"',
+    tekst:
+      'To nie jest apka do zainstalowania, tylko strona z zapisami. Wrzucam tak, ' +
+      'żeby nie liczyć „+1" w komentarzach i żeby było widać, kto naprawdę przyjdzie. ' +
+      'Klikasz raz i masz spokój.',
+  },
+  {
+    kiedy: 'Gdy ktoś nie chce podawać maila',
+    tekst:
+      'Mail jest po to, żeby nikt nie zapisał się dwa razy na ten sam mecz, i żeby ' +
+      'doszła do Ciebie wiadomość, gdyby mecz się zmienił albo został odwołany.',
+  },
+] as const;
+
 export const TABELA_POROWNAWCZA: readonly WierszPorownania[] = [
   { co: 'Liczenie składu', fb: 'ręcznie, w komentarzach', bojo: 'licznik zajętych miejsc i twardy limit' },
   { co: 'Chętni ponad limit', fb: 'kto pierwszy, ten lepszy', bojo: 'lista rezerwowa z kolejnością' },

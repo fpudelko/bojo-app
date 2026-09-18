@@ -418,6 +418,88 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-18 — Strona mówi tym samym językiem, co pierwsza wiadomość do organizatora
+
+PROBLEM: Pierwszy kontakt z organizatorem (docs/outreach-organizatorzy.md) zaczyna się od
+misji („zbieramy społeczność, żeby łatwiej było ogarnąć skład") i od tego, że Bojo buduje
+konkretny, mały zespół. Kto klikał link po takiej wiadomości, lądował na stronie, gdzie
+słowo „misja" nie padało ani razu, za produktem nie stał żaden człowiek, a zamknięcie
+brzmiało „Zorganizuj mecz" zamiast powtórzyć małą prośbę z rozmowy („zorganizuj
+NASTĘPNĄ gierkę"). Najmocniejszy argument rozmowy znikał dokładnie w chwili największej
+uwagi. Do tego `/faq` odsyłało do `/cykliczne`, funkcji schowanej za wyłączoną flagą
+`SHOW_RECURRING` od 2026-08-16 — stopka i nagłówek były opakowane flagą, odpowiedź w FAQ
+nie była, i żaden istniejący test fraz tego nie widział. Modal po świeżej rejestracji
+kierował „Jestem organizatorem" do kreatora GRUPY, choć aktywacją produktu jest pierwszy
+wystawiony MECZ, nie grupa.
+
+ROZWIĄZANIE BOJO: landing dostał sekcję misji (po „Jak to działa") i zamknięcie
+zapraszające do wystawienia jednej gierki (po FAQ, przed stopką) — obie ŚWIADOMIE bez
+liczby osób w zespole i bez imion (decyzja właściciela). Powstała strona `/o-bojo`: kto
+robi Bojo, dlaczego zaczyna od organizatorów, oraz dwie listy wprost — co działa dziś
+i czego jeszcze nie ma (efekt pratfall: przyznanie się do braku PRZED obietnicą).
+`/dlaczego-bojo` dostało sekcję „Co napisać ekipie" — trzy gotowe teksty do skopiowania
+na czat (wrzucanie linku, „po co kolejna apka", „nie chcę podawać maila"), plus lead,
+który przestał brzmieć obronnie. `/faq` przestało odsyłać do `/cykliczne`, opisując
+zamiast tego „Powtórz mecz" (realnie działa). Modal po rejestracji kieruje organizatora
+do `/wydarzenia/nowe`; „Załóż grupę" zostaje jako drugorzędne wyjście dla kogoś ze stałą
+ekipą.
+
+MECHANIKA: `content/oBojo.ts`, `app/o-bojo/page.tsx` (na `StronaTresci`/`SekcjaTresci`/
+`MiniFaq`, jak `/dlaczego-bojo`), `components/home/landing/LandingMisja.tsx`,
+`components/home/landing/LandingZaproszenie.tsx`, `LANDING_MISJA` i `LANDING_ZAPROSZENIE`
+w `landing/content.ts`, `CO_NAPISAC_EKIPIE` w `content/dlaczego.ts`,
+`components/tresc/PrzyciskKopiuj.tsx`, `content/kontakt.ts` (`KONTAKT_HREF`, dziś
+`mailto:bojopolska@gmail.com`, docelowo `kontakt@bojo.pl` po weryfikacji domeny
+w Resend). Zdarzenie `argument_skopiowany` w `lib/analytics.ts` — bez migracji, kolumna
+`event_type` to TEXT bez ograniczenia (migracja `047`). Nowy test w `tresciStron.test.ts`
+pilnuje, żeby żadna jednostka treści nie odsyłała do trasy za wyłączoną flagą — ten sam
+błąd klasy, który przeżył miesiąc w `/faq`. Testy: `landingContent.test.ts`
+(misja/zaproszenie: kierunek korzyści, brak liczby osób), `tresciStron.test.ts`.
+
+### 2026-09-18 — Filtry mapy: koniec dublowania kategorii i liczników, które nie zgadzają się ze sobą
+
+PROBLEM: arkusz filtrów mapy na bojo.pl pytał o sport DWA RAZY, w dwóch sekcjach stojących
+jedna pod drugą. Sekcja „Sport" miała siatkówkę, siatkówkę plażową i koszykówkę; sekcja
+„Typ obiektu" — te same nazwy jeszcze raz, licząc przy tym coś zupełnie innego: sport
+`siatkówka` to 2566 publicznych boisk, `venue_type = 'volleyball_outdoor'` — cztery.
+Pozycja „Tenis" obiecywała sport, którego mapa nie pokazuje wcale, więc dawała zawsze zero
+wyników, a cała kolumna `venue_type` jest wypełniona w 539 z 35 952 obiektów (1,5%), więc
+każdy wybór typu wycinał niemal cały katalog. Do tego liczby kłamały w trzech miejscach
+naraz: przycisk „Pokaż 884 boiska" przy katalogu na 36 tysięcy nie mówił, że liczy okolicę
+w promieniu 15 km, a nie Polskę; nakładka nad oddaloną mapą pokazywała 38 314, bo liczyła
+PARY obiekt-sport zamiast obiektów; zapytanie o widoczny kadr przychodziło po cichu ucięte
+do tysiąca wierszy, więc w gęstym mieście część boisk nie miała pinezki, a filtr sportu
+przeszukiwał tylko ten ogryzek.
+
+ROZWIĄZANIE BOJO: filtr „Typ obiektu" zniknął z mapy — zostają sport, nawierzchnia,
+miejscowość z promieniem i „Gry dziś", każdy pytający o co innego. Pod przyciskiem
+„Pokaż N boisk" stoi teraz zakres tej liczby, więc liczba nie udaje już rozmiaru
+katalogu. Liczba w kółku przy oddalonej mapie liczy obiekty, nie ich sporty, i zgadza się
+z liczbą pinezek po przybliżeniu. Filtr nawierzchni działa też przy oddalonej mapie,
+„Gry dziś" przestawia mapę na obiekty z grą z całego kraju zamiast zostawiać niezmienione
+kółka, a filtr „Piłka nożna" pokazuje wreszcie 95 boisk opisanych w katalogu wyłącznie
+jako futsal.
+
+DRUGIE ZGŁOSZENIE tego samego dnia, po pierwszej poprawce: liczby wciąż wyglądały za małe
+(884/380/71 dla „Wszystkie sporty"/„Piłka nożna"/„Siatkówka plażowa" przy katalogu na
+36 tysięcy). Pierwsza poprawka NAZWAŁA liczbę („w Twojej okolicy (15 km), nie w całym
+katalogu"), nie zmieniła jej źródła — a źródłem była 15-kilometrowa okolica startowa,
+dokładnie w chwili, gdy użytkownik patrzył na mapę całej Polski. Przy oddalonej mapie i BEZ
+wybranej miejscowości przycisk liczy dziś sumę skupisk KADRU MAPY z filtrami szkicu — tę
+samą liczbę, co nakładka „N boisk w tym widoku" — i zakres mówi wtedy „w tym widoku mapy".
+Lista kart pod mapą zostaje świadomie przy 15 km (dociągnięcie kart dla całego kraju
+zniweczyłoby sens skupisk) i ma własny, uczciwy dopisek — dwa liczniki, dwa różne pytania,
+tak jak licznik nad listą i nakładka nad mapą już wcześniej.
+
+MECHANIKA: `VenueExplorer.tsx` (sekcja „Typ obiektu" usunięta, `?type=` czyszczony
+z adresu, `graDzisWszedzie`, `previewSkupiskCount`, `zakresPodgladu`), `applyHint` w
+`components/ui/FilterSheet.tsx`, `FiltryObiektow` w `lib/api.ts` (filtry zawężają
+zapytanie po stronie bazy; stronicowanie `order('id')` + `range()` zamiast cichego limitu
+PostgREST), `rozwinSporty()`/`pasujeSport()`/`SPORTY_NA_MAPIE` w `lib/sports.ts` (jedna
+lista sportów mapy zamiast trzech kopii), migracja `153_skupiska_licza_obiekty`
+(`count(DISTINCT f.id)`, `p_typy` → `p_nawierzchnie`). `venue_type` zostaje w bazie i na
+karcie obiektu jako informacja. Testy: `filtryMapy.test.ts`.
+
 ### 2026-09-16 — Opis strony boiska w wynikach wyszukiwania mówi o nawierzchni, nie o meczach
 
 PROBLEM: Po zaindeksowaniu katalogu (17 473 stron od 5 września) strony boisk Bojo zaczęły
@@ -636,81 +718,3 @@ przenoszą zamiar przez `next` ze znacznikiem `alert=1`, który ekran po powroci
 z adresu. `?powod=alert` wybiera zdanie z `POWODY` w `AuthForm`. Dopełniacz „mecz"
 ujednolicony na „meczów". Testy: `filtryListy.test.ts`, `wieleAlertow.test.ts`,
 `filtry-w-adresie.klikalnosc.spec.ts`.
-
-### 2026-09-15 — Alerty: wiele na konto i własne miejsce w ustawieniach
-
-PROBLEM: konto Bojo mogło mieć tylko JEDEN alert o nowych meczach, ale nic tego nie
-mówiło — każde wejście brzmiało „powiadom mnie o takich meczach". Kto miał alert na piłkę
-we Wrocławiu i założył drugi na siatkówkę w Poznaniu, tracił pierwszy: po cichu, bez
-ostrzeżenia i bez cofnięcia. Do tego alert nie istniał w żadnych ustawieniach — żeby go
-zobaczyć albo wyłączyć, trzeba było wejść do wyszukiwarki meczów i natknąć się na jedno
-z kilku wejść, rozsianych po dwóch ekranach w trzech różnych wyglądach. Odkąd alert jest
-domyślnie bezterminowy, brak takiego miejsca prowadził wprost do oznaczania maili jako
-spam.
-
-ROZWIĄZANIE BOJO: alertów może być tyle, ile ktoś chce — osobny na piłkę we Wrocławiu
-i osobny na siatkówkę w Poznaniu. Wszystkie stoją w profilu, w ustawieniach powiadomień,
-jako lista z nazwą („Piłka nożna · Wrocław 25 km"), informacją jak długo działa i czym
-daje znać, przełącznikiem oraz koszem. Wyłączenie zostawia alert na liście, więc wraca
-się do niego jednym dotknięciem. Zakładanie alertu z wyszukiwarki bierze bieżące filtry
-i mówi to wprost linijką nad polami: „Wypełnione Twoimi filtrami — możesz tu wszystko
-zmienić, nie ruszy to listy meczów". Gdy nowy alert łapałby te same mecze co istniejący,
-Bojo pyta o to przed zapisem, bo dwa takie same alerty znaczą dwa maile o jednym meczu.
-
-MECHANIKA: bez migracji — `game_alerts` nigdy nie miało unikalności na `user_id`,
-a `notifications.alert_id` (migracja `025`) od początku wskazuje konkretny alert. Limit
-siedział w `saveAlert()`, które przed każdym zapisem gasiło poprzednie; dziś tego nie robi
-(pilnuje `wieleAlertow.test.ts`). `lib/alerts.ts` dostało `getMojeAlerty()`,
-`maAktywnyAlert()`, `zaktualizujAlert()` (ten sam wiersz, żeby `wylacz_token` z wysłanych
-maili dalej działał), `ustawAktywnoscAlertu()`, `nazwaAlertu()`, `opisAlertu()`
-i `znajdzPodobnyAlert()` (próg: połowa mniejszego z dwóch promieni). Nowa karta
-`components/profil/MojeAlerty.tsx` pod `/profil#powiadomienia`, obok pusha i poczty.
-`AlertSetupDialog` przyjmuje `alert` (edycja) i `default*` (wypełnienie). Wejść jest
-dziś dwa na ekran zamiast trzech-czterech: pusty stan i jeden cichy wiersz w arkuszu
-filtrów, plus pigułka nad listą na `/mapa`. Goły dzwonek z paska `/wydarzenia` odszedł
-razem z zapytaniem o stan alertu, a martwy `components/home/NearbyGames.tsx` został
-usunięty. Testy: `wieleAlertow.test.ts`, `mojeAlerty.test.tsx`.
-
-### 2026-09-18 — Filtry mapy: koniec dublowania kategorii i liczników, które nie zgadzają się ze sobą
-
-PROBLEM: arkusz filtrów mapy na bojo.pl pytał o sport DWA RAZY, w dwóch sekcjach stojących
-jedna pod drugą. Sekcja „Sport" miała siatkówkę, siatkówkę plażową i koszykówkę; sekcja
-„Typ obiektu" — te same nazwy jeszcze raz, licząc przy tym coś zupełnie innego: sport
-`siatkówka` to 2566 publicznych boisk, `venue_type = 'volleyball_outdoor'` — cztery.
-Pozycja „Tenis" obiecywała sport, którego mapa nie pokazuje wcale, więc dawała zawsze zero
-wyników, a cała kolumna `venue_type` jest wypełniona w 539 z 35 952 obiektów (1,5%), więc
-każdy wybór typu wycinał niemal cały katalog. Do tego liczby kłamały w trzech miejscach
-naraz: przycisk „Pokaż 884 boiska" przy katalogu na 36 tysięcy nie mówił, że liczy okolicę
-w promieniu 15 km, a nie Polskę; nakładka nad oddaloną mapą pokazywała 38 314, bo liczyła
-PARY obiekt-sport zamiast obiektów; zapytanie o widoczny kadr przychodziło po cichu ucięte
-do tysiąca wierszy, więc w gęstym mieście część boisk nie miała pinezki, a filtr sportu
-przeszukiwał tylko ten ogryzek.
-
-ROZWIĄZANIE BOJO: filtr „Typ obiektu" zniknął z mapy — zostają sport, nawierzchnia,
-miejscowość z promieniem i „Gry dziś", każdy pytający o co innego. Pod przyciskiem
-„Pokaż N boisk" stoi teraz zakres tej liczby, więc liczba nie udaje już rozmiaru
-katalogu. Liczba w kółku przy oddalonej mapie liczy obiekty, nie ich sporty, i zgadza się
-z liczbą pinezek po przybliżeniu. Filtr nawierzchni działa też przy oddalonej mapie,
-„Gry dziś" przestawia mapę na obiekty z grą z całego kraju zamiast zostawiać niezmienione
-kółka, a filtr „Piłka nożna" pokazuje wreszcie 95 boisk opisanych w katalogu wyłącznie
-jako futsal.
-
-DRUGIE ZGŁOSZENIE tego samego dnia, po pierwszej poprawce: liczby wciąż wyglądały za małe
-(884/380/71 dla „Wszystkie sporty"/„Piłka nożna"/„Siatkówka plażowa" przy katalogu na
-36 tysięcy). Pierwsza poprawka NAZWAŁA liczbę („w Twojej okolicy (15 km), nie w całym
-katalogu"), nie zmieniła jej źródła — a źródłem była 15-kilometrowa okolica startowa,
-dokładnie w chwili, gdy użytkownik patrzył na mapę całej Polski. Przy oddalonej mapie i BEZ
-wybranej miejscowości przycisk liczy dziś sumę skupisk KADRU MAPY z filtrami szkicu — tę
-samą liczbę, co nakładka „N boisk w tym widoku" — i zakres mówi wtedy „w tym widoku mapy".
-Lista kart pod mapą zostaje świadomie przy 15 km (dociągnięcie kart dla całego kraju
-zniweczyłoby sens skupisk) i ma własny, uczciwy dopisek — dwa liczniki, dwa różne pytania,
-tak jak licznik nad listą i nakładka nad mapą już wcześniej.
-
-MECHANIKA: `VenueExplorer.tsx` (sekcja „Typ obiektu" usunięta, `?type=` czyszczony
-z adresu, `graDzisWszedzie`, `previewSkupiskCount`, `zakresPodgladu`), `applyHint` w
-`components/ui/FilterSheet.tsx`, `FiltryObiektow` w `lib/api.ts` (filtry zawężają
-zapytanie po stronie bazy; stronicowanie `order('id')` + `range()` zamiast cichego limitu
-PostgREST), `rozwinSporty()`/`pasujeSport()`/`SPORTY_NA_MAPIE` w `lib/sports.ts` (jedna
-lista sportów mapy zamiast trzech kopii), migracja `153_skupiska_licza_obiekty`
-(`count(DISTINCT f.id)`, `p_typy` → `p_nawierzchnie`). `venue_type` zostaje w bazie i na
-karcie obiektu jako informacja. Testy: `filtryMapy.test.ts`.

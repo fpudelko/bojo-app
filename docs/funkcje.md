@@ -1677,9 +1677,9 @@ z `can_edit`, żeby mecz w ogóle im się pokazał, gdy sami nie grają) i etyki
 
 ---
 
-## Strony treści — `/jak-dziala-bojo`, `/dlaczego-bojo`, `/faq`
+## Strony treści — `/jak-dziala-bojo`, `/dlaczego-bojo`, `/o-bojo`, `/faq`
 
-Trzy statyczne strony serwerowe pod SEO/GEO/AEO, dodane pod strategię „pozyskiwanie
+Cztery statyczne strony serwerowe pod SEO/GEO/AEO, dodane pod strategię „pozyskiwanie
 organizatorów" ([strategia.md §0](./strategia.md)). Wspólna powłoka
 `components/tresc/StronaTresci.tsx` (+ `SekcjaTresci.tsx`, `SpisTresci.tsx` jako
 `<details>`), treść jako dane w `frontend/src/content/*.ts` — testowalna bez renderowania,
@@ -1688,7 +1688,8 @@ wzorem `components/home/landing/content.ts`.
 | Trasa | Co zawiera | Źródło treści |
 |---|---|---|
 | `/jak-dziala-bojo` | cała ścieżka od kreatora po rozliczenie, w tym co dokładnie widzi zaproszony gracz, że dołączenie nie wymaga konta i co zrobić, gdy brakuje 1-2 graczy do składu | `content/jakDziala.ts` |
-| `/dlaczego-bojo` | tabela porównawcza z grupą FB/WhatsApp, argument na „moi gracze nie założą konta" | `content/dlaczego.ts` |
+| `/dlaczego-bojo` | tabela porównawcza z grupą FB/WhatsApp, argument na „moi gracze nie założą konta", sekcja „Co napisać ekipie" z gotowymi tekstami do skopiowania (`PrzyciskKopiuj.tsx`) | `content/dlaczego.ts` |
+| `/o-bojo` | misja, dlaczego Bojo zaczyna od organizatorów, dwie listy wprost — co działa dziś i czego jeszcze nie ma, kontakt (`content/kontakt.ts`) | `content/oBojo.ts` |
 | `/faq` | 36 pytań w sześciu kategoriach | `content/faq.ts` |
 
 **FAQ ma jedno źródło.** `content/faq.ts` eksportuje `FAQ` (wszystko, renderowane na

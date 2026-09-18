@@ -74,7 +74,14 @@ export type AnalyticsEvent =
   | 'boisko_zorganizuj'
   /** Kliknięcie w pobliski obiekt (`{ fieldId, celId, pozycja }`) — czy warstwa
    *  dołożona 2026-09-02 (`lib/pobliskieObiekty.ts`) w ogóle żyje, czy jest ozdobą. */
-  | 'boisko_pobliskie';
+  | 'boisko_pobliskie'
+  // ── AMUNICJA DLA ORGANIZATORA (2026-09-18) ────────────────────────────────
+  /** Organizator skopiował gotowy tekst dla ekipy (`{ wariant }`) z sekcji
+   *  „Co napisać ekipie" na /dlaczego-bojo. Mierzy, czy amunicja jest w ogóle
+   *  brana do ręki — bez tego sekcja zostaje naszym założeniem, nie faktem.
+   *  Kolumna `event_type` to zwykły TEXT bez ograniczenia (migracja `047`),
+   *  więc nowa wartość nie wymaga migracji. */
+  | 'argument_skopiowany';
 
 /** Skąd przyszedł człowiek — wyprowadzone z `document.referrer`. */
 export type ZrodloWejscia = 'wyszukiwarka' | 'model' | 'wewnetrzne' | 'bezposrednie' | 'zewnetrzne';
