@@ -45,14 +45,21 @@ import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, 
 // Terminarz mecze przyszłe, Wyniki te same karty po rozegraniu, Drabinka
 // jeszcze raz półfinały i finał.
 //
-// Dziś: Mecze (z przełącznikiem Najbliższe/Rozegrane — to jedno pytanie
-// z dwiema odpowiedziami, nie dwa osobne miejsca), Tabela i drabinka (oba
-// odpowiadają na „kto wygrywa"), Drużyny. Info przestało być zakładką
-// i stoi na górze strony: to nie jest jedna z rzeczy do porównania, tylko
-// nagłówek turnieju.
-type Zakladka = 'mecze' | 'tabela' | 'druzyny';
+// „Info" WRACA jako zakładka (2026-09-19) — cofnięcie jednej, konkretnej
+// części decyzji z 2026-09-17. Wtedy pełna karta (termin, miejsce, format,
+// zasady, wpisowe, organizator, opis, regulamin) przeniosła się na sam
+// początek strony jako „nagłówek", ale to znaczyło, że zasłania górną część
+// KAŻDEJ zakładki — na Tabeli i drabince trzeba było przewinąć ją całą, żeby
+// zobaczyć samą tabelę. Zostaje po niej jeden skondensowany wiersz (emoji,
+// status, termin skrócony, liczba drużyn, Udostępnij) widoczny zawsze —
+// to jest treść, której czytający potrzebuje niezależnie od tego, na którą
+// zakładkę patrzy. Reszta wraca do bycia zakładką, bo to właśnie „rzecz do
+// porównania" z resztą — ktoś, kto już wie, kiedy grają, nie musi jej wcale
+// otwierać.
+type Zakladka = 'info' | 'mecze' | 'tabela' | 'druzyny';
 
 const ETYKIETY_ZAKLADEK: Record<Zakladka, string> = {
+  info: 'Info',
   mecze: 'Mecze',
   tabela: 'Tabela i drabinka',
   druzyny: 'Drużyny',
@@ -125,10 +132,11 @@ export default function TurniejClient() {
 
   const tabParam = searchParams.get('tab');
   // Stare adresy (`?tab=terminarz`, `?tab=wyniki`, `?tab=drabinka`) prowadzą
-  // tam, gdzie ich treść dziś mieszka — link wysłany komuś tydzień temu
-  // nie może wylądować na Info.
+  // tam, gdzie ich treść dziś mieszka. Domyślna zakładka zostaje „Mecze" —
+  // „Info" trzeba dziś kliknąć świadomie, tak jak „Drużyny".
   const zakladka: Zakladka =
-    tabParam === 'druzyny' ? 'druzyny'
+    tabParam === 'info' ? 'info'
+      : tabParam === 'druzyny' ? 'druzyny'
       : tabParam === 'tabela' || tabParam === 'drabinka' ? 'tabela'
       : 'mecze';
   const widokZAdresu: WidokMeczow | null =
@@ -261,7 +269,7 @@ export default function TurniejClient() {
     turniej.awansujeZGrupy,
   );
 
-  const widoczneZakladki: Zakladka[] = ['mecze', 'tabela', 'druzyny'];
+  const widoczneZakladki: Zakladka[] = ['info', 'mecze', 'tabela', 'druzyny'];
   const aktywna: Zakladka = tabelaMaTresc || zakladka !== 'tabela' ? zakladka : 'mecze';
 
   // Domyślny widok meczów zależy od tego, co jest do zobaczenia: przed
@@ -363,85 +371,21 @@ export default function TurniejClient() {
           </div>
         )}
 
-        {/* Info NIE jest zakładką — to nagłówek turnieju, nie jedna z rzeczy
-            do porównania. Stały szablon: Kiedy · Gdzie · Format · Zasady ·
-            Koszt · Organizator. Wcześniej była tu data, boisko, licznik drużyn
-            i tyle: czytający nie wiedział, czy 50 zł to od drużyny czy od
-            gracza, ile trwa mecz ani kto to w ogóle organizuje. */}
-        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{sportEmoji(turniej.sport)}</span>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
-            {stan.szczegol && <span className="text-xs text-slate-500 dark:text-slate-400">{stan.szczegol}</span>}
+        {/* Pasek tożsamości — widoczny na KAŻDEJ zakładce, w jednej linii.
+            Pełny opis (termin, miejsce, format, zasady, wpisowe, organizator,
+            opis, regulamin) mieszka dziś w zakładce „Info" (niżej) — tu
+            zostaje tylko to, co trzeba widzieć niezależnie od tego, na co
+            patrzysz: czy turniej trwa, kiedy i ile drużyn. Wcześniej (od
+            2026-09-17) cała karta stała tutaj i zasłaniała górę KAŻDEJ
+            zakładki, tabelę i drabinkę szczególnie. */}
+        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-sm">
+          <span className="shrink-0 text-xl">{sportEmoji(turniej.sport)}</span>
+          <div className="min-w-0 flex-1 truncate text-sm text-slate-600 dark:text-slate-300">
+            <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
+            {etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)} · {druzyny.length}/{turniej.maxDruzyn} drużyn
           </div>
-
-          <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-            <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <span>{etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}</span>
-          </div>
-
-          {(turniej.miejsceNazwa || turniej.miejsceAdres) && (
-            <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-              <div className="min-w-0 flex-1">
-                {turniej.miejsceNazwa && <div className="font-medium text-ink">{turniej.miejsceNazwa}</div>}
-                {turniej.miejsceAdres && <div className="text-xs text-slate-400">{turniej.miejsceAdres}</div>}
-                {dojazd && (
-                  <a href={dojazd} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600">
-                    <Navigation className="h-4 w-4" /> Nawiguj
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-            <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <div className="min-w-0">
-              <div className="font-medium text-ink">{FORMAT_LABEL[turniej.format]}</div>
-              <div className="text-xs text-slate-400">{opisFormatu(turniej, druzyny.length)}</div>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-            <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <div className="min-w-0">
-              <div>{druzyny.length}/{turniej.maxDruzyn} drużyn · skład {turniej.minZawodnikow}–{turniej.maxZawodnikow} osób</div>
-              <div className="text-xs text-slate-400">
-                Mecz {turniej.czasMeczuMin} min
-                {turniej.przerwaMin > 0 && `, przerwa ${turniej.przerwaMin} min`}
-                {' · '}zwycięstwo {turniej.punktyZaWygrana} pkt, remis {turniej.punktyZaRemis}
-                {turniej.karnePrzyRemisie && ' · remis w fazie pucharowej rozstrzygają karne'}
-              </div>
-            </div>
-          </div>
-
-          {/* „50 zł" bez tej jednej informacji jest pytaniem, nie odpowiedzią. */}
-          <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-            <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <span>
-              {turniej.wpisoweGrosze > 0
-                ? `Wpisowe ${(turniej.wpisoweGrosze / 100).toFixed(0)} zł od drużyny`
-                : 'Bez wpisowego'}
-            </span>
-          </div>
-
-          {organizator && (
-            <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-              <span>Organizuje <Link href={`/gracz/${turniej.organizatorId}`} className="font-medium text-primary-600">{organizator}</Link></span>
-            </div>
-          )}
-
-          {turniej.opis && <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{turniej.opis}</p>}
-          {turniej.regulamin && (
-            <details className="text-sm">
-              <summary className="cursor-pointer font-medium text-ink">Regulamin</summary>
-              <p className="mt-2 whitespace-pre-wrap text-slate-600 dark:text-slate-300">{turniej.regulamin}</p>
-            </details>
-          )}
-          <button onClick={udostepnij} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600">
-            <Share2 className="h-4 w-4" /> Udostępnij
+          <button onClick={udostepnij} aria-label="Udostępnij" className="shrink-0 text-primary-600">
+            <Share2 className="h-4 w-4" />
           </button>
         </div>
 
@@ -490,6 +434,76 @@ export default function TurniejClient() {
           <Link href={`/turnieje/${id}/zglos`}>
             <Button className="w-full">Zgłoś drużynę</Button>
           </Link>
+        )}
+
+        {aktywna === 'info' && (
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
+            <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <span>{etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}</span>
+            </div>
+
+            {(turniej.miejsceNazwa || turniej.miejsceAdres) && (
+              <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                <div className="min-w-0 flex-1">
+                  {turniej.miejsceNazwa && <div className="font-medium text-ink">{turniej.miejsceNazwa}</div>}
+                  {turniej.miejsceAdres && <div className="text-xs text-slate-400">{turniej.miejsceAdres}</div>}
+                  {dojazd && (
+                    <a href={dojazd} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600">
+                      <Navigation className="h-4 w-4" /> Nawiguj
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <div className="min-w-0">
+                <div className="font-medium text-ink">{FORMAT_LABEL[turniej.format]}</div>
+                <div className="text-xs text-slate-400">{opisFormatu(turniej, druzyny.length)}</div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <div className="min-w-0">
+                <div>{druzyny.length}/{turniej.maxDruzyn} drużyn · skład {turniej.minZawodnikow}–{turniej.maxZawodnikow} osób</div>
+                <div className="text-xs text-slate-400">
+                  Mecz {turniej.czasMeczuMin} min
+                  {turniej.przerwaMin > 0 && `, przerwa ${turniej.przerwaMin} min`}
+                  {' · '}zwycięstwo {turniej.punktyZaWygrana} pkt, remis {turniej.punktyZaRemis}
+                  {turniej.karnePrzyRemisie && ' · remis w fazie pucharowej rozstrzygają karne'}
+                </div>
+              </div>
+            </div>
+
+            {/* „50 zł" bez tej jednej informacji jest pytaniem, nie odpowiedzią. */}
+            <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <span>
+                {turniej.wpisoweGrosze > 0
+                  ? `Wpisowe ${(turniej.wpisoweGrosze / 100).toFixed(0)} zł od drużyny`
+                  : 'Bez wpisowego'}
+              </span>
+            </div>
+
+            {organizator && (
+              <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                <span>Organizuje <Link href={`/gracz/${turniej.organizatorId}`} className="font-medium text-primary-600">{organizator}</Link></span>
+              </div>
+            )}
+
+            {turniej.opis && <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{turniej.opis}</p>}
+            {turniej.regulamin && (
+              <details className="text-sm">
+                <summary className="cursor-pointer font-medium text-ink">Regulamin</summary>
+                <p className="mt-2 whitespace-pre-wrap text-slate-600 dark:text-slate-300">{turniej.regulamin}</p>
+              </details>
+            )}
+          </div>
         )}
 
         {aktywna === 'druzyny' && (

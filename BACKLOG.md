@@ -500,6 +500,12 @@ i `/profil`, fizyczne skasowanie starego „BOJO Cup" (migracja `151`).
 - [ ] `e2e/turniej.spec.ts` (scenariusze za logowaniem, plan Etapu 2) — nie powstał.
       Konsola prowadzącego i przepływ zgłoszenia drużyny nie mają dziś testu
       klikalności na pełnym stosie Supabase, tylko manualne smoke-testy SQL
+- [ ] **Galeria zdjęć i landing page turnieju** (sponsorzy, logotypy, rozbudowane info
+      o organizatorze) — zgłoszone 2026-09-19 przy okazji przywrócenia zakładki „Info"
+      (patrz PR #403). To osobna funkcja z własnym modelem danych: zdjęcia trzeba
+      gdzieś przechowywać (storage + tabela galerii per turniej), sponsorzy to nowa
+      tabela (nazwa, logo, link). Świadomie nie zrobione na szybko przy okazji tamtego
+      PR-a — wymaga osobnego zaprojektowania schematu i RLS, nie doklejenia pola
 
 ---
 
