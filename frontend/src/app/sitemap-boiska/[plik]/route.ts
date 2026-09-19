@@ -4,6 +4,7 @@ import { slugify } from '@/lib/utils';
 import { pobierzWszystkie } from '@/lib/zapytania';
 import { WOJEWODZTWA } from '@/lib/wojewodztwa';
 import { priorytetDlaTier } from '@/lib/sitemapTier';
+import { NAGLOWKI_SITEMAP, SEKUND_CACHE_SITEMAP } from '@/lib/naglowkiSitemap';
 
 // Sitemap boisk, partycjonowany po województwie zamiast jednego pliku na
 // cały katalog (ponad 30 000 wierszy, rosnący — patrz content/dlaczego.ts dla
@@ -22,6 +23,11 @@ import { priorytetDlaTier } from '@/lib/sitemapTier';
 // zamiast polegać na tym, że nikt nigdy nie doda tieru 4. `priorytetDlaTier()`
 // (lib/sitemapTier.ts) przyjmuje odtąd `1 | 2` — TypeScript pilnuje, że nic
 // innego tu nie trafi.
+
+// Odpowiedź żyje dobę na CDN — uzasadnienie i dobór wartości przy
+// NAGLOWKI_SITEMAP (lib/naglowkiSitemap.ts). Bez tego każde pobranie przez
+// robota przewijało cały katalog województwa od zera.
+export const revalidate = SEKUND_CACHE_SITEMAP;
 
 export async function GET(
   _req: Request,
@@ -63,7 +69,5 @@ export async function GET(
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`;
 
-  return new NextResponse(xml, {
-    headers: { 'Content-Type': 'application/xml' },
-  });
+  return new NextResponse(xml, { headers: NAGLOWKI_SITEMAP });
 }

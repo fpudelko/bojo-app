@@ -1222,6 +1222,45 @@ a mecz niepubliczny i nieistniejący dostają celowo samo `title: 'Mecz'` +
 `robots {index:false, follow:false}`: canonical na stronie `noindex` nie jest potrzebny,
 a odróżnienie tych dwóch przypadków zdradzałoby istnienie prywatnego meczu (P1).
 
+### 5g. Koszt skanowania: co robot renderuje i ile to kosztuje
+
+**Dopisane 2026-09-19**, po wyczerpaniu darmowego limitu „Fluid Active CPU" na
+Vercelu (4 godziny czasu procesora funkcji miesięcznie; przekroczenie **wstrzymuje
+projekt**, nie dolicza opłaty). Rozdział jest tu, a nie w `docs/funkcje.md`, bo to
+skutek uboczny decyzji SEO: katalog liczy dziesiątki tysięcy adresów, wszystkie
+wystawione robotom w sitemapach, i to roboty — nie ludzie — generują praktycznie
+cały ruch serwerowy Bojo. Frontend rozmawia z Supabase z przeglądarki, więc
+klikanie zalogowanego gracza nie kosztuje czasu procesora na Vercelu prawie wcale.
+
+Trzy miejsca płaciły za to rachunek i dwa z nich zostały domknięte:
+
+| Miejsce | Było | Jest | Dlaczego to bezpieczne dla SEO |
+|---|---|---|---|
+| `boisko/[id]` | `revalidate = 86400` | `revalidate = 604800` | Robot czyta stąd nazwę, adres, sport, nawierzchnię i JSON-LD — rzeczy, które nie zmieniają się z dnia na dzień. Człowiek dostaje świeże dane niezależnie od cache'u: `VenueDetailClient` dociąga po zamontowaniu i obiekt, i nadchodzące mecze. |
+| `sitemap-boiska/[plik]`, `sitemap-index.xml` | bez `Cache-Control` | `s-maxage=86400`, `stale-while-revalidate=604800` (`lib/naglowkiSitemap.ts`) | Sitemap nie musi znać boiska zaimportowanego godzinę temu; `sitemap.ts` stoi na tej samej dobie od początku. Zawartość plików bez zmian. |
+| trzy huby katalogu (`/boiska/[sport]`, `/boiska/[sport]/[miasto]`, `/boiska/woj/[x]`) | `force-dynamic` | **bez zmian** | patrz niżej |
+
+**Huby zostają `force-dynamic` świadomie.** Renderują się od zera na każde żądanie
+i to boli, ale dwa oczywiste sposoby na obejście tego są gorsze od problemu:
+
+- **Zablokowanie `?strona=` w `robots.txt`** ucięłoby rendery natychmiast — strony
+  2+ i tak mają `noindex, follow` (`lib/hubKatalogu.ts#metadanePaginacjiHuba()`),
+  więc same nie zbierają ruchu. Ale `noindex, follow` pozwala robotowi PRZEJŚĆ po
+  linkach do boisk, a `Disallow` to ucina; Google wprost odradza blokowanie
+  paginacji w robots.txt z tego powodu. Boiska tier 1/2 są co prawda w sitemapach,
+  więc odkrywalność by nie zniknęła — ale przepływ linków wewnętrznych tak, i nie
+  ma jak tego zmierzyć przed faktem. Wstrzymane do czasu, aż licznik zmusi.
+- **Zwykły ISR z `revalidate`** nie wchodzi w grę, dopóki numer strony siedzi
+  w parametrze zapytania: strona zapamiętana jako statyczna ignoruje `searchParams`
+  i oddawałaby tę samą treść pod każdym `?strona=N`. Właściwa naprawa to przeniesienie
+  paginacji do segmentu ścieżki (`/boiska/[sport]/strona/[n]`) plus ISR wzorem
+  `boisko/[id]` — zmiana adresów, czyli przekierowania i odświeżenie sitemapy.
+  Robota na osobny PR, nie doklejka do optymalizacji kosztów.
+
+**Zanim ktoś tknie cokolwiek dalej: zmierz.** Vercel → projekt → *Observability* →
+*Fluid Active CPU*, rozbicie per trasa. Powyższa tabela powstała z czytania kodu,
+nie z odczytu licznika — mówi, gdzie koszt MOŻE siedzieć, nie ile go tam jest.
+
 ## Tło konkurencyjne — poza osią strategii
 
 Oś tego dokumentu została świadomie utrzymana tam, gdzie stawia ją
