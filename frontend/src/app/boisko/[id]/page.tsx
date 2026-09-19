@@ -162,7 +162,22 @@ async function resolveField(idOrSlug: string): Promise<Field | null> {
 //
 // Efekt uboczny: znika pułapka `useSearchParams()` w prerenderze — ta trasa
 // nie jest już generowana przy buildzie.
-export const revalidate = 86400;
+//
+// TYDZIEŃ, NIE DOBA — od 2026-09-19. Sitemapy wystawiają robotom kilkadziesiąt
+// tysięcy adresów boisk, a przy dobowym cache'u każdy z nich renderował się
+// od nowa przy pierwszym wejściu KAŻDEGO dnia. To była główna pozycja
+// w rachunku czasu procesora funkcji na Vercelu (plan darmowy: 4 godziny
+// „Fluid Active CPU" miesięcznie — wyczerpane w całości), a rendery szły
+// niemal wyłącznie na roboty.
+//
+// Wydłużenie nie odbiera niczego CZŁOWIEKOWI: `VenueDetailClient` dociąga
+// po zamontowaniu i sam obiekt (`getField`), i nadchodzące mecze
+// (`liveUpcoming ?? upcomingEvents`), więc na ekranie zawsze jest stan
+// z bazy, nie z cache'u. Dłuższy cache widzi wyłącznie crawler w surowym
+// HTML-u, a ten czyta stąd rzeczy wolnozmienne: nazwę, adres, sport,
+// nawierzchnię, JSON-LD. Lista najbliższych meczów bywa w nim nieświeża —
+// świadomie, bo to nie jest treść, pod którą ta strona rankuje.
+export const revalidate = 604800;
 
 export async function generateStaticParams() {
   return [];

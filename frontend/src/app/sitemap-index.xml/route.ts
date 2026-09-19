@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { WOJEWODZTWA } from '@/lib/wojewodztwa';
+import { NAGLOWKI_SITEMAP, SEKUND_CACHE_SITEMAP } from '@/lib/naglowkiSitemap';
 
 // Indeks sitemapów — jeden adres do zgłoszenia w Search Console i w robots.ts,
 // wskazujący na /sitemap.xml (strony statyczne, huby sportów, /[sport]/[miasto]…) i na
@@ -10,6 +11,11 @@ import { WOJEWODZTWA } from '@/lib/wojewodztwa';
 // (patrz zgłoszenia w repo Next.js — część wdrożeń dostaje 404 zamiast
 // indeksu). Zamiast na to liczyć, indeks jest tu jawnym route handlerem —
 // mniej magii, łatwiej sprawdzić, że naprawdę działa.
+//
+// Lista województw jest stała, więc ten plik mógłby zamarznąć przy buildzie —
+// `revalidate` stoi tu dla porządku, razem z nagłówkiem cache (lib/naglowkiSitemap.ts).
+export const revalidate = SEKUND_CACHE_SITEMAP;
+
 export async function GET() {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
 
@@ -21,7 +27,5 @@ export async function GET() {
   const body = sitemaps.map((loc) => `<sitemap><loc>${loc}</loc></sitemap>`).join('');
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</sitemapindex>`;
 
-  return new NextResponse(xml, {
-    headers: { 'Content-Type': 'application/xml' },
-  });
+  return new NextResponse(xml, { headers: NAGLOWKI_SITEMAP });
 }
