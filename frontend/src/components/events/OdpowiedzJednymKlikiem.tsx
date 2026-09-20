@@ -100,14 +100,14 @@ export default function OdpowiedzJednymKlikiem({
         // rezerwę to najgorszy możliwy wariant tego przycisku.
         toast(
           wynik?.pending
-            ? 'Prośba wysłana — czeka na akceptację organizatora'
+            ? 'Prośba wysłana, czeka na akceptację organizatora'
             : wynik?.isReserve
-              ? 'Komplet — jesteś na liście rezerwowej'
-              : 'Grasz — jesteś w składzie',
+              ? 'Komplet, jesteś na liście rezerwowej'
+              : 'Grasz, jesteś w składzie',
         );
       } else {
         await odmow(eventId, user.id);
-        toast('Dzięki — organizator wie, że nie grasz');
+        toast('Dzięki, organizator wie, że nie grasz');
       }
       onOdpowiedziano?.(odpowiedz);
     } catch (blad) {

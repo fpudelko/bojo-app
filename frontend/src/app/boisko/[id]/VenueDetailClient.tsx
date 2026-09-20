@@ -651,7 +651,7 @@ export default function VenueDetailClient({
 
                   {!slotsLoading && slotsLoaded && slots.length === 0 && (
                     <p className="text-sm text-slate-500 py-2">
-                      Brak slotów dla wybranego dnia — obiekt może być nieczynny.
+                      Brak slotów dla wybranego dnia, obiekt może być nieczynny.
                     </p>
                   )}
 
@@ -926,7 +926,7 @@ export default function VenueDetailClient({
           >
             OpenStreetMap
           </a>{' '}
-          — © autorzy OpenStreetMap, licencja ODbL. Coś się nie zgadza?{' '}
+         : © autorzy OpenStreetMap, licencja ODbL. Coś się nie zgadza?{' '}
           <a
             href={`https://www.openstreetmap.org/note/new#map=19/${field.lat}/${field.lng}`}
             target="_blank"

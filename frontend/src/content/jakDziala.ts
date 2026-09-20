@@ -16,7 +16,7 @@ export interface SekcjaJakDziala {
  * i podaje mechanikę, nie zapowiada jej.
  */
 export const JAK_DZIALA_ODPOWIEDZ =
-  'Organizator zakłada w Bojo mecz — sport, boisko z mapy, termin i liczba miejsc — ' +
+  'Organizator zakłada w Bojo mecz (sport, boisko z mapy, termin i liczba miejsc) ' +
   'i wysyła jeden link. Osoba z linkiem dołącza bez zakładania konta, podając imię ' +
   'i e-mail. Bojo liczy skład, ustawia chętnych ponad limit w kolejce rezerwowej ' +
   'i dzieli koszt obiektu na liczbę miejsc, uwzględniając zniżki z kart sportowych.';
@@ -28,7 +28,7 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     tytul: 'Bojo w pięciu zdaniach',
     akapity: [
       'Zakładasz mecz w trzech krokach kreatora. Dostajesz jeden link do meczu. ' +
-      'Wysyłasz go tam, gdzie Twoja ekipa już rozmawia — WhatsApp, Messenger, e-mail, ' +
+      'Wysyłasz go tam, gdzie Twoja ekipa już rozmawia: WhatsApp, Messenger, e-mail, ' +
       'obojętnie co. Ludzie dołączają, także bez zakładania konta w Bojo. Bojo liczy ' +
       'skład, listę rezerwową i podział kosztów za Ciebie.',
     ],
@@ -38,17 +38,17 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     label: 'Jak wygląda zakładanie meczu',
     tytul: 'Jak wygląda zakładanie meczu',
     akapity: [
-      'Krok 1 — sport i miejsce. Wybierasz jeden z czterech sportów (piłka nożna, ' +
+      'Krok 1: sport i miejsce. Wybierasz jeden z czterech sportów (piłka nożna, ' +
       'siatkówka, siatkówka plażowa, koszykówka) i boisko z mapy, albo stawiasz pinezkę ' +
       'gdziekolwiek w Polsce, jeśli obiektu nie ma w katalogu.',
-      'Krok 2 — termin i liczba miejsc. Domyślnie jutro, 18:00, 90 minut i 14 miejsc dla ' +
-      'piłki nożnej — każda wartość gotowa do zmiany jednym dotknięciem. Koszt wpisujesz ' +
+      'Krok 2: termin i liczba miejsc. Domyślnie jutro, 18:00, 90 minut i 14 miejsc dla ' +
+      'piłki nożnej, każda wartość gotowa do zmiany jednym dotknięciem. Koszt wpisujesz ' +
       '„za obiekt", a Bojo dzieli go na miejsca i przelicza automatycznie, gdy zmienisz ' +
       'ich liczbę.',
-      'Krok 3 — opcje. Tytuł (opcjonalny, z podpowiedzią domyślnej nazwy), opis, mecz ' +
+      'Krok 3: opcje. Tytuł (opcjonalny, z podpowiedzią domyślnej nazwy), opis, mecz ' +
       'publiczny albo prywatny, akceptacja zapisów, przypisanie do grupy. Po kliknięciu ' +
       '„Sprawdź i opublikuj" widzisz podsumowanie: co, kiedy, gdzie, ile miejsc, ile kosztuje ' +
-      'i kto go zobaczy — z przyciskiem „Zmień" przy każdym wierszu, a dopiero stamtąd ' +
+      'i kto go zobaczy, z przyciskiem „Zmień" przy każdym wierszu, a dopiero stamtąd ' +
       '„Opublikuj mecz" naprawdę publikuje.',
     ],
   },
@@ -58,10 +58,10 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     tytul: 'Jeden link, gotowy tekst',
     akapity: [
       'Adres meczu to `bojo.pl/wydarzenia/<id>`. Przycisk „Udostępnij" otwiera systemowy ' +
-      'arkusz udostępniania telefonu z gotowym tekstem — sport i format, dzień i godziny, ' +
+      'arkusz udostępniania telefonu z gotowym tekstem: sport i format, dzień i godziny, ' +
       'nazwa obiektu z adresem, liczba miejsc i cena od osoby. Wygląda jak dobrze napisany ' +
       'post organizatora, nie jak reklama aplikacji.',
-      'Mecz prywatny ma dodatkowo krótki kod dołączenia — działa tak samo jak link, na ' +
+      'Mecz prywatny ma dodatkowo krótki kod dołączenia, działa tak samo jak link, na ' +
       'wypadek gdy ktoś woli wpisać kod ręcznie.',
     ],
   },
@@ -70,13 +70,13 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     label: 'Gdy brakuje 1-2 graczy',
     tytul: 'Co zrobić, gdy brakuje 1-2 graczy do składu',
     akapity: [
-      'Ustaw mecz jako publiczny — trafi na listę otwartych gier i będzie mógł do niego ' +
+      'Ustaw mecz jako publiczny, trafi na listę otwartych gier i będzie mógł do niego ' +
       'dołączyć każdy zalogowany gracz, nie tylko osoby, które dostały Twój link. To ten ' +
-      'sam przełącznik z kroku 3 kreatora (patrz wyżej) — możesz go zmienić też później, ' +
+      'sam przełącznik z kroku 3 kreatora (patrz wyżej), możesz go zmienić też później, ' +
       'w ustawieniach już założonego meczu.',
       'Warto mieć realistyczne oczekiwania: publicznych gier na liście bywa dziś niewiele, ' +
       'więc najpewniejszy sposób na dobranie brakujących osób to nadal link do własnej ' +
-      'ekipy (patrz wyżej) — otwarcie meczu publicznie to dodatkowa szansa, nie gwarancja ' +
+      'ekipy (patrz wyżej). Otwarcie meczu publicznie to dodatkowa szansa, nie gwarancja ' +
       'kompletu.',
     ],
   },
@@ -85,10 +85,10 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     label: 'Czy gracze muszą zakładać konto?',
     tytul: 'Czy gracze muszą zakładać konto?',
     akapity: [
-      'Nie. Osoba, która dostanie link, podaje imię i e-mail i jest w składzie — bez ' +
+      'Nie. Osoba, która dostanie link, podaje imię i e-mail i jest w składzie: bez ' +
       'hasła, bez potwierdzania adresu, bez instalowania czegokolwiek. Zanim kliknie ' +
       '„Zapisz się", widzi, czy wchodzi do składu, czy na listę rezerwową i którą z kolei.',
-      'Dopiero po zapisie Bojo proponuje dokończenie konta — hasłem albo przez Google. ' +
+      'Dopiero po zapisie Bojo proponuje dokończenie konta: hasłem albo przez Google. ' +
       'Wtedy wpis staje się jej wpisem razem z historią i statystykami; można tę ' +
       'propozycję też po prostu pominąć i zostać przy samym zapisie. Ten sam e-mail nie ' +
       'zapisze się dwa razy na ten sam mecz.',
@@ -101,9 +101,9 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     akapity: [
       'Mecz ma twardy limit miejsc. Po jego wyczerpaniu kolejne zapisy trafiają na listę ' +
       'rezerwową, z widoczną pozycją w kolejce. Status „Obserwuję" pozwala śledzić mecz, ' +
-      'nie zajmuje miejsca i nie liczy się do statystyk — to odpowiednik „może wpadnę", ' +
+      'nie zajmuje miejsca i nie liczy się do statystyk, to odpowiednik „może wpadnę", ' +
       'odróżnialny od „będę".',
-      'Bramkarze mają osobny limit — maksymalnie dwóch — w dwóch trybach do wyboru: ' +
+      'Bramkarze mają osobny limit (maksymalnie dwóch) w dwóch trybach do wyboru: ' +
       'miejsca zarezerwowane osobno albo wspólna pula z resztą składu. Akceptację zapisu ' +
       'włącza się osobnym przełącznikiem i działa jednakowo dla meczu publicznego ' +
       'i prywatnego.',
@@ -114,29 +114,29 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     label: 'Co się dzieje, gdy ktoś się wypisze',
     tytul: 'Co się dzieje, gdy ktoś się wypisze',
     akapity: [
-      'Bojo nie awansuje rezerwowego automatycznie — to świadoma decyzja: nikt nie ma ' +
+      'Bojo nie awansuje rezerwowego automatycznie, to świadoma decyzja: nikt nie ma ' +
       'trafiać do składu po cichu, bez własnej wiedzy. Zwolnione miejsce jest oferowane ' +
       'pierwszej osobie z listy rezerwowej, która ma domyślnie 3 godziny na decyzję, zanim ' +
       'oferta przejdzie dalej.',
       'Organizator widzi w aplikacji moment, w którym skład przestaje być kompletny, ' +
-      'i moment, w którym znowu się zapełnia — bez odświeżania strony meczu co chwilę.',
+      'i moment, w którym znowu się zapełnia, bez odświeżania strony meczu co chwilę.',
     ],
   },
   {
     id: 'pieniadze',
-    label: 'Kto ile płaci — kalkulator kosztów',
-    tytul: 'Jak rozliczyć mecz ze znajomymi — kalkulator kosztów boiska',
+    label: 'Kto ile płaci: kalkulator kosztów',
+    tytul: 'Jak rozliczyć mecz ze znajomymi: kalkulator kosztów boiska',
     akapity: [
-      'Bojo liczy i pilnuje rozliczenia — nie przelewa pieniędzy. Wpisujesz koszt ' +
+      'Bojo liczy i pilnuje rozliczenia; nie przelewa pieniędzy. Wpisujesz koszt ' +
       'wynajmu obiektu, a Bojo dzieli go na miejsca i przelicza po każdej zmianie liczby ' +
       'graczy, więc cena od osoby jest zawsze aktualna.',
-      'Karty sportowe — Multisport, FitProfit, Medicover Sport i „inna", z własną nazwą — ' +
+      'Karty sportowe (Multisport, FitProfit, Medicover Sport i „inna", z własną nazwą) ' +
       'obniżają kwotę dla ich posiadaczy o kwotę, którą ustali organizator; bez podanej ' +
-      'kwoty aplikacja pokazuje „zniżka z karty — ustal kwotę" zamiast zgadywać. Sposób ' +
+      'kwoty aplikacja pokazuje „zniżka z karty, ustal kwotę" zamiast zgadywać. Sposób ' +
       'płatności: BLIK, gotówka albo inny, ustalony poza aplikacją.',
       'Numer BLIK organizatora widzi uczestnik dopiero 60 minut przed meczem. Wpłaty ' +
       'odhaczasz przełącznikiem przy nazwisku, a jeden przycisk składa wiadomość „kto ' +
-      'jeszcze nie oddał, ile i gdzie" — gotową do wklejenia na czat ekipy.',
+      'jeszcze nie oddał, ile i gdzie", gotową do wklejenia na czat ekipy.',
     ],
   },
   {
@@ -145,8 +145,8 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     tytul: 'Co robisz po gwizdku',
     akapity: [
       'Rozliczasz ekipę i wysyłasz zestawienie zaległości. Wpisujesz wynik, jeśli mecz ma ' +
-      'włączone wyniki — zapisuje się w statystykach graczy na ich profilach. Powtarzasz ' +
-      'mecz jednym kliknięciem, z tym samym miejscem, ustawieniami i ceną — zmieniasz ' +
+      'włączone wyniki, zapisuje się w statystykach graczy na ich profilach. Powtarzasz ' +
+      'mecz jednym kliknięciem, z tym samym miejscem, ustawieniami i ceną, zmieniasz ' +
       'tylko termin. Zapraszasz gości bez konta, żeby przejęli swój wpis i mieli od tej ' +
       'pory historię gier w jednym miejscu.',
     ],
@@ -162,13 +162,13 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
       'i licznik zajętych miejsc z paskiem postępu.',
       'Na dole ekranu ma dwa przyciski: „Dołącz bez konta →" i „Zaloguj się".',
       '„Dołącz bez konta" prosi tylko o imię i e-mail. Jeśli skład jest już pełny, Bojo ' +
-      'mówi to wprost: „Mecz ma już komplet — zapiszesz się na listę rezerwową jako N. ' +
+      'mówi to wprost: „Mecz ma już komplet, zapiszesz się na listę rezerwową jako N. ' +
       'w kolejce".',
-      'Po zapisie widzi swój faktyczny status — „Jesteś w składzie" albo „Jesteś na ' +
-      'liście rezerwowej" — nad już zaktualizowaną listą uczestników.',
+      'Po zapisie widzi swój faktyczny status, „Jesteś w składzie" albo „Jesteś na ' +
+      'liście rezerwowej", nad już zaktualizowaną listą uczestników.',
       'Dopiero potem pojawia się propozycja dokończenia konta. Można ją pominąć i po ' +
       'prostu zostać zapisanym.',
-      'Kto zakłada konto, przejmuje swój wpis — historia gier i statystyki lecą razem ' +
+      'Kto zakłada konto, przejmuje swój wpis: historia gier i statystyki lecą razem ' +
       'z nim od tej pory.',
     ],
   },
@@ -177,22 +177,22 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     label: 'Co Bojo powiadamia i gdzie',
     tytul: 'Co Bojo powiadamia i gdzie',
     akapity: [
-      'Powiadomienia są w aplikacji, pod dzwonkiem — najważniejsze zdarzenia z meczu: ' +
+      'Powiadomienia są w aplikacji, pod dzwonkiem, najważniejsze zdarzenia z meczu: ' +
       'oferta zwolnionego miejsca, akceptacja zapisu, zmiana terminu, miejsca lub kosztu, ' +
       'imienne zaproszenie na mecz, odwołanie lub usunięcie meczu, usunięcie ze składu ' +
       'oraz zmiana stanu kompletu składu (organizator dowiaduje się, gdy skład przestaje ' +
       'albo zaczyna być pełny).',
       'Dzień przed meczem Bojo przypomina o nim samo: skład dostaje godzinę i miejsce, ' +
-      'a organizator dodatkowo liczbę brakujących osób — czyli dokładnie tę informację, ' +
+      'a organizator dodatkowo liczbę brakujących osób, czyli dokładnie tę informację, ' +
       'przy której jeszcze da się kogoś dociągnąć. Po meczu organizator dostaje ' +
       'przypomnienie o wpisaniu wyniku i o nierozliczonych wpłatach, ale tylko wtedy, ' +
       'gdy naprawdę jest co domknąć.',
       'Poza dzwonkiem w aplikacji te same zdarzenia trafiają na telefon, jeśli włączysz ' +
       'powiadomienia w przeglądarce. Osoba zapisana bez konta nie ma dzwonka, więc ' +
-      'dostaje je mailem — na adres podany przy zapisie; bez adresu nie dostaje nic ' +
+      'dostaje je mailem, na adres podany przy zapisie; bez adresu nie dostaje nic ' +
       'i musi ją powiadomić organizator. Bojo nie wysyła SMS-ów.',
       'Kanałem, który i tak dociera najpewniej, jest link wysłany tam, gdzie ekipa już ' +
-      'rozmawia — dlatego to na nim opiera się cały produkt, a powiadomienia w aplikacji, ' +
+      'rozmawia, dlatego to na nim opiera się cały produkt, a powiadomienia w aplikacji, ' +
       'na telefonie i mailem są wsparciem, nie podstawą.',
     ],
   },
@@ -202,7 +202,7 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     tytul: 'Bojo a systemy rezerwacji obiektów',
     akapity: [
       'Bojo nie wynajmuje obiektów i nie pośredniczy w opłatach za termin. Halę czy ' +
-      'orlik załatwiasz tak jak dotąd — bezpośrednio z obiektem. Bojo zaczyna się krok ' +
+      'orlik załatwiasz tak jak dotąd: bezpośrednio z obiektem. Bojo zaczyna się krok ' +
       'później: gdy termin jest już Twój, a trzeba zebrać na niego ludzi, policzyć ' +
       'miejsca i podzielić rachunek. Dlatego Bojo bywa używane razem z systemem ' +
       'rezerwacji tego samego obiektu, nie zamiast niego.',
@@ -213,10 +213,10 @@ export const JAK_DZIALA: readonly SekcjaJakDziala[] = [
     label: 'Czego Bojo nie robi',
     tytul: 'Czego Bojo nie robi',
     akapity: [
-      'Nie rezerwuje boiska i nie płaci za nie — rezerwację ustalasz z obiektem tak jak ' +
-      'dotąd. Nie przelewa pieniędzy — tylko liczy, kto ile jest winien i kto już oddał. ' +
+      'Nie rezerwuje boiska i nie płaci za nie: rezerwację ustalasz z obiektem tak jak ' +
+      'dotąd. Nie przelewa pieniędzy: tylko liczy, kto ile jest winien i kto już oddał. ' +
       'Nie dobiera składu po poziomie umiejętności i nie ma rankingów. Nie awansuje ' +
-      'rezerwowego samodzielnie. Nie zastępuje czatu ekipy — to link do wklejenia w czat, ' +
+      'rezerwowego samodzielnie. Nie zastępuje czatu ekipy: to link do wklejenia w czat, ' +
       'nie osobny komunikator.',
     ],
   },

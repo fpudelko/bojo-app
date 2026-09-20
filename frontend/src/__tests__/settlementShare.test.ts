@@ -45,9 +45,9 @@ describe('tekstRozliczenia', () => {
     ];
     const tekst = tekstRozliczenia(bazowy, sklad);
     expect(tekst).toContain('Zaległości (2 osoby):');
-    expect(tekst).toContain('Marek — 20,00 zł');
-    expect(tekst).toContain('Kuba — 20,00 zł');
-    expect(tekst).not.toContain('Piotrek —');
+    expect(tekst).toContain('Marek: 20,00 zł');
+    expect(tekst).toContain('Kuba: 20,00 zł');
+    expect(tekst).not.toContain('Piotrek:');
   });
 
   it('pokazuje "dogadajmy kwotę" zamiast liczby przy nieustalonej zniżce kartowej', () => {
@@ -77,9 +77,9 @@ describe('tekstRozliczenia', () => {
       gracz({ id: 'b', name: 'Kuba', hasPaid: false }),
     ];
     const tekst = tekstRozliczenia(bazowy, sklad, new Set(['a']));
-    expect(tekst).toContain('Marek — 20,00 zł (nie przyszedł/-a)');
-    expect(tekst).toContain('Kuba — 20,00 zł');
-    expect(tekst).not.toContain('Kuba — 20,00 zł (nie przyszedł/-a)');
+    expect(tekst).toContain('Marek: 20,00 zł (nie przyszedł/-a)');
+    expect(tekst).toContain('Kuba: 20,00 zł');
+    expect(tekst).not.toContain('Kuba: 20,00 zł (nie przyszedł/-a)');
   });
 
   it('liczy zebrane i oczekiwane po uwzględnieniu zniżki kartowej', () => {

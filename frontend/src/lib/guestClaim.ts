@@ -199,7 +199,7 @@ export function tekstZaproszeniaGoscia(
     : `Cześć ${imieGoscia}! Ktoś zapisał Cię na mecz`;
 
   return `${wstep} „${tytul}" (${kiedy}) w Bojo.\n`
-    + `Masz miejsce w składzie — potwierdź, że to Ty, żeby mecz trafił na Twoją listę gier.\n`
+    + `Masz miejsce w składzie, potwierdź, że to Ty, żeby mecz trafił na Twoją listę gier.\n`
     + `Przy okazji odblokujesz:\n`
     + `• dołączanie do ekipy i powiadomienia o kolejnych meczach,\n`
     + `• zakładanie własnych gier,\n`

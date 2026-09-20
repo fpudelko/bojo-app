@@ -83,7 +83,7 @@ export default function PrzejmijClient({ token }: { token: string }) {
         'Miejsce dostanie kolejna osoba z listy rezerwowej.',
         // Ta sama reguła i ten sam tekst co dla konta (migracja `135`):
         // świadoma odmowa jest ostateczna, samo niezdążenie — nie.
-        'Wypadasz z kolejki rezerwowej — kolejnej oferty nie będzie. Organizator nadal może dopisać Cię ręcznie.',
+        'Wypadasz z kolejki rezerwowej, kolejnej oferty nie będzie. Organizator nadal może dopisać Cię ręcznie.',
       ],
       potwierdzLabel: 'Odpuszczam',
       wariant: 'destrukcyjny',
@@ -120,9 +120,9 @@ export default function PrzejmijClient({ token }: { token: string }) {
     if (await potwierdz({
       tytul: 'Wypisać Cię z tego meczu?',
       konsekwencje: [
-        'Zwolnisz swoje miejsce — dostanie je pierwsza osoba z listy rezerwowej.',
+        'Zwolnisz swoje miejsce, dostanie je pierwsza osoba z listy rezerwowej.',
         'Organizator zobaczy zmianę w składzie.',
-        'Żeby wrócić, trzeba zapisać się od nowa — a miejsca może już nie być.',
+        'Żeby wrócić, trzeba zapisać się od nowa, a miejsca może już nie być.',
       ],
       potwierdzLabel: 'Wypisz mnie',
       anulujLabel: 'Zostaję',
@@ -196,7 +196,7 @@ export default function PrzejmijClient({ token }: { token: string }) {
       <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
         <h1 className="font-display text-xl font-bold text-ink">Wypisaliśmy Cię z meczu</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Twoje miejsce wróciło do puli. Jeśli to pomyłka, możesz zapisać się jeszcze raz —
+          Twoje miejsce wróciło do puli. Jeśli to pomyłka, możesz zapisać się jeszcze raz,
           o ile miejsce nadal jest wolne.
         </p>
         <Link href={`/wydarzenia/${podglad.eventId}`} className="mt-5 inline-block">
@@ -231,7 +231,7 @@ export default function PrzejmijClient({ token }: { token: string }) {
           <Ban className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
           <div>
             <p className="text-sm font-semibold text-red-700">Mecz odwołany</p>
-            <p className="text-xs text-red-600">Organizator odwołał ten mecz — nie odbędzie się.</p>
+            <p className="text-xs text-red-600">Organizator odwołał ten mecz, nie odbędzie się.</p>
           </div>
         </div>
       )}
@@ -242,7 +242,7 @@ export default function PrzejmijClient({ token }: { token: string }) {
         <div className="mb-4 rounded-2xl border-2 border-green-300 bg-green-50 p-4">
           <p className="flex items-center gap-2 text-sm font-bold text-green-900">
             <TicketCheck className="h-4 w-4 shrink-0" />
-            Zwolniło się miejsce — jest Twoje
+            Zwolniło się miejsce, jest Twoje
           </p>
           <p className="mt-1 text-xs text-green-800">
             Masz czas do{' '}
@@ -281,8 +281,8 @@ export default function PrzejmijClient({ token }: { token: string }) {
           w składzie dwie pozycje o tym samym imieniu. */}
       <p className="mt-1 text-sm text-slate-600">
         {podglad.moznaZmieniac
-          ? 'Zachowaj ten link — stąd sprawdzisz mecz i wypiszesz się, gdyby coś wypadło.'
-          : 'Ten mecz już się zaczął — składu nie da się już zmienić.'}
+          ? 'Zachowaj ten link, stąd sprawdzisz mecz i wypiszesz się, gdyby coś wypadło.'
+          : 'Ten mecz już się zaczął, składu nie da się już zmienić.'}
       </p>
 
       <div className="mt-4 space-y-1.5 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
@@ -322,7 +322,7 @@ export default function PrzejmijClient({ token }: { token: string }) {
 
       {user ? (
         <Button onClick={przejmij} isLoading={zajete} className="mt-5 w-full" size="lg">
-          To ja — potwierdzam
+          To ja, potwierdzam
         </Button>
       ) : (
         <>
@@ -332,7 +332,7 @@ export default function PrzejmijClient({ token }: { token: string }) {
             <Button className="mt-5 w-full" size="lg">Zaloguj się i potwierdź</Button>
           </Link>
           <p className="mt-2 text-center text-xs text-slate-500">
-            Nie masz konta? Załóż je w tym samym kroku — wrócisz tu automatycznie.
+            Nie masz konta? Załóż je w tym samym kroku, wrócisz tu automatycznie.
           </p>
 
           {/* Po co komu konto. Poprzednia wersja obiecywała „swój udział,
@@ -377,7 +377,7 @@ export default function PrzejmijClient({ token }: { token: string }) {
           disabled={zajete}
           className="mt-5 w-full border-t border-slate-100 pt-4 text-center text-sm font-semibold text-red-600 transition hover:text-red-700 disabled:opacity-50"
         >
-          Nie mogę grać — wypisz mnie
+          Nie mogę grać, wypisz mnie
         </button>
       )}
 

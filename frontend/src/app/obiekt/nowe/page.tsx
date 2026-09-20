@@ -19,7 +19,7 @@ const SPORTS = [
 ] as const;
 
 const SURFACES = [
-  { value: '', label: '— wybierz —' },
+  { value: '', label: 'Wybierz' },
   { value: 'grass', label: 'Trawa' },
   { value: 'artificial', label: 'Sztuczna' },
   { value: 'concrete', label: 'Beton' },

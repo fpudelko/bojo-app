@@ -73,25 +73,25 @@ describe('opisObiektu — biernik dla „do gry w X"', () => {
   it('piłka nożna → piłkę nożną', () => {
     expect(opisObiektu({
       name: 'Orlik', sport: ['piłka nożna'], city: 'Poznań', surface: 'artificial', isIndoor: false, lit: true,
-    })).toContain('przeznaczony do gry w piłkę nożną —');
+    })).toContain('przeznaczony do gry w piłkę nożną:');
   });
 
   it('kilka sportów naraz, każdy w bierniku', () => {
     expect(opisObiektu({
       name: 'Hala', sport: ['koszykówka', 'siatkówka'], city: undefined, surface: '', isIndoor: true, lit: undefined,
-    })).toContain('przeznaczony do gry w koszykówkę, siatkówkę —');
+    })).toContain('przeznaczony do gry w koszykówkę, siatkówkę:');
   });
 
   it('„wielofunkcyjne" (import OSM sport=multi) dostaje opisowe zastępstwo, nie fałszywą odmianę', () => {
     expect(opisObiektu({
       name: 'Orlik przy SP 4', sport: ['wielofunkcyjne'], city: 'Łódź', surface: 'concrete', isIndoor: false, lit: false,
-    })).toContain('przeznaczony do gry w różne sporty —');
+    })).toContain('przeznaczony do gry w różne sporty:');
   });
 
   it('sport spoza mapy (nierozpoznany) zostaje w mianowniku zamiast wywalić się', () => {
     expect(opisObiektu({
       name: 'Kort', sport: ['kort do squasha'], city: undefined, surface: '', isIndoor: true, lit: undefined,
-    })).toContain('przeznaczony do gry w kort do squasha —');
+    })).toContain('przeznaczony do gry w kort do squasha:');
   });
 });
 

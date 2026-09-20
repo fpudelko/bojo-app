@@ -54,7 +54,7 @@ export default function CzyGramyPanel({ event, participants, canManage }: {
             <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
             <p className="text-sm font-bold text-ink">
               Brakuje {werdykt.brakuje} do minimum
-              <span className="font-normal text-slate-500"> — {wSkladzie}/{event.minPlayers}</span>
+              <span className="font-normal text-slate-500">: {wSkladzie}/{event.minPlayers}</span>
             </p>
           </>
         )}

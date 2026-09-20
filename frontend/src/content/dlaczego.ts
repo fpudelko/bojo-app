@@ -16,14 +16,14 @@ export const DLACZEGO_ODPOWIEDZ =
   'Organizator wysyła jeden link na czat ekipy.';
 
 export const CO_UWIERA: readonly string[] = [
-  'Liczenie „+1" w komentarzach pod postem — trzeba przewinąć cały wątek, żeby wiedzieć, ' +
+  'Liczenie „+1" w komentarzach pod postem, trzeba przewinąć cały wątek, żeby wiedzieć, ' +
   'ile osób realnie przyjdzie.',
-  'Ludzie odpadający w środku wątku, którego nikt nie czyta do końca — organizator ' +
+  'Ludzie odpadający w środku wątku, którego nikt nie czyta do końca, organizator ' +
   'dowiaduje się o rezygnacji przypadkiem, na boisku.',
-  '„Może wpadnę" nie do odróżnienia od „będę" — nie wiadomo, czy liczyć to miejsce, czy nie.',
-  'Ankieta bez limitu miejsc i bez kolejki — chętnych ponad limit nikt nie porządkuje, ' +
+  '„Może wpadnę" nie do odróżnienia od „będę", nie wiadomo, czy liczyć to miejsce, czy nie.',
+  'Ankieta bez limitu miejsc i bez kolejki, chętnych ponad limit nikt nie porządkuje, ' +
   'wchodzi kto pierwszy kliknął.',
-  'Kto ile oddał za wynajem — liczone w pamięci albo w osobnej notatce, która ginie razem ' +
+  'Kto ile oddał za wynajem: liczone w pamięci albo w osobnej notatce, która ginie razem ' +
   'z wątkiem.',
 ];
 
@@ -33,15 +33,15 @@ export interface WierszPorownania {
   bojo: string;
 }
 
-/** Gotowe teksty do skopiowania — od 2026-09-18. Strategia fazy 1 mówi wprost:
+/** Gotowe teksty do skopiowania, od 2026-09-18. Strategia fazy 1 mówi wprost:
  *  dać organizatorowi ARGUMENTY, którymi przebije ścianę zakładania kont
  *  u graczy. Sekcja „Moi gracze nie założą konta" niżej tłumaczy argument
- *  JEMU; to jest ta różnica — tekst do WYSŁANIA, nie do przeczytania.
+ *  JEMU; to jest ta różnica: tekst do WYSŁANIA, nie do przeczytania.
  *
  *  Każde zdanie ma pokrycie w kodzie. Mail chroni WYŁĄCZNIE przed
  *  dublowaniem zapisu (ten sam adres nie zapisze się dwa razy na ten sam
  *  mecz) i przed utratą kontaktu przy zmianie/odwołaniu meczu (migracje
- *  `133`, `139`, `140` — poczta do gościa z zapisanym adresem) — NIE chroni
+ *  `133`, `139`, `140`, poczta do gościa z zapisanym adresem). NIE chroni
  *  przed obcymi: kto ma link, ten wejdzie (patrz outreach-organizatorzy.md
  *  §3, ta sama uwaga). Nie dopisywać tu ochrony przed obcymi. */
 export interface TekstDlaEkipy {
@@ -54,7 +54,7 @@ export const CO_NAPISAC_EKIPIE: readonly TekstDlaEkipy[] = [
     kiedy: 'Gdy wrzucasz link na grupę',
     tekst:
       'Zapisy na ten mecz są tutaj. Klikasz, wpisujesz imię i maila i jesteś ' +
-      'w składzie — bez zakładania konta i bez instalowania czegokolwiek. Widać na ' +
+      'w składzie: bez zakładania konta i bez instalowania czegokolwiek. Widać na ' +
       'bieżąco, kto gra, kto jest na rezerwie i ile zostało miejsc.',
   },
   {
@@ -75,7 +75,7 @@ export const CO_NAPISAC_EKIPIE: readonly TekstDlaEkipy[] = [
 export const TABELA_POROWNAWCZA: readonly WierszPorownania[] = [
   { co: 'Liczenie składu', fb: 'ręcznie, w komentarzach', bojo: 'licznik zajętych miejsc i twardy limit' },
   { co: 'Chętni ponad limit', fb: 'kto pierwszy, ten lepszy', bojo: 'lista rezerwowa z kolejnością' },
-  { co: '„Może wpadnę"', fb: 'nie do odróżnienia od „będę"', bojo: 'osobny status „Obserwuję" — nie zajmuje miejsca' },
+  { co: '„Może wpadnę"', fb: 'nie do odróżnienia od „będę"', bojo: 'osobny status „Obserwuję", nie zajmuje miejsca' },
   { co: 'Bramkarz', fb: 'prośba w wątku', bojo: 'osobny limit miejsc dla bramkarzy' },
   { co: 'Kto ile płaci', fb: 'liczone w pamięci', bojo: 'koszt dzielony, zniżki z kart sportowych, odhaczanie wpłat' },
   { co: 'Kto jeszcze nie oddał', fb: 'przewijasz wątek', bojo: 'gotowa wiadomość jednym przyciskiem' },
@@ -112,7 +112,7 @@ export const DLACZEGO_PROZA: readonly SekcjaProza[] = [
       'Dziś jesteśmy na początku tej drogi: publicznych gier na liście otwartych meczów ' +
       'bywa mało, więc najpewniejszy skład zbierzesz linkiem do swoich, nie licząc na to, ' +
       'że dopiszą się obcy. Katalog obejmuje ponad 30 000 obiektów sportowych w całej ' +
-      'Polsce, ale szczegóły — nawierzchnię, typ obiektu, zdjęcia — uzupełniamy obiekt po ' +
+      'Polsce, ale szczegóły (nawierzchnię, typ obiektu, zdjęcia) uzupełniamy obiekt po ' +
       'obiekcie.',
     ],
   },
@@ -128,7 +128,7 @@ export const DLACZEGO_PROZA: readonly SekcjaProza[] = [
       'o 20:00" i przyjmuje opłatę za termin. Komunikator (WhatsApp, Messenger) ' +
       'odpowiada na „kto idzie", ale liczyć trzeba samemu. Bojo jest trzecią rzeczą: ' +
       'przyjmuje zapisy na konkretny, już ustalony termin, liczy skład i rezerwę i dzieli ' +
-      'koszt na graczy. Bojo nie rezerwuje obiektu i nie zastępuje czatu ekipy — działa ' +
+      'koszt na graczy. Bojo nie rezerwuje obiektu i nie zastępuje czatu ekipy: działa ' +
       'obok jednego i drugiego.',
     ],
   },
@@ -137,7 +137,7 @@ export const DLACZEGO_PROZA: readonly SekcjaProza[] = [
     tytul: '„Moi gracze nie założą konta w kolejnej apce"',
     akapity: [
       'Nie muszą. Osoba z linkiem podaje imię i e-mail i jest w składzie. Bez hasła, bez ' +
-      'potwierdzania adresu, bez instalowania aplikacji — Bojo działa w przeglądarce. ' +
+      'potwierdzania adresu, bez instalowania aplikacji: Bojo działa w przeglądarce. ' +
       'Konto zakłada ten, kto sam zechce zobaczyć swoją historię i statystyki, i może to ' +
       'zrobić po meczu, nie przed nim.',
     ],
@@ -146,7 +146,7 @@ export const DLACZEGO_PROZA: readonly SekcjaProza[] = [
     id: 'czego-nie-zastapi',
     tytul: 'Czego Bojo nie zastąpi',
     akapity: [
-      'Bojo nie jest komunikatorem. Nie wyśle SMS-a i nie zastąpi rozmowy ekipy — ' +
+      'Bojo nie jest komunikatorem. Nie wyśle SMS-a i nie zastąpi rozmowy ekipy: ' +
       'powiadomienia dostajesz w aplikacji, pod dzwonkiem, a jeśli je włączysz, także na ' +
       'telefon. Czat ekipy zostaje tam, gdzie jest; Bojo daje jeden link, który się ' +
       'w tym czacie wkleja i który liczy to, czego czat policzyć nie umie.',

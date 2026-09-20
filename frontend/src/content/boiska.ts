@@ -13,7 +13,7 @@
 
 export function wstepHubuSportu(ile: number, dopelniaczSportu: string): string {
   return (
-    `W katalogu Bojo jest ${ile} obiektów do gry w ${dopelniaczSportu} — od orlików ` +
+    `W katalogu Bojo jest ${ile} obiektów do gry w ${dopelniaczSportu}: od orlików ` +
     'i boisk osiedlowych po hale. Dane pochodzą z OpenStreetMap, a szczegóły takie ' +
     'jak nawierzchnia i oświetlenie potwierdzają gracze przy poszczególnych obiektach. ' +
     'Bojo nie wynajmuje tych obiektów: służy do zebrania składu na termin, który już masz.'
@@ -22,8 +22,8 @@ export function wstepHubuSportu(ile: number, dopelniaczSportu: string): string {
 
 export function wstepHubuWojewodztwa(ile: number, wojewodztwoLabel: string): string {
   return (
-    `W katalogu Bojo jest ${ile} obiektów sportowych w województwie ${wojewodztwoLabel} ` +
-    '— od orlików i boisk osiedlowych po hale. Dane pochodzą z OpenStreetMap, ' +
+    `W katalogu Bojo jest ${ile} obiektów sportowych w województwie ${wojewodztwoLabel}: ` +
+    'od orlików i boisk osiedlowych po hale. Dane pochodzą z OpenStreetMap, ' +
     'a szczegóły takie jak nawierzchnia i oświetlenie potwierdzają gracze przy ' +
     'poszczególnych obiektach. Bojo nie wynajmuje tych obiektów: służy do zebrania ' +
     'składu na termin, który już masz.'
@@ -36,8 +36,8 @@ export function wstepHubuWojewodztwa(ile: number, wojewodztwoLabel: string): str
  *  wyprowadzić regułą dla stu miast priorytetowych bez słownika odmian. */
 export function wstepHubuSportuMiasta(ile: number, dopelniaczSportu: string, miasto: string): string {
   return (
-    `W katalogu Bojo jest ${ile} obiektów do gry w ${dopelniaczSportu} w miejscowości ${miasto} ` +
-    '— od orlików i boisk osiedlowych po hale. Dane pochodzą z OpenStreetMap, ' +
+    `W katalogu Bojo jest ${ile} obiektów do gry w ${dopelniaczSportu} w miejscowości ${miasto}: ` +
+    'od orlików i boisk osiedlowych po hale. Dane pochodzą z OpenStreetMap, ' +
     'a szczegóły takie jak nawierzchnia i oświetlenie potwierdzają gracze przy ' +
     'poszczególnych obiektach. Bojo nie wynajmuje tych obiektów: służy do zebrania ' +
     'składu na termin, który już masz.'

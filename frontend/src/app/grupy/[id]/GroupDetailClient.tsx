@@ -285,7 +285,7 @@ export default function GroupDetailClient() {
       konsekwencje: [
         'Stracisz dostęp do rozmowy ekipy i do jej prywatnych meczów.',
         'Twoje wpisy na tablicy i historia meczów zostają.',
-        'Wrócisz przez link albo kod zaproszenia — jeśli go masz.',
+        'Wrócisz przez link albo kod zaproszenia, jeśli go masz.',
       ],
       potwierdzLabel: 'Opuszczam ekipę',
       anulujLabel: 'Zostaję',
@@ -302,7 +302,7 @@ export default function GroupDetailClient() {
       konsekwencje: [
         'Straci dostęp do rozmowy ekipy i do jej prywatnych meczów.',
         'Jego wpisy na tablicy i udział w rozegranych meczach zostają.',
-        'Ze składu nadchodzących meczów NIE wypisuje się sam — to trzeba zrobić osobno.',
+        'Ze składu nadchodzących meczów NIE wypisuje się sam, to trzeba zrobić osobno.',
       ],
       potwierdzLabel: 'Usuń z ekipy',
       anulujLabel: 'Zostaw',
@@ -565,7 +565,7 @@ export default function GroupDetailClient() {
           <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/70 p-4">
             <p className="text-sm font-semibold text-ink">Zaproszenie do ekipy „{group.name}”</p>
             <p className="mt-1 text-sm text-slate-600">
-              Ten link jest nieaktualny — poproś kogoś z ekipy o nowy.
+              Ten link jest nieaktualny, poproś kogoś z ekipy o nowy.
             </p>
           </div>
         )}
@@ -674,7 +674,7 @@ export default function GroupDetailClient() {
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               Nie musisz dodawać do ekipy jak najwięcej osób. Jeśli zrobisz mecz
-              publicznym, zobaczą go też gracze spoza ekipy — z okolicy.
+              publicznym, zobaczą go też gracze spoza ekipy, z okolicy.
             </p>
           </div>
         )}

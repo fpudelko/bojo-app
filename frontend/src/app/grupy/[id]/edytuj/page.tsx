@@ -104,7 +104,7 @@ export default function EditGroupPage() {
     if (await potwierdz({
       tytul: 'Wygenerować nowy link do ekipy?',
       konsekwencje: [
-        'Stary link i kod przestaną działać — kto ma je zapisane, nie wejdzie.',
+        'Stary link i kod przestaną działać, kto ma je zapisane, nie wejdzie.',
         'Kto już jest w ekipie, zostaje.',
         'Nowy link trzeba rozesłać jeszcze raz.',
       ],
@@ -153,7 +153,7 @@ export default function EditGroupPage() {
       konsekwencje: [
         'Stracisz dostęp do rozmowy ekipy i do jej prywatnych meczów.',
         'Twoje wpisy na tablicy i historia meczów zostają.',
-        'Wrócisz przez link albo kod zaproszenia — jeśli go masz.',
+        'Wrócisz przez link albo kod zaproszenia, jeśli go masz.',
       ],
       potwierdzLabel: 'Opuszczam ekipę',
       anulujLabel: 'Zostaję',
@@ -174,7 +174,7 @@ export default function EditGroupPage() {
       tytul: `Usunąć ekipę ${group.name}?`,
       konsekwencje: [
         'Znika rozmowa ekipy, tablica, skład i statystyki.',
-        'Rozegrane i nadchodzące mecze ZOSTAJĄ — przestają tylko być przypisane do ekipy.',
+        'Rozegrane i nadchodzące mecze ZOSTAJĄ, przestają tylko być przypisane do ekipy.',
         'Członkowie stracą dostęp do prywatnych meczów tej ekipy.',
         'Tego nie da się cofnąć.',
       ],

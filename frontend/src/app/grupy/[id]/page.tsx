@@ -21,21 +21,21 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
       .eq('id', params.id)
       .maybeSingle();
 
-    if (!data) return { title: 'Grupa — Bojo' };
+    if (!data) return { title: 'Grupa: Bojo' };
 
     const detale = [data.sport, data.city].filter(Boolean).join(' · ');
     const description = data.description?.trim()
-      || (detale ? `Stała ekipa w Bojo — ${detale}.` : 'Stała ekipa w Bojo: mecze, skład i historia w jednym miejscu.');
+      || (detale ? `Stała ekipa w Bojo: ${detale}.` : 'Stała ekipa w Bojo: mecze, skład i historia w jednym miejscu.');
 
     return {
-      title: `${data.name} — grupa w Bojo`,
+      title: `${data.name}: grupa w Bojo`,
       description,
       alternates: { canonical: `/grupy/${params.id}` },
-      openGraph: { title: `${data.name} — grupa w Bojo`, description },
+      openGraph: { title: `${data.name}: grupa w Bojo`, description },
     };
   } catch {
     // Brak sieci przy budowaniu metadanych nie może wywrócić całej strony.
-    return { title: 'Grupa — Bojo' };
+    return { title: 'Grupa: Bojo' };
   }
 }
 

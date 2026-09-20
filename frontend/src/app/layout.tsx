@@ -114,14 +114,14 @@ export const metadata: Metadata = {
   // Rozdzielenie jest celem; nie ujednolicaj ich „dla spójności".
   openGraph: {
     title: HASLO_PODGLADU,
-    description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
+    description: 'Znajdź boisko, zbierz skład i zagraj, w całej Polsce. Bez szukania po grupach na Facebooku.',
     locale: 'pl_PL',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: HASLO_PODGLADU,
-    description: 'Znajdź boisko, zbierz skład i zagraj — w całej Polsce. Bez szukania po grupach na Facebooku.',
+    description: 'Znajdź boisko, zbierz skład i zagraj, w całej Polsce. Bez szukania po grupach na Facebooku.',
   },
   // Favicon SVG jest wklejony jako data-URI w <head> niżej. Tutaj dokładamy
   // wyłącznie `apple-touch-icon`, bo iOS IGNORUJE ikony z manifestu i czyta

@@ -286,7 +286,7 @@ function UnassignedTray({
       ].join(' ')}
     >
       <p className="text-xs font-semibold text-slate-500 mb-2.5">
-        Nieprzypisani — {participants.length}
+        Nieprzypisani: {participants.length}
       </p>
       <div className="space-y-1.5">
         {participants.map((p) =>
@@ -428,7 +428,7 @@ export default function TeamsPanel({
           <span className="flex-1 min-w-0">
             <span className="block text-sm font-medium text-ink">Opublikuj składy</span>
             <span className="block text-xs text-slate-500">
-              {teamsPublished ? 'Gracze widzą podział na drużyny' : 'Tylko Ty widzisz skład — gracze nie'}
+              {teamsPublished ? 'Gracze widzą podział na drużyny' : 'Tylko Ty widzisz skład, gracze nie'}
             </span>
           </span>
           <span className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', teamsPublished ? 'bg-primary-700' : 'bg-slate-300'].join(' ')}>

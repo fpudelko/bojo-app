@@ -191,7 +191,7 @@ export default function GroupsPage() {
             <span className="text-5xl">👥</span>
             <p className="text-base font-semibold text-ink">Nie masz jeszcze ekipy</p>
             <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
-              Ekipa to stała paczka, z którą grasz. Terminy, skład i rozliczenia w jednym miejscu —
+              Ekipa to stała paczka, z którą grasz. Terminy, skład i rozliczenia w jednym miejscu,
               zamiast liczenia plusów w czacie.
             </p>
             <Link href="/grupy/nowe" className="mt-1">

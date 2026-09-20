@@ -102,7 +102,7 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
     <span
       role="link"
       tabIndex={0}
-      aria-label={`Otwórz rozmowę — ${withCount(unreadMessages!, 'nieprzeczytana wiadomość', 'nieprzeczytane wiadomości', 'nieprzeczytanych wiadomości')}`}
+      aria-label={`Otwórz rozmowę: ${withCount(unreadMessages!, 'nieprzeczytana wiadomość', 'nieprzeczytane wiadomości', 'nieprzeczytanych wiadomości')}`}
       onClick={idzDoRozmowy}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') idzDoRozmowy(e); }}
       className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 transition-colors hover:bg-pink-200 dark:bg-pink-950 dark:text-pink-300"

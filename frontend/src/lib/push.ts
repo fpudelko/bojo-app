@@ -228,11 +228,11 @@ export function widziDiagnostyke(email: string | null | undefined): boolean {
  */
 export async function probnePowiadomienie(): Promise<void> {
   const rejestracja = await navigator.serviceWorker.getRegistration();
-  if (!rejestracja) throw new Error('Aplikacja nie jest jeszcze gotowa — odśwież stronę.');
+  if (!rejestracja) throw new Error('Aplikacja nie jest jeszcze gotowa, odśwież stronę.');
   if (Notification.permission !== 'granted') {
     throw new Error('Najpierw włącz powiadomienia.');
   }
-  await rejestracja.showNotification('Bojo — próbne powiadomienie', {
+  await rejestracja.showNotification('Bojo: próbne powiadomienie', {
     body: 'Jeśli to widzisz, telefon wyświetla powiadomienia poprawnie.',
     icon: '/ikony/ikona-192.png',
     badge: '/ikony/maskowalna-192.png',

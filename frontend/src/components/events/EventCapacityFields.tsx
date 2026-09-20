@@ -33,7 +33,7 @@ const TRYBY = [
     zarezerwowane: false,
     tytul: 'Rozróżniaj, ale nie rezerwuj miejsc',
     opis: (miejsca: number, bramkarze: number) =>
-      `Gracze wybierają rolę, ale o ${miejsca} miejsc konkurują wszyscy — kto pierwszy, `
+      `Gracze wybierają rolę, ale o ${miejsca} miejsc konkurują wszyscy, kto pierwszy, `
       + `ten w składzie. Bramkarzy nie wejdzie więcej niż ${bramkarze}. `
       + `Może się zdarzyć komplet bez bramkarza.`,
   },
@@ -44,7 +44,7 @@ const TRYBY = [
     tytul: 'Rezerwuj miejsca dla bramkarzy',
     opis: (miejsca: number, bramkarze: number) =>
       `${miejsca} miejsc = ${Math.max(0, miejsca - bramkarze)} w polu + ${bramkarze} dla bramkarzy. `
-      + `Miejsca bramkarzy czekają na nich do końca — kolejny zawodnik z pola trafi na rezerwę, `
+      + `Miejsca bramkarzy czekają na nich do końca, kolejny zawodnik z pola trafi na rezerwę, `
       + `nawet jeśli bramkarz się nie zapisze.`,
   },
 ] as const;
@@ -129,14 +129,14 @@ export function MiejscaWSkladzie({
                 wyłącznie tego, żeby wiedział, co robi. */}
             {zapisanych != null && zapisanych > maxPlayers && (
               <p className="mt-1.5 text-xs font-medium text-amber-600">
-                Zapisanych jest {zapisanych} — {zapisanych - maxPlayers}{' '}
+                Zapisanych jest {zapisanych}, {zapisanych - maxPlayers}{' '}
                 {zapisanych - maxPlayers === 1 ? 'osoba będzie' : 'osoby/osób będzie'} nad limitem.
                 Nikt nie zostanie usunięty ze składu.
               </p>
             )}
           </div>
           <p className="min-w-0 text-xs text-slate-500 sm:flex-1 sm:text-right">
-            Graczy dopiszesz po utworzeniu — na stronie meczu, też bez konta.
+            Graczy dopiszesz po utworzeniu, na stronie meczu, też bez konta.
           </p>
         </div>
 

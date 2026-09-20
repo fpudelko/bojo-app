@@ -89,7 +89,7 @@ export default function PowiadomieniaPush() {
         toast('Powiadomienia wyłączone');
       } else {
         await wlaczPush(user.id);
-        toast('Powiadomienia włączone — damy znać o meczach');
+        toast('Powiadomienia włączone, damy znać o meczach');
       }
       odswiez();
     } catch (blad) {
@@ -134,8 +134,8 @@ export default function PowiadomieniaPush() {
               : stan === 'wymaga-instalacji'
                 ? 'Na iPhonie działają dopiero po dodaniu Bojo do ekranu głównego: Udostępnij → „Dodaj do ekranu początkowego".'
                 : stan === 'zablokowane'
-                  ? `Przeglądarka zablokowała powiadomienia dla ${host}. Chrome robi to sam, gdy okienko z prośbą zostanie dwa razy zamknięte — nie trzeba było niczego świadomie odrzucać.`
-                  : 'Nowy mecz ekipy, wiadomość w rozmowie, zwolnione miejsce — bez zaglądania do aplikacji.'}
+                  ? `Przeglądarka zablokowała powiadomienia dla ${host}. Chrome robi to sam, gdy okienko z prośbą zostanie dwa razy zamknięte, nie trzeba było niczego świadomie odrzucać.`
+                  : 'Nowy mecz ekipy, wiadomość w rozmowie, zwolnione miejsce, bez zaglądania do aplikacji.'}
           </p>
 
           {stan === 'zablokowane' && (
@@ -208,7 +208,7 @@ export default function PowiadomieniaPush() {
           onClick={async () => {
             try {
               await probnePowiadomienie();
-              toast('Wysłane — powinno pojawić się za chwilę');
+              toast('Wysłane, powinno pojawić się za chwilę');
             } catch (blad) {
               toast(blad instanceof Error ? blad.message : 'Nie udało się wysłać próbnego', 'error');
             }

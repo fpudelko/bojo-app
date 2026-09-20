@@ -21,7 +21,7 @@ const SPORTS = [
 ] as const;
 
 const SURFACES = [
-  { value: '', label: '— nieznana —' },
+  { value: '', label: 'Nieznana' },
   { value: 'grass', label: 'Trawa naturalna' },
   { value: 'artificial', label: 'Trawa sztuczna' },
   { value: 'concrete', label: 'Beton / asfalt' },

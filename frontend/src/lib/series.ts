@@ -26,7 +26,7 @@ export const ETYKIETY_ZAKRESU: Record<ZakresEdycji, { tytul: string; opis: strin
   },
   'cala-seria': {
     tytul: 'Cała seria',
-    opis: 'Zmiana obejmie też terminy już rozegrane — użyj przy prostowaniu pomyłki.',
+    opis: 'Zmiana obejmie też terminy już rozegrane, użyj przy prostowaniu pomyłki.',
   },
 };
 

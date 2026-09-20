@@ -53,7 +53,7 @@ describe('lista rezerwowa jako wybór organizatora', () => {
     // A to jest ścieżka gracza zaproszonego linkiem od organizatora.
     // Dziś bramka stoi PRZED rozgałęzieniem na `user`, więc bez `user &&`.
     expect(stronaMeczu).toMatch(/!authLoading && isFull && !event\.reserveEnabled/);
-    expect(stronaMeczu).toContain('Komplet — zapisy zamknięte');
+    expect(stronaMeczu).toContain('Komplet: zapisy zamknięte');
   });
 
   it('bramka kompletu NIE jest zawężona do zalogowanych', () => {

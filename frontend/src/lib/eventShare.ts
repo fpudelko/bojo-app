@@ -113,7 +113,7 @@ export function eventShareText(e: DaneDoUdostepnienia, stan?: StanUdostepnienia)
       const czasownik = plural(stan.wolneMiejsca, 'Zostało', 'Zostały', 'Zostało');
       return `${czasownik} ${withCount(stan.wolneMiejsca, 'miejsce', 'miejsca', 'miejsc')}`;
     }
-    return stan.reserveEnabled ? 'Komplet — wejdź na rezerwę' : 'Komplet';
+    return stan.reserveEnabled ? 'Komplet, wejdź na rezerwę' : 'Komplet';
   })();
   const cena = e.costGrosze > 0
     ? `${(e.costGrosze / 100).toFixed(2).replace('.', ',')} zł od osoby`

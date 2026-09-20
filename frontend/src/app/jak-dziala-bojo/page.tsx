@@ -37,7 +37,7 @@ export default function JakDzialaBojoPage() {
   return (
     <StronaTresci
       nadtytul="Jak działa Bojo"
-      h1="Jak działa Bojo — od pomysłu na mecz do rozliczenia"
+      h1="Jak działa Bojo: od pomysłu na mecz do rozliczenia"
       lead="Krok po kroku, bez niedomówień: co ustawiasz, co widzi zaproszony i co Bojo robi samo."
       tytulDlaOkruszkow="Jak działa Bojo"
     >
@@ -80,7 +80,7 @@ export default function JakDzialaBojoPage() {
       <section className="rounded-2xl border border-primary-200 bg-primary-50 p-5 dark:border-primary-800 dark:bg-primary-950">
         <p className="font-display text-lg font-bold text-ink">Gotowy spróbować?</p>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-          Kreator zajmuje dwie minuty — sport, boisko z mapy, termin, liczba miejsc.
+          Kreator zajmuje dwie minuty: sport, boisko z mapy, termin, liczba miejsc.
         </p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <Link

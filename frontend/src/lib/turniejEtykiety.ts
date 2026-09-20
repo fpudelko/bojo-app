@@ -47,8 +47,8 @@ export const FORMAT_LABEL: Record<TurniejFormat, string> = {
 
 export const FORMAT_OPIS: Record<TurniejFormat, string> = {
   grupy_puchar: 'Drużyny grają najpierw w grupach, dwie najlepsze z każdej awansują do drabinki pucharowej.',
-  puchar:       'Od razu drabinka pucharowa — przegrana kończy udział w turnieju.',
-  liga:         'Każdy z każdym, bez fazy pucharowej — liczy się tylko tabela.',
+  puchar:       'Od razu drabinka pucharowa, przegrana kończy udział w turnieju.',
+  liga:         'Każdy z każdym, bez fazy pucharowej, liczy się tylko tabela.',
 };
 
 export const FAZA_LABEL: Record<MeczFaza, string> = {

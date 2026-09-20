@@ -50,7 +50,7 @@ export default function WylaczAlertClient() {
         <AlertTriangle className="mx-auto h-6 w-6 text-amber-600" aria-hidden />
         <p className="mt-2 text-sm font-semibold text-amber-900">Nie udało się wyłączyć</p>
         <p className="mt-1 text-sm text-amber-800">
-          Spróbuj jeszcze raz za chwilę albo wyłącz alert w aplikacji — w liście
+          Spróbuj jeszcze raz za chwilę albo wyłącz alert w aplikacji, w liście
           meczów, pod dzwonkiem.
         </p>
       </div>
@@ -66,7 +66,7 @@ export default function WylaczAlertClient() {
       <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-950">
         <BellOff className="h-5 w-5 text-primary-700" aria-hidden />
       </span>
-      <p className="mt-3 text-base font-bold text-ink">Gotowe — nie damy już znać</p>
+      <p className="mt-3 text-base font-bold text-ink">Gotowe, nie damy już znać</p>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         Alert o nowych meczach w okolicy jest wyłączony. Nie musisz nic więcej robić.
       </p>

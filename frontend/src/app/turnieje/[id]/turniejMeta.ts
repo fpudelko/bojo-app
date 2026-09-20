@@ -16,19 +16,19 @@ export async function generateTurniejMetadata(id: string): Promise<Metadata> {
       .eq('id', id)
       .maybeSingle();
 
-    if (!data) return { title: 'Turniej — Bojo' };
+    if (!data) return { title: 'Turniej: Bojo' };
 
     const detale = [data.sport, data.miasto].filter(Boolean).join(' · ');
     const description = data.opis?.trim()
-      || (detale ? `Turniej w Bojo — ${detale}.` : 'Turniej amatorski w Bojo: zapisy drużyn, terminarz i wyniki na żywo.');
+      || (detale ? `Turniej w Bojo: ${detale}.` : 'Turniej amatorski w Bojo: zapisy drużyn, terminarz i wyniki na żywo.');
 
     return {
-      title: `${data.nazwa} — turniej w Bojo`,
+      title: `${data.nazwa}: turniej w Bojo`,
       description,
       alternates: { canonical: `/turnieje/${id}` },
-      openGraph: { title: `${data.nazwa} — turniej w Bojo`, description },
+      openGraph: { title: `${data.nazwa}: turniej w Bojo`, description },
     };
   } catch {
-    return { title: 'Turniej — Bojo' };
+    return { title: 'Turniej: Bojo' };
   }
 }

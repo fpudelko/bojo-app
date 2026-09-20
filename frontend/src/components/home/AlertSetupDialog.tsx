@@ -25,7 +25,7 @@ import { WARSTWA } from '@/lib/warstwy';
 const OPIS_PUSHA: Record<StanPush, string> = {
   wlaczone:           'Powiadomienia na telefon są włączone.',
   wylaczone:          'Możesz włączyć powiadomienia na telefon.',
-  zablokowane:        'Powiadomienia są zablokowane w ustawieniach przeglądarki — odblokuj je tam, wtedy wrócimy do tego pytania.',
+  zablokowane:        'Powiadomienia są zablokowane w ustawieniach przeglądarki, odblokuj je tam, wtedy wrócimy do tego pytania.',
   // Krótko, bo to podpis pod nazwą kanału, nie instrukcja obsługi: pełna
   // droga („Udostępnij → Dodaj do ekranu początkowego") zajmowała trzy linijki
   // i przykrywała sobą dwa kanały powyżej. Kto zna iPhone'a, wie, gdzie jest
@@ -356,7 +356,7 @@ export default function AlertSetupDialog({
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Dzwonek w aplikacji</p>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  Zawsze włączony — to historia alertu, nie zaczepka
+                  Zawsze włączony, to historia alertu, nie zaczepka
                 </p>
               </div>
             </div>
@@ -405,7 +405,7 @@ export default function AlertSetupDialog({
             {SHOW_SMS_FEATURES && (
               <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-500 dark:border-slate-700">
                 <Mail className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-                SMS — wkrótce
+                SMS (wkrótce)
               </div>
             )}
           </div>
@@ -477,7 +477,7 @@ export default function AlertSetupDialog({
               <button
                 onClick={() => handleSave()}
                 disabled={saving || brakMiejsca}
-                title={brakMiejsca ? 'Najpierw wskaż miejsce — alert szuka meczów w promieniu od niego' : undefined}
+                title={brakMiejsca ? 'Najpierw wskaż miejsce, alert szuka meczów w promieniu od niego' : undefined}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-3.5 text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.98] transition-all"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}

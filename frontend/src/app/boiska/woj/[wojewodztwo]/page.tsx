@@ -54,16 +54,16 @@ export async function generateMetadata(
   const label = WOJEWODZTWO_LABEL[params.wojewodztwo as Wojewodztwo];
   if (!label) return { title: 'Nie znaleziono' };
   const strona = numerStrony(searchParams);
-  const sufiks = strona > 1 ? ` — strona ${strona}` : '';
+  const sufiks = strona > 1 ? `, strona ${strona}` : '';
   const { canonical, robots } = metadanePaginacjiHuba(`/boiska/woj/${params.wojewodztwo}`, strona);
   return {
     // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
-    title: `Boiska sportowe — województwo ${label}${sufiks}`,
+    title: `Boiska sportowe: województwo ${label}${sufiks}`,
     description: `Katalog boisk i obiektów sportowych w województwie ${label}. Adresy, sporty, nawierzchnia. Zbierz skład i zagraj przez Bojo.`,
     alternates: { canonical },
     robots,
     openGraph: {
-      title: `Boiska sportowe — województwo ${label} | Bojo`,
+      title: `Boiska sportowe: województwo ${label} | Bojo`,
       description: `Katalog boisk w województwie ${label}.`,
     },
   };
@@ -90,7 +90,7 @@ export default async function WojewodztwoPage(
   if (strona > stron && wszystkich > 0) notFound();
 
   const jsonLd = venueListJsonLd(
-    `Boiska sportowe — województwo ${label}${strona > 1 ? ` — strona ${strona}` : ''}`,
+    `Boiska sportowe: województwo ${label}${strona > 1 ? `, strona ${strona}` : ''}`,
     fields.map((field) => ({ name: field.name, slug: slugify(field.name) })),
   );
 
@@ -107,7 +107,7 @@ export default async function WojewodztwoPage(
             <Landmark className="w-5 h-5 text-primary-700" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">
-            Województwo {label} — boiska sportowe
+            Województwo {label}: boiska sportowe
           </h1>
         </div>
 
@@ -192,7 +192,7 @@ export default async function WojewodztwoPage(
             ← Wróć do mapy boisk
           </Link>
           <Link href="/jak-dziala-bojo" className="text-primary-600 hover:underline text-sm">
-            Jak działa Bojo — zbierz skład na to boisko →
+            Jak działa Bojo: zbierz skład na to boisko →
           </Link>
         </div>
 

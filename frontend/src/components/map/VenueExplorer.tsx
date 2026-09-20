@@ -92,7 +92,7 @@ type SelSource = 'map' | 'init';
 // server-side in getExplorerFields().
 
 function displayName(name: string): string {
-  return name.replace(/^boisko\s*[-–—]\s*/i, '').trim() || name;
+  return name.replace(/^boisko\s*[-\u2013\u2014]\s*/i, '').trim() || name;
 }
 
 // Przeplot Mortona — porządkuje karuzelę tak, żeby sąsiednie karty leżały
@@ -552,7 +552,7 @@ function SearchToolbar({
           type="button"
           onClick={onOpenFilters}
           aria-haspopup="dialog"
-          aria-label={liczbaFiltrow > 0 ? `Filtry — ${liczbaFiltrow} aktywne` : 'Filtry'}
+          aria-label={liczbaFiltrow > 0 ? `Filtry: ${liczbaFiltrow} aktywne` : 'Filtry'}
           className={clsx(
             // 44×44, nie 36×36: minimalny rozmiar celu dotyku (WCAG 2.5.5).
             // Ten sam rozmiar co `LocateMeButton` obok na mapie.
@@ -2059,7 +2059,7 @@ export default function VenueExplorer({
                     ? 'Możesz je obejrzeć i zapisać się na listę rezerwową.'
                     : liczbaFiltrow > 0
                       ? 'Poluzuj filtry albo zorganizuj własny mecz.'
-                      : 'Zorganizuj własny — zajmie minutę i pokaże się tu innym.'}
+                      : 'Zorganizuj własny, zajmie minutę i pokaże się tu innym.'}
                 </p>
                 <div className="mt-4 flex flex-col items-center gap-2">
                   <Link

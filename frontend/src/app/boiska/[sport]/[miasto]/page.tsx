@@ -75,7 +75,7 @@ export async function generateMetadata(
   if (!resolved) return { title: 'Nie znaleziono' };
   const { entry, miasto } = resolved;
   const strona = numerStrony(searchParams);
-  const sufiks = strona > 1 ? ` — strona ${strona}` : '';
+  const sufiks = strona > 1 ? `, strona ${strona}` : '';
   return {
     // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
     title: `Boiska do ${entry.label}, ${miasto}${sufiks}`,
@@ -120,7 +120,7 @@ export default async function SportMiastoPage(
   const Icon = SPORT_ICONS[entry.db] ?? Activity;
 
   const jsonLd = venueListJsonLd(
-    `Boiska do ${entry.label}, ${miasto}${strona > 1 ? ` — strona ${strona}` : ''}`,
+    `Boiska do ${entry.label}, ${miasto}${strona > 1 ? `, strona ${strona}` : ''}`,
     fields.map((field) => ({ name: field.name, slug: slugify(field.name) })),
   );
 
@@ -231,7 +231,7 @@ export default async function SportMiastoPage(
             ← Wróć do mapy boisk
           </Link>
           <Link href="/jak-dziala-bojo" className="text-primary-600 hover:underline text-sm">
-            Jak działa Bojo — zbierz skład na to boisko →
+            Jak działa Bojo: zbierz skład na to boisko →
           </Link>
           {miastoGraj && sportGrajSlug && (
             <Link href={`/${sportGrajSlug}/${miastoGraj.slug}`} className="text-primary-600 hover:underline text-sm">

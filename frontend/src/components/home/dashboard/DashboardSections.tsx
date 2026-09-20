@@ -140,7 +140,7 @@ export function NastepneEdycjeSection({ pozycje }: {
     <div>
       <SectionHeader
         title="Kolejne stałe gierki"
-        subtitle="Terminy, które powstaną same — jeszcze ich nie ma"
+        subtitle="Terminy, które powstaną same, jeszcze ich nie ma"
       />
       <div className="space-y-3">
         {pozycje.map((p) => (
