@@ -11,6 +11,9 @@
 > Tamte opisują, **co zbudować**. Ten opisuje, **kto tego używa, kiedy i w jakim stanie
 > psychicznym** — i co z tego wynika dla interfejsu, który już istnieje.
 >
+> Projekt samych ekranów i układów, który z tych ustaleń wynika →
+> [turnieje-ux-ekrany.md](./turnieje-ux-ekrany.md).
+>
 > Ustalenia mają numery `S-n`. Wnioski są czytaniem kodu i przejściem ścieżek, nie
 > obserwacją użytkowników — patrz „Czego ten dokument nie sprawdził" na końcu.
 
