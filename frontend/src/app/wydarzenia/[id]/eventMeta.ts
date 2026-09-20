@@ -94,7 +94,7 @@ export function metadataDlaMeczu(id: string, ev: EventMeta | null): Metadata {
 
   return {
     // BEZ ręcznego „| Bojo" — sufiks dokłada `title.template` z layout.tsx.
-    title: `${name} — ${whenStr}${timeStr ? ` ${timeStr}` : ''}`,
+    title: `${name}: ${whenStr}${timeStr ? ` ${timeStr}` : ''}`,
     description: `${ev.sport} • ${whenStr}${timeStr ? `, ${timeStr}` : ''} • ${place}. Dołącz i zbierz skład na Bojo.`,
     alternates: { canonical: `/wydarzenia/${id}` },
     openGraph: {

@@ -13,13 +13,13 @@ import type { MetadataRoute } from 'next';
 // ich warunkiem (patrz BACKLOG §8, „PWA + web-push").
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Bojo — zbierz ekipę, zagraj dziś',
+    name: 'Bojo, zbierz ekipę, zagraj dziś',
     // Pod ikoną na ekranie telefonu mieści się ~12 znaków. Dłuższa nazwa
     // zostaje przycięta wielokropkiem, więc tu świadomie samo „Bojo".
     short_name: 'Bojo',
     description:
       'Znajdź boisko, zbierz skład i zagraj. Piłka nożna, koszykówka, siatkówka '
-      + 'i więcej — w całej Polsce.',
+      + 'i więcej, w całej Polsce.',
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',

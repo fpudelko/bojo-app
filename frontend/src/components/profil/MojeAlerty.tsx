@@ -145,7 +145,7 @@ export default function MojeAlerty() {
                       type="checkbox"
                       className="peer sr-only"
                       checked={a.isActive}
-                      aria-label={`Alert ${nazwaAlertu(a)} — ${a.isActive ? 'włączony' : 'wyłączony'}`}
+                      aria-label={`Alert ${nazwaAlertu(a)}: ${a.isActive ? 'włączony' : 'wyłączony'}`}
                       onChange={(e) => przelacz(a, e.target.checked)}
                     />
                     <span className="block h-6 w-10 rounded-full bg-slate-200 transition peer-checked:bg-primary-600 dark:bg-slate-600" />

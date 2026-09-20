@@ -82,7 +82,7 @@ export async function zglosAwarie(blad: unknown, dodatkowy?: string): Promise<vo
 
     await supabase.rpc('zapisz_zgloszenie_bledu', {
       p_rodzaj: 'awaria',
-      p_opis: dodatkowy ? `${komunikat} — ${dodatkowy}` : komunikat,
+      p_opis: dodatkowy ? `${komunikat}: ${dodatkowy}` : komunikat,
       p_odcisk: klucz,
       p_slad: stos ?? null,
       p_adres: kontekst().adres,
@@ -144,7 +144,7 @@ export async function zglosBladObiektu(
   powod: PowodObiektu,
   komentarz?: string,
 ): Promise<void> {
-  const opis = komentarz?.trim() ? `${powod} — ${komentarz.trim()}` : powod;
+  const opis = komentarz?.trim() ? `${powod}: ${komentarz.trim()}` : powod;
 
   const { error } = await supabase.rpc('zapisz_zgloszenie_bledu', {
     p_rodzaj: 'obiekt',

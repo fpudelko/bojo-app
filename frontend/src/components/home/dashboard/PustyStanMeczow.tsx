@@ -40,7 +40,7 @@ export default function PustyStanMeczow() {
           na pustą listę, drugi raz nie kliknie. Lepiej powiedzieć wprost, że
           Bojo dopiero się rozkręca, i pokazać szybszą ścieżkę. */}
       <p className="mt-3 text-xs text-slate-400">
-        Bojo dopiero się rozkręca — otwartych gier bywa mało. Najszybciej zagrasz,
+        Bojo dopiero się rozkręca, otwartych gier bywa mało. Najszybciej zagrasz,
         tworząc mecz i wysyłając link znajomym.
       </p>
     </div>

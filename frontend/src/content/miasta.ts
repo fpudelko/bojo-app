@@ -63,7 +63,7 @@ export function odpowiedzMiasta(dopelniaczSportu: string, miejscownik: string): 
  * (patrz tresciStron.test.ts).
  */
 export const CZYM_BOJO_NIE_JEST =
-  'Bojo nie jest systemem do rezerwacji boisk ani wypożyczalnią obiektów — nie ' +
+  'Bojo nie jest systemem do rezerwacji boisk ani wypożyczalnią obiektów, nie ' +
   'wynajmiesz tu hali i nie zapłacisz za termin. Bojo zaczyna się tam, gdzie ' +
   'obiekt jest już zarezerwowany: przy zbieraniu składu, kolejce rezerwowej ' +
   'i podziale kosztu między graczy.';
@@ -71,7 +71,7 @@ export const CZYM_BOJO_NIE_JEST =
 /** Zdanie o pokryciu katalogu, składane z liczbą policzoną na żywo. */
 export function zdanieOKatalogu(ile: number, miejscownik: string): string {
   return (
-    `W katalogu Bojo jest ${ile} obiektów sportowych w okolicy — z mapy wybierzesz ` +
+    `W katalogu Bojo jest ${ile} obiektów sportowych w okolicy, z mapy wybierzesz ` +
     `miejsce, zakładając mecz ${miejscownik}.`
   );
 }

@@ -107,7 +107,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
     wartosc: `${dzien} · ${koniec ? `${v.time}–${koniec}` : v.time}`,
     krok: KROK_KREATORA.termin,
     ostrzezenie: czyDzisiaj(v.date)
-      ? 'Mecz jest dziś — zostaje mało czasu na zebranie składu.'
+      ? 'Mecz jest dziś, zostaje mało czasu na zebranie składu.'
       : undefined,
   });
 
@@ -123,7 +123,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
     wartosc: gdzie,
     krok: KROK_KREATORA.lokalizacja,
     ostrzezenie: !nazwa && adres && wygladaJakWspolrzedne(adres)
-      ? 'Miejsce nie ma nazwy — gracze zobaczą same współrzędne.'
+      ? 'Miejsce nie ma nazwy, gracze zobaczą same współrzędne.'
       : undefined,
   });
 
@@ -154,7 +154,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
     if (v.acceptedPaymentMethods.length > 0) {
       czesci.push(v.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', '));
     } else {
-      ostrzezenieKosztu = 'Nie wybrałeś metody płatności — gracze zobaczą cenę, ale nie dowiedzą się, jak zapłacić.';
+      ostrzezenieKosztu = 'Nie wybrałeś metody płatności, gracze zobaczą cenę, ale nie dowiedzą się, jak zapłacić.';
     }
     if (v.cardDiscountEnabled) {
       const karty = v.acceptedSportsCards.length > 0
@@ -166,7 +166,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
       const kwota = parseFloat(v.cardDiscountPln || '0');
       czesci.push(kwota > 0
         ? `zniżka ${kwota.toFixed(2).replace('.', ',')} zł (${karty})`
-        : `zniżka z kartą — do ustalenia (${karty})`);
+        : `zniżka z kartą, do ustalenia (${karty})`);
     }
     wartoscKosztu = czesci.join(' · ');
   }
@@ -180,8 +180,8 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
 
   // ── Kto widzi ─────────────────────────────────────────────────────────────
   const widocznosc = v.visibility === 'public'
-    ? 'Publiczny — trafi na listę otwartych gier'
-    : 'Prywatny — wejdą tylko osoby z linkiem';
+    ? 'Publiczny: trafi na listę otwartych gier'
+    : 'Prywatny: wejdą tylko osoby z linkiem';
   wiersze.push({
     klucz: 'widocznosc',
     etykieta: 'Kto widzi',

@@ -589,6 +589,24 @@ ponownie i zacommituj wynik.
   (wzorem dawnego `components/home/landing/content.ts`) — żeby dało się testować bez
   renderowania, m.in. zakazane frazy w `content/zakazaneFrazy.ts`
   (`landingContent.test.ts`, `tresciStron.test.ts`).
+- **Zakaz długiego myślnika „—" w treści widocznej dla użytkownika.** Ten znak nie
+  jest naturalnie używany w polskim piśmie odręcznym ani potocznym i jest
+  rozpoznawalnym sygnałem tekstu wygenerowanego przez model. Dotyczy każdej treści,
+  którą widzi odwiedzający albo gracz: `content/*.ts`, JSX (nagłówki, przyciski,
+  opisy, komunikaty błędów, powiadomienia, teksty do udostępnienia w
+  `lib/eventShare.ts` i podobnych), `frontend/public/llms.txt`. Zamiennik dobierasz
+  do zdania, nie mechanicznie jeden wzorzec wszędzie:
+  - przecinek, gdy druga część zdania naturalnie kontynuuje pierwszą,
+  - dwukropek, gdy druga część wyjaśnia albo wylicza to, co zapowiada pierwsza,
+  - średnik, gdy łączysz dwa pełne, blisko powiązane zdania,
+  - kropka i nowe zdanie, gdy obie części są w pełni samodzielne,
+  - nawias, gdy druga część jest tylko dopowiedzeniem.
+  Zwykły łącznik/dywiz (`-`) w zakresach liczbowych (`10-14`) i złożeniach
+  (`sport-boisko`) zostaje bez zmian, to inny znak i inna funkcja. Komentarze
+  w kodzie i dokumentacja deweloperska (ten plik, `CLAUDE.md`, `docs/*.md`) nie są
+  objęte zakazem: nie renderują się użytkownikowi. Pilnuje tego
+  `npm run check:docs` (sekcja 11), skanując `frontend/src` z pominięciem
+  komentarzy — złapie długi myślnik w treści niezależnie od tego, kto go dopisze.
 - **Kolorystyka niesie stałe znaczenie w całej apce** — trzy kolory mają dziś
   zarezerwowane, wyłączne odczytanie, żeby budować podświadome skojarzenie:
   - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: plakietka

@@ -276,6 +276,54 @@ for (const rel of walk('frontend/src')) {
 if (mobileFirstViolations === 0) console.log(`  sprawdzono ${mobileFirstFilesScanned} plików, zero breakpointów max-width`);
 
 // ---------------------------------------------------------------------------
+section('11. brak długiego myślnika (—) w treści widocznej dla użytkownika');
+// AGENTS.md, "Konwencje": „—" nie jest naturalnie używany w polskim piśmie
+// odręcznym ani potocznym i jest rozpoznawalnym sygnałem tekstu wygenerowanego
+// przez model. Skanuje ten sam `frontend/src` co sekcja 10, ale z pominięciem
+// komentarzy (`//`, `/* … */`, `{/* … */}`) — te nie renderują się użytkownikowi,
+// więc nie niosą tego ryzyka i piszemy je swobodnie, tak jak resztę dokumentacji.
+//
+// Śledzenie bloku komentarza jest linijkowe, nie przez pełny parser AST — nie
+// łapie długiego myślnika w kodzie stojącym na tej samej linii co OTWARCIE
+// wielolinijkowego /*… (rzadkie w tym stylu kodu), ale to jest fałszywy
+// negatyw, nie fałszywy pozytyw: bezpieczniejsza strona pomyłki dla bramki CI.
+let emDashViolations = 0;
+let emDashFilesScanned = 0;
+for (const rel of walk('frontend/src')) {
+  if (!/\.tsx?$/.test(rel)) continue;
+  // Testy (Vitest) nie są treścią strony — asercje na fixture'ach ze starym
+  // tekstem po prostu przestaną przechodzić, gdy treść źródłowa się zmieni,
+  // i to jest wtedy sygnał do poprawienia TEGO testu, nie tej reguły.
+  if (rel.includes('__tests__') || /\.test\.tsx?$/.test(rel)) continue;
+  emDashFilesScanned++;
+  let inBlockComment = false;
+  read(rel).split('\n').forEach((line, i) => {
+    const trimmed = line.trim();
+    if (inBlockComment) {
+      if (line.includes('*/')) inBlockComment = false;
+      return;
+    }
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+    // Otwarcie bloku (`/* …` albo JSX `{/* …`) bez zamknięcia na tej samej
+    // linii MUSI ustawić inBlockComment PRZED pominięciem linii — wcześniej
+    // osobny warunek `startsWith('{/*')` wychodził wcześniej (`return`) i nigdy
+    // nie ustawiał flagi, więc wielolinijkowy komentarz JSX `{/* … */}` mylił
+    // TREŚĆ KOMENTARZA (linie 2., 3. …) z kodem.
+    if (line.includes('/*') && !line.includes('*/')) { inBlockComment = true; return; }
+    // Usuń komentarze jednolinijkowe przed sprawdzeniem: {/* … */}, /* … */, // …
+    const codeOnly = line
+      .replace(/\{\/\*.*?\*\/\}/g, '')
+      .replace(/\/\*.*?\*\//g, '')
+      .split('//')[0];
+    if (codeOnly.includes('—')) {
+      emDashViolations++;
+      fail(`${rel}:${i + 1}: długi myślnik w treści — zastąp przecinkiem, dwukropkiem, średnikiem albo nowym zdaniem (AGENTS.md, „Konwencje")`);
+    }
+  });
+}
+if (emDashViolations === 0) console.log(`  sprawdzono ${emDashFilesScanned} plików, zero długich myślników w treści`);
+
+// ---------------------------------------------------------------------------
 console.log('');
 if (failures) {
   console.error(`check-docs: ${failures} problem(ów). Dokumentacja rozjechała się z kodem.`);

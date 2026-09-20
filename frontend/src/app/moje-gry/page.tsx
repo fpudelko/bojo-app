@@ -154,7 +154,7 @@ function MojeGryContent() {
           const zaIle = dniDo(data);
           return {
             serieId: s.id,
-            nazwa: s.title || `${s.sport} — ${s.fieldName}`,
+            nazwa: s.title || `${s.sport}: ${s.fieldName}`,
             data,
             godzina: s.eventTime,
             zaIle,

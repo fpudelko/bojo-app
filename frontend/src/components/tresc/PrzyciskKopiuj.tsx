@@ -35,7 +35,7 @@ export default function PrzyciskKopiuj({ tekst, wariant }: { tekst: string; wari
       {stan === 'skopiowano' ? (
         <><Check className="h-3.5 w-3.5" aria-hidden="true" /> Skopiowane</>
       ) : stan === 'blad' ? (
-        'Nie udało się — zaznacz i skopiuj'
+        'Nie udało się, zaznacz i skopiuj'
       ) : (
         <><Copy className="h-3.5 w-3.5" aria-hidden="true" /> Kopiuj</>
       )}

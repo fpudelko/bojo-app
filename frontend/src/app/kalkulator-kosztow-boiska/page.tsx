@@ -12,9 +12,9 @@ import { faqJsonLd } from '@/lib/structuredData';
 // niezależnie od tego, czy ktokolwiek zna Bojo. Strona statyczna, kalkulator
 // po stronie klienta — bez useSearchParams(), bez zapytań do bazy.
 export const metadata: Metadata = {
-  title: 'Kalkulator kosztów boiska — podziel rachunek na graczy',
+  title: 'Kalkulator kosztów boiska: podziel rachunek na graczy',
   description:
-    'Oblicz, ile od osoby przy wynajmie boiska, hali czy orlika — z uwzględnieniem ' +
+    'Oblicz, ile od osoby przy wynajmie boiska, hali czy orlika, z uwzględnieniem ' +
     'zniżek z kart Multisport, FitProfit i Medicover Sport. Bez rejestracji.',
   alternates: { canonical: '/kalkulator-kosztow-boiska' },
 };
@@ -26,7 +26,7 @@ export default function KalkulatorKosztowBoiskaPage() {
     <StronaTresci
       nadtytul="Narzędzie"
       h1="Kalkulator kosztów boiska"
-      lead="Ile od osoby za wynajem hali czy orlika — z uwzględnieniem kart sportowych."
+      lead="Ile od osoby za wynajem hali czy orlika, z uwzględnieniem kart sportowych."
       tytulDlaOkruszkow="Kalkulator kosztów boiska"
     >
       {/* Direct Answer nad kalkulatorem — ten sam wzorzec co /jak-dziala-bojo

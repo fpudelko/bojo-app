@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 
-export const metadata = { title: '404 — Nie znaleziono' };
+export const metadata = { title: '404: Nie znaleziono' };
 
 export default function NotFound() {
   return (

@@ -154,7 +154,7 @@ export default function TeamProposals({
             </Button>
           </div>
           <p className="text-[11px] text-slate-400">
-            To tylko propozycja — składu nie zmienia. Ostatnie słowo ma organizator.
+            To tylko propozycja, składu nie zmienia. Ostatnie słowo ma organizator.
           </p>
         </div>
       ) : (
@@ -182,7 +182,7 @@ export default function TeamProposals({
           {proposals.length === 0 ? (
             <p className="text-sm text-slate-500">
               {canPropose
-                ? 'Nikt jeszcze nic nie zaproponował — możesz być pierwszy.'
+                ? 'Nikt jeszcze nic nie zaproponował, możesz być pierwszy.'
                 : 'Brak propozycji.'}
             </p>
           ) : (

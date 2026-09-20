@@ -71,7 +71,7 @@ export async function generateMetadata(
     title: `Graj w ${sport.biernik} ${miasto.miejscownik}`,
     description:
       `Dołącz do otwartego meczu ${sport.dopelniacz} ${miasto.miejscownik} albo ` +
-      `stwórz własny i zbierz skład przez Bojo — bez zakładania konta dla graczy.`,
+      `stwórz własny i zbierz skład przez Bojo, bez zakładania konta dla graczy.`,
     alternates: { canonical: `/${params.sport}/${params.miasto}` },
   };
 }
@@ -238,7 +238,7 @@ export default async function GrajPage(
               href="/jak-dziala-bojo"
               className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition hover:bg-white"
             >
-              Jak działa Bojo — krok po kroku
+              Jak działa Bojo: krok po kroku
             </Link>
           </div>
         </section>

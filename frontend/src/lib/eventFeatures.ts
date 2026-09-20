@@ -44,9 +44,9 @@ export function opisWidocznosciWGrupie(
     : 'członkowie';
   const zobacza = liczbaCzlonkow === 1 ? 'Zobaczy' : 'Zobaczą';
   if (visibility === 'private') {
-    return `Prywatny — na liście ekipy „${grupaNazwa}". ${zobacza} go ${czlonkowie} ekipy i każdy, kto dostanie link.`;
+    return `Prywatny: na liście ekipy „${grupaNazwa}". ${zobacza} go ${czlonkowie} ekipy i każdy, kto dostanie link.`;
   }
-  return `Publiczny — także na liście ekipy „${grupaNazwa}".`;
+  return `Publiczny: także na liście ekipy „${grupaNazwa}".`;
 }
 
 // ---------------------------------------------------------------------------

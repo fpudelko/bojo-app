@@ -167,7 +167,7 @@ export default function CennikPage() {
 
         {rules.length === 0 ? (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 mb-4 text-sm text-amber-800">
-            Dodaj przynajmniej jedną regułę — np. &quot;Standardowa&quot; 100 zł przez cały tydzień.
+            Dodaj przynajmniej jedną regułę, np. &quot;Standardowa&quot; 100 zł przez cały tydzień.
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mb-4">

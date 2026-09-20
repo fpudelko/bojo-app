@@ -6,7 +6,7 @@ import RozmowyClient from './RozmowyClient';
 // `noindex`, bo za ekranem stoją dane zalogowanego użytkownika.
 export const metadata: Metadata = {
   title: 'Rozmowy',
-  description: 'Wszystkie Twoje rozmowy — mecze i ekipy — w jednym miejscu, od najnowszej.',
+  description: 'Wszystkie Twoje rozmowy (mecze i ekipy) w jednym miejscu, od najnowszej.',
   robots: { index: false, follow: false },
 };
 

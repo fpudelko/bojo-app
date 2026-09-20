@@ -297,7 +297,7 @@ export default function MeczClient() {
 
   const zakonczMeczAkcja = async () => {
     if (wymagaKarnych && karneA === karneB) {
-      toast('Wpisz różne wyniki karnych — remis w tej fazie musi mieć rozstrzygnięcie', 'error');
+      toast('Wpisz różne wyniki karnych, remis w tej fazie musi mieć rozstrzygnięcie', 'error');
       return;
     }
     const wynik = await potwierdz({
@@ -490,7 +490,7 @@ export default function MeczClient() {
         {prowadzi && trwajacy && setowy && obieDruzynyZnane && (
           <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
             <p className="text-sm font-medium text-ink">
-              Set {(mecz.sety?.length ?? 0) + 1} — dotychczas wygrane sety: {wygranSetow(mecz.sety ?? []).a}:{wygranSetow(mecz.sety ?? []).b}
+              Set {(mecz.sety?.length ?? 0) + 1}, dotychczas wygrane sety: {wygranSetow(mecz.sety ?? []).a}:{wygranSetow(mecz.sety ?? []).b}
             </p>
             <div className="flex items-center justify-around gap-3">
               {(['a', 'b'] as const).map((strona) => (
@@ -522,7 +522,7 @@ export default function MeczClient() {
               <div className="space-y-3">
                 {wymagaKarnych && (
                   <div>
-                    <p className="text-sm font-medium text-ink">Remis — potrzebny wynik karnych</p>
+                    <p className="text-sm font-medium text-ink">Remis: potrzebny wynik karnych</p>
                     <div className="mt-1.5 flex items-center gap-2">
                       <input type="number" min={0} value={karneA} onChange={(e) => setKarneA(Number(e.target.value) || 0)}
                         className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 px-2.5 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100" />
@@ -564,7 +564,7 @@ export default function MeczClient() {
               return (
                 <div key={z.id} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                   <span>{ETYKIETA_ZDARZENIA[z.typ]}</span>
-                  <span className="text-slate-400">—</span>
+                  <span className="text-slate-400">:</span>
                   <span className="min-w-0 truncate">
                     {zawodnik ? `${zawodnik.imie} (${nazwaDruzyny})` : nazwaDruzyny}
                     {asysta && <span className="text-slate-400"> · asysta: {asysta.imie}</span>}

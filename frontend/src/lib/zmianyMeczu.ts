@@ -324,19 +324,19 @@ export function konsekwencjeZapisu(
       zdania.push(`${withCount(komu.gosciezAdresem, 'gość', 'gości', 'gości')} bez konta dostanie e-mail.`);
     }
     if (komu.gosciebezAdresu > 0) {
-      zdania.push(`${withCount(komu.gosciebezAdresu, 'osoba', 'osoby', 'osób')} bez konta nie podała adresu — powiadom ją sam.`);
+      zdania.push(`${withCount(komu.gosciebezAdresu, 'osoba', 'osoby', 'osób')} bez konta nie podała adresu, powiadom ją sam.`);
     }
   } else if (zmiany.length > 0) {
     // Cisza też jest informacją, i to potrzebną: bez tego zdania organizator
     // zakłada, że skoro coś zmienił, to ekipa o tym wie.
-    zdania.push('Te zmiany nie wysyłają nikomu powiadomienia — jeśli mają o nich wiedzieć, napisz im.');
+    zdania.push('Te zmiany nie wysyłają nikomu powiadomienia, jeśli mają o nich wiedzieć, napisz im.');
   }
 
   if (nadLimitem && nadLimitem.zapisanych > nadLimitem.miejsc) {
     const nadwyzka = nadLimitem.zapisanych - nadLimitem.miejsc;
     zdania.push(
       `Zmniejszasz skład do ${nadLimitem.miejsc}, a zapisanych jest ${nadLimitem.zapisanych}. `
-      + `Nikt nie zostanie usunięty — ${withCount(nadwyzka, 'osoba będzie', 'osoby będą', 'osób będzie')} nad limitem.`,
+      + `Nikt nie zostanie usunięty, ${withCount(nadwyzka, 'osoba będzie', 'osoby będą', 'osób będzie')} nad limitem.`,
     );
   }
 
@@ -372,7 +372,7 @@ export function konsekwencjeOdwolania(komu: KomuDojdzie): string[] {
     zdania.push(`${withCount(komu.gosciezAdresem, 'gość', 'gości', 'gości')} bez konta dostanie e-mail.`);
   }
   if (komu.gosciebezAdresu > 0) {
-    zdania.push(`${withCount(komu.gosciebezAdresu, 'osoba', 'osoby', 'osób')} bez konta nie podała adresu — powiadom ją sam.`);
+    zdania.push(`${withCount(komu.gosciebezAdresu, 'osoba', 'osoby', 'osób')} bez konta nie podała adresu, powiadom ją sam.`);
   }
 
   return zdania;

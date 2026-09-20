@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: TYTUL_DLACZEGO,
   description:
     'Bojo zamiast grupy na Facebooku, wątku na Messengerze i ankiety na WhatsAppie do ' +
-    'organizowania amatorskich meczów — bez zakładania kolejnego konta dla graczy.',
+    'organizowania amatorskich meczów, bez zakładania kolejnego konta dla graczy.',
   alternates: { canonical: '/dlaczego-bojo' },
 };
 
@@ -32,7 +32,7 @@ export default function DlaczegoBojoPage() {
     <StronaTresci
       nadtytul="Dla organizatora"
       h1="Dlaczego Bojo zamiast wątku na Messengerze"
-      lead="Czym to się różni od postu na grupie i ankiety na WhatsAppie — i co odpisać, gdy ekipa zapyta, po co kolejna aplikacja."
+      lead="Czym to się różni od postu na grupie i ankiety na WhatsAppie, i co odpisać, gdy ekipa zapyta, po co kolejna aplikacja."
       tytulDlaOkruszkow="Dlaczego Bojo"
     >
       {/* Direct Answer nad pierwszą sekcją — odpowiedź wprost dla kogoś, kto
@@ -92,7 +92,7 @@ export default function DlaczegoBojoPage() {
       {/* Moment, w którym czytelnik jest już przekonany i pyta „ale jak im to
           powiem" — stąd tuż po tabeli porównawczej, przed sekcjami prozy
           rozwiewającymi dalsze zastrzeżenia. */}
-      <SekcjaTresci id="co-napisac-ekipie" tytul="Co napisać ekipie — gotowe do skopiowania">
+      <SekcjaTresci id="co-napisac-ekipie" tytul="Co napisać ekipie: gotowe do skopiowania">
         <p>
           Trzy teksty, które odpowiadają na to, co ekipa pyta najczęściej. Skopiuj
           i wklej tam, gdzie zwykle się umawiacie.
@@ -141,7 +141,7 @@ export default function DlaczegoBojoPage() {
             href="/jak-dziala-bojo"
             className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition hover:bg-white dark:border-slate-600 dark:text-slate-300"
           >
-            Jak działa Bojo — krok po kroku
+            Jak działa Bojo: krok po kroku
           </Link>
           <Link
             href="/mapa?gry=0"

@@ -28,7 +28,7 @@ export default function OBojoPage() {
     <StronaTresci
       nadtytul="Po co to robimy"
       h1="Kto robi Bojo i po co"
-      lead="Misja, powód, dla którego zaczynamy od organizatorów, i wprost — co działa dziś, a czego jeszcze nie ma."
+      lead="Misja, powód, dla którego zaczynamy od organizatorów, i wprost, co działa dziś, a czego jeszcze nie ma."
       tytulDlaOkruszkow="O Bojo"
     >
       {/* Direct Answer nad pierwszą sekcją — ta sama zasada co na
@@ -48,7 +48,7 @@ export default function OBojoPage() {
           czego jeszcze nie ma, PRZED resztą strony podnosi wiarygodność
           u kogoś, kto czyta uważnie — a to jest dokładnie ten czytelnik.
           Dwie kolumny od md:, jedna na telefonie (mobile-first). */}
-      <SekcjaTresci id="gdzie-jestesmy" tytul="Gdzie jesteśmy dziś — wprost">
+      <SekcjaTresci id="gdzie-jestesmy" tytul="Gdzie jesteśmy dziś, wprost">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="font-display text-sm font-bold text-ink">Co działa dziś</p>
@@ -109,7 +109,7 @@ export default function OBojoPage() {
             href="/jak-dziala-bojo"
             className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 transition hover:bg-white dark:border-slate-600 dark:text-slate-300"
           >
-            Jak działa Bojo — krok po kroku
+            Jak działa Bojo: krok po kroku
           </Link>
           <Link
             href="/dlaczego-bojo"

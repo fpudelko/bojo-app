@@ -47,7 +47,7 @@ export const FAQ: readonly PytanieFaq[] = [
     kategoria: 'podstawy',
     q: 'Czym Bojo różni się od systemu rezerwacji boisk?',
     a: 'System rezerwacji odpowiada na pytanie, czy obiekt jest wolny, i przyjmuje ' +
-      'opłatę za termin. Bojo tego nie robi — zaczyna się tam, gdzie termin jest już ' +
+      'opłatę za termin. Bojo tego nie robi, zaczyna się tam, gdzie termin jest już ' +
       'załatwiony, i zajmuje się zebraniem składu, listą rezerwową i podziałem kosztu ' +
       'między graczy.',
   },
@@ -62,7 +62,7 @@ export const FAQ: readonly PytanieFaq[] = [
     kategoria: 'podstawy',
     naLandingu: true,
     q: 'Gdzie działa Bojo?',
-    a: 'W całej Polsce. Mecz stworzysz w dowolnym miejscu — wskazując je na mapie albo ' +
+    a: 'W całej Polsce. Mecz stworzysz w dowolnym miejscu, wskazując je na mapie albo ' +
       'wybierając obiekt z katalogu, który obejmuje boiska z całego kraju.',
   },
   {
@@ -84,7 +84,7 @@ export const FAQ: readonly PytanieFaq[] = [
     kategoria: 'konto',
     naLandingu: true,
     q: 'Czy gracze muszą zakładać konto, żeby dołączyć do mojego meczu?',
-    a: 'Nie. Osoba z linkiem dołącza, podając imię i e-mail — bez hasła i bez zakładania ' +
+    a: 'Nie. Osoba z linkiem dołącza, podając imię i e-mail: bez hasła i bez zakładania ' +
       'konta. Konto potrzebne jest tylko organizatorowi, żeby mecz w ogóle powstał. ' +
       'Przeglądanie mapy boisk i listy meczów też nie wymaga logowania.',
   },
@@ -97,14 +97,14 @@ export const FAQ: readonly PytanieFaq[] = [
   {
     kategoria: 'konto',
     q: 'Czy jako organizator muszę mieć konto?',
-    a: 'Tak. Założenie meczu, zapraszanie ludzi i zarządzanie składem wymagają konta — ' +
+    a: 'Tak. Założenie meczu, zapraszanie ludzi i zarządzanie składem wymagają konta: ' +
       'to jedyne miejsce, w którym Bojo prosi o logowanie. Konto zakładasz przez Google ' +
       'albo e-mail w chwili, gdy klikasz „Zorganizuj mecz".',
   },
   {
     kategoria: 'konto',
     q: 'Jak się loguję do Bojo?',
-    a: 'Kontem Google albo e-mailem — hasłem, magic linkiem wysyłanym na skrzynkę, albo ' +
+    a: 'Kontem Google albo e-mailem: hasłem, magic linkiem wysyłanym na skrzynkę, albo ' +
       'resetem hasła, jeśli je zapomnisz. Każdy sposób prowadzi do tego samego konta.',
   },
   {
@@ -112,13 +112,13 @@ export const FAQ: readonly PytanieFaq[] = [
     q: 'Co zyskuje gracz, który założy konto po meczu?',
     a: 'Historię swoich meczów i statystyki (gole, liczba rozegranych spotkań) pod ' +
       'publicznym profilem. Kto dołączył jako gość bez konta, może potem założyć je ' +
-      'jednym kliknięciem i przejąć swój wpis — historia i statystyki lecą razem z nim.',
+      'jednym kliknięciem i przejąć swój wpis: historia i statystyki lecą razem z nim.',
   },
   {
     kategoria: 'konto',
-    q: 'Zapisałem się jako gość na e-mail, który ma już konto w Bojo — co się stanie?',
+    q: 'Zapisałem się jako gość na e-mail, który ma już konto w Bojo. Co się stanie?',
     a: 'Bojo rozpoznaje to od razu i zamiast rejestracji proponuje logowanie na to konto. ' +
-      'Po zalogowaniu wpis w składzie staje się Twoim wpisem — bez dodatkowego kroku ' +
+      'Po zalogowaniu wpis w składzie staje się Twoim wpisem, bez dodatkowego kroku ' +
       'i bez drugiego wiersza na liście uczestników.',
   },
 
@@ -128,13 +128,13 @@ export const FAQ: readonly PytanieFaq[] = [
     naLandingu: true,
     q: 'Ile zajmuje zorganizowanie meczu?',
     a: 'Kreator ma trzy kroki: sport i boisko, termin i liczba miejsc, opcje. ' +
-      'W praktyce dwie minuty. Boisko wybierasz z mapy — nie wpisujesz adresu ręcznie.',
+      'W praktyce dwie minuty. Boisko wybierasz z mapy; nie wpisujesz adresu ręcznie.',
   },
   {
     kategoria: 'organizator',
     q: 'Co dokładnie ustawiam, tworząc mecz?',
     a: 'Krok 1: sport i miejsce z mapy (albo pinezka gdziekolwiek w Polsce). Krok 2: ' +
-      'termin, liczba miejsc i koszt — domyślnie jutro, 18:00, 90 minut. Krok 3: tytuł, ' +
+      'termin, liczba miejsc i koszt, domyślnie jutro, 18:00, 90 minut. Krok 3: tytuł, ' +
       'opis, widoczność publiczna albo prywatna i akceptacja zapisów. Przed publikacją ' +
       'widzisz podsumowanie wszystkiego z przyciskiem „Zmień" przy każdej pozycji.',
   },
@@ -148,14 +148,14 @@ export const FAQ: readonly PytanieFaq[] = [
   {
     kategoria: 'organizator',
     q: 'Czy mogę zatwierdzać, kto wchodzi do składu?',
-    a: 'Tak — osobny przełącznik „wymaga akceptacji" w kreatorze i w edycji meczu. ' +
+    a: 'Tak, osobny przełącznik „wymaga akceptacji" w kreatorze i w edycji meczu. ' +
       'Działa jednakowo dla meczu publicznego i prywatnego: zapis czeka na Twoją zgodę, ' +
       'zanim zajmie miejsce.',
   },
   {
     kategoria: 'organizator',
     q: 'Jak zaprosić ludzi na mecz?',
-    a: 'Jednym linkiem do meczu — przycisk „Udostępnij" otwiera systemowy arkusz ' +
+    a: 'Jednym linkiem do meczu: przycisk „Udostępnij" otwiera systemowy arkusz ' +
       'udostępniania z gotowym tekstem (sport, termin, miejsce, cena). Możesz też ' +
       'zaprosić kogoś imiennie z listy znajomych albo z grupy, jeśli macie wspólną ekipę.',
   },
@@ -164,20 +164,20 @@ export const FAQ: readonly PytanieFaq[] = [
     naLandingu: true,
     q: 'Co się dzieje, gdy zbierze się komplet?',
     a: 'Kolejne zapisy trafiają na listę rezerwową. Bojo nie awansuje rezerwowych ' +
-      'automatycznie — gdy ktoś się wypisze, organizator sam decyduje, kogo wpuścić.',
+      'automatycznie, gdy ktoś się wypisze, organizator sam decyduje, kogo wpuścić.',
   },
   {
     kategoria: 'organizator',
     q: 'Co, jeśli ktoś się wypisze na dzień przed meczem?',
     a: 'Zwolnione miejsce jest oferowane pierwszej osobie z listy rezerwowej, która ma ' +
-      'domyślnie 3 godziny na decyzję — nikt nie trafia do składu po cichu. Organizator ' +
+      'domyślnie 3 godziny na decyzję, nikt nie trafia do składu po cichu. Organizator ' +
       'widzi w aplikacji, gdy skład przestaje być kompletny.',
   },
   {
     kategoria: 'organizator',
     q: 'Jak odwołać mecz i skąd gracze się o tym dowiedzą?',
-    a: 'Przycisk „Odwołaj mecz" w panelu zarządzania. Wszyscy zapisani — z kontem i bez ' +
-      'konta — dostają o tym powiadomienie w aplikacji, a strona meczu pokazuje wyraźny ' +
+    a: 'Przycisk „Odwołaj mecz" w panelu zarządzania. Wszyscy zapisani (z kontem i bez ' +
+      'konta) dostają o tym powiadomienie w aplikacji, a strona meczu pokazuje wyraźny ' +
       'baner „Mecz odwołany" zamiast cichej zmiany, którą trzeba samemu zauważyć.',
   },
   {
@@ -185,7 +185,7 @@ export const FAQ: readonly PytanieFaq[] = [
     q: 'Czy Bojo wysyła SMS-y albo maile o meczu?',
     a: 'SMS-ów nie wysyła. Powiadomienia (oferta zwolnionego miejsca, akceptacja zapisu, ' +
       'zmiana terminu, odwołanie meczu, zmiana kompletu składu, przypomnienie dzień przed) ' +
-      'trafiają w aplikacji, pod dzwonkiem, a jeśli włączysz powiadomienia — także na ' +
+      'trafiają w aplikacji, pod dzwonkiem, a jeśli włączysz powiadomienia, także na ' +
       'telefon. Osoba zapisana bez konta dostaje je mailem na adres podany przy zapisie, ' +
       'bo dzwonka nie ma. Do zbierania składu i tak najlepiej działa link wysłany tam, ' +
       'gdzie ekipa już rozmawia.',
@@ -193,7 +193,7 @@ export const FAQ: readonly PytanieFaq[] = [
   {
     kategoria: 'organizator',
     q: 'Czy mogę dopisać kogoś ręcznie, bez jego udziału?',
-    a: 'Tak — „Dopisz osobę bez konta" w panelu składu. Powstaje wpis gościa, który ' +
+    a: 'Tak, „Dopisz osobę bez konta" w panelu składu. Powstaje wpis gościa, który ' +
       'zajmuje miejsce jak każdy inny; osoba dopisana może później sama założyć konto ' +
       'i przejąć swój wpis, jeśli dostanie do tego link.',
   },
@@ -201,19 +201,19 @@ export const FAQ: readonly PytanieFaq[] = [
     kategoria: 'organizator',
     q: 'Czy uczestnicy mogą dopisywać własnych gości?',
     a: 'Tak, jeśli organizator włączy przełącznik „Uczestnicy mogą dodawać gości". ' +
-      'Domyślnie jest wyłączony — dopisywanie zostaje wtedy wyłącznie po stronie ' +
+      'Domyślnie jest wyłączony, dopisywanie zostaje wtedy wyłącznie po stronie ' +
       'organizatora.',
   },
   {
     kategoria: 'organizator',
     q: 'Czy mogę powtórzyć ten sam mecz za tydzień?',
-    a: 'Tak — „Powtórz mecz" w panelu zarządzania tworzy nowy mecz z tym samym miejscem, ' +
+    a: 'Tak, „Powtórz mecz" w panelu zarządzania tworzy nowy mecz z tym samym miejscem, ' +
       'liczbą miejsc, ceną i opcjami; zmieniasz tylko termin.',
   },
   {
     kategoria: 'organizator',
     q: 'Jak zrobić stałą, cotygodniową gierkę?',
-    a: 'Bojo nie powiela dziś terminu samo. Po meczu klikasz „Powtórz mecz" — powstaje ' +
+    a: 'Bojo nie powiela dziś terminu samo. Po meczu klikasz „Powtórz mecz", powstaje ' +
       'nowy termin z tym samym miejscem, liczbą miejsc, ceną i ustawieniami, a zmieniasz ' +
       'tylko datę. Stała ekipa trzyma się grupy: mecze, składy i historia zostają ' +
       'w jednym miejscu, więc nie zbierasz ich co tydzień od zera.',
@@ -221,14 +221,14 @@ export const FAQ: readonly PytanieFaq[] = [
   {
     kategoria: 'organizator',
     q: 'Czy organizator musi grać w swoim meczu?',
-    a: 'Nie. „Biorę udział" to osobny przełącznik w kreatorze — możesz zorganizować mecz ' +
+    a: 'Nie. „Biorę udział" to osobny przełącznik w kreatorze, możesz zorganizować mecz ' +
       'i w nim nie grać, np. gdy tylko rezerwujesz boisko dla ekipy.',
   },
 
   {
     kategoria: 'organizator',
     q: 'Co zrobić, gdy brakuje osoby na mecz?',
-    a: 'Ustaw mecz jako publiczny — trafia wtedy na listę otwartych gier i na stronę ' +
+    a: 'Ustaw mecz jako publiczny, trafia wtedy na listę otwartych gier i na stronę ' +
       'swojego sportu i miasta, więc może dopisać się ktoś spoza ekipy. Chętni ponad ' +
       'limit ustawiają się w kolejce rezerwowej z widoczną kolejnością; gdy ktoś się ' +
       'wypisze, zwolnione miejsce proponujesz wybranej osobie z rezerwy.',
@@ -238,13 +238,13 @@ export const FAQ: readonly PytanieFaq[] = [
     q: 'Gdzie szukać ludzi do gry w piłkę?',
     a: 'W Bojo otwarte mecze publiczne widać na liście wydarzeń oraz na stronach ' +
       'poszczególnych sportów i miast. Możesz dołączyć do cudzego meczu albo założyć ' +
-      'własny i puścić link po znajomych — publiczny mecz zbiera jedno i drugie naraz.',
+      'własny i puścić link po znajomych. Publiczny mecz zbiera jedno i drugie naraz.',
   },
   {
     kategoria: 'organizator',
     q: 'Czy da się prowadzić zapisy bez zakładania grupy?',
     a: 'Tak. Grupa przydaje się stałej ekipie, która wraca do tej samej rozmowy i historii ' +
-      'meczów, ale do pojedynczego meczu wystarczy sam link do wydarzenia — działa dla ' +
+      'meczów, ale do pojedynczego meczu wystarczy sam link do wydarzenia, działa dla ' +
       'każdego, kto go dostanie, bez zakładania czegokolwiek na stałe.',
   },
 
@@ -254,7 +254,7 @@ export const FAQ: readonly PytanieFaq[] = [
     naLandingu: true,
     q: 'Czy przez Bojo zapłacę za wynajem boiska?',
     a: 'Nie. Bojo dzieli koszt na graczy, uwzględnia zniżki z kart sportowych i pozwala ' +
-      'odhaczyć, kto już oddał pieniądze — ale samego przelewu nie obsługuje. ' +
+      'odhaczyć, kto już oddał pieniądze, ale samego przelewu nie obsługuje. ' +
       'Rozliczacie się jak dotąd, tylko bez liczenia w pamięci.',
   },
   {
@@ -267,30 +267,30 @@ export const FAQ: readonly PytanieFaq[] = [
   {
     kategoria: 'pieniadze',
     q: 'Czy Bojo uwzględnia Multisport i inne karty sportowe?',
-    a: 'Tak — Multisport, FitProfit, Medicover Sport i „inna karta" z własną nazwą. ' +
+    a: 'Tak: Multisport, FitProfit, Medicover Sport i „inna karta" z własną nazwą. ' +
       'Organizator wpisuje kwotę zniżki dla posiadaczy karty; bez podanej kwoty aplikacja ' +
-      'pokazuje adnotację „zniżka z karty — ustal kwotę" zamiast zgadywać.',
+      'pokazuje adnotację „zniżka z karty, ustal kwotę" zamiast zgadywać.',
   },
   {
     kategoria: 'pieniadze',
     q: 'Jak sprawiedliwie rozliczyć koszty wynajmu boiska?',
     a: 'Wpisujesz w Bojo całkowity koszt obiektu, a aplikacja dzieli go przez liczbę ' +
-      'miejsc w składzie — 150 zł przy 12 miejscach daje 12,50 zł od osoby. Posiadaczom ' +
+      'miejsc w składzie: 150 zł przy 12 miejscach daje 12,50 zł od osoby. Posiadaczom ' +
       'kart Multisport, FitProfit i Medicover Sport odejmujesz zniżkę, a kto już oddał ' +
       'pieniądze, odhaczasz jednym kliknięciem.',
   },
   {
     kategoria: 'pieniadze',
     q: 'Kiedy gracz widzi mój numer BLIK?',
-    a: 'Dopiero 60 minut przed rozpoczęciem meczu — wcześniej pole jest ukryte, żeby numer ' +
+    a: 'Dopiero 60 minut przed rozpoczęciem meczu, wcześniej pole jest ukryte, żeby numer ' +
       'nie krążył niepotrzebnie po telefonach osób, które jeszcze mogą się wypisać.',
   },
   {
     kategoria: 'pieniadze',
     q: 'Jak powiedzieć ekipie, kto jeszcze nie oddał pieniędzy?',
-    a: 'Przycisk „Wyślij rozliczenie ekipie" w panelu kosztów składa gotową wiadomość — ' +
+    a: 'Przycisk „Wyślij rozliczenie ekipie" w panelu kosztów składa gotową wiadomość: ' +
       'kwotę, listę zaległości z uwzględnioną zniżką kartową i numer BLIK, jeśli go ' +
-      'akceptujesz — i otwiera systemowy arkusz udostępniania.',
+      'akceptujesz, i otwiera systemowy arkusz udostępniania.',
   },
 
   // ── Ekipa i po meczu ─────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ export const FAQ: readonly PytanieFaq[] = [
   {
     kategoria: 'ekipa',
     q: 'Co się dzieje z meczem po jego zakończeniu?',
-    a: 'Strona meczu zostaje — z pełnym składem, wynikiem (jeśli go wpiszesz) i stanem ' +
+    a: 'Strona meczu zostaje, z pełnym składem, wynikiem (jeśli go wpiszesz) i stanem ' +
       'rozliczenia. Panel kosztów działa tak samo jak przed meczem, więc rozliczenie ' +
       'ekipy nie musi się zdążyć przed gwizdkiem.',
   },
@@ -313,7 +313,7 @@ export const FAQ: readonly PytanieFaq[] = [
     q: 'Czy Bojo liczy statystyki graczy?',
     a: 'Tak, gdy organizator włączy wyniki meczu (gole, w niektórych sportach też asysty). ' +
       'Statystyki zbierają się na publicznym profilu gracza (`/gracz/[id]`) i liczą tylko ' +
-      'zapisanych ze statusem „gram" — obserwujący i osoby usunięte ze składu ich nie ' +
+      'zapisanych ze statusem „gram", obserwujący i osoby usunięte ze składu ich nie ' +
       'zawyżają.',
   },
 
@@ -329,21 +329,21 @@ export const FAQ: readonly PytanieFaq[] = [
     kategoria: 'boiska',
     q: 'Dlaczego przy niektórych boiskach brakuje szczegółów?',
     a: 'Lokalizacja i podstawowe dane są kompletne dla całego katalogu, ale nawierzchnia, ' +
-      'typ obiektu i zdjęcia są dziś wypełnione tylko dla części wierszy — uzupełniamy je ' +
+      'typ obiektu i zdjęcia są dziś wypełnione tylko dla części wierszy, uzupełniamy je ' +
       'obiekt po obiekcie, zamiast obiecywać komplet, którego jeszcze nie ma.',
   },
   {
     kategoria: 'boiska',
     q: 'Skąd wiadomo, czy na boisku jest oświetlenie?',
-    a: 'Podstawą są dane z OpenStreetMap, a obok nich Bojo pokazuje głosy graczy — przy ' +
+    a: 'Podstawą są dane z OpenStreetMap, a obok nich Bojo pokazuje głosy graczy: przy ' +
       'każdym obiekcie można potwierdzić oświetlenie i nawierzchnię. Potwierdzenie ' +
       'pojawia się dopiero, gdy zgodzą się co najmniej dwie osoby, i nie nadpisuje ' +
       'danych źródłowych z OSM.',
   },
   {
     kategoria: 'boiska',
-    q: 'Nie ma mojego boiska w katalogu — co wtedy?',
-    a: 'Kreator meczu przyjmuje dowolną pinezkę na mapie, nawet spoza katalogu — nazwa ' +
+    q: 'Nie ma mojego boiska w katalogu. Co wtedy?',
+    a: 'Kreator meczu przyjmuje dowolną pinezkę na mapie, nawet spoza katalogu, nazwa ' +
       'i adres liczą się z lokalizacji, więc mecz i tak powstanie. Samo dodanie boiska do ' +
       'stałego katalogu to dziś proces poza aplikacją.',
   },

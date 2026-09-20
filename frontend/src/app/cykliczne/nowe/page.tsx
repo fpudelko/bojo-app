@@ -125,7 +125,7 @@ function NewRecurringForm() {
           {/* Venue */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Boisko {field && <span className="text-primary-600">— {field.name}</span>}
+              Boisko {field && <span className="text-primary-600">: {field.name}</span>}
             </label>
             <p className="text-xs text-slate-500 mb-2">Kliknij pinezkę na mapie, aby wybrać boisko.</p>
             <div className="h-72 rounded-xl overflow-hidden border border-slate-200">
@@ -253,7 +253,7 @@ function NewRecurringForm() {
                 <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                 <span>
                   <span className="block text-sm font-medium text-slate-900">Prywatne</span>
-                  <span className="block text-xs text-slate-500">Nie pojawia się na liście — wejdzie tylko ktoś z zaproszeniem lub linkiem</span>
+                  <span className="block text-xs text-slate-500">Nie pojawia się na liście, wejdzie tylko ktoś z zaproszeniem lub linkiem</span>
                 </span>
               </button>
               <button
@@ -269,7 +269,7 @@ function NewRecurringForm() {
                 <Globe className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                 <span>
                   <span className="block text-sm font-medium text-slate-900">Publiczne</span>
-                  <span className="block text-xs text-slate-500">Widoczne dla wszystkich — dołączy każdy chętny</span>
+                  <span className="block text-xs text-slate-500">Widoczne dla wszystkich, dołączy każdy chętny</span>
                 </span>
               </button>
             </div>

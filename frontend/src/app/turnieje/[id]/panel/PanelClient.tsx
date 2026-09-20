@@ -430,7 +430,7 @@ export default function PanelClient() {
           <button onClick={() => router.push(`/turnieje/${id}`)} aria-label="Wróć" className="shrink-0 text-slate-500 hover:text-ink">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">Panel — {turniej.nazwa}</h1>
+          <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">Panel: {turniej.nazwa}</h1>
         </div>
         <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
           {(['pulpit', 'druzyny', 'ludzie', 'terminarz', 'ustawienia'] as PanelTab[]).map((z) => (
@@ -694,7 +694,7 @@ export default function PanelClient() {
                         <p className="text-xs font-semibold text-slate-400">Grupa {g.nazwa}</p>
                         <p className="text-sm text-ink">
                           {odmienDruzyny(wTurnieju.filter((d) => d.grupaId === g.id).length)}:{' '}
-                          {wTurnieju.filter((d) => d.grupaId === g.id).map((d) => d.nazwa).join(', ') || '—'}
+                          {wTurnieju.filter((d) => d.grupaId === g.id).map((d) => d.nazwa).join(', ') || '-'}
                         </p>
                       </div>
                     ))}
@@ -721,9 +721,9 @@ export default function PanelClient() {
                     {podglad.map((m) => (
                       <div key={m.id} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm">
                         <span className="text-xs text-slate-400">M{m.numer}</span>{' '}
-                        <span className="text-ink">{druzynyPoId.get(m.druzynaAId ?? '') ?? (m.zrodloAMeczId ? 'TBD' : '—')}</span>
+                        <span className="text-ink">{druzynyPoId.get(m.druzynaAId ?? '') ?? (m.zrodloAMeczId ? 'TBD' : '-')}</span>
                         {' vs '}
-                        <span className="text-ink">{druzynyPoId.get(m.druzynaBId ?? '') ?? (m.zrodloBMeczId ? 'TBD' : '—')}</span>
+                        <span className="text-ink">{druzynyPoId.get(m.druzynaBId ?? '') ?? (m.zrodloBMeczId ? 'TBD' : '-')}</span>
                         {m.zaplanowanyAt && <span className="ml-2 text-xs text-slate-400">{new Date(m.zaplanowanyAt).toLocaleString('pl-PL')}</span>}
                       </div>
                     ))}
@@ -805,7 +805,7 @@ export default function PanelClient() {
             {turniej.wpisoweGrosze > 0 && (
               <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Numer BLIK do wpisowego {blikTelefon && <span className="font-normal text-primary-700">— zapisany</span>}
+                  Numer BLIK do wpisowego {blikTelefon && <span className="font-normal text-primary-700">(zapisany)</span>}
                 </label>
                 <div className="flex gap-2">
                   <input

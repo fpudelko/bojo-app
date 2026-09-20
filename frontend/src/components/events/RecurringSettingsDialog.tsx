@@ -57,7 +57,7 @@ export default function RecurringSettingsDialog({
             </p>
           ) : (
             <p className="text-sm text-amber-700">
-              Najpierw wybierz datę meczu — dzień tygodnia ustawi się automatycznie.
+              Najpierw wybierz datę meczu, dzień tygodnia ustawi się automatycznie.
             </p>
           )}
 
@@ -77,7 +77,7 @@ export default function RecurringSettingsDialog({
 
           <p className="mt-4 text-xs text-slate-500">
             Kolejne terminy Bojo tworzy samo, z tym wyprzedzeniem. Gracze z poprzedniego meczu
-            dostaną wtedy powiadomienie, że zapisy są otwarte — ustawienia (cena, płatności,
+            dostaną wtedy powiadomienie, że zapisy są otwarte, ustawienia (cena, płatności,
             bramkarze) każdy nowy termin dziedziczy po poprzednim.
           </p>
         </div>

@@ -458,7 +458,7 @@ export default function RecurringEventDetailPage() {
           <p className="text-xs text-slate-400 mb-4">
             Kolejne terminy Bojo tworzy samo, {event.notifyDaysBefore}{' '}
             {event.notifyDaysBefore === 1 ? 'dzień' : 'dni'} przed datą meczu. Tutaj dodasz termin
-            wcześniej albo poza kolejnością — ustawienia (cena, płatności, bramkarze) nowy termin
+            wcześniej albo poza kolejnością, ustawienia (cena, płatności, bramkarze) nowy termin
             dziedziczy po poprzednim.
           </p>
 

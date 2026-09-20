@@ -15,7 +15,7 @@ import { getEventMeta } from './eventMeta';
 // organizator wkleja go na grupę.
 
 export const runtime = 'edge';
-export const alt = 'Bojo — szczegóły meczu';
+export const alt = 'Bojo: szczegóły meczu';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 

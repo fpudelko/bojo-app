@@ -30,7 +30,7 @@
  * bez własnego. BEZ ręcznego sufiksu „| Bojo": dokłada go `title.template`
  * stronom podrzędnym, a tutaj dałby „| Bojo | Bojo" (dług P3).
  */
-export const TYTUL_DOMYSLNY = 'Bojo (bojo.pl) — aplikacja do organizowania amatorskich meczów';
+export const TYTUL_DOMYSLNY = 'Bojo (bojo.pl): aplikacja do organizowania amatorskich meczów';
 
 /**
  * `description` z `app/layout.tsx`. Zaczyna się od nazwy encji, bo w wynikach
@@ -49,7 +49,7 @@ export const OPIS_DOMYSLNY =
  * trafia do kogoś, kto jeszcze nie wie, czym Bojo jest; „Dlaczego Bojo" samo
  * w sobie tę wiedzę zakładało. Sufiks „| Bojo" dokłada `title.template`.
  */
-export const TYTUL_DLACZEGO = 'Dlaczego Bojo — aplikacja zamiast grupy na WhatsAppie i Facebooku';
+export const TYTUL_DLACZEGO = 'Dlaczego Bojo: aplikacja zamiast grupy na WhatsAppie i Facebooku';
 
 /**
  * Podgląd linku (czat, media społecznościowe) i nazwa pod ikoną PWA
@@ -59,10 +59,10 @@ export const TYTUL_DLACZEGO = 'Dlaczego Bojo — aplikacja zamiast grupy na What
  * jest, bo dostał link od organizatora albo sam zainstalował aplikację.
  * Rozdzielenie jest celem — nie ujednolicaj tego „dla spójności".
  */
-export const HASLO_PODGLADU = 'Bojo — zbierz ekipę, zagraj dziś';
+export const HASLO_PODGLADU = 'Bojo, zbierz ekipę, zagraj dziś';
 
 /** Tytuł i opis `/o-bojo` — misja, etap produktu, czego jeszcze nie ma. */
-export const TYTUL_O_BOJO = 'Kto robi Bojo i po co — misja, etap i czego Bojo nie robi';
+export const TYTUL_O_BOJO = 'Kto robi Bojo i po co: misja, etap i czego Bojo nie robi';
 export const OPIS_O_BOJO =
   'Bojo (bojo.pl) to darmowa aplikacja do organizowania amatorskich meczów, budowana ' +
   'przez mały zespół. Misja, powód, dla którego Bojo zaczyna od organizatorów, oraz ' +

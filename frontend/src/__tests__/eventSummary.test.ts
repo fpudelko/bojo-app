@@ -174,12 +174,12 @@ describe('wiersz „Koszt"', () => {
 
 describe('wiersz „Kto widzi"', () => {
   it('publiczny mówi, że trafi na listę', () => {
-    expect(w({}, 'widocznosc').wartosc).toBe('Publiczny — trafi na listę otwartych gier');
+    expect(w({}, 'widocznosc').wartosc).toBe('Publiczny: trafi na listę otwartych gier');
   });
 
   it('prywatny mówi, że wejdą tylko osoby z linkiem', () => {
     expect(w({ visibility: 'private' }, 'widocznosc').wartosc)
-      .toBe('Prywatny — wejdą tylko osoby z linkiem');
+      .toBe('Prywatny: wejdą tylko osoby z linkiem');
   });
 
   it('dopisuje akceptację zapisów', () => {

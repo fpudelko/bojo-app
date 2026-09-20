@@ -102,7 +102,7 @@ export default function ZglosDruzynePage() {
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 text-center">
           <h1 className="font-display text-2xl font-bold text-ink mb-2">Zgłoszenie wysłane</h1>
           <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
-            Teraz zaproś swoich do drużyny — każdy, kto wejdzie w ten link, dopisze się do składu sam.
+            Teraz zaproś swoich do drużyny, każdy, kto wejdzie w ten link, dopisze się do składu sam.
           </p>
           {/* GŁÓWNA droga to ekran drużyny, nie kopiowanie linku.
               Do 2026-09-20 ten ekran był JEDYNYM miejscem z linkiem do
@@ -177,7 +177,7 @@ export default function ZglosDruzynePage() {
           <p className="text-xs text-slate-400">
             {turniej.wymagaAkceptacji
               ? 'Organizator potwierdzi zgłoszenie. Dostaniesz powiadomienie.'
-              : 'Wchodzicie od razu — po zgłoszeniu uzupełnij skład.'}
+              : 'Wchodzicie od razu, po zgłoszeniu uzupełnij skład.'}
           </p>
 
           {blad && <p className="text-sm text-red-600">{blad}</p>}

@@ -43,7 +43,7 @@ export default function Stepper({
           type="button"
           onClick={() => onChange(Math.max(min, value - 1))}
           disabled={value <= min}
-          aria-label={`${label} — mniej`}
+          aria-label={`${label}: mniej`}
           className={clsx(przycisk, 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300')}
         >
           <Minus className="h-4 w-4" aria-hidden />
@@ -63,7 +63,7 @@ export default function Stepper({
           type="button"
           onClick={() => onChange(Math.min(max, value + 1))}
           disabled={value >= max}
-          aria-label={`${label} — więcej`}
+          aria-label={`${label}: więcej`}
           className={clsx(przycisk, 'border-primary-200 bg-primary-50 text-primary-800 hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-950')}
         >
           <Plus className="h-4 w-4" aria-hidden />

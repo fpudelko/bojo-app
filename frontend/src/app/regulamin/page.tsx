@@ -150,7 +150,7 @@ export default function RegulaminPage() {
           <p>
             Usługa jest bezpłatna i świadczona bezterminowo. Użytkownik może w każdej
             chwili zakończyć korzystanie z Serwisu, usuwając konto (Profil → „Usuń konto"),
-            bez podania przyczyny i bez żadnych kosztów — co jest równoważne z odstąpieniem
+            bez podania przyczyny i bez żadnych kosztów, co jest równoważne z odstąpieniem
             od umowy.
           </p>
         </LegalSection>

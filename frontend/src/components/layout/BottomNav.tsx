@@ -422,7 +422,7 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
       ...(licznik > 0 ? [licznikOpis ? licznikOpis(licznik) : `${licznik} ${licznik === 1 ? 'nadchodzący mecz' : 'nadchodzących meczów'}`] : []),
       ...widoczne.map((d) => d.label),
     ];
-    const ariaSuffix = opisy.length > 0 ? ` — ${opisy.join(', ')}` : '';
+    const ariaSuffix = opisy.length > 0 ? `: ${opisy.join(', ')}` : '';
     return (
       <Link
         href={hrefPelny ?? href}

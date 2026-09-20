@@ -86,16 +86,16 @@ async function nazwaZapraszajacego(groupId: string, od: string | undefined) {
 export async function generateMetadata({ params }: { params: { code: string } }): Promise<Metadata> {
   try {
     const dane = await nacytajZaproszenie(params.code);
-    if (!dane) return { title: 'Zaproszenie — Bojo', robots: { index: false, follow: false } };
+    if (!dane) return { title: 'Zaproszenie: Bojo', robots: { index: false, follow: false } };
     const title = `Dołącz do ekipy ${dane.group.name} w Bojo`;
-    const description = 'Terminy, skład na żywo i rozliczenia w jednym miejscu — zamiast liczenia plusów w czacie.';
+    const description = 'Terminy, skład na żywo i rozliczenia w jednym miejscu, zamiast liczenia plusów w czacie.';
     return {
       title, description,
       robots: { index: false, follow: false },
       openGraph: { title, description },
     };
   } catch {
-    return { title: 'Zaproszenie — Bojo', robots: { index: false, follow: false } };
+    return { title: 'Zaproszenie: Bojo', robots: { index: false, follow: false } };
   }
 }
 

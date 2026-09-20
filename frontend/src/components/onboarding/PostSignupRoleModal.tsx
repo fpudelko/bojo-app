@@ -96,7 +96,7 @@ export default function PostSignupRoleModal() {
         </div>
 
         <div className="space-y-3 px-5 py-4">
-          <p className="text-sm text-slate-600">Zanim zaczniesz — kim jesteś?</p>
+          <p className="text-sm text-slate-600">Zanim zaczniesz, kim jesteś?</p>
 
           {/* Prowadzi do /wydarzenia/nowe, NIE do /grupy/nowe — aktywacja
               to pierwszy wystawiony mecz, grupa jest retencją. Kto trafia na
@@ -110,7 +110,7 @@ export default function PostSignupRoleModal() {
           >
             <span className="block text-sm font-semibold text-primary-800">🏆 Jestem organizatorem</span>
             <span className="mt-0.5 block text-xs text-primary-700">
-              Wystaw pierwszy mecz i wyślij ekipie link — dwie minuty
+              Wystaw pierwszy mecz i wyślij ekipie link, dwie minuty
             </span>
           </button>
 
@@ -159,7 +159,7 @@ export default function PostSignupRoleModal() {
             onClick={zamknij}
             className="w-full py-1 text-center text-sm font-medium text-slate-500 hover:text-slate-700"
           >
-            Pomiń — zdecyduję później
+            Pomiń, zdecyduję później
           </button>
         </div>
       </div>

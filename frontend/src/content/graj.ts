@@ -27,6 +27,6 @@ export const GRAJ_LEAD =
 /** Gdy lista otwartych meczów jest pusta — uczciwe zastrzeżenie, ten sam ton
  *  co content/dlaczego.ts#wczesny-etap, nie desperackie domalowywanie ruchu. */
 export const GRAJ_BRAK_MECZY =
-  'Otwartych meczów bywa tu dziś niewiele — najpewniejszy skład zbierzesz, ' +
+  'Otwartych meczów bywa tu dziś niewiele, najpewniejszy skład zbierzesz, ' +
   'zapraszając własną ekipę linkiem. Mecz publiczny to dodatkowa szansa na ' +
   'dobranie kogoś nowego, nie gwarancja kompletu.';

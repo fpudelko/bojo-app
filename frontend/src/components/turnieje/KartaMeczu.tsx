@@ -13,7 +13,7 @@ function nazwaSlotu(
   meczePoId: Map<string, TurniejMecz>,
 ): string {
   const druzynaId = strona === 'a' ? mecz.druzynaAId : mecz.druzynaBId;
-  if (druzynaId) return druzynyPoId.get(druzynaId) ?? '—';
+  if (druzynaId) return druzynyPoId.get(druzynaId) ?? '-';
 
   const zrodloId = strona === 'a' ? mecz.zrodloAMeczId : mecz.zrodloBMeczId;
   const zrodloTyp = strona === 'a' ? mecz.zrodloATyp : mecz.zrodloBTyp;

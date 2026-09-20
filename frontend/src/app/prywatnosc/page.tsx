@@ -24,31 +24,31 @@ export default function PrywatnosePage() {
             Administratorem danych osobowych jest <strong>{LEGAL.operator}</strong>, operator
             serwisu {LEGAL.siteDomain} (dalej: „Serwis"). Kontakt we wszystkich sprawach
             dotyczących danych osobowych: <ContactMail />. Nie wyznaczyliśmy inspektora
-            ochrony danych — zgłoszenia trafiają na powyższy adres.
+            ochrony danych, zgłoszenia trafiają na powyższy adres.
           </p>
         </LegalSection>
 
         <LegalSection title="2. Jakie dane zbieramy">
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Adres e-mail</strong> — pobierany od Google podczas logowania przez OAuth 2.0 albo podawany bezpośrednio przy logowaniu e-mailem.</li>
-            <li><strong>Imię / pseudonim</strong> — podawany przez użytkownika jako wyświetlana nazwa.</li>
-            <li><strong>Zdjęcie profilowe</strong> — opcjonalne, wgrywane przez użytkownika.</li>
+            <li><strong>Adres e-mail</strong>: pobierany od Google podczas logowania przez OAuth 2.0 albo podawany bezpośrednio przy logowaniu e-mailem.</li>
+            <li><strong>Imię / pseudonim</strong>: podawany przez użytkownika jako wyświetlana nazwa.</li>
+            <li><strong>Zdjęcie profilowe</strong>: opcjonalne, wgrywane przez użytkownika.</li>
             <li>
-              <strong>Numer telefonu</strong> — opcjonalny, podawany wyłącznie za wyraźną
-              zgodą. Wysyłka SMS nie jest jeszcze uruchomiona — numer jest wyłącznie
+              <strong>Numer telefonu</strong>: opcjonalny, podawany wyłącznie za wyraźną
+              zgodą. Wysyłka SMS nie jest jeszcze uruchomiona, numer jest wyłącznie
               przechowywany na potrzeby przyszłych powiadomień i możesz go w każdej
               chwili usunąć w Profilu.
             </li>
             <li>
-              <strong>Lokalizacje wydarzeń</strong> — współrzędne lub adresy boisk i miejsc
+              <strong>Lokalizacje wydarzeń</strong>: współrzędne lub adresy boisk i miejsc
               dodawanych przez organizatorów wydarzeń.
             </li>
             <li>
-              <strong>Dane o uczestnictwie</strong> — informacje o zapisaniu się na mecze,
+              <strong>Dane o uczestnictwie</strong>: informacje o zapisaniu się na mecze,
               statusie płatności, wynikach, statystykach gier.
             </li>
             <li>
-              <strong>Dane techniczne</strong> — logi zapytań, adres IP (przechowywany przez
+              <strong>Dane techniczne</strong>: logi zapytań, adres IP (przechowywany przez
               dostawcę infrastruktury, Supabase).
             </li>
           </ul>
@@ -56,7 +56,7 @@ export default function PrywatnosePage() {
 
         <LegalSection title="3. Dobrowolność podania danych">
           <p>
-            Adres e-mail jest niezbędny do założenia konta — bez niego korzystanie z
+            Adres e-mail jest niezbędny do założenia konta, bez niego korzystanie z
             Serwisu nie jest możliwe. Imię, zdjęcie profilowe i numer telefonu są
             całkowicie dobrowolne i nie wpływają na dostęp do podstawowych funkcji
             Serwisu.
@@ -67,7 +67,7 @@ export default function PrywatnosePage() {
           <ul className="list-disc pl-5 space-y-1">
             <li>Umożliwienie logowania i identyfikacji użytkownika w Serwisie.</li>
             <li>Organizowanie i zarządzanie wydarzeniami sportowymi.</li>
-            <li>Wysyłka powiadomień o wydarzeniach (SMS, e-mail) — wyłącznie za zgodą.</li>
+            <li>Wysyłka powiadomień o wydarzeniach (SMS, e-mail): wyłącznie za zgodą.</li>
             <li>Prowadzenie statystyk aktywności gracza.</li>
             <li>Zapewnienie bezpieczeństwa Serwisu (rate limiting, logi).</li>
           </ul>
@@ -75,9 +75,9 @@ export default function PrywatnosePage() {
 
         <LegalSection title="5. Podstawa prawna">
           <ul className="list-disc pl-5 space-y-1">
-            <li>Art. 6 ust. 1 lit. b RODO — wykonanie umowy (korzystanie z Serwisu).</li>
-            <li>Art. 6 ust. 1 lit. a RODO — zgoda (numer telefonu, powiadomienia).</li>
-            <li>Art. 6 ust. 1 lit. f RODO — prawnie uzasadniony interes (bezpieczeństwo).</li>
+            <li>Art. 6 ust. 1 lit. b RODO: wykonanie umowy (korzystanie z Serwisu).</li>
+            <li>Art. 6 ust. 1 lit. a RODO: zgoda (numer telefonu, powiadomienia).</li>
+            <li>Art. 6 ust. 1 lit. f RODO: prawnie uzasadniony interes (bezpieczeństwo).</li>
           </ul>
         </LegalSection>
 
@@ -93,17 +93,17 @@ export default function PrywatnosePage() {
         <LegalSection title="7. Komu udostępniamy dane">
           <ul className="list-disc pl-5 space-y-1">
             <li>
-              <strong>Supabase Inc.</strong> — dostawca infrastruktury bazy danych
+              <strong>Supabase Inc.</strong>: dostawca infrastruktury bazy danych
               i uwierzytelniania. Dane przechowywane na serwerach w UE (region
               eu-central-1, Frankfurt). Supabase jest przetwarzającym dane w rozumieniu
               RODO.
             </li>
             <li>
-              <strong>Google LLC</strong> — jako dostawca uwierzytelniania OAuth 2.0.
+              <strong>Google LLC</strong>: jako dostawca uwierzytelniania OAuth 2.0.
               Google może przetwarzać dane zgodnie z własną polityką prywatności.
             </li>
             <li>
-              <strong>Dostawca bramki SMS</strong> — dopiero gdy funkcja powiadomień SMS
+              <strong>Dostawca bramki SMS</strong>: dopiero gdy funkcja powiadomień SMS
               zostanie uruchomiona i wyłącznie dla użytkowników, którzy wyrażą na to
               zgodę. Jego nazwa zostanie podana w tej polityce przed pierwszą wysyłką.
             </li>
@@ -115,7 +115,7 @@ export default function PrywatnosePage() {
           <p>
             Dane przechowywane u Supabase nie opuszczają Europejskiego Obszaru
             Gospodarczego (serwery w Frankfurcie). Logowanie przez Google może wiązać
-            się z przetwarzaniem danych przez Google LLC w USA — podstawą takiego
+            się z przetwarzaniem danych przez Google LLC w USA, podstawą takiego
             transferu są standardowe klauzule umowne oraz przynależność Google do
             programu Data Privacy Framework UE–USA.
           </p>
@@ -124,24 +124,24 @@ export default function PrywatnosePage() {
         <LegalSection title="9. Prawa użytkownika">
           <p>Na podstawie RODO przysługują Ci następujące prawa:</p>
           <ul className="list-disc pl-5 space-y-1 mt-2">
-            <li><strong>Dostęp</strong> — prawo uzyskania kopii swoich danych osobowych.</li>
-            <li><strong>Sprostowanie</strong> — możliwość poprawienia błędnych danych w ustawieniach profilu.</li>
+            <li><strong>Dostęp</strong>: prawo uzyskania kopii swoich danych osobowych.</li>
+            <li><strong>Sprostowanie</strong>: możliwość poprawienia błędnych danych w ustawieniach profilu.</li>
             <li>
-              <strong>Usunięcie</strong> (prawo do bycia zapomnianym) — możliwość usunięcia
+              <strong>Usunięcie</strong> (prawo do bycia zapomnianym): możliwość usunięcia
               konta i danych w sekcji Profil → „Usuń konto". Skutkuje anonimizacją zapisów
               uczestnictwa i usunięciem konta.
             </li>
             <li>
-              <strong>Ograniczenie przetwarzania</strong> — prawo żądania czasowego
+              <strong>Ograniczenie przetwarzania</strong>: prawo żądania czasowego
               ograniczenia przetwarzania danych w przypadkach przewidzianych RODO.
             </li>
             <li>
-              <strong>Cofnięcie zgody</strong> — możliwość cofnięcia zgody na przetwarzanie
+              <strong>Cofnięcie zgody</strong>: możliwość cofnięcia zgody na przetwarzanie
               numeru telefonu lub powiadomień w dowolnym momencie (Profil → ustawienia).
             </li>
-            <li><strong>Przeniesienie</strong> — prawo do otrzymania danych w formacie
+            <li><strong>Przeniesienie</strong>: prawo do otrzymania danych w formacie
               nadającym się do odczytu maszynowego (na żądanie).</li>
-            <li><strong>Sprzeciw</strong> — prawo do sprzeciwu wobec przetwarzania na
+            <li><strong>Sprzeciw</strong>: prawo do sprzeciwu wobec przetwarzania na
               podstawie prawnie uzasadnionego interesu.</li>
           </ul>
           <p className="mt-3">
@@ -192,13 +192,13 @@ export default function PrywatnosePage() {
           <p className="mt-2">
             Prowadzimy natomiast <strong>własny pomiar produktowy bez plików cookie</strong>:
             zapisujemy zdarzenia takie jak otwarcie strony obiektu, kliknięcie przycisku
-            „Zorganizuj tutaj” czy utworzenie meczu — wraz z adresem podstrony i informacją,
+            „Zorganizuj tutaj” czy utworzenie meczu, wraz z adresem podstrony i informacją,
             czy wejście nastąpiło z wyszukiwarki, z serwisu zewnętrznego, czy bezpośrednio.
             Służy to wyłącznie rozwojowi serwisu: pokazuje, które kroki sprawiają trudność.
           </p>
           <p className="mt-2">
-            Dla osób <strong>niezalogowanych zapis nie zawiera żadnego identyfikatora</strong> —
-            ani konta, ani adresu e-mail, ani identyfikatora urządzenia czy przeglądarki —
+            Dla osób <strong>niezalogowanych zapis nie zawiera żadnego identyfikatora</strong>
+            (ani konta, ani adresu e-mail, ani identyfikatora urządzenia czy przeglądarki),
             więc poszczególnych wizyt nie da się ze sobą powiązać ani przypisać do konkretnej
             osoby. Dla osób zalogowanych zdarzenie niesie identyfikator konta, żeby dało się
             odtworzyć ścieżkę w aplikacji; dotyczą ich te same prawa co pozostałych danych

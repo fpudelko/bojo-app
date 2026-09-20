@@ -123,7 +123,7 @@ describe('eventShareText — z podanym stanem zapisów (S-5)', () => {
   it('komplet z włączoną rezerwą: „wejdź na rezerwę" i nadal bez konta', () => {
     const t = eventShareText(bazowy, { wolneMiejsca: 0, reserveEnabled: true, zapisyZamkniete: false });
     const linie = t.split('\n');
-    expect(linie[3]).toBe('Komplet — wejdź na rezerwę · 20,00 zł od osoby');
+    expect(linie[3]).toBe('Komplet, wejdź na rezerwę · 20,00 zł od osoby');
     expect(linie[4]).toBe('Zapisujesz się bez zakładania konta.');
   });
 

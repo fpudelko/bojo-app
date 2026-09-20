@@ -40,7 +40,7 @@ export function obliczKlasyfikacje(
       imie: z.imie,
       numer: z.numer,
       druzynaId: z.druzynaId,
-      druzynaNazwa: druzynyPoId.get(z.druzynaId) ?? '—',
+      druzynaNazwa: druzynyPoId.get(z.druzynaId) ?? '-',
       gole: 0, asysty: 0, zolte: 0, czerwone: 0, mvp: 0, mecze: 0,
     };
     wpisy.set(zawodnikId, nowy);

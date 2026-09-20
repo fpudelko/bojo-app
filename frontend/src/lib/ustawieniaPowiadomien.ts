@@ -32,7 +32,7 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
   {
     typ: 'reserve_claim_offered',
     nazwa: 'Zwolniło się miejsce',
-    opis: 'Jesteś na rezerwie i ktoś się wypisał — masz miejsce do przyjęcia',
+    opis: 'Jesteś na rezerwie i ktoś się wypisał, masz miejsce do przyjęcia',
     wazne: true,
   },
   {
@@ -42,7 +42,7 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     // z drugiej strony.
     typ: 'oferta_wygasla',
     nazwa: 'Czas na przyjęcie miejsca minął',
-    opis: 'Nie zdążyłeś odpowiedzieć — miejsce poszło dalej, a Ty wracasz na koniec kolejki',
+    opis: 'Nie zdążyłeś odpowiedzieć, miejsce poszło dalej, a Ty wracasz na koniec kolejki',
     wazne: true,
   },
   {
@@ -68,7 +68,7 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     // rodzina co para wyżej: coś unieważnia Twoje plany na ten wieczór.
     typ: 'mecz_usuniety',
     nazwa: 'Mecz usunięty',
-    opis: 'Organizator skasował mecz — nie zostaje po nim żaden ślad w Bojo',
+    opis: 'Organizator skasował mecz, nie zostaje po nim żaden ślad w Bojo',
     wazne: true,
   },
   {
@@ -143,7 +143,7 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     // moment, w którym da się z tym cokolwiek zrobić.
     typ: 'przypomnienie_o_meczu',
     nazwa: 'Przypomnienie dzień przed',
-    opis: 'Jutro grasz — godzina, miejsce i stan składu',
+    opis: 'Jutro grasz, godzina, miejsce i stan składu',
     wazne: true,
   },
   {
@@ -160,13 +160,13 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     // zapytania; „potwierdzona" jest samą dobrą wiadomością, więc nie.
     typ: 'gra_zagrozona',
     nazwa: 'Gra zagrożona',
-    opis: 'Skład spadł poniżej minimum — mecz może się nie odbyć',
+    opis: 'Skład spadł poniżej minimum, mecz może się nie odbyć',
     wazne: true,
   },
   {
     typ: 'gra_potwierdzona',
     nazwa: 'Gramy',
-    opis: 'Skład przekroczył minimum — mecz jest pewny',
+    opis: 'Skład przekroczył minimum, mecz jest pewny',
   },
   {
     // Stan składu — ta sama rodzina co przypomnienie i „po meczu": Bojo mówi
@@ -179,7 +179,7 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
   {
     typ: 'zwolnilo_sie_miejsce',
     nazwa: 'Zwolniło się miejsce',
-    opis: 'Ktoś wypisał się z Twojego meczu — skład przestał być pełny',
+    opis: 'Ktoś wypisał się z Twojego meczu, skład przestał być pełny',
   },
   {
     typ: 'sklady_opublikowane',
@@ -201,12 +201,12 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
   {
     typ: 'wiadomosc_w_meczu',
     nazwa: 'Wiadomości w meczu',
-    opis: 'Ktoś napisał w rozmowie meczu, w którym grasz — najwyżej raz na godzinę',
+    opis: 'Ktoś napisał w rozmowie meczu, w którym grasz, najwyżej raz na godzinę',
   },
   {
     typ: 'wiadomosc_w_grupie',
     nazwa: 'Wiadomości w ekipie',
-    opis: 'Ktoś napisał na tablicy Twojej ekipy — najwyżej raz na godzinę',
+    opis: 'Ktoś napisał na tablicy Twojej ekipy, najwyżej raz na godzinę',
   },
   {
     typ: 'ogloszenie_w_grupie',
@@ -218,14 +218,14 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     // liście, który nie dotyczy żadnego wydarzenia.
     typ: 'uzupelnij_profil',
     nazwa: 'Uzupełnij profil',
-    opis: 'Konto bez imienia i nazwiska — gracze widzą Cię pod adresem e-mail',
+    opis: 'Konto bez imienia i nazwiska, gracze widzą Cię pod adresem e-mail',
   },
   // Turniej (migracja 145). Cztery typy Etapu 0 — kolejne dochodzą wraz
   // z kolejnymi etapami modułu, patrz docs/turnieje-plan-*.md.
   {
     typ: 'turniej_zgloszenie_druzyny',
     nazwa: 'Zgłoszenie drużyny do turnieju',
-    opis: 'Drużyna chce zagrać w Twoim turnieju — czeka na Twoją decyzję',
+    opis: 'Drużyna chce zagrać w Twoim turnieju, czeka na Twoją decyzję',
     wazne: true,
   },
   {
@@ -257,7 +257,7 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
   {
     typ: 'turniej_terminarz_gotowy',
     nazwa: 'Terminarz turnieju gotowy',
-    opis: 'Organizator ułożył plan meczów — sprawdź, kiedy gracie',
+    opis: 'Organizator ułożył plan meczów, sprawdź, kiedy gracie',
     wazne: true,
   },
   {

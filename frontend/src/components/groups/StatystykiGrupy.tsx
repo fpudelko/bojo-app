@@ -57,7 +57,7 @@ export default function StatystykiGrupy({ groupId }: { groupId: string }) {
         <div className="py-8 text-center">
           <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Jeszcze nie ma z czego liczyć</p>
           <p className="mt-1 text-sm text-slate-400">
-            Statystyki robią się z wpisanych wyników. Po meczu wpisz wynik i gole — reszta policzy się sama.
+            Statystyki robią się z wpisanych wyników. Po meczu wpisz wynik i gole, reszta policzy się sama.
           </p>
         </div>
       ) : wiersze.length > 0 && (
@@ -91,7 +91,7 @@ export default function StatystykiGrupy({ groupId }: { groupId: string }) {
                   <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">{w.goals}</td>
                   {pokazWygrane && (
                     <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">
-                      {w.matchesWithTeams > 0 ? w.wins : '—'}
+                      {w.matchesWithTeams > 0 ? w.wins : '-'}
                     </td>
                   )}
                 </tr>

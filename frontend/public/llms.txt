@@ -13,7 +13,7 @@
 ## Kontekst dla modeli
 
 - [Pełny kontekst o Bojo](/llm-context.md): gęsty opis produktu, modelu domenowego
-  i granic aplikacji — problem, rozwiązanie i mechanika każdej funkcji
+  i granic aplikacji: problem, rozwiązanie i mechanika każdej funkcji
 
 ## Dla organizatora
 
@@ -31,8 +31,8 @@
 - [Lista meczów](/wydarzenia): publiczne mecze, sortowanie po odległości
 - [Nowy mecz](/wydarzenia/nowe): sport, miejsce, termin, liczba graczy, widoczność
 - [Moje gry](/moje-gry): mecze organizowane, te na które jesteś zapisany i zaproszenia na mecz
-- [Rozmowy](/rozmowy): wszystkie rozmowy — mecze, ekipy i wiadomości prywatne — w jednym miejscu, od najnowszej
-- [Grupy](/grupy): stałe ekipy — mecze, rozmowa, statystyki i uprawnienia
+- [Rozmowy](/rozmowy): wszystkie rozmowy (mecze, ekipy i wiadomości prywatne) w jednym miejscu, od najnowszej
+- [Grupy](/grupy): stałe ekipy: mecze, rozmowa, statystyki i uprawnienia
   współorganizatorów w jednym miejscu; dołączanie wyłącznie kodem zaproszenia
   na żywo, tabela i statystyki graczy
 - [Profil](/profil): imię, awatar, telefon, usunięcie konta
@@ -46,10 +46,10 @@
 - [Siatkówka](/boiska/siatkowka)
 - [Siatkówka plażowa](/boiska/siatkowka-plazowa)
 
-Strona pojedynczego boiska: `/boisko/<nazwa-boiska>` — adres, sporty, nawierzchnia,
+Strona pojedynczego boiska `/boisko/<nazwa-boiska>`: adres, sporty, nawierzchnia,
 zdjęcie, dane kontaktowe (jeśli obiekt zgodził się na publikację) i nadchodzące mecze.
 
-Huby wojewódzkie: `/boiska/woj/<wojewodztwo>` (16 stron, po jednej na województwo) —
+Huby wojewódzkie: `/boiska/woj/<wojewodztwo>` (16 stron, po jednej na województwo),
 pełna lista boisk w danym regionie.
 
 ## Strony sport + miasto
@@ -57,7 +57,7 @@ pełna lista boisk w danym regionie.
 Trzy miasta z dedykowanymi stronami. Każda pokazuje otwarte publiczne mecze w danym
 sporcie w promieniu ok. 15 km od centrum miasta (na żywo, licznik), liczbę obiektów
 w katalogu w okolicy i prowadzi do stworzenia własnego meczu. Bojo nie jest systemem
-do rezerwacji boisk — te strony służą zebraniu składu na obiekt już zarezerwowany.
+do rezerwacji boisk: te strony służą zebraniu składu na obiekt już zarezerwowany.
 
 - [Piłka nożna w Poznaniu](/pilka-nozna/poznan)
 - [Siatkówka w Poznaniu](/siatkowka/poznan)
@@ -75,29 +75,29 @@ do rezerwacji boisk — te strony służą zebraniu składu na obiekt już zarez
 ## Jak działa Bojo
 
 - Przeglądanie mapy i stron boisk nie wymaga konta. Tworzenie meczu wymaga konta.
-  Dołączenie do meczu — nie: osoba z linkiem zapisuje się, podając imię i e-mail, bez
+  Dołączenie do meczu: nie. Osoba z linkiem zapisuje się, podając imię i e-mail, bez
   hasła i bez potwierdzania adresu; konto może dokończyć dopiero po zapisie, jeśli chce.
 - Mecz jest **publiczny** (widoczny na liście, każdy może dołączyć) albo **prywatny**
-  (dostęp wyłącznie przez link lub kod dołączenia) — kolumna w bazie nie ma trzeciej
-  wartości. Prywatny mecz przypięty do grupy jest mimo to widoczny dla całej ekipy —
+  (dostęp wyłącznie przez link lub kod dołączenia), kolumna w bazie nie ma trzeciej
+  wartości. Prywatny mecz przypięty do grupy jest mimo to widoczny dla całej ekipy,
   to świadome zachowanie, nie luka.
 - Organizator może wymagać akceptacji zapisu oraz pozwolić uczestnikom dopisywać gości
   bez konta.
 - Status **„Obserwuję"** nie zajmuje miejsca w składzie ani nie liczy się do statystyk.
 - Gdy komplet jest pełny, kolejne zapisy trafiają na **listę rezerwową**. Rezerwowy
-  **nie wskakuje automatycznie**, gdy ktoś się wypisze — dostaje ofertę miejsca
+  **nie wskakuje automatycznie**, gdy ktoś się wypisze, dostaje ofertę miejsca
   i ma czas na decyzję.
 - Organizator może włączyć podział kosztów, wyniki meczu i podział na drużyny.
-- Bojo **rejestruje**, kto zapłacił — **nie przelewa pieniędzy**. Płatność odbywa się
+- Bojo **rejestruje**, kto zapłacił: **nie przelewa pieniędzy**. Płatność odbywa się
   poza aplikacją.
 - Powiadomienia (oferta zwolnionego miejsca, akceptacja zapisu, zmiana terminu, miejsca
   lub kosztu, zaproszenie, odwołanie lub usunięcie meczu, usunięcie ze składu, zmiana
   kompletu składu, przypomnienie dzień przed) trafiają **w aplikacji**, pod dzwonkiem,
-  a po włączeniu — także **na telefon**. Osoba zapisana bez konta dostaje je **mailem**
+  a po włączeniu, także **na telefon**. Osoba zapisana bez konta dostaje je **mailem**
   na adres podany przy zapisie. Bojo nie wysyła SMS-ów.
 
 ## Optional
 
 - [Regulamin](/regulamin)
 - [Polityka prywatności](/prywatnosc)
-- /zglos-blad — zgłoszenie błędu w aplikacji (formularz, działa też bez logowania)
+- /zglos-blad: zgłoszenie błędu w aplikacji (formularz, działa też bez logowania)

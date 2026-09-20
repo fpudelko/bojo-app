@@ -370,7 +370,7 @@ export default function AdminFieldPage() {
                     Rezerwacja online (przez aplikację)
                   </p>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Gracze mogą rezerwować bezpośrednio — wybierają datę i slot czasowy
+                    Gracze mogą rezerwować bezpośrednio, wybierają datę i slot czasowy
                   </p>
                 </div>
               </label>

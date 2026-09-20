@@ -459,7 +459,7 @@ export default function EditEventPage() {
       // Milczenie w tym miejscu czytałoby się jak „nic nie zmieniłem".
       opis: zmiany.length > 0
         ? zmiany.map((z) => `${z.etykieta}: ${z.przed} → ${z.po}`).join('\n')
-        : 'Zmieniasz ustawienia meczu — data, miejsce i koszt zostają bez zmian.',
+        : 'Zmieniasz ustawienia meczu: data, miejsce i koszt zostają bez zmian.',
       konsekwencje: konsekwencjeZapisu(zmiany, komu, {
         zapisanych: wSkladzie,
         miejsc: payload.maxPlayers,

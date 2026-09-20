@@ -146,6 +146,6 @@ export function korzysciInstalacji(): Korzysc[] {
   return [
     { ikona: 'miejsce', tekst: 'Wiesz pierwszy, gdy zwolni się miejsce w meczu' },
     { ikona: 'przypomnienie', tekst: 'Przypomnienie o meczu dzień wcześniej' },
-    { ikona: 'rozmowa', tekst: 'Rozmowa ekipy i skład — jednym stuknięciem, bez szukania' },
+    { ikona: 'rozmowa', tekst: 'Rozmowa ekipy i skład, jednym stuknięciem, bez szukania' },
   ];
 }

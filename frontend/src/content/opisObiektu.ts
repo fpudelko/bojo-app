@@ -61,7 +61,7 @@ export function opisObiektu(field: ObiektDoOpisu): string {
   if (field.lit) cechy.push('oświetlenie');
 
   return (
-    `${field.name} to obiekt sportowy${gdzie}, przeznaczony do gry w ${sporty} — ${cechy.join(', ')}. ` +
+    `${field.name} to obiekt sportowy${gdzie}, przeznaczony do gry w ${sporty}: ${cechy.join(', ')}. ` +
     'Szukasz graczy? Stwórz otwarty mecz na Bojo i zbierz skład przez jeden link, bez zakładania konta dla dołączających.'
   );
 }

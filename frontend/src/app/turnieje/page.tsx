@@ -6,7 +6,7 @@ import SiteFooter from '@/components/layout/SiteFooter';
 // odmrożenie w Etapie 4; do tego czasu robots.ts blokuje skanowanie.
 export const metadata: Metadata = {
   title: 'Turnieje',
-  description: 'Zapisy drużyn, terminarz i wyniki na żywo — turnieje amatorskie prowadzone w Bojo.',
+  description: 'Zapisy drużyn, terminarz i wyniki na żywo, turnieje amatorskie prowadzone w Bojo.',
   alternates: { canonical: '/turnieje' },
 };
 

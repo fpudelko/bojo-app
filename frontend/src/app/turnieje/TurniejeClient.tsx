@@ -63,7 +63,7 @@ const ETYKIETY: Record<Karta, string> = {
 };
 
 const PUSTE: Record<Karta, string> = {
-  moje: 'Nie grasz jeszcze w żadnym turnieju — kapitan Twojej drużyny wyśle Ci link, gdy się zgłosicie.',
+  moje: 'Nie grasz jeszcze w żadnym turnieju, kapitan Twojej drużyny wyśle Ci link, gdy się zgłosicie.',
   zapisy: 'Żaden turniej nie przyjmuje teraz zgłoszeń.',
   trwaja: 'Nic się teraz nie rozgrywa.',
   zakonczone: 'Żaden turniej jeszcze się nie zakończył.',

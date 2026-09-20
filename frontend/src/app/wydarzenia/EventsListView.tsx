@@ -580,7 +580,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
             <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-800">
               <p className="font-semibold text-ink">Nie ma Twojej gry?</p>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                Wystaw własną — kreator ma trzy kroki i zajmuje dwie minuty.
+                Wystaw własną, kreator ma trzy kroki i zajmuje dwie minuty.
               </p>
               <Link
                 href="/wydarzenia/nowe"
@@ -616,8 +616,8 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
               : hasFilters
               ? 'Zmień filtr albo wrzuć własny mecz.'
               : mamEkipe === false
-                ? 'Grasz ze stałą ekipą? Wejdź do niej kodem od kolegów — mecze ekipy zobaczysz w „Grupy".'
-                : 'Wrzuć własny — zobaczą go gracze z okolicy.'}
+                ? 'Grasz ze stałą ekipą? Wejdź do niej kodem od kolegów, mecze ekipy zobaczysz w „Grupy".'
+                : 'Wrzuć własny, zobaczą go gracze z okolicy.'}
           </p>
           {/* Najpierw odpowiedź na to, po co ktoś tu przyszedł: skoro meczu
               nie ma DZIŚ, jedyne sensowne „dalej" to dowiedzieć się, gdy
@@ -804,7 +804,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
           <button
             type="button"
             onClick={openSheet}
-            aria-label={liczbaFiltrow > 0 ? `Filtry — ${liczbaFiltrow} aktywne` : 'Filtry'}
+            aria-label={liczbaFiltrow > 0 ? `Filtry: ${liczbaFiltrow} aktywne` : 'Filtry'}
             className={clsx(
               'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors',
               liczbaFiltrow > 0

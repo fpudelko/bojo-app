@@ -240,7 +240,7 @@ export default function AnalyticsAdminPage() {
             </span>
           </p>
           <p className="mt-1 text-xs text-primary-700/80">
-            To kluczowy miernik — ilu graczy wraca po pierwszej wizycie. Tę liczbę chcemy ruszyć w górę.
+            To kluczowy miernik, ilu graczy wraca po pierwszej wizycie. Tę liczbę chcemy ruszyć w górę.
           </p>
         </div>
 
@@ -258,7 +258,7 @@ export default function AnalyticsAdminPage() {
           <p className="font-semibold text-ink">Ruch na stronach boisk (7 dni)</p>
           <p className="mt-1 text-xs text-slate-500">
             Strony boisk zbierają dziś cały ruch z wyszukiwarki. „Wewnętrzne" to przejścia
-            wewnątrz Bojo — nie liczą się do pozyskania i są wyłączone z konwersji niżej.
+            wewnątrz Bojo, nie liczą się do pozyskania i są wyłączone z konwersji niżej.
           </p>
 
           {stats.wejscia7 === 0 ? (

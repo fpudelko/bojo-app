@@ -134,7 +134,7 @@ export default function TaktykaDruzyny({
     setOpublikowana(nowa);
     try {
       await zapiszUstawienie(eventId, team, { opublikowana: nowa, schemat: aktualnySchemat }, user.id);
-      toast(nowa ? 'Taktyka opublikowana — drużyna ją widzi' : 'Taktyka ukryta');
+      toast(nowa ? 'Taktyka opublikowana, drużyna ją widzi' : 'Taktyka ukryta');
     } catch (e) {
       setOpublikowana(!nowa);
       toast(e instanceof Error ? e.message : 'Nie udało się zmienić widoczności', 'error');
@@ -240,8 +240,8 @@ export default function TaktykaDruzyny({
           <p className="text-sm font-semibold text-ink">Drużyna nie ma jeszcze kapitana</p>
           <p className="mt-1 text-xs text-slate-600">
             {mozeWskazacKapitana
-              ? 'Wskaż go w zakładce Mecz — gwiazdka przy nazwisku na liście składów. Kapitan ustawia taktykę i publikuje ją drużynie.'
-              : 'Taktykę ustawia kapitan. Poproś organizatora, żeby kogoś wskazał — rozmowa drużyny działa już teraz.'}
+              ? 'Wskaż go w zakładce Mecz, gwiazdka przy nazwisku na liście składów. Kapitan ustawia taktykę i publikuje ją drużynie.'
+              : 'Taktykę ustawia kapitan. Poproś organizatora, żeby kogoś wskazał, rozmowa drużyny działa już teraz.'}
           </p>
         </div>
       )}
@@ -271,7 +271,7 @@ export default function TaktykaDruzyny({
             <p className="text-xs text-slate-500">
               {opublikowana
                 ? 'Zmiany, które teraz zrobisz, są widoczne od razu.'
-                : 'Ułóż spokojnie, a potem opublikuj — do tego czasu nikt tego nie ogląda.'}
+                : 'Ułóż spokojnie, a potem opublikuj, do tego czasu nikt tego nie ogląda.'}
             </p>
           </div>
           <button
@@ -357,7 +357,7 @@ export default function TaktykaDruzyny({
               }}
               style={{ left: `${poz.x}%`, top: `${100 - poz.y}%` }}
               className="absolute flex h-8 w-[4.25rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center disabled:cursor-default"
-              aria-label={gracz ? `${poz.nazwa}: ${gracz.name}` : `${poz.nazwa} — wolna pozycja`}
+              aria-label={gracz ? `${poz.nazwa}: ${gracz.name}` : `${poz.nazwa}: wolna pozycja`}
             >
               <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[10px] font-bold shadow transition ${
                 gracz
@@ -441,7 +441,7 @@ export default function TaktykaDruzyny({
         )}
         {mozeEdytowac && wybranySlot === null && !wybranyGracz && bezPozycji.length > 0 && (
           <p className="mt-1 text-[11px] text-slate-400">
-            Stuknij pozycję i gracza — w dowolnej kolejności.
+            Stuknij pozycję i gracza, w dowolnej kolejności.
           </p>
         )}
       </div>
@@ -482,7 +482,7 @@ export default function TaktykaDruzyny({
                   }))}
                   onBlur={() => zapiszTaktyke(taktyka)}
                   maxLength={120}
-                  placeholder={`${pytanie} — jak u Was?`}
+                  placeholder={`${pytanie}, jak u Was?`}
                   className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-700"
                 />
               )}

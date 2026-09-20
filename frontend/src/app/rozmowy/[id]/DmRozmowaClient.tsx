@@ -119,7 +119,7 @@ export default function DmRozmowaClient() {
       if (zablokowany) {
         await odblokuj(user.id, drugiId);
         setZablokowany(false);
-        toast('Odblokowano — możecie znów pisać.');
+        toast('Odblokowano, możecie znów pisać.');
       } else {
         await zablokuj(user.id, drugiId);
         setZablokowany(true);
@@ -133,11 +133,11 @@ export default function DmRozmowaClient() {
   const zglosOsobe = async () => {
     if (!user) return;
     setMenuOtwarte(false);
-    const powod = window.prompt('Co jest nie tak? Opisz krótko — zgłoszenie trafia do nas, nie do tej osoby.');
+    const powod = window.prompt('Co jest nie tak? Opisz krótko, zgłoszenie trafia do nas, nie do tej osoby.');
     if (!powod?.trim()) return;
     try {
       await zglos(user.id, drugiId, powod);
-      toast('Dziękujemy — zgłoszenie przyjęte.');
+      toast('Dziękujemy, zgłoszenie przyjęte.');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się wysłać zgłoszenia.', 'error');
     }
@@ -237,7 +237,7 @@ export default function DmRozmowaClient() {
               <p className="text-3xl" aria-hidden="true">👋</p>
               <p className="mt-2 text-sm font-semibold text-ink">To początek rozmowy</p>
               <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500 dark:text-slate-400">
-                Napisz pierwszą wiadomość — widzi ją tylko {drugaNazwa ?? 'ta osoba'}.
+                Napisz pierwszą wiadomość, widzi ją tylko {drugaNazwa ?? 'ta osoba'}.
               </p>
             </div>
           ) : (

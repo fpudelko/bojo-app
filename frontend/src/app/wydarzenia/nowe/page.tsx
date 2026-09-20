@@ -1207,7 +1207,7 @@ function NewEventForm() {
                 )}
                 {sportZmienilMiejsce && (
                   <p className="mb-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
-                    Poprzednie boisko nie obsługuje sportu {sportLabel(sport)} — wybierz miejsce ponownie.
+                    Poprzednie boisko nie obsługuje sportu {sportLabel(sport)}, wybierz miejsce ponownie.
                   </p>
                 )}
                 <p className="text-xs text-slate-500 mb-2">

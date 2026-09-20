@@ -34,7 +34,7 @@ export default function ZglosBladObiektu({ fieldId }: { fieldId: string }) {
     setWysylanie(true);
     try {
       await zglosBladObiektu(fieldId, powod, komentarz);
-      toast('Dzięki — sprawdzimy to');
+      toast('Dzięki, sprawdzimy to');
       setOtwarte(false);
       setPowod(null);
       setKomentarz('');

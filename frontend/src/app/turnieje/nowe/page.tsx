@@ -400,7 +400,7 @@ export default function NowyTurniejPage() {
               />
               <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">zł</span>
             </div>
-            <p className="mt-1 text-xs text-slate-400">Bez przepływu pieniędzy przez Bojo — kwota i BLIK do ustawienia w panelu, odhaczasz „opłacone" ręcznie.</p>
+            <p className="mt-1 text-xs text-slate-400">Bez przepływu pieniędzy przez Bojo, kwota i BLIK do ustawienia w panelu, odhaczasz „opłacone" ręcznie.</p>
           </div>
 
           <div>
