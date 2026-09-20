@@ -58,6 +58,22 @@ Settings → Secrets and variables → Actions:
 | `SUPABASE_DB_URL_DEV` | projekt `BojoDev` → Connect → Session pooler |
 | `SUPABASE_DB_URL_PROD` | projekt produkcyjny → Connect → Session pooler |
 
+**Session pooler, nie Direct connection — to nie jest kosmetyczny wybór.**
+Adres `db.<ref>.supabase.co` (Direct connection) ma w Supabase wyłącznie
+rekord AAAA, a runnery GitHub Actions nie mają IPv6. Połączenie nie ma wtedy
+jak dojść, a psql mówi tylko „Network is unreachable", co czyta się jak awaria
+Supabase albo źle ustawiona zapora. Session pooler idzie po IPv4:
+
+```
+postgresql://postgres.<ref>:HASŁO@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+Zwróć uwagę, że **zmienia się także nazwa użytkownika**: `postgres.<ref>`
+zamiast samego `postgres`. To jest miejsce, w którym najłatwiej skleić adres
+z dwóch zakładek i dostać błąd uwierzytelnienia zamiast sieciowego.
+`scripts/sprawdz-adres-bazy.sh` rozpoznaje adres Direct connection i mówi to
+wprost, zanim dojdzie do próby połączenia.
+
 ### 3. Bramka na produkcję
 
 Settings → **Environments** → `produkcja` → **Required reviewers** → dodaj

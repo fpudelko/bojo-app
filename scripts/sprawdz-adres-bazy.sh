@@ -58,6 +58,28 @@ case "$CZYSTY" in
       exit 1
     fi
 
+    # Direct connection Supabase (`db.<ref>.supabase.co`) ma WYŁĄCZNIE rekord
+    # AAAA, a runnery GitHuba nie mają IPv6 — psql mówi wtedy tylko „Network
+    # is unreachable", co czyta się jak awaria Supabase albo zła zapora, i nie
+    # naprowadza na nic. Rozpoznajemy to tutaj, zanim dojdzie do połączenia,
+    # bo poprawka jest jednozdaniowa, a diagnoza z samego psql zajmuje wieczór.
+    GOSPODARZ="${RESZTA%%[:/]*}"
+    case "$GOSPODARZ" in
+      db.*.supabase.co)
+        REF="${GOSPODARZ#db.}"
+        REF="${REF%%.*}"
+        {
+          echo "$NAZWA wskazuje na Direct connection ($GOSPODARZ), a ten adres ma w Supabase tylko IPv6."
+          echo "Runnery GitHub Actions nie mają IPv6, więc połączenie nie ma jak dojść."
+          echo "Weź adres Session pooler: Supabase → Connect → Session pooler. Różni się w DWÓCH miejscach:"
+          echo "  host:        aws-0-<region>.pooler.supabase.com:5432"
+          echo "  użytkownik:  postgres.$REF   (zamiast samego 'postgres')"
+          echo "::error::$NAZWA to adres Direct connection (tylko IPv6). Podmień go na Session pooler — patrz $INSTRUKCJA"
+        } >&2
+        exit 1
+        ;;
+    esac
+
     # Powód, dla którego hasło musi być URI-bezpieczne, nie jest kosmetyczny:
     # przy `+`, `/` albo `=` psql nie rozpoznaje adresu jako URI, przechodzi na
     # parsowanie „klucz=wartość" i WYPISUJE FRAGMENT HASŁA w komunikacie błędu.
