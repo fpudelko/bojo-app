@@ -401,3 +401,68 @@ export async function ustawBlikTurnieju(turniejId: string, telefon: string): Pro
     .upsert({ turniej_id: turniejId, blik_telefon: bezpiecznyTelefon }, { onConflict: 'turniej_id' });
   if (error) throw new Error(error.message);
 }
+
+// ---------------------------------------------------------------------------
+// Statystyki turniejowe gracza — sekcja „Turnieje" na /gracz/[id]
+// ---------------------------------------------------------------------------
+
+export interface StatystykiTurniejoweGracza {
+  turniejow: number;
+  meczow: number;
+  goli: number;
+  asyst: number;
+  mvp: number;
+}
+
+export interface TurniejGracza {
+  turniejId: string;
+  nazwa: string;
+  sport: string;
+  dataStartu: string;
+  druzyna: string;
+  wygrany: boolean;
+  meczow: number;
+  goli: number;
+}
+
+/**
+ * Liczby do sekcji „Turnieje" na profilu (migracja `156`).
+ *
+ * ŚWIADOMIE OSOBNO od `get_player_stats()`: tamta liczy mecze, a jej
+ * `matchesPlayed`/`noShows` sterują odznaką rzetelnego gracza i paskiem
+ * frekwencji. Dopisanie tam turniejów zmieniłoby po cichu znaczenie liczb,
+ * które ludzie już widzieli.
+ *
+ * Funkcja w bazie jest `SECURITY INVOKER`, więc ściana logowania modułu
+ * egzekwuje się sama — niezalogowany dostanie zera, nie błąd.
+ */
+export async function getStatystykiTurniejoweGracza(userId: string): Promise<StatystykiTurniejoweGracza | null> {
+  const { data, error } = await supabase.rpc('get_player_turniej_stats', { p_user_id: userId });
+  if (error) throw new Error(error.message);
+  const wiersz = Array.isArray(data) ? data[0] : data;
+  if (!wiersz) return null;
+  return {
+    turniejow: wiersz.turniejow ?? 0,
+    meczow: wiersz.meczow ?? 0,
+    goli: wiersz.goli ?? 0,
+    asyst: wiersz.asyst ?? 0,
+    mvp: wiersz.mvp ?? 0,
+  };
+}
+
+/** Ostatnie turnieje gracza — nazwa, drużyna i czy wygrała finał (`156`). */
+export async function getTurniejeGracza(userId: string, limit = 3): Promise<TurniejGracza[]> {
+  const { data, error } = await supabase.rpc('get_player_turnieje', { p_user_id: userId, p_limit: limit });
+  if (error) throw new Error(error.message);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((r) => ({
+    turniejId: r.turniej_id,
+    nazwa: r.nazwa,
+    sport: r.sport,
+    dataStartu: r.data_startu,
+    druzyna: r.druzyna,
+    wygrany: !!r.wygrany,
+    meczow: r.meczow ?? 0,
+    goli: r.goli ?? 0,
+  }));
+}

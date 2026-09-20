@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-20 · migracja `155` · 60 tabel
+**Stan na:** 2026-09-20 · migracja `156` · 60 tabel
 
 ---
 
@@ -295,8 +295,20 @@ miejsc z terminem granicznym i przyciskiem „Zgłoś drużynę". W drabince
 zwycięzca meczu jest pogrubiony, a pod wynikiem stoją rzuty karne, gdy to one
 rozstrzygnęły; w tabeli grupy miejsca awansujące mają pasek przy pozycji, a podpis,
 ile pierwszych miejsc wychodzi do fazy pucharowej, stoi raz pod kompletem tabel. Organizator może dopisać ogłoszenie widoczne dla
-wszystkich drużyn i podać numer BLIK do wpisowego. Po turnieju kapitan jednym przyciskiem
-zamienia drużynę w trwałą ekipę Bojo (grupę) z całym zapisanym składem.
+wszystkich drużyn i podać numer BLIK do wpisowego. Po ostatnim meczu strona
+turnieju pokazuje PODIUM: trzy pierwsze drużyny, króla strzelców, MVP i przycisk
+„Udostępnij wyniki". Stamtąd kapitan jednym przyciskiem zamienia drużynę w trwałą ekipę
+Bojo (grupę) z całym zapisanym składem, a ktoś, kto właśnie obejrzał cudzy turniej,
+znajduje wejście do własnego. Kreator turnieju liczy na bieżąco, ile meczów wyjdzie
+i o której padnie ostatni gwizdek, a kończy się ekranem z linkiem i gotowym tekstem
+do wklejenia na grupę.
+
+**Ślad na profilu gracza.** Zawodnik, który zagrał w turnieju, ma na swoim publicznym
+profilu (`/gracz/[id]`) sekcję „Turnieje": liczba turniejów, meczów, goli i tytułów MVP
+oraz trzy ostatnie turnieje z nazwą drużyny. Liczby są LICZONE OSOBNO od statystyk
+meczowych (`get_player_turniej_stats()`, migracja `156`) — turniej nie ma zapisów, rezerwy
+ani nieobecności, więc mieszanie go z frekwencją z gierek zmieniłoby znaczenie tamtych
+liczb. Sekcja znika u kogoś, kto nie grał w żadnym turnieju.
 
 **Ściana logowania.** Nazwa turnieju, format, terminarz, wynik i tabela są publiczne —
 widzi je każdy, także niezalogowany. Skład drużyny (imiona, numery) i wszystko, co
@@ -305,7 +317,7 @@ jednocześnie główna droga zakładania kont w tym module.
 
 **Mechanika.** Tabele `turnieje`, `turniej_druzyny`, `turniej_zawodnicy`, `turniej_grupy`,
 `turniej_areny`, `turniej_mecze`, `turniej_zdarzenia`, `turniej_ogloszenia`,
-`turniej_blik`, `turniej_osoby`, `turniej_zaproszenia` (migracje `145`–`150`, `154`–`155`). RLS jest jedyną granicą dostępu —
+`turniej_blik`, `turniej_osoby`, `turniej_zaproszenia` (migracje `145`–`150`, `154`–`156`). RLS jest jedyną granicą dostępu —
 funkcje `czy_zarzadza_turniejem()`/`czy_kapitan_druzyny()`/`czy_prowadzi_mecz()` decydują,
 kto edytuje co. Wynik meczu liczy się z zapisanych zdarzeń (gol/samobójczy/kartka/punkty),
 dopóki organizator nie wpisze go ręcznie (siatkówka i koszykówka mają własną logikę:
@@ -458,6 +470,15 @@ Domyślna zakładka strony turnieju zależy teraz od jego stanu (zapisy → Info
 Mecze, koniec → Tabela), w zapisach stoi nad nią licznik wolnych miejsc z terminem
 granicznym, `/t/[kod]` mówi najpierw, do czego człowiek dołącza (turniej, data, miejsce,
 kto już jest w składzie), a grający filtruje terminarz na „Nasze".
+
+MECHANIKA (początek i koniec łuku, migracja `156`): wyliczenie czasu w kreatorze
+(`lib/turniejKreator.ts`) odpala prawdziwe generatory terminarza na atrapach drużyn, więc
+nie może rozjechać się z panelem. Kreator kończy się ekranem-plakatem z linkiem i gotowym
+tekstem. Podium liczy `lib/turniejPodium.ts` — miejsce jest LICZONE, nie zapisywane
+w kolumnie, żeby nie powstała druga prawda o tym, kto wygrał; drabinka bije tabelę,
+a trzeciego miejsca bez meczu o 3. miejsce nie wymyślamy. Profil gracza:
+`get_player_turniej_stats()`/`get_player_turnieje()`, `SECURITY INVOKER`, więc ściana
+logowania egzekwuje się sama.
 
 MECHANIKA (dzień turnieju, migracja `155`): konsola prowadzącego dostała arkusz ze
 składem zamiast dwóch natywnych list rozwijanych (`ArkuszSkladu.tsx`), zegar meczu

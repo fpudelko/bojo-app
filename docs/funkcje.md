@@ -4527,6 +4527,46 @@ zakładki dalej, w miejscu, do którego w sobotę nikt nie zagląda. Wszystko w
 jedyny stan, którego nie da się obejrzeć bez czekania na sobotę.
 
 
+### Etap C przebudowy UX (migracja `156`) — początek i koniec łuku
+
+**Wyliczenie czasu trwania turnieju w kreatorze** (`lib/turniejKreator.ts`,
+`szacunekZParametrow()` + `zdanieOCzasie()`). Jedyna rzecz, której organizator nie policzy
+w głowie, a od której zależy, czy o 17:00 nie będzie grał finału po ciemku. **Nie liczy
+tego własnym wzorem** — odpala PRAWDZIWE generatory (`rozlosujGrupy` →
+`meczeKazdyZKazdym` → `zbudujDrabinke`) na atrapach drużyn i podaje wynik do
+`szacunekCzasu()`, więc kreator nie może rozjechać się z tym, co pokaże panel przed
+wygenerowaniem terminarza.
+
+**Kreator kończy się plakatem, nie panelem.** Po utworzeniu turnieju organizator lądował
+w panelu — ekranie zarządzania — czyli wychodził z narzędzia bez rzeczy, po którą
+przyszedł. Dziś dostaje ekran „Turniej jest ogłoszony": przycisk „Wyślij kapitanom" (Web
+Share z fallbackiem do schowka), link do skopiowania i GOTOWY TEKST na grupę widoczny
+wprost, nie tylko w arkuszu systemowym.
+
+**Podium na zakończonym turnieju** (`lib/turniejPodium.ts`). Turniej nie miał końca, tylko
+wygasanie: status zmieniał się na `zakonczony` i strona pokazywała tabelę. A to jest moment
+o największym zasięgu w module — wszyscy uczestnicy patrzą w telefon w tej samej minucie.
+Nad zakładkami stoi podium, król strzelców, MVP i „Udostępnij wyniki". **Miejsce jest
+liczone, nie zapisywane**: kolumna `turniej_druzyny.miejsce` byłaby drugą prawdą o tym, kto
+wygrał, i rozjechałaby się z tabelą przy pierwszej korekcie wyniku. Drabinka bije tabelę
+(mistrz bywa drugi w swojej grupie), a gdy meczu o 3. miejsce nie było, **trzeciego miejsca
+nie wymyślamy** — dwaj przegrani półfinaliści są formalnie równi.
+
+**Dwa wyjścia z podium.** „Zamień drużynę w ekipę" wychodzi tu na wierzch dla kapitana
+(dotąd siedziało trzy kliknięcia głębiej, w rozwiniętej karcie drużyny na zakładce
+Drużyny) i „Organizujesz podobny? Zrób go w Bojo" — zaczepka dla obcego organizatora,
+który właśnie obejrzał cudzy turniej. To najtańszy kanał pozyskania organizatora, jaki ten
+moduł produkuje, i nie miał dotąd żadnego przycisku.
+
+**Sekcja „Turnieje" na profilu gracza** (`components/turnieje/SekcjaTurniejeProfilu.tsx`,
+funkcje `get_player_turniej_stats()`/`get_player_turnieje()`). Jedyny powód, dla którego
+zawodnik wraca do Bojo w tygodniu po turnieju — bez niej konto założone pod jeden turniej
+jest kontem założonym na jeden dzień. Cztery liczby (turnieje, mecze, gole, MVP) i trzy
+ostatnie turnieje z nazwą drużyny, ze złotym medalem przy tych, w których drużyna wygrała
+finał. Sekcja **znika przy zerze turniejów** — pusty kafelek na profilu 90% graczy to szum.
+Ścieżka zamyka się w obie strony: skład drużyny prowadził do profilu już wcześniej
+(`KartaDruzyny.tsx`), teraz profil prowadzi z powrotem do turnieju.
+
 ---
 
 ## Pomiar produktowy — co mierzymy i gdzie to czytać

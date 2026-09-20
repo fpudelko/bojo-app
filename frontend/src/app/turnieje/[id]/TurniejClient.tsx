@@ -21,6 +21,7 @@ import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, s
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
+import { podiumTurnieju, tekstPodium, medal } from '@/lib/turniejPodium';
 import { linkDojazdu } from '@/lib/utils';
 import { sportEmoji } from '@/lib/sports';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
@@ -290,6 +291,13 @@ export default function TurniejClient() {
   const stan = stanTurnieju(turniej, mecze);
   const zapisy = stanZapisowTurnieju(turniej, druzyny.length);
   const meczeNaZywo = mecze.filter((m) => m.status === 'trwa');
+  // Tabela LIGI (nie grupy) jako podstawa podium — patrz `turniejPodium.ts`.
+  const tabelaLigi = turniej.format === 'liga' && tabeleGrup.length === 1
+    ? tabeleGrup[0].wiersze
+    : undefined;
+  const podium = stan.label === 'Zakończony'
+    ? podiumTurnieju(mecze, druzynyPoId, tabelaLigi)
+    : [];
 
   // Najbliższy mecz MOJEJ drużyny — do paska „co dotyczy mnie".
   const mojNastepnyMecz = mojaDruzyna
@@ -333,6 +341,33 @@ export default function TurniejClient() {
   const asystenci = posortujKlasyfikacje(klasyfikacje, 'asysty');
   const mvpList = posortujKlasyfikacje(klasyfikacje, 'mvp');
   const dojazd = linkDojazdu({ lat: turniej.lat, lng: turniej.lng, adres: turniej.miejsceAdres });
+
+  // Król strzelców i MVP do podium — liczone z tych samych klasyfikacji, które
+  // stoją niżej na zakładce Mecze, więc nie mogą się z nimi rozjechać.
+  const krolStrzelcow = strzelcy.length > 0 && strzelcy[0].gole > 0
+    ? { imie: strzelcy[0].imie, gole: strzelcy[0].gole }
+    : undefined;
+  const turniejowyMvp = mvpList.length > 0 && mvpList[0].mvp > 0
+    ? { imie: mvpList[0].imie }
+    : undefined;
+
+  const udostepnijWyniki = async () => {
+    const tekst = tekstPodium(turniej.nazwa, podium, linkDoTurnieju(id), krolStrzelcow);
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: `${turniej.nazwa} — wyniki`, text: tekst });
+        return;
+      } catch {
+        return; // anulowanie arkusza nie jest błędem
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(tekst);
+      toast('Wyniki skopiowane');
+    } catch {
+      toast('Nie udało się skopiować', 'error');
+    }
+  };
 
   const udostepnij = async () => {
     const wynik = await udostepnijTurniej(turniej, linkDoTurnieju(id));
@@ -433,6 +468,61 @@ export default function TurniejClient() {
             <Share2 className="h-4 w-4" />
           </button>
         </div>
+
+        {/* PODIUM — koniec turnieju. Dotąd turniej nie miał końca, tylko
+            wygasanie: status zmieniał się na `zakonczony` i strona pokazywała
+            tabelę. A to jest moment o największym zasięgu w całym module:
+            wszyscy uczestnicy patrzą w telefon w tej samej minucie. */}
+        {podium.length > 0 && (
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 text-center shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Zakończony</p>
+            <div className="mt-3 space-y-1.5">
+              {podium.map((m) => (
+                <p
+                  key={m.druzynaId}
+                  className={m.miejsce === 1
+                    ? 'font-display text-xl font-bold text-ink'
+                    : 'text-sm font-medium text-slate-600 dark:text-slate-300'}
+                >
+                  {medal(m.miejsce)} {m.nazwa}
+                </p>
+              ))}
+            </div>
+
+            {(krolStrzelcow || turniejowyMvp) && (
+              <div className="mt-4 space-y-0.5 border-t border-slate-100 dark:border-slate-700 pt-3 text-sm text-slate-600 dark:text-slate-300">
+                {krolStrzelcow && <p>👟 Król strzelców: <span className="font-medium text-ink">{krolStrzelcow.imie}</span> · {krolStrzelcow.gole}</p>}
+                {turniejowyMvp && <p>⭐ MVP: <span className="font-medium text-ink">{turniejowyMvp.imie}</span></p>}
+              </div>
+            )}
+
+            <Button onClick={udostepnijWyniki} className="mt-4 w-full inline-flex items-center justify-center gap-2">
+              <Share2 className="h-4 w-4" /> Udostępnij wyniki
+            </Button>
+
+            {/* Dwa wyjścia, każde dla innej osoby: kapitan zabiera skład dalej,
+                a ktoś, kto właśnie zobaczył, jak to wygląda, może zrobić swój
+                turniej. Do 2026-09-20 „Zamień w ekipę" siedziało trzy
+                kliknięcia głębiej, w rozwiniętej karcie drużyny. */}
+            {mojaDruzyna && mojaDruzyna.kapitanId === user?.id && (
+              <Link
+                href={`/turnieje/${id}/druzyna/${mojaDruzyna.id}`}
+                className="mt-3 block rounded-xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-3 text-left"
+              >
+                <span className="text-sm font-semibold text-ink">🔁 Zamień drużynę w ekipę</span>
+                <span className="mt-0.5 block text-xs text-slate-600 dark:text-slate-300">
+                  Graliście razem — grajcie dalej. Zostanie Wam ekipa z całym składem.
+                </span>
+              </Link>
+            )}
+            <Link
+              href={user ? '/turnieje/nowe' : '/logowanie?next=%2Fturnieje%2Fnowe'}
+              className="mt-2 inline-block text-sm font-medium text-primary-600"
+            >
+              Organizujesz podobny? Zrób go w Bojo →
+            </Link>
+          </div>
+        )}
 
         {/* TABLICA NA ŻYWO — w dniu turnieju to jest ekran, na który patrzy
             sto osób naraz: uczestnicy między meczami, kibice na ławce, rodzice

@@ -1429,6 +1429,36 @@ SELECT _oczekuj('kapitan nie zmienił numeru BLIK organizatora',
                 (SELECT count(*) FROM turniej_blik
                   WHERE turniej_id = :TURNIEJ::uuid AND blik_telefon = '500600700'), 1);
 
+SELECT _sekcja('Turniej: statystyki gracza na profilu (migracja 156)');
+
+-- Funkcje są `SECURITY INVOKER`, więc ściana logowania modułu egzekwuje się
+-- sama: `turniej_zawodnicy` wymaga `auth.uid() IS NOT NULL` od migracji `145`.
+-- Ta asercja pilnuje, że nikt nie „naprawi" ich na `SECURITY DEFINER`, co
+-- wyniosłoby skład i strzelców poza ścianę, o którą stoi cały moduł.
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('NIEZALOGOWANY nie policzy turniejów cudzego gracza — ściana logowania',
+                (SELECT turniejow FROM get_player_turniej_stats(:T_KAPITAN1::uuid)), 0);
+SELECT _oczekuj('niezalogowany nie dostanie listy turniejów gracza',
+                (SELECT count(*) FROM get_player_turnieje(:T_KAPITAN1::uuid, 5)), 0);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj('zalogowany widzi, w ilu turniejach gra kapitan D1',
+                (SELECT turniejow FROM get_player_turniej_stats(:T_KAPITAN1::uuid)), 1);
+SELECT _oczekuj('lista turniejów niesie nazwę drużyny',
+                (SELECT count(*) FROM get_player_turnieje(:T_KAPITAN1::uuid, 5)
+                  WHERE druzyna = 'Drużyna Jeden'), 1);
+SELECT _oczekuj('gole liczą się z WARTOŚCI zdarzenia, nie z liczby wierszy',
+                (SELECT goli FROM get_player_turniej_stats(:T_KAPITAN1::uuid)),
+                (SELECT COALESCE(sum(zd.wartosc), 0)::bigint FROM turniej_zdarzenia zd
+                  JOIN turniej_zawodnicy z ON z.id = zd.zawodnik_id
+                 WHERE z.user_id = :T_KAPITAN1::uuid AND zd.typ IN ('gol','punkty')));
+SELECT _oczekuj('człowiek bez turniejów ma zero, nie błąd',
+                (SELECT turniejow FROM get_player_turniej_stats(:T_SEDZIA::uuid)), 0);
+RESET ROLE;
+
 SELECT _sekcja('Turniej: zamień drużynę w ekipę (migracja 150)');
 
 -- Dopisujemy drugiego zawodnika z kontem do D1, żeby sprawdzić, że RPC

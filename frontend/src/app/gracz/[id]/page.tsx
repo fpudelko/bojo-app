@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import SekcjaTurniejeProfilu from '@/components/turnieje/SekcjaTurniejeProfilu';
 import { ChevronLeft, Loader2, User, Trophy, Calendar, Star, ChevronRight, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
@@ -174,6 +175,14 @@ export default function PublicPlayerPage() {
                 )}
               </div>
             )}
+
+            {/* Turnieje — osobna sekcja i osobna funkcja w bazie (156).
+                Nie mieszamy tego z „Statystykami" wyżej: tamte liczby sterują
+                odznaką rzetelnego gracza i paskiem frekwencji, więc dorzucenie
+                do nich turniejów zmieniłoby po cichu znaczenie czegoś, co
+                ludzie już widzieli. Sekcja znika, gdy gracz nie grał w żadnym
+                turnieju. */}
+            <SekcjaTurniejeProfilu userId={id} />
 
             {/* Game history */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">

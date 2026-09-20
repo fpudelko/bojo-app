@@ -953,7 +953,7 @@ Konsola: arkusz składu zamiast `<select>`, zegar, walkower, **wartość punktu
 w koszykówce**, „następny mecz na tej arenie" · odświeżanie co 20 s · głowa „na żywo" ·
 pulpit organizatora w trybie dnia.
 
-**Etap C — początek i koniec łuku** *(funkcja `get_player_turniej_stats`)*
+**Etap C — początek i koniec łuku** — ✅ **ZROBIONE 2026-09-20** (migracja `156`)
 Kreator w dwóch aktach z wyliczeniem czasu · ekran-plakat po publikacji · podium
 z udostępnianiem · „Zamień drużynę w ekipę" na podium · „Zrób podobny turniej" ·
 **sekcja Turnieje na profilu gracza** (§6.5).
