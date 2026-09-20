@@ -1,0 +1,150 @@
+name: Migracje
+
+# Uruchamia BRAKUJĄCE migracje SQL na bazie dev albo produkcyjnej.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# CO SIĘ DZIEJE SAMO, A CO WYMAGA KLIKNIĘCIA
+#
+#   merge do mastera, który dotyka supabase/migrations/**  →  DEV, automatycznie
+#   push na gałąź claude/migracje/**                       →  DEV, tylko PODGLĄD
+#   ręczne uruchomienie (Actions → Run workflow)           →  dev albo PRODUKCJA
+#
+# PRODUKCJA NIGDY NIE DZIEJE SIĘ SAMA. Zadanie produkcyjne jest przypięte do
+# środowiska `produkcja`, więc wystarczy ustawić mu w GitHubie „Required
+# reviewers", żeby każdy przebieg czekał na czyjeś zatwierdzenie. To jest
+# dokładnie ten „odpowiedni moment", o który chodzi: merge do mastera wdraża
+# KOD na Vercelu, a schemat bazy zmienia się osobno, wtedy, gdy ktoś świadomie
+# kliknie — bo deploy da się cofnąć, a `DROP COLUMN` nie.
+#
+# KOLEJNOŚĆ, KTÓREJ WARTO SIĘ TRZYMAĆ: dev po merge'u (dzieje się sam) →
+# sprawdzenie, że podgląd działa → produkcja jednym kliknięciem.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# WYMAGANE SEKRETY
+#
+#   SUPABASE_DB_URL_DEV    adres do projektu BojoDev, rola z prawem DDL
+#   SUPABASE_DB_URL_PROD   adres do produkcji, rola z prawem DDL
+#
+# To NIE jest ta sama rola co `SUPABASE_DB_URL_RO` z `sql.yml` — tamta ma
+# wyłącznie SELECT i ma taka zostać. Instrukcja: supabase/migrations/README.md
+#
+# PIERWSZE URUCHOMIENIE na bazie, która ma już schemat, zatrzyma się z prośbą
+# o `--oznacz-do` — patrz nagłówek `scripts/migruj.sh`. To celowe.
+
+on:
+  # Jeden wyzwalacz `push` dla dwóch przypadków, bo GitHub nie przyjmuje
+  # drugiego klucza `push`. Co z tego wynika, rozstrzyga krok „Ustal tryb":
+  #   master                  → dev, zapis
+  #   claude/migracje/**      → dev, TYLKO PODGLĄD
+  #
+  # Gałąź robocza jest tu po to, żeby agent pracujący w repo mógł sprawdzić,
+  # co pójdzie, bez klikania przez człowieka — ten sam wzorzec co `sql.yml`:
+  # token agenta nie ma prawa odpalać workflowów przez API, więc push jest
+  # jedynym wyzwalaczem, który kontroluje sam.
+  push:
+    branches: [master, 'claude/migracje/**']
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/migruj.sh'
+      - '.github/workflows/migracje.yml'
+
+  workflow_dispatch:
+    inputs:
+      srodowisko:
+        description: 'Na której bazie'
+        required: true
+        default: dev
+        type: choice
+        options: [dev, produkcja]
+      wykonaj:
+        description: 'Zapisz zmiany (bez tego tylko podgląd)'
+        required: false
+        default: false
+        type: boolean
+      oznacz_do:
+        description: 'Backfill: oznacz migracje do tego numeru jako już zastosowane (nic nie uruchamia)'
+        required: false
+        type: string
+
+# Dwa przebiegi na tej samej bazie nie mają się ścigać. Skrypt trzyma jeszcze
+# blokadę doradczą w samej bazie, ale lepiej nie doprowadzać do sytuacji,
+# w której jeden czeka na drugiego przez dziesięć minut.
+concurrency:
+  group: migracje-${{ inputs.srodowisko || 'dev' }}
+  cancel-in-progress: false
+
+jobs:
+  migracje:
+    name: ${{ inputs.srodowisko || 'dev' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Środowisko `produkcja` wpina bramkę zatwierdzania (Settings →
+    # Environments → produkcja → Required reviewers). Dla `dev` nazwa jest
+    # nieużywana, więc nic nie blokuje.
+    environment: ${{ inputs.srodowisko == 'produkcja' && 'produkcja' || 'dev' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ustal tryb
+        id: tryb
+        run: |
+          set -euo pipefail
+          SRODOWISKO="${{ inputs.srodowisko || 'dev' }}"
+
+          # Push na gałąź roboczą to zawsze i wyłącznie podgląd — niezależnie
+          # od tego, co ktoś wpisał gdzie indziej.
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" != "master" ]; then
+            ARG="--podglad"
+            SRODOWISKO="dev"
+          elif [ -n "${{ inputs.oznacz_do }}" ]; then
+            ARG="--oznacz-do ${{ inputs.oznacz_do }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            # Merge do mastera: dev dostaje migracje od razu, bo baza dev, która
+            # została w tyle, jest gorsza niż jej brak — podgląd PR-a wygląda
+            # wtedy na zepsuty, choć zepsuty jest tylko schemat.
+            ARG="--wykonaj"
+            SRODOWISKO="dev"
+          elif [ "${{ inputs.wykonaj }}" = "true" ]; then
+            ARG="--wykonaj"
+          else
+            ARG="--podglad"
+          fi
+
+          echo "arg=$ARG"               >> "$GITHUB_OUTPUT"
+          echo "srodowisko=$SRODOWISKO" >> "$GITHUB_OUTPUT"
+          echo "Tryb: $ARG · baza: $SRODOWISKO"
+
+      - name: Uruchom
+        env:
+          DB_URL_DEV:  ${{ secrets.SUPABASE_DB_URL_DEV }}
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.tryb.outputs.srodowisko }}" = "produkcja" ]; then
+            SEKRET="SUPABASE_DB_URL_PROD"
+            SUROWY="$DB_URL_PROD"
+          else
+            SEKRET="SUPABASE_DB_URL_DEV"
+            SUROWY="$DB_URL_DEV"
+          fi
+
+          # Ta sama kontrola i to samo maskowanie hasła co w `sql.yml` — jeden
+          # plik, żeby dwie kopie nie rozjechały się akurat w miejscu, w którym
+          # rozjazd znaczy „hasło w publicznym logu".
+          ADRES="$(DB_URL="$SUROWY" ./scripts/sprawdz-adres-bazy.sh "$SEKRET")"
+
+          DB_URL="$ADRES" ./scripts/migruj.sh ${{ steps.tryb.outputs.arg }} | tee /tmp/wynik.txt
+
+      - name: Podsumowanie
+        if: always()
+        run: |
+          {
+            echo "### Migracje — ${{ steps.tryb.outputs.srodowisko }}"
+            echo ""
+            echo "Tryb: \`${{ steps.tryb.outputs.arg }}\`"
+            echo ""
+            echo '```'
+            cat /tmp/wynik.txt 2>/dev/null || echo "(brak wyniku — przebieg padł wcześniej)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

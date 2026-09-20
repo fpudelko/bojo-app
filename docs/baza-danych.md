@@ -601,12 +601,22 @@ raz, a Vercel i tak dostaje własnego webhooka i buduje podgląd.
 
 ### Utrzymanie: migracja idzie do DWÓCH baz
 
-Od tej pory nowa migracja uruchamiana jest najpierw na `BojoDev` (tam wychodzi błąd
-w SQL, który ma wyjść przed produkcją), a po merge'u na produkcji. Baza dev, która
-została w tyle, jest gorsza niż jej brak: PR wygląda na zepsuty, choć zepsuty jest
-tylko schemat podglądu. Po dodaniu migracji uruchom też
-`node scripts/build-db-bundles.mjs` i zacommituj paczki — inaczej następne stawianie
-bazy od zera pominie twój plik.
+**Od 2026-09-20 robi to workflow, nie człowiek** — `.github/workflows/migracje.yml`
+przez `scripts/migruj.sh`. Setup i zasady → [supabase/migrations/README.md](../supabase/migrations/README.md).
+
+W skrócie: merge do mastera uruchamia brakujące migracje na `BojoDev`
+automatycznie, produkcja czeka na świadome kliknięcie (Actions → Migracje →
+Run workflow, środowisko `produkcja` z bramką zatwierdzania). Asymetria jest
+celowa: baza dev, która została w tyle, jest gorsza niż jej brak (PR wygląda
+na zepsuty, choć zepsuty jest tylko schemat podglądu), a produkcji nie cofniesz
+tak jak deployu.
+
+Które pliki już poszły, wie **dziennik `schema_migracje`** — wpis powstaje w tej
+samej transakcji co sama migracja. Tabelę tworzy skrypt, nie migracja z katalogu:
+musi istnieć, zanim cokolwiek stąd ruszy.
+
+Po dodaniu migracji uruchom też `node scripts/build-db-bundles.mjs` i zacommituj
+paczki — inaczej następne stawianie bazy od zera pominie twój plik.
 
 ---
 

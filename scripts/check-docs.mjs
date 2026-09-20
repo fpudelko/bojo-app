@@ -138,7 +138,14 @@ console.log(`  sprawdzono ${linkCount} linków w ${mdFiles.length} plikach`);
 // ---------------------------------------------------------------------------
 section('5. migracje cytowane w docs/baza-danych.md istnieją');
 const bazaMd = read('docs/baza-danych.md');
-const migrationFiles = readdirSync(join(ROOT, 'supabase/migrations'));
+// TYLKO `.sql`, i to posortowane. `readdirSync` zwraca wszystko, co leży
+// w katalogu — a leży tam też `README.md`. Bez tego filtra jego proza wchodziła
+// do `allMigrationSql` i liczenie tabel („CREATE TABLE minus DROP TABLE")
+// doliczało tabelę z akapitu o dzienniku migracji. Kolejność katalogu bywa
+// zależna od systemu plików, więc sortujemy wprost, zamiast na nią liczyć.
+const migrationFiles = readdirSync(join(ROOT, 'supabase/migrations'))
+  .filter((f) => f.endsWith('.sql'))
+  .sort();
 const maxMigration = Math.max(...migrationFiles.map((f) => parseInt(f, 10)).filter(Number.isFinite));
 const cited = new Set([...bazaMd.matchAll(/`(0\d{2})[_`]/g)].map((m) => m[1]));
 for (const num of cited) {
