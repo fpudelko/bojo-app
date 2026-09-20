@@ -31,12 +31,23 @@ w połowie — czyli w najgorszym możliwym momencie.
 **To jest inna rola niż `SUPABASE_DB_URL_RO`** z `sql.yml`. Tamta ma wyłącznie
 `SELECT` i ma taka zostać; nie podmieniaj jej na tę.
 
-Hasło projektu znajdziesz w Supabase → Settings → Database. Jeśli zawiera `+`,
-`/` albo `=`, **zresetuj je** na wygenerowane przez `openssl rand -hex 32` —
-przy takim haśle psql nie rozpoznaje adresu jako URI i potrafi wypisać jego
-fragment w komunikacie błędu, czyli w publicznym logu. `scripts/sprawdz-adres-bazy.sh`
-odmówi uruchomienia, zanim do tego dojdzie, ale lepiej nie polegać na łapaniu
-w locie.
+Hasło projektu znajdziesz w Supabase → Settings → Database. **Wklej je tak,
+jak jest** — znaki specjalne nie są problemem: `scripts/sprawdz-adres-bazy.sh`
+zakoduje hasło procentowo przed podaniem go psql-owi. Stało tu wcześniej, żeby
+zresetować hasło na `openssl rand -hex 32`, jeśli zawiera `+`, `/` albo `=`,
+i to była zła rada: wina leżała po stronie zapisu w adresie, nie po stronie
+hasła, a wysyłanie człowieka na reset hasła bazy tylko po to, żeby zadziałał
+jeden workflow, jest niewspółmierne.
+
+Powód, dla którego kodowanie w ogóle jest potrzebne, zostaje bez zmian: przy
+`+`, `/` albo `=` psql nie rozpoznaje adresu jako URI, przechodzi na parsowanie
+„klucz=wartość" i potrafi wypisać fragment hasła w komunikacie błędu, czyli
+w publicznym logu Actions. Maskowanie sekretów tego nie łapie, bo to część
+sekretu, a nie całość. Zdarzyło się raz.
+
+Jedyne, co skrypt nadal odrzuca, to placeholder `[YOUR-PASSWORD]` zostawiony
+w skopiowanym adresie: to nie jest hasło i zakodowanie go zamieniłoby czytelny
+błąd na mylący.
 
 ### 2. Sekrety w GitHubie
 
