@@ -135,7 +135,7 @@ export default function ZaprosZEkipyDialog({
                ekipy" bez drogi dalej znaczy „wróć do linku i radź sobie". */
             <div className="py-6 text-center">
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Nie należysz jeszcze do żadnej ekipy. Kolegów spoza Bojo zapraszasz linkiem —
+                Nie należysz jeszcze do żadnej ekipy. Kolegów spoza Bojo zapraszasz linkiem,
                 a ekipa sprawi, że następnym razem zrobisz to jednym dotknięciem.
               </p>
               <Link

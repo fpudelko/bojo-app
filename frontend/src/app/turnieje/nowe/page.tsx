@@ -147,7 +147,7 @@ export default function NowyTurniejPage() {
             </div>
             <h1 className="font-display text-2xl font-bold text-ink">Turniej jest ogłoszony</h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Wyślij link kapitanom — zgłoszą drużyny i skompletują składy sami.
+              Wyślij link kapitanom. Zgłoszą drużyny i skompletują składy sami.
             </p>
           </div>
 

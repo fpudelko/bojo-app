@@ -127,7 +127,7 @@ export default function DruzynaClient() {
 
   const wyslij = async () => {
     if (!druzyna || !turniej) return;
-    const tekst = `Dołącz do drużyny ${druzyna.nazwa} — ${turniej.nazwa}, ${etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}`;
+    const tekst = `Dołącz do drużyny ${druzyna.nazwa} w turnieju ${turniej.nazwa}, ${etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}`;
     // Ten sam wzorzec co `udostepnijTurniej()`: arkusz systemowy tam, gdzie
     // jest, schowek wszędzie indziej. Na telefonie liczy się pierwsza droga —
     // link idzie prosto na WhatsAppa.
@@ -160,7 +160,7 @@ export default function DruzynaClient() {
   const usunZeSkladu = async (zawodnikId: string, imie: string) => {
     const wynik = await potwierdz({
       tytul: `Usunąć ${imie} ze składu?`,
-      konsekwencje: ['Zawodnik zniknie z listy — może dołączyć ponownie linkiem'],
+      konsekwencje: ['Zawodnik zniknie z listy, ale może dołączyć ponownie linkiem'],
       potwierdzLabel: 'Usuń',
       wariant: 'destrukcyjny',
     });
@@ -306,7 +306,7 @@ export default function DruzynaClient() {
               <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
                 {brakuje > 0
                   ? `Brakuje ${odmienZawodnikow(brakuje)} do pełnego składu.`
-                  : 'Skład kompletny — możecie grać.'}
+                  : 'Skład kompletny, możecie grać.'}
               </p>
             </div>
 
@@ -340,7 +340,7 @@ export default function DruzynaClient() {
           ) : zawodnicy.length === 0 ? (
             <p className="py-4 text-center text-sm text-slate-400">
               {jestKapitanem
-                ? 'Skład jest jeszcze pusty — wyślij link kolegom albo dopisz ich niżej.'
+                ? 'Skład jest jeszcze pusty. Wyślij link kolegom albo dopisz ich niżej.'
                 : 'Skład jeszcze pusty.'}
             </p>
           ) : (
@@ -396,12 +396,12 @@ export default function DruzynaClient() {
           )}
           {jestKapitanem && wolnoZmieniac && !komplet && (
             <p className="mt-1.5 text-xs text-slate-400">
-              Dopisujesz kogoś bez konta — nie zobaczy terminarza ani swoich goli w aplikacji.
+              Dopisujesz kogoś bez konta: nie zobaczy terminarza ani swoich goli w aplikacji.
             </p>
           )}
           {jestKapitanem && komplet && (
             <p className="mt-3 border-t border-slate-100 dark:border-slate-700 pt-3 text-xs text-slate-400">
-              Skład pełny ({turniej.maxZawodnikow} zawodników) — nikogo więcej nie dopiszesz.
+              Skład pełny ({turniej.maxZawodnikow} zawodników), nikogo więcej nie dopiszesz.
             </p>
           )}
         </div>
@@ -413,7 +413,7 @@ export default function DruzynaClient() {
               <Wallet className="h-4 w-4" /> Wpisowe
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              {(turniej.wpisoweGrosze / 100).toFixed(0)} zł —{' '}
+              {(turniej.wpisoweGrosze / 100).toFixed(0)} zł:{' '}
               {druzyna.wpisoweOplaconeAt
                 ? <span className="font-medium text-primary-700">opłacone ✓</span>
                 : <span>nieopłacone</span>}
@@ -462,7 +462,7 @@ export default function DruzynaClient() {
               <Repeat className="h-4 w-4" /> Zamień drużynę w ekipę
             </span>
             <span className="mt-0.5 block text-sm text-slate-600 dark:text-slate-300">
-              Graliście razem — grajcie dalej. Zostanie Wam ekipa w Bojo z całym składem.
+              Graliście razem, grajcie dalej. Zostanie Wam ekipa w Bojo z całym składem.
             </span>
           </button>
         )}

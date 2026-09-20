@@ -140,7 +140,7 @@ export default function DolaczDoDruzynyPage() {
               <Button className="w-full">Dołącz do drużyny</Button>
             </Link>
             <p className="mt-2 text-xs text-slate-400">
-              Konto zakładasz przy okazji — Google albo e-mail, bez instalowania niczego.
+              Konto zakładasz przy okazji: Google albo e-mail, bez instalowania niczego.
             </p>
           </div>
         </main>

@@ -123,9 +123,9 @@ export function zdanieOCzasie(s: SzacunekTurnieju): string {
     ? `${godziny} h${minuty > 0 ? ` ${minuty} min` : ''}`
     : `${minuty} min`;
   if (s.poZmroku) {
-    return `${meczeTekst} · ${czasTekst} gry — to nie zmieści się w jednym dniu.`;
+    return `${meczeTekst} · ${czasTekst} gry. To nie zmieści się w jednym dniu.`;
   }
   return s.koniecGodzina
-    ? `${meczeTekst} · ${czasTekst} — ostatni gwizdek ok. ${s.koniecGodzina}`
+    ? `${meczeTekst} · ${czasTekst} · ostatni gwizdek ok. ${s.koniecGodzina}`
     : `${meczeTekst} · ${czasTekst} gry`;
 }

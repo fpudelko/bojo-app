@@ -460,17 +460,17 @@ export default function MeczClient() {
                     <div className="flex justify-center gap-1.5">
                       <button
                         onClick={() => zapytajOZawodnika(druzynaId, 'zolta')}
-                        aria-label={`Żółta kartka — ${nazwaDruzyny(druzynaId)}`}
+                        aria-label={`Żółta kartka, ${nazwaDruzyny(druzynaId)}`}
                         className="min-h-[44px] min-w-[44px] rounded-lg bg-amber-50 dark:bg-amber-950 text-base"
                       >🟨</button>
                       <button
                         onClick={() => zapytajOZawodnika(druzynaId, 'czerwona')}
-                        aria-label={`Czerwona kartka — ${nazwaDruzyny(druzynaId)}`}
+                        aria-label={`Czerwona kartka, ${nazwaDruzyny(druzynaId)}`}
                         className="min-h-[44px] min-w-[44px] rounded-lg bg-red-50 dark:bg-red-950 text-base"
                       >🟥</button>
                       <button
                         onClick={() => dodajZdarzenieAkcja(druzynaId, 'samobojczy')}
-                        aria-label={`Samobójczy — ${nazwaDruzyny(druzynaId)}`}
+                        aria-label={`Samobójczy, ${nazwaDruzyny(druzynaId)}`}
                         className="min-h-[44px] min-w-[44px] rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300"
                       >sam.</button>
                     </div>
@@ -612,7 +612,7 @@ export default function MeczClient() {
               ? skladDruzyny(arkusz.druzynaId).filter((z) => z.id !== arkusz.zawodnikId)
               : skladDruzyny(arkusz.druzynaId)
           }
-          etykietaPominiecia={arkusz.krok === 'asysta' ? 'Bez asysty' : 'Nie wiem kto — zapisz bez nazwiska'}
+          etykietaPominiecia={arkusz.krok === 'asysta' ? 'Bez asysty' : 'Nie wiem kto, zapisz bez nazwiska'}
           onWybor={odpowiedzArkusza}
           onZamknij={() => {
             // Zamknięcie arkusza STRZELCA anuluje całe zdarzenie (prowadzący

@@ -23,6 +23,11 @@ export interface MiejsceNaPodium {
 
 const MEDALE: Record<1 | 2 | 3, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
+/** Awaryjna nazwa, gdy mapa nie zna drużyny z meczu. W praktyce nie powinna się
+ *  pokazać (nazwy i mecze pochodzą z tego samego pobrania), ale puste miejsce
+ *  na podium czyta się jak błąd renderowania. */
+const BEZ_NAZWY = 'Drużyna';
+
 export function medal(miejsce: 1 | 2 | 3): string {
   return MEDALE[miejsce];
 }
@@ -48,15 +53,15 @@ function podiumZDrabinki(
 
   const przegranyFinalu = final.druzynaAId === final.zwyciezcaId ? final.druzynaBId : final.druzynaAId;
   const podium: MiejsceNaPodium[] = [
-    { miejsce: 1, druzynaId: final.zwyciezcaId, nazwa: nazwy.get(final.zwyciezcaId) ?? '—' },
+    { miejsce: 1, druzynaId: final.zwyciezcaId, nazwa: nazwy.get(final.zwyciezcaId) ?? BEZ_NAZWY },
   ];
   if (przegranyFinalu) {
-    podium.push({ miejsce: 2, druzynaId: przegranyFinalu, nazwa: nazwy.get(przegranyFinalu) ?? '—' });
+    podium.push({ miejsce: 2, druzynaId: przegranyFinalu, nazwa: nazwy.get(przegranyFinalu) ?? BEZ_NAZWY });
   }
 
   const oTrzecie = znajdz('o_3_miejsce');
   if (oTrzecie?.zwyciezcaId) {
-    podium.push({ miejsce: 3, druzynaId: oTrzecie.zwyciezcaId, nazwa: nazwy.get(oTrzecie.zwyciezcaId) ?? '—' });
+    podium.push({ miejsce: 3, druzynaId: oTrzecie.zwyciezcaId, nazwa: nazwy.get(oTrzecie.zwyciezcaId) ?? BEZ_NAZWY });
   }
   return podium;
 }
@@ -97,7 +102,7 @@ export function tekstPodium(
   link: string,
   krolStrzelcow?: { imie: string; gole: number },
 ): string {
-  const linie = [`🏆 ${nazwaTurnieju} — wyniki`, ''];
+  const linie = [`🏆 Wyniki: ${nazwaTurnieju}`, ''];
   for (const m of podium) linie.push(`${medal(m.miejsce)} ${m.nazwa}`);
   if (krolStrzelcow && krolStrzelcow.gole > 0) {
     linie.push('', `👟 Król strzelców: ${krolStrzelcow.imie} (${krolStrzelcow.gole})`);

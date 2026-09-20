@@ -355,7 +355,7 @@ export default function TurniejClient() {
     const tekst = tekstPodium(turniej.nazwa, podium, linkDoTurnieju(id), krolStrzelcow);
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: `${turniej.nazwa} — wyniki`, text: tekst });
+        await navigator.share({ title: `Wyniki: ${turniej.nazwa}`, text: tekst });
         return;
       } catch {
         return; // anulowanie arkusza nie jest błędem
@@ -511,7 +511,7 @@ export default function TurniejClient() {
               >
                 <span className="text-sm font-semibold text-ink">🔁 Zamień drużynę w ekipę</span>
                 <span className="mt-0.5 block text-xs text-slate-600 dark:text-slate-300">
-                  Graliście razem — grajcie dalej. Zostanie Wam ekipa z całym składem.
+                  Graliście razem, grajcie dalej. Zostanie Wam ekipa z całym składem.
                 </span>
               </Link>
             )}

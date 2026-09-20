@@ -272,7 +272,7 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
   {
     typ: 'turniej_nastepny_mecz',
     nazwa: 'Wasz mecz jest następny',
-    opis: 'Poprzedni mecz na Waszej arenie się skończył — gracie za chwilę',
+    opis: 'Poprzedni mecz na Waszej arenie się skończył, gracie za chwilę',
     wazne: true,
   },
   // Ogłoszenie organizatora (migracja 150) — jedyna wiadomość w tym module,

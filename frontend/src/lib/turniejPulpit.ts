@@ -76,7 +76,7 @@ export function pulpitPrzedTurniejem(
     pozycje.push({
       klucz: 'blik',
       stan: maNumerBlik ? 'gotowe' : 'brak',
-      tekst: maNumerBlik ? 'Numer BLIK podany' : 'Nie masz numeru BLIK — kapitanowie nie wiedzą, gdzie zapłacić',
+      tekst: maNumerBlik ? 'Numer BLIK podany' : 'Nie masz numeru BLIK, więc kapitanowie nie wiedzą, gdzie zapłacić',
       zakladka: 'ustawienia',
     });
   }
