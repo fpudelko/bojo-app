@@ -209,15 +209,15 @@ const WYJSCIE_ZE_SKLADU = /^wypisz się( z (meczu|rezerwy))?$/i;
 async function wypiszSie(page: Page) {
   await klik(page, WYJSCIE_ZE_SKLADU);
   await klik(page, 'Wypisz mnie', { exact: true });
-  await expect(page.getByRole('button', { name: /^Dołącz|komplet — na rezerwę/i }).first())
+  await expect(page.getByRole('button', { name: /^Dołącz|komplet: na rezerwę/i }).first())
     .toBeVisible({ timeout: 15_000 });
 }
 
 /**
  * Co REALNIE widać na stronie — nazwy widocznych przycisków i początek treści.
  *
- * PO CO. „Test timeout of 30000ms exceeded — waiting for getByRole('button',
- * { name: /komplet — na rezerwę/i })" nie niesie ani jednej informacji poza
+ * PO CO. „Test timeout of 30000ms exceeded, waiting for getByRole('button',
+ * { name: /komplet: na rezerwę/i })" nie niesie ani jednej informacji poza
  * tym, czego szukaliśmy. Żeby zobaczyć napis, który jest NAPRAWDĘ, trzeba było
  * osobnego przebiegu CI (~18 minut) — i to się zdarzyło kilka razy z rzędu,
  * bo teksty przycisków zmieniają się częściej niż testy. Od teraz padający
@@ -409,9 +409,9 @@ test.describe('dołączanie do meczu', () => {
     await niezapisany(page);
     await uspokoj(page);
 
-    // Napis skrócony do „Komplet — na rezerwę", gdy obok stanął „Obserwuj"
+    // Napis skrócony do „Komplet: na rezerwę", gdy obok stanął „Obserwuj"
     // (dwa przyciski w jednym pasku muszą się zmieścić na telefonie).
-    await klik(page, /komplet — na rezerwę/i);
+    await klik(page, /komplet: na rezerwę/i);
     await klik(page, /zapisz mnie/i);
 
     // Zapis do bazy jest już zrobiony — od tego miejsca sprzątanie MUSI się
@@ -502,9 +502,9 @@ test.describe('organizator', () => {
     await otworzMecz(page, MECZ.kolejka);
     await uspokoj(page);
 
-    await expect(page.getByText(/rezerwa — kolejka/i)).toBeVisible();
+    await expect(page.getByText(/rezerwa: kolejka/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /do składu/i }).first()).toBeVisible();
-    const kolejka = page.getByText(/rezerwa — kolejka/i)
+    const kolejka = page.getByText(/rezerwa: kolejka/i)
       .locator('xpath=ancestor::div[1]');
     await zaslonPaskamiDolnymi(page, () => expect(kolejka).toHaveScreenshot('kolejka-organizator.png'));
   });
@@ -538,7 +538,7 @@ test.describe('obserwowanie', () => {
 
     // Regresja z tej sesji: obserwujący siedzi w bazie z `is_reserve = true`
     // i przez to pokazywał się w kolejce rezerwowej.
-    await expect(tresc(page).getByText(/rezerwa — kolejka/i)).toHaveCount(0);
+    await expect(tresc(page).getByText(/rezerwa: kolejka/i)).toHaveCount(0);
 
     // Dwa kliknięcia, nie jedno: karta ma krótkie „Przestań", a rezygnacja
     // przechodzi przez to samo okno potwierdzenia co wypisanie się ze składu
