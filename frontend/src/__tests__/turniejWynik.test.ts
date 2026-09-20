@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   wynikZeZdarzen, mozeZapisywacZdarzenia, mozeZakonczycMecz, wymaganeKarne,
   zwyciezcaZKarnych, stronaZwyciezcy, ustawPunktSetu, wygranSetow, setOsiagnalProg,
-  jestSportemSetowym, jestKoszykowka,
+  jestSportemSetowym, jestKoszykowka, czasGry, poCzasie,
 } from '@/lib/turniejWynik';
 
 describe('wynikZeZdarzen', () => {
@@ -172,5 +172,33 @@ describe('stronaZwyciezcy', () => {
   it('walkower 0:0 ma zwycięzcę — dlatego NIE porównujemy wyniku', () => {
     // Gdyby karta czytała wynik, walkower wyglądałby na remis.
     expect(stronaZwyciezcy({ ...mecz, zwyciezcaId: 'B' })).toBe('b');
+  });
+});
+
+describe('czasGry i poCzasie — zegar konsoli prowadzącego', () => {
+  const start = '2026-10-18T10:00:00Z';
+
+  it('liczy od pierwszego gwizdka, w mm:ss', () => {
+    expect(czasGry(start, new Date('2026-10-18T10:07:42Z'))).toBe('07:42');
+    expect(czasGry(start, new Date('2026-10-18T10:00:05Z'))).toBe('00:05');
+  });
+
+  it('przekroczenie godziny liczy się dalej w minutach, nie zawija', () => {
+    expect(czasGry(start, new Date('2026-10-18T11:03:00Z'))).toBe('63:00');
+  });
+
+  it('mecz nierozpoczęty nie ma zegara', () => {
+    expect(czasGry(undefined)).toBeNull();
+    expect(czasGry('to nie jest data')).toBeNull();
+  });
+
+  it('nie cofa się poniżej zera, gdy zegar przeglądarki jest za wcześnie', () => {
+    expect(czasGry(start, new Date('2026-10-18T09:59:00Z'))).toBe('00:00');
+  });
+
+  it('poCzasie pilnuje regulaminowego czasu meczu', () => {
+    expect(poCzasie(start, 20, new Date('2026-10-18T10:19:59Z'))).toBe(false);
+    expect(poCzasie(start, 20, new Date('2026-10-18T10:20:00Z'))).toBe(true);
+    expect(poCzasie(undefined, 20, new Date('2026-10-18T10:20:00Z'))).toBe(false);
   });
 });

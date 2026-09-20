@@ -843,6 +843,72 @@ SELECT _oczekuj('drugi wolny wpis zostaje faktycznie wolny',
                 (SELECT count(*) FROM turniej_zawodnicy
                   WHERE id = :'wolny_wpis_2'::uuid AND user_id IS NULL), 1);
 
+SELECT _sekcja('Turniej: imienne zaproszenia do drużyny (migracja 154)');
+
+-- Najważniejsza asercja tej sekcji to ta o ORGANIZATORZE. Decyzja właściciela
+-- z 2026-09-20 brzmi: organizator turnieju NIE widzi i NIE tyka zaproszeń
+-- w cudzych drużynach. Gdyby polityka użyła `czy_kapitan_druzyny()` (145) —
+-- czyli funkcji o niemal identycznej nazwie, która celowo przepuszcza także
+-- zarządzających turniejem — nic by się nie wywróciło i nikt by tego nie
+-- zauważył. Dlatego stoi tu jawny test, a nie tylko komentarz w migracji.
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN1, false);
+INSERT INTO turniej_zaproszenia (druzyna_id, turniej_id, user_id, zaprosil_id)
+  VALUES (:T_DRUZYNA1::uuid, :TURNIEJ::uuid, :OBCY::uuid, :T_KAPITAN1::uuid);
+RESET ROLE;
+SELECT _oczekuj('kapitan zaprosił kogoś do WŁASNEJ drużyny',
+                (SELECT count(*) FROM turniej_zaproszenia
+                  WHERE druzyna_id = :T_DRUZYNA1::uuid AND user_id = :OBCY::uuid), 1);
+SELECT _oczekuj('wyzwalacz dopełnił turniej_id z drużyny, nie z tego, co przysłał klient',
+                (SELECT count(*) FROM turniej_zaproszenia
+                  WHERE druzyna_id = :T_DRUZYNA1::uuid AND turniej_id = :TURNIEJ::uuid), 1);
+SELECT _oczekuj('zaproszony dostał powiadomienie',
+                (SELECT count(*) FROM notifications
+                  WHERE user_id = :OBCY::uuid AND type = 'turniej_zaproszenie_do_druzyny'), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN2, false);
+SELECT _oczekuj_odmowe('kapitan D2 nie zaprosi nikogo do CUDZEJ drużyny (D1)', format(
+  'INSERT INTO turniej_zaproszenia (druzyna_id, turniej_id, user_id) VALUES (%L, %L, %L)',
+  :T_DRUZYNA1, :TURNIEJ, :T_PROWADZACY));
+SELECT _oczekuj('kapitan D2 nie widzi zaproszeń drużyny D1',
+                (SELECT count(*) FROM turniej_zaproszenia WHERE druzyna_id = :T_DRUZYNA1::uuid), 0);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT _oczekuj('ORGANIZATOR TURNIEJU NIE WIDZI zaproszeń w cudzej drużynie (decyzja 2026-09-20)',
+                (SELECT count(*) FROM turniej_zaproszenia WHERE turniej_id = :TURNIEJ::uuid), 0);
+SELECT _oczekuj_odmowe('organizator nie zaprosi nikogo do cudzej drużyny', format(
+  'INSERT INTO turniej_zaproszenia (druzyna_id, turniej_id, user_id) VALUES (%L, %L, %L)',
+  :T_DRUZYNA1, :TURNIEJ, :T_PROWADZACY));
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj('zaproszony widzi SWOJE zaproszenie',
+                (SELECT count(*) FROM turniej_zaproszenia WHERE user_id = :OBCY::uuid), 1);
+UPDATE turniej_zaproszenia SET dismissed_at = now() WHERE user_id = :OBCY::uuid;
+RESET ROLE;
+SELECT _oczekuj('zaproszony schował swoje zaproszenie',
+                (SELECT count(*) FROM turniej_zaproszenia
+                  WHERE user_id = :OBCY::uuid AND dismissed_at IS NOT NULL), 1);
+
+-- Zaproszenie gaśnie samo, gdy człowiek realnie wejdzie do drużyny — inaczej
+-- karta „X zaprasza Cię do drużyny" wisiałaby na stronie głównej komuś, kto
+-- w tej drużynie już gra.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN1, false);
+INSERT INTO turniej_zaproszenia (druzyna_id, turniej_id, user_id, zaprosil_id)
+  VALUES (:T_DRUZYNA1::uuid, :TURNIEJ::uuid, :T_PROWADZACY::uuid, :T_KAPITAN1::uuid);
+RESET ROLE;
+INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, user_id, imie)
+  VALUES (:T_DRUZYNA1::uuid, :TURNIEJ::uuid, :T_PROWADZACY::uuid, 'Piotr Prowadzący');
+SELECT _oczekuj('wejście do drużyny zgasiło zaproszenie',
+                (SELECT count(*) FROM turniej_zaproszenia
+                  WHERE user_id = :T_PROWADZACY::uuid AND dismissed_at IS NULL), 0);
+
 -- ---------------------------------------------------------------------------
 -- Fixture: terminarz (grupy, areny, mecze) — migracja 146.
 -- Reużywa TURNIEJ/T_DRUZYNA1/T_DRUZYNA2/T_ORGANIZATOR/T_PROWADZACY z sekcji
@@ -1180,6 +1246,90 @@ SELECT _oczekuj('remis w lidze dozwolony BEZ karnych — zwycięzca NULL',
                 (SELECT count(*) FROM turniej_mecze
                   WHERE id = :T_MECZ_LIGA::uuid AND status = 'zakonczony' AND zwyciezca_id IS NULL), 1);
 
+SELECT _sekcja('Turniej: walkower i „wasz mecz jest następny" (migracja 155)');
+
+-- Mikro-fixture: jedna arena, dwa mecze pod rząd DZIŚ. Powiadomienie ma
+-- pójść dopiero wtedy, gdy pierwszy się skończy — i tylko wtedy, gdy turniej
+-- naprawdę trwa.
+\set T_ARENA_DZIS '''ffffffff-0000-4000-8000-000000000021'''
+\set T_MECZ_A     '''ffffffff-0000-4000-8000-000000000022'''
+\set T_MECZ_B     '''ffffffff-0000-4000-8000-000000000023'''
+
+INSERT INTO turniej_areny (id, turniej_id, nazwa, kolejnosc)
+VALUES (:T_ARENA_DZIS::uuid, :TURNIEJ::uuid, 'Boisko testowe 155', 9)
+ON CONFLICT (turniej_id, nazwa) DO NOTHING;
+
+INSERT INTO turniej_mecze (id, turniej_id, numer, faza, arena_id, druzyna_a_id, druzyna_b_id, status, zaplanowany_at)
+VALUES
+  (:T_MECZ_A::uuid, :TURNIEJ::uuid, 91, 'grupa', :T_ARENA_DZIS::uuid, :T_DRUZYNA1::uuid, :T_DRUZYNA2::uuid, 'trwa',
+   date_trunc('day', now()) + interval '10 hours'),
+  (:T_MECZ_B::uuid, :TURNIEJ::uuid, 92, 'grupa', :T_ARENA_DZIS::uuid, :T_DRUZYNA2::uuid, :T_DRUZYNA1::uuid, 'zaplanowany',
+   date_trunc('day', now()) + interval '11 hours');
+
+-- Turniej w tej sekcji ma status 'zapisy' — wyzwalacz ma wtedy MILCZEĆ.
+DELETE FROM notifications WHERE type = 'turniej_nastepny_mecz';
+UPDATE turniej_mecze SET status = 'zakonczony' WHERE id = :T_MECZ_A::uuid;
+SELECT _oczekuj('turniej, który nie trwa, nie budzi nikogo „następnym meczem"',
+                (SELECT count(*) FROM notifications WHERE type = 'turniej_nastepny_mecz'), 0);
+
+-- Teraz to samo przy turnieju, który NAPRAWDĘ trwa.
+UPDATE turnieje SET status = 'trwa' WHERE id = :TURNIEJ::uuid;
+UPDATE turniej_mecze SET status = 'trwa' WHERE id = :T_MECZ_A::uuid;
+UPDATE turniej_mecze SET status = 'zakonczony' WHERE id = :T_MECZ_A::uuid;
+-- Oczekiwaną liczbę LICZYMY z danych, nie wpisujemy z ręki: skład obu drużyn
+-- rośnie w kolejnych sekcjach tego pliku, a asercja ma pilnować reguły
+-- („każdy zawodnik z kontem w obu drużynach następnego meczu"), nie liczby,
+-- która zmieni się przy dopisaniu jednego fixture'a wyżej.
+SELECT _oczekuj('po ostatnim gwizdku zawodnicy NASTĘPNEGO meczu na tej arenie dostają powiadomienie',
+                (SELECT count(*) FROM notifications WHERE type = 'turniej_nastepny_mecz'),
+                (SELECT count(DISTINCT user_id) FROM turniej_zawodnicy
+                  WHERE user_id IS NOT NULL
+                    AND druzyna_id IN (:T_DRUZYNA1::uuid, :T_DRUZYNA2::uuid)));
+SELECT _oczekuj('treść niesie arenę i godzinę',
+                (SELECT count(*) FROM notifications
+                  WHERE type = 'turniej_nastepny_mecz' AND body LIKE 'Boisko testowe 155, ok. 11:00%'),
+                (SELECT count(DISTINCT user_id) FROM turniej_zawodnicy
+                  WHERE user_id IS NOT NULL
+                    AND druzyna_id IN (:T_DRUZYNA1::uuid, :T_DRUZYNA2::uuid)));
+
+-- Powtórny zapis tego samego statusu (poprawka MVP, korekta wyniku) nie może
+-- budzić tych samych ludzi drugi raz.
+UPDATE turniej_mecze SET notatka = 'poprawka' WHERE id = :T_MECZ_A::uuid;
+SELECT _oczekuj('poprawka na zakończonym meczu nie wysyła powiadomienia drugi raz',
+                (SELECT count(*) FROM notifications WHERE type = 'turniej_nastepny_mecz'),
+                (SELECT count(DISTINCT user_id) FROM turniej_zawodnicy
+                  WHERE user_id IS NOT NULL
+                    AND druzyna_id IN (:T_DRUZYNA1::uuid, :T_DRUZYNA2::uuid)));
+
+-- Walkower: prowadzący ma go wpisać, obcy nie.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie wpisze walkoweru', format(
+  'SELECT walkower_meczu(%L::uuid, %L::uuid)', :T_MECZ_B, :T_DRUZYNA1));
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+SELECT _oczekuj_wyjatek('walkower musi wskazać drużynę Z TEGO meczu', format(
+  'SELECT walkower_meczu(%L::uuid, %L::uuid)', :T_MECZ_B, :TURNIEJ));
+SELECT walkower_meczu(:T_MECZ_B::uuid, :T_DRUZYNA1::uuid);
+RESET ROLE;
+SELECT _oczekuj('walkower zapisany: 0:0, zwycięzca wskazany',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :T_MECZ_B::uuid AND status = 'walkower'
+                    AND wynik_a = 0 AND wynik_b = 0
+                    AND zwyciezca_id = :T_DRUZYNA1::uuid AND walkower_dla = :T_DRUZYNA1::uuid), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+SELECT _oczekuj_wyjatek('walkoweru nie da się wpisać drugi raz', format(
+  'SELECT walkower_meczu(%L::uuid, %L::uuid)', :T_MECZ_B, :T_DRUZYNA2));
+RESET ROLE;
+
+-- Sprzątanie po fixturze: turniej wraca do 'zapisy', żeby kolejne sekcje
+-- zastały go takim, jakim go zostawiła sekcja 145.
+UPDATE turnieje SET status = 'zapisy' WHERE id = :TURNIEJ::uuid;
+
 SELECT _sekcja('Turniej: ogłoszenia (migracja 150)');
 
 -- Obie drużyny dostają status 'przyjeta' PRZEZ ORGANIZATORA — sekcja 145
@@ -1278,6 +1428,36 @@ RESET ROLE;
 SELECT _oczekuj('kapitan nie zmienił numeru BLIK organizatora',
                 (SELECT count(*) FROM turniej_blik
                   WHERE turniej_id = :TURNIEJ::uuid AND blik_telefon = '500600700'), 1);
+
+SELECT _sekcja('Turniej: statystyki gracza na profilu (migracja 156)');
+
+-- Funkcje są `SECURITY INVOKER`, więc ściana logowania modułu egzekwuje się
+-- sama: `turniej_zawodnicy` wymaga `auth.uid() IS NOT NULL` od migracji `145`.
+-- Ta asercja pilnuje, że nikt nie „naprawi" ich na `SECURITY DEFINER`, co
+-- wyniosłoby skład i strzelców poza ścianę, o którą stoi cały moduł.
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('NIEZALOGOWANY nie policzy turniejów cudzego gracza — ściana logowania',
+                (SELECT turniejow FROM get_player_turniej_stats(:T_KAPITAN1::uuid)), 0);
+SELECT _oczekuj('niezalogowany nie dostanie listy turniejów gracza',
+                (SELECT count(*) FROM get_player_turnieje(:T_KAPITAN1::uuid, 5)), 0);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj('zalogowany widzi, w ilu turniejach gra kapitan D1',
+                (SELECT turniejow FROM get_player_turniej_stats(:T_KAPITAN1::uuid)), 1);
+SELECT _oczekuj('lista turniejów niesie nazwę drużyny',
+                (SELECT count(*) FROM get_player_turnieje(:T_KAPITAN1::uuid, 5)
+                  WHERE druzyna = 'Drużyna Jeden'), 1);
+SELECT _oczekuj('gole liczą się z WARTOŚCI zdarzenia, nie z liczby wierszy',
+                (SELECT goli FROM get_player_turniej_stats(:T_KAPITAN1::uuid)),
+                (SELECT COALESCE(sum(zd.wartosc), 0)::bigint FROM turniej_zdarzenia zd
+                  JOIN turniej_zawodnicy z ON z.id = zd.zawodnik_id
+                 WHERE z.user_id = :T_KAPITAN1::uuid AND zd.typ IN ('gol','punkty')));
+SELECT _oczekuj('człowiek bez turniejów ma zero, nie błąd',
+                (SELECT turniejow FROM get_player_turniej_stats(:T_SEDZIA::uuid)), 0);
+RESET ROLE;
 
 SELECT _sekcja('Turniej: zamień drużynę w ekipę (migracja 150)');
 

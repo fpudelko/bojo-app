@@ -49,8 +49,17 @@ export function celPowiadomienia(n: AppNotification): string | null {
     if (n.type === 'turniej_zgloszenie_druzyny' || n.type === 'turniej_kapitan_przejal') {
       return `/turnieje/${n.turniejId}/panel`;
     }
-    if (n.type === 'turniej_terminarz_gotowy' || n.type === 'turniej_zmiana_terminu') {
+    if (n.type === 'turniej_terminarz_gotowy' || n.type === 'turniej_zmiana_terminu'
+        || n.type === 'turniej_nastepny_mecz') {
       return `/turnieje/${n.turniejId}?tab=terminarz`;
+    }
+    // Zaproszenie do drużyny (154) prowadzi na listę drużyn — stamtąd karta
+    // drużyny wchodzi na jej ekran z przyciskiem dołączenia. Powiadomienie nie
+    // niesie `druzyna_id` (jedyną kolumną turniejową w `notifications` jest
+    // `turniej_id`), a prawdziwą drogą na jedno dotknięcie jest i tak karta
+    // „Zaproszenia do drużyn" na `/moje-gry`.
+    if (n.type === 'turniej_zaproszenie_do_druzyny') {
+      return `/turnieje/${n.turniejId}?tab=druzyny`;
     }
     return `/turnieje/${n.turniejId}?tab=druzyny`;
   }

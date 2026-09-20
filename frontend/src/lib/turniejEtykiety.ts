@@ -3,7 +3,7 @@
 // Wzorem `lib/teamLabels.ts` i `lib/tournamentLabels.ts` (usunięte razem ze
 // starym modułem — to jest ich duchowy następca, inny kształt danych).
 
-import { withCount } from './plural';
+import { plural, withCount } from './plural';
 import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej } from '@/types';
 
 export const STATUS_TURNIEJU: Record<TurniejStatus, { label: string; ton: string }> = {
@@ -193,4 +193,57 @@ export function stanTurnieju(
     return { label: 'Ostatnie mecze', ton: 'bg-primary-50 text-primary-700', szczegol };
   }
   return { label: 'Trwa', ton: 'bg-primary-50 text-primary-700', szczegol };
+}
+
+// ---------------------------------------------------------------------------
+// Zapisy — plakat na stronie turnieju
+// ---------------------------------------------------------------------------
+
+export interface StanZapisow {
+  /** Ile jeszcze drużyn wejdzie. Zero = komplet. */
+  wolne: number;
+  /** Zapełnienie 0–100, do paska. */
+  procent: number;
+  /** „Zostały 2 miejsca" / „Komplet drużyn" — zdanie, nie liczba. */
+  miejscaLabel: string;
+  /** „Zapisy do czwartku 16 października" albo `undefined`, gdy bez terminu. */
+  terminLabel?: string;
+  /** Czy termin już minął — zapisy zamknięte mimo wolnych miejsc. */
+  poTerminie: boolean;
+}
+
+/**
+ * Wszystko, co plakat mówi o zapisach, policzone raz i w jednym miejscu.
+ *
+ * Powód istnienia: „6/8 drużyn" to informacja, a „Zostały 2 miejsca · zapisy
+ * do czwartku" to powód, żeby zgłosić drużynę DZIŚ. Ta sama różnica, którą
+ * moduł meczowy rozstrzygnął dawno licznikiem miejsc i oknem zapisu.
+ */
+export function stanZapisowTurnieju(
+  t: Pick<Turniej, 'maxDruzyn' | 'zapisyDo'>,
+  liczbaDruzyn: number,
+  teraz: Date = new Date(),
+): StanZapisow {
+  const wolne = Math.max(0, t.maxDruzyn - liczbaDruzyn);
+  const procent = t.maxDruzyn > 0
+    ? Math.min(100, Math.round((liczbaDruzyn / t.maxDruzyn) * 100))
+    : 0;
+
+  const poTerminie = !!t.zapisyDo && new Date(t.zapisyDo).getTime() <= teraz.getTime();
+
+  return {
+    wolne,
+    procent,
+    // Czasownik odmienia się razem z rzeczownikiem: „Zostało 1 miejsce",
+    // „Zostały 2 miejsca", „Zostało 5 miejsc".
+    miejscaLabel: wolne === 0
+      ? 'Komplet drużyn'
+      : `${plural(wolne, 'Zostało', 'Zostały', 'Zostało')} ${withCount(wolne, 'miejsce', 'miejsca', 'miejsc')}`,
+    terminLabel: t.zapisyDo
+      ? (poTerminie
+          ? 'Zapisy zamknięte'
+          : `Zapisy do ${etykietaTerminu(t.zapisyDo.slice(0, 10), undefined, teraz).toLowerCase()}`)
+      : undefined,
+    poTerminie,
+  };
 }

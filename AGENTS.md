@@ -310,10 +310,17 @@ Flagi ukrywają **wejścia w nawigacji**, nie trasy. Pełna tabela z miejscami u
 
 ## Pułapki, które już nas ugryzły
 
-**Migracje SQL uruchamia się RĘCZNIE.** Pliki w `supabase/migrations/` (numerowane)
-trzeba wkleić do Supabase → SQL Editor. Nic nie robi tego automatycznie. Dodanie kolumny
-w migracji ≠ kolumna istnieje w bazie — jeśli apka rzuca błędem o nieznanej kolumnie,
-najpewniej migracja nie została puszczona.
+**Migracje SQL uruchamia WORKFLOW — ale produkcję dopiero po kliknięciu.**
+Do 2026-09-20 stało tu, że wkleja się je ręcznie do SQL Editora; dziś robi to
+`.github/workflows/migracje.yml` przez `scripts/migruj.sh`, a które pliki już poszły,
+wie dziennik `schema_migracje` w bazie. Merge do mastera aplikuje brakujące migracje na
+`BojoDev` SAM; **produkcja wymaga świadomego uruchomienia** (Actions → Migracje → Run
+workflow), bo deploy da się cofnąć, a `DROP COLUMN` nie. Setup, backfill i co robić przy
+błędzie → [supabase/migrations/README.md](./supabase/migrations/README.md).
+
+Z tego wynika niezmieniona zasada: dodanie kolumny w migracji ≠ kolumna istnieje
+w produkcyjnej bazie. Jeśli apka rzuca błędem o nieznanej kolumnie, najpewniej migracja
+czeka na uruchomienie na produkcji.
 
 **Gorsza wersja tej samej pułapki: migracja puszczona w POŁOWIE.** Gdy seed wywala się
 na nieznanej kolumnie, odruch brzmi „puszczę z ręki tę jedną linijkę, żeby się

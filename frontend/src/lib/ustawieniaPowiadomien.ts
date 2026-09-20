@@ -244,6 +244,14 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     nazwa: 'Ktoś przejął drużynę',
     opis: 'Drużyna, którą dopisałeś ręcznie, ma teraz swojego kapitana',
   },
+  // Zaproszenie do drużyny (migracja 154). `wazne` jak `zaproszenie_na_mecz`:
+  // kapitan czeka na skład, a turniej ma jedną datę i nie przesunie się.
+  {
+    typ: 'turniej_zaproszenie_do_druzyny',
+    nazwa: 'Zaproszenie do drużyny turniejowej',
+    opis: 'Kapitan zaprasza Cię do składu na turniej',
+    wazne: true,
+  },
   // Terminarz (migracja 146). Ta sama waga co `zmiana_terminu` dla zwykłego
   // meczu: zmienia plan na konkretny dzień, więc `wazne`.
   {
@@ -256,6 +264,15 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     typ: 'turniej_zmiana_terminu',
     nazwa: 'Zmiana terminarza turnieju',
     opis: 'Organizator przesunął godziny meczów Twojego turnieju',
+    wazne: true,
+  },
+  // Migracja 155. `wazne`: przychodzi w dniu turnieju, kilka minut przed
+  // wejściem na boisko — wyłączenie go czyni z niego rzecz bezużyteczną,
+  // a nie mniej natrętną.
+  {
+    typ: 'turniej_nastepny_mecz',
+    nazwa: 'Wasz mecz jest następny',
+    opis: 'Poprzedni mecz na Waszej arenie się skończył, gracie za chwilę',
     wazne: true,
   },
   // Ogłoszenie organizatora (migracja 150) — jedyna wiadomość w tym module,

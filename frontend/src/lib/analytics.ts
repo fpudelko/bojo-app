@@ -54,6 +54,11 @@ export type AnalyticsEvent =
   // ── MODUŁ TURNIEJOWY (150, Etap 4) ───────────────────────────────────────
   /** Kapitan zamienił drużynę turniejową w trwałą ekipę jednym przyciskiem. */
   | 'turniej_zamieniony_w_ekipe'
+  // ── MODUŁ TURNIEJOWY (154) ───────────────────────────────────────────────
+  /** Kapitan zaprosił imiennie ludzi ze swojej ekipy do drużyny turniejowej.
+   *  Mierzymy to osobno od linku (`turniej_udostepniony`), bo to dwie różne
+   *  drogi kompletowania składu i dopiero porównanie powie, która działa. */
+  | 'turniej_zaproszenia_wyslane'
   // ── KATALOG BOISK W WYNIKACH WYSZUKIWANIA (2026-09-16) ────────────────────
   // Powód jest liczbowy. Od 5.09.2026 Google ma w indeksie 17 473 stron Bojo,
   // a eksport Search Console z 16.09 pokazał, że **980 z 1000 stron zbierających

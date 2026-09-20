@@ -64,12 +64,53 @@ describe('przyjmujeZgloszenia', () => {
 });
 
 describe('domyslnaZakladka', () => {
-  it('mapuje każdy stan na właściwą zakładkę', () => {
-    expect(domyslnaZakladka('szkic')).toBe('info');
-    expect(domyslnaZakladka('zapisy')).toBe('info');
-    expect(domyslnaZakladka('zamkniete_zapisy')).toBe('druzyny');
-    expect(domyslnaZakladka('trwa')).toBe('terminarz');
-    expect(domyslnaZakladka('zakonczony')).toBe('tabela');
-    expect(domyslnaZakladka('odwolany')).toBe('tabela');
+  const puste = { maMecze: false, maTabele: false };
+  const pelne = { maMecze: true, maTabele: true };
+
+  it('zapisy prowadzą na Info — tam człowiek z ulicy dowie się, co to za turniej', () => {
+    expect(domyslnaZakladka('szkic', puste)).toBe('info');
+    expect(domyslnaZakladka('zapisy', puste)).toBe('info');
+    // Regresja S-11: strona twardo otwierała „Mecze", więc link udostępniony
+    // w okresie zapisów lądował na „Terminarz jeszcze nie jest gotowy".
+    expect(domyslnaZakladka('zapisy', pelne)).not.toBe('mecze');
+  });
+
+  it('po zamknięciu zapisów i w trakcie prowadzą na Mecze — gdy jest co pokazać', () => {
+    expect(domyslnaZakladka('zamkniete_zapisy', pelne)).toBe('mecze');
+    expect(domyslnaZakladka('trwa', pelne)).toBe('mecze');
+  });
+
+  it('bez terminarza żaden stan nie otwiera pustej zakładki Mecze', () => {
+    expect(domyslnaZakladka('zamkniete_zapisy', puste)).toBe('druzyny');
+    expect(domyslnaZakladka('trwa', puste)).toBe('druzyny');
+  });
+
+  it('zakończony prowadzi na Tabelę, a bez tabeli na Mecze', () => {
+    expect(domyslnaZakladka('zakonczony', pelne)).toBe('tabela');
+    expect(domyslnaZakladka('zakonczony', puste)).toBe('mecze');
+  });
+
+  it('odwołany prowadzi na Info — tam stoi powód i kontakt do organizatora', () => {
+    expect(domyslnaZakladka('odwolany', pelne)).toBe('info');
+  });
+});
+
+describe('przyjmujeZgloszenia — termin graniczny', () => {
+  const baza = { status: 'zapisy', maxDruzyn: 8 } as const;
+
+  it('zamyka zapisy po terminie, choć miejsca zostały', () => {
+    expect(przyjmujeZgloszenia(
+      { ...baza, zapisyDo: '2026-10-12T23:59:00Z' }, 3, new Date('2026-10-13T08:00:00Z'),
+    )).toBe(false);
+  });
+
+  it('przed terminem przyjmuje', () => {
+    expect(przyjmujeZgloszenia(
+      { ...baza, zapisyDo: '2026-10-12T23:59:00Z' }, 3, new Date('2026-10-10T08:00:00Z'),
+    )).toBe(true);
+  });
+
+  it('bez terminu zachowuje się jak dotąd', () => {
+    expect(przyjmujeZgloszenia({ ...baza, zapisyDo: undefined }, 3, new Date('2030-01-01'))).toBe(true);
   });
 });

@@ -4418,6 +4418,155 @@ schowka) i obraz OG per turniej (`/turnieje/[id]/opengraph-image.tsx`, wzorem
 `/wydarzenia/[id]`). Stary moduł „BOJO Cup" (`tournaments` i sześć tabel
 `tournament_*`) skasowany migracją `151` — front zniknął już w Etapie 0.
 
+### Etap A przebudowy UX (migracja `154`) — kapitan i pierwsze wrażenie
+
+Projekt → [turnieje-ux-ekrany.md](./turnieje-ux-ekrany.md), diagnoza →
+[turnieje-scenariusze-ux.md](./turnieje-scenariusze-ux.md) (ustalenia `S-11`…`S-18`).
+
+**Ekran drużyny — nowa trasa `/turnieje/[id]/druzyna/[druzynaId]`.** Do 2026-09-20 kapitan
+widział link do swojej drużyny DOKŁADNIE RAZ, na ekranie potwierdzenia zgłoszenia; kto
+zamknął kartę, nie odzyskiwał go nigdzie poza panelem organizatora, do którego nie ma
+wstępu. A ten link jest w module turniejowym całą drogą powstawania kont: turniej na
+12 drużyn to ~90 zawodników, z których każdy zakłada konto, bo kapitan wysłał mu
+odnośnik. Ekran jest publiczny (skład za ścianą logowania), a kapitanowi daje stały link,
+licznik składu „5 z 8" z paskiem, dopisywanie zawodników bez konta, usuwanie ze składu,
+wpisowe z numerem BLIK, listę własnych meczów, zmianę nazwy, wycofanie drużyny oraz
+„Zamień drużynę w ekipę" po zakończeniu turnieju. Wejścia: pasek „Twoja drużyna" na
+`/turnieje/[id]` (był ślepy), karta drużyny na zakładce Drużyny, ekran po zgłoszeniu.
+
+**Imienne zaproszenia (`turniej_zaproszenia`).** Druga droga obok linku, dla tych, którzy
+konto już mają. Bliźniak `event_player_invites` (`060`) co do trzech zasad: zaproszenie
+nie zajmuje miejsca w składzie, duplikaty pomija baza, odrzucone zostaje w tabeli.
+Kandydaci pochodzą **wyłącznie z ekip kapitana** (`ZaprosZEkipyDialog.tsx`, wzorem
+`InviteFromGroupDialog.tsx`) — wyszukiwarka po całym Bojo wymagałaby udostępnienia listy
+wszystkich kont. Zaproszony widzi kartę „Dołączam / Nie mogę"
+(`ZaproszeniaTurniejowe.tsx`) na `/moje-gry`, tam gdzie widzi zaproszenia na mecz;
+świadomie POZA flagą `SHOW_TURNIEJE`, bo to nie jest wejście w nawigacji, tylko konkretna
+osoba czekająca na odpowiedź. **Organizator turnieju ich nie widzi i nie wystawia** —
+decyzja właściciela z 2026-09-20, pilnowana funkcją `czy_sam_kapitan_druzyny()` (węższą
+niż `czy_kapitan_druzyny()` z `145`) i jawną asercją w `supabase/test/rls.sql`.
+
+**Domyślna zakładka zależna od stanu.** `domyslnaZakladka()` istniała w `lib/turnieje.ts`
+od migracji `145` i NIE BYŁA PODPIĘTA: strona twardo otwierała „Mecze", więc każdy link
+udostępniony w okresie zapisów lądował na napisie „Terminarz jeszcze nie jest gotowy".
+Dziś zapisy → Info, zamknięte zapisy i trakt → Mecze (albo Drużyny, gdy terminarza nie
+ma), zakończony → Tabela, odwołany → Info. Adres (`?tab=`) nadal bije domyślną.
+
+**Termin graniczny zapisów.** Kolumna `turnieje.zapisy_do` istniała od `145` i była
+ignorowana przez `przyjmujeZgloszenia()`, która patrzyła wyłącznie na status i limit
+drużyn — organizator wypełniał pole, które nic nie robiło. Dziś pole jest w kreatorze
+i w panelu (Ustawienia), a w zapisach nad zakładkami stoi plakat: pasek zapełnienia,
+„Zostały 2 miejsca", „Zapisy do czwartku 16 października" i warunki wpisowego
+(`stanZapisowTurnieju()` w `lib/turniejEtykiety.ts`).
+
+**„Nasze mecze".** Na zakładce Mecze gracz z drużyny dostaje filtr Nasze/Wszystkie,
+domyślnie „Nasze" — uczestnik szuka trzech swoich meczów, nie czterdziestu dwóch
+turniejowych. Filtr jest prostopadły do przełącznika Najbliższe/Rozegrane.
+
+**`/t/[kod]` sprzedaje, zanim poprosi o konto.** Dla większości zawodników to PIERWSZY
+kontakt z Bojo — dotąd widzieli kłódkę, nazwę drużyny i prośbę o zalogowanie. Dziś
+najpierw: nazwa turnieju, data, miejsce i kto już jest w składzie, potem „Dołącz do
+drużyny". Ta sama zasada co brama logowania przed kreatorem
+([przeplyw-organizatora.md](./przeplyw-organizatora.md)) — ekran-brama sprzedaje,
+nie przekierowuje.
+
+### Etap B przebudowy UX (migracja `155`) — dzień turnieju
+
+**Konsola prowadzącego bez natywnych list rozwijanych.** Wybór strzelca i asysty był
+dwoma `<select>`-ami pod rząd, a dopiero po nich szedł przycisk „Gol" — trzy interakcje
+i dwa menu systemowe zasłaniające ekran, u człowieka stojącego w słońcu z jedną wolną
+ręką. Dziś: dwa wielkie przyciski „GOL" obok siebie (po jednym na drużynę), a po
+dotknięciu wjeżdża arkusz ze składem (`components/turnieje/ArkuszSkladu.tsx`, kafle
+64 px z numerem i imieniem) i — przy piłce — drugi arkusz na asystę. Pominięcie jest
+zawsze dostępne: w turnieju amatorskim połowa goli pada bez ustalenia strzelca.
+Zamknięcie arkusza STRZELCA anuluje zdarzenie, zamknięcie arkusza ASYSTY zapisuje gol bez
+niej — bo gol już padł.
+
+**Poprawka: koszykarskie `+1/+2/+3` liczyły po jednym punkcie.** Wszystkie trzy przyciski
+wołały `dodajZdarzenieAkcja()` bez wartości, a `dodajZdarzenie()` domyślała `wartosc: 1`.
+Kolumna `turniej_zdarzenia.wartosc` i wyzwalacz `przelicz_wynik_meczu()` (`147`) liczyły
+poprawnie — nikt im nie mówił ile. Turniej koszykarski prowadzony tą konsolą kończył się
+fałszywym wynikiem.
+
+**Zegar meczu.** `czasGry()`/`poCzasie()` w `lib/turniejWynik.ts`, liczone
+z `turniej_mecze.rozpoczety_at`, żeby odświeżenie strony w 34. minucie nie zaczynało
+odliczania od zera. **Bez pauzy** — świadomie: przerwa wymagałaby zapisania jej długości
+w bazie, a zegar kłamiący po odświeżeniu byłby gorszy niż zegar bez pauzy. Po
+regulaminowym czasie robi się bursztynowy, nie czerwony (czerwień w tej aplikacji znaczy
+„coś poszło źle", a koniec czasu jest informacją).
+
+**Walkower z konsoli** (`walkower_meczu()`, RPC): pod „⋯" w nagłówku meczu, bo to wyjście
+awaryjne, nie codzienna akcja. Wynik 0:0 ze wskazanym zwycięzcą — tak samo, jak zapisuje
+to generator przy wolnym losie, więc `obliczTabele()` czyta to bez zmian.
+
+**„Następny na tej arenie".** Po ostatnim gwizdku prowadzący wracał na listę meczów
+i szukał kolejnego wzrokiem. Dziś dostaje kartę z nazwami drużyn i godziną.
+
+**Powiadomienie `turniej_nastepny_mecz`.** Plan modułu nazwał je najlepszym typem
+w module i jako jedyne z dziewięciu nie powstało. Wyzwalacz przy zakończeniu meczu budzi
+zawodników następnego meczu na tej samej arenie — zero crona, zero zegara. Trzy warunki,
+bez których szkodzi: tylko gdy turniej ma status `trwa`, tylko gdy następny mecz jest
+DZIŚ (turniej weekendowy nie budzi w sobotę drużyny grającej w niedzielę) i tylko przy
+realnej zmianie statusu (poprawka MVP nie wysyła go drugi raz).
+
+**Tablica na żywo i odświeżanie co 20 s.** Plan zakładał je od początku, świadomie zamiast
+Supabase Realtime (wymaga ręcznego włączenia replikacji — klasa „działa u mnie, milczy na
+produkcji"). W kodzie nie było ani jednego `setInterval`, więc wynik „na żywo" wymagał
+pociągnięcia strony w dół. Odświeżają się WYŁĄCZNIE mecze i zdarzenia; drużyny, grupy
+i areny stoją w miejscu. Nad zakładkami dochodzi blok „Na żywo" z wynikiem każdego
+trwającego meczu i jego areną.
+
+**Pulpit organizatora — nowa, domyślna zakładka panelu.** Panel wyglądał identycznie trzy
+tygodnie przed turniejem i w sobotę o 11:40. Przed turniejem pulpit jest listą blokad
+(drużyny, czekające zgłoszenia, terminarz, wpisowe, BLIK — `pulpitPrzedTurniejem()`),
+w dniu turnieju wieżą kontrolną: co trwa i co następne na każdej arenie
+(`arenyTeraz()`), obsuwa względem planu (`opoznienieWMinutach()`) i przycisk „Przesuń
+resztę o N min" — plan nazywa go najmocniejszą funkcją organizatorską, a stał dwie
+zakładki dalej, w miejscu, do którego w sobotę nikt nie zagląda. Wszystko w
+`lib/turniejPulpit.ts` jako czyste funkcje z podawanym „teraz", bo dzień turnieju to
+jedyny stan, którego nie da się obejrzeć bez czekania na sobotę.
+
+
+### Etap C przebudowy UX (migracja `156`) — początek i koniec łuku
+
+**Wyliczenie czasu trwania turnieju w kreatorze** (`lib/turniejKreator.ts`,
+`szacunekZParametrow()` + `zdanieOCzasie()`). Jedyna rzecz, której organizator nie policzy
+w głowie, a od której zależy, czy o 17:00 nie będzie grał finału po ciemku. **Nie liczy
+tego własnym wzorem** — odpala PRAWDZIWE generatory (`rozlosujGrupy` →
+`meczeKazdyZKazdym` → `zbudujDrabinke`) na atrapach drużyn i podaje wynik do
+`szacunekCzasu()`, więc kreator nie może rozjechać się z tym, co pokaże panel przed
+wygenerowaniem terminarza.
+
+**Kreator kończy się plakatem, nie panelem.** Po utworzeniu turnieju organizator lądował
+w panelu — ekranie zarządzania — czyli wychodził z narzędzia bez rzeczy, po którą
+przyszedł. Dziś dostaje ekran „Turniej jest ogłoszony": przycisk „Wyślij kapitanom" (Web
+Share z fallbackiem do schowka), link do skopiowania i GOTOWY TEKST na grupę widoczny
+wprost, nie tylko w arkuszu systemowym.
+
+**Podium na zakończonym turnieju** (`lib/turniejPodium.ts`). Turniej nie miał końca, tylko
+wygasanie: status zmieniał się na `zakonczony` i strona pokazywała tabelę. A to jest moment
+o największym zasięgu w module — wszyscy uczestnicy patrzą w telefon w tej samej minucie.
+Nad zakładkami stoi podium, król strzelców, MVP i „Udostępnij wyniki". **Miejsce jest
+liczone, nie zapisywane**: kolumna `turniej_druzyny.miejsce` byłaby drugą prawdą o tym, kto
+wygrał, i rozjechałaby się z tabelą przy pierwszej korekcie wyniku. Drabinka bije tabelę
+(mistrz bywa drugi w swojej grupie), a gdy meczu o 3. miejsce nie było, **trzeciego miejsca
+nie wymyślamy** — dwaj przegrani półfinaliści są formalnie równi.
+
+**Dwa wyjścia z podium.** „Zamień drużynę w ekipę" wychodzi tu na wierzch dla kapitana
+(dotąd siedziało trzy kliknięcia głębiej, w rozwiniętej karcie drużyny na zakładce
+Drużyny) i „Organizujesz podobny? Zrób go w Bojo" — zaczepka dla obcego organizatora,
+który właśnie obejrzał cudzy turniej. To najtańszy kanał pozyskania organizatora, jaki ten
+moduł produkuje, i nie miał dotąd żadnego przycisku.
+
+**Sekcja „Turnieje" na profilu gracza** (`components/turnieje/SekcjaTurniejeProfilu.tsx`,
+funkcje `get_player_turniej_stats()`/`get_player_turnieje()`). Jedyny powód, dla którego
+zawodnik wraca do Bojo w tygodniu po turnieju — bez niej konto założone pod jeden turniej
+jest kontem założonym na jeden dzień. Cztery liczby (turnieje, mecze, gole, MVP) i trzy
+ostatnie turnieje z nazwą drużyny, ze złotym medalem przy tych, w których drużyna wygrała
+finał. Sekcja **znika przy zerze turniejów** — pusty kafelek na profilu 90% graczy to szum.
+Ścieżka zamyka się w obie strony: skład drużyny prowadził do profilu już wcześniej
+(`KartaDruzyny.tsx`), teraz profil prowadzi z powrotem do turnieju.
+
 ---
 
 ## Pomiar produktowy — co mierzymy i gdzie to czytać

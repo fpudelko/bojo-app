@@ -21,6 +21,8 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Gdzie organizator się zacina przy tworzeniu meczu? Co zostaje bez zmian i dlaczego? | [przeplyw-organizatora.md](./przeplyw-organizatora.md) |
 | Co planujemy w module turniejowym i dlaczego? | [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) |
 | Jak dokładnie wdrożyć moduł turniejowy — schemat, sygnatury, ekrany? | [turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md) |
+| Kto używa turnieju, kiedy i czego wtedy szuka? Co blokuje odmrożenie flagi? | [turnieje-scenariusze-ux.md](./turnieje-scenariusze-ux.md) |
+| Jak mają wyglądać ekrany turnieju dla organizatora, kapitana i gracza? | [turnieje-ux-ekrany.md](./turnieje-ux-ekrany.md) |
 | Co przetestować ręką przed wpuszczeniem ludzi? Czego automat nie dosięga? | [testy-przedpremierowe.md](./testy-przedpremierowe.md) |
 | Jak zaczepić organizatora na Facebooku? Co mu wolno obiecać? | [outreach-organizatorzy.md](./outreach-organizatorzy.md) |
 | Skąd wzięło się obecne logo? Jakie warianty odrzuciliśmy i dlaczego? | [logo-warianty.md](./logo-warianty.md) |

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Check, Copy, Loader2, Share2, Timer } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import ToggleRow from '@/components/ui/ToggleRow';
@@ -13,6 +13,8 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { useWstecz } from '@/lib/historia';
 import { createTurniej } from '@/lib/turnieje';
+import { szacunekZParametrow, zdanieOCzasie } from '@/lib/turniejKreator';
+import { linkDoTurnieju, tekstUdostepnieniaTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
 import { FORMAT_LABEL, FORMAT_OPIS } from '@/lib/turniejEtykiety';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 import type { TurniejFormat, TurniejWidocznosc } from '@/types';
@@ -24,7 +26,6 @@ const inputCls =
 const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5';
 
 export default function NowyTurniejPage() {
-  const router = useRouter();
   const wstecz = useWstecz('/turnieje');
   const { user, loading } = useAuth();
   const { toast } = useToast();
@@ -33,6 +34,7 @@ export default function NowyTurniejPage() {
   const [sport, setSport] = useState<string>(FOCUS_SPORTS[0]);
   const [dataStartu, setDataStartu] = useState('');
   const [dataKonca, setDataKonca] = useState('');
+  const [zapisyDo, setZapisyDo] = useState('');
   const [godzinaStartu, setGodzinaStartu] = useState('10:00');
   const [location, setLocation] = useState<LocationResult>({ venue: null, lat: null, lng: null, address: '' });
   const [miejsceNazwa, setMiejsceNazwa] = useState('');
@@ -50,11 +52,14 @@ export default function NowyTurniejPage() {
 
   const [blad, setBlad] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /** Id świeżo utworzonego turnieju — przełącza ekran na plakat. */
+  const [utworzony, setUtworzony] = useState<string | null>(null);
 
   const nazwaOk = nazwa.trim().length >= 3;
   const dataOk = !!dataStartu && (!dataKonca || dataKonca >= dataStartu);
+  const zapisyOk = !zapisyDo || !dataStartu || zapisyDo <= dataStartu;
   const skladOk = minZawodnikow > 0 && minZawodnikow <= maxZawodnikow;
-  const gotowe = nazwaOk && dataOk && skladOk && maxDruzyn >= 2;
+  const gotowe = nazwaOk && dataOk && zapisyOk && skladOk && maxDruzyn >= 2;
 
   const handleSubmit = async () => {
     if (!user || !gotowe) return;
@@ -75,6 +80,9 @@ export default function NowyTurniejPage() {
           lng: location.lng ?? undefined,
           dataStartu,
           dataKonca: dataKonca || undefined,
+          // Koniec DNIA, nie północ na jego początku: „zapisy do 16
+          // października" znaczy dla każdego „jeszcze szesnastego".
+          zapisyDo: zapisyDo ? `${zapisyDo}T23:59:59` : undefined,
           godzinaStartu,
           maxDruzyn,
           minZawodnikow,
@@ -87,12 +95,113 @@ export default function NowyTurniejPage() {
         user.id,
       );
       toast('Turniej utworzony 🏆');
-      router.push(`/turnieje/${id}/panel`);
+      // NIE do panelu. Organizator przyszedł tu po rzecz do wysłania
+      // kapitanom, a panel to ekran zarządzania — wychodził z narzędzia bez
+      // tego, po co przyszedł.
+      setUtworzony(id);
+      setSubmitting(false);
     } catch (e) {
       setBlad(e instanceof Error ? e.message : 'Nie udało się utworzyć turnieju');
       setSubmitting(false);
     }
   };
+
+  const szacunek = szacunekZParametrow({
+    format,
+    liczbaDruzyn: maxDruzyn,
+    // Kreator nie pyta o boiska — wyzwalacz `utworz_domyslna_arene()` (146)
+    // zakłada jedno „Boisko 1". Organizator dokłada kolejne w panelu i tam
+    // szacunek przelicza się na prawdziwej liczbie aren.
+    liczbaAren: 1,
+    czasMeczuMin: 15,
+    przerwaMin: 5,
+    dataStartu: dataStartu || undefined,
+    godzinaStartu,
+  });
+
+  const kopiuj = async (tekst: string, etykieta: string) => {
+    try {
+      await navigator.clipboard.writeText(tekst);
+      toast(`${etykieta} skopiowany`);
+    } catch {
+      toast('Nie udało się skopiować', 'error');
+    }
+  };
+
+  // ── Plakat: ekran, na którym kończy się kreator ──────────────────────────
+  if (utworzony) {
+    const link = linkDoTurnieju(utworzony);
+    const daneDoUdostepnienia = {
+      nazwa, dataStartu, godzinaStartu,
+      miejsceNazwa: location.venue?.name ?? miejsceNazwa,
+      wpisoweGrosze: wpisoweZl.trim() ? Math.round(parseFloat(wpisoweZl.replace(',', '.')) * 100) : 0,
+    };
+    const tekst = tekstUdostepnieniaTurnieju(daneDoUdostepnienia, link);
+    return (
+      <div className="flex min-h-screen flex-col bg-canvas">
+        <Header />
+        <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
+          <div className="text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-950">
+              <Check className="h-6 w-6 text-primary-700 dark:text-primary-300" />
+            </div>
+            <h1 className="font-display text-2xl font-bold text-ink">Turniej jest ogłoszony</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Wyślij link kapitanom. Zgłoszą drużyny i skompletują składy sami.
+            </p>
+          </div>
+
+          <div className="mt-6 space-y-2">
+            <Button
+              onClick={async () => {
+                const wynik = await udostepnijTurniej(daneDoUdostepnienia, link);
+                if (wynik === 'copied') toast('Zaproszenie skopiowane');
+                else if (wynik === 'failed') toast('Nie udało się udostępnić', 'error');
+              }}
+              className="w-full inline-flex items-center justify-center gap-2"
+            >
+              <Share2 className="h-4 w-4" /> Wyślij kapitanom
+            </Button>
+            <button
+              onClick={() => kopiuj(link, 'Link')}
+              className="flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-left"
+            >
+              <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-500 dark:text-slate-400">{link}</span>
+              <Copy className="h-4 w-4 shrink-0 text-primary-600" />
+            </button>
+          </div>
+
+          {/* Gotowy tekst na grupę — ta sama rzecz, którą dostaje arkusz
+              systemowy, ale WIDOCZNA. Organizator wkleja go na Facebooka
+              i nie musi go wymyślać od nowa. */}
+          <div className="mt-6 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-sm font-medium text-ink">Gotowy tekst na grupę</p>
+              <button onClick={() => kopiuj(tekst, 'Tekst')} className="shrink-0 text-xs font-medium text-primary-600">
+                Kopiuj
+              </button>
+            </div>
+            <pre className="whitespace-pre-wrap break-words font-sans text-sm text-slate-600 dark:text-slate-300">{tekst}</pre>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-300 shadow-sm">
+            <p className="font-medium text-ink">Co dalej</p>
+            <p className="mt-1">
+              Gdy zgłoszą się drużyny, ustawisz boiska i wygenerujesz terminarz jednym przyciskiem.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link href={`/turnieje/${utworzony}/panel`}>
+                <Button size="sm" variant="outline">Panel turnieju</Button>
+              </Link>
+              <Link href={`/turnieje/${utworzony}`}>
+                <Button size="sm" variant="outline">Zobacz stronę turnieju</Button>
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!loading && !user) {
     if (typeof window !== 'undefined') window.location.href = `/logowanie?next=${encodeURIComponent('/turnieje/nowe')}`;
@@ -157,6 +266,29 @@ export default function NowyTurniejPage() {
           {dataKonca && dataKonca < dataStartu && (
             <p className="-mt-3 text-xs text-red-600">Data końca nie może być wcześniejsza niż data startu.</p>
           )}
+
+          {/* TERMIN GRANICZNY ZAPISÓW. Kolumna `zapisy_do` istniała w bazie od
+              migracji `145` i nie miała ani pola w kreatorze, ani skutku
+              w kodzie. Bez niej organizator, który zapomni ręcznie zamknąć
+              zapisy, przyjmuje zgłoszenie w piątek wieczorem po ułożonym
+              terminarzu — a kapitan nie ma żadnego powodu, żeby zgłosić się
+              dziś, a nie „kiedyś". */}
+          <div>
+            <label className={labelCls}>Zapisy do</label>
+            <input
+              type="date"
+              value={zapisyDo}
+              onChange={(e) => setZapisyDo(e.target.value)}
+              max={dataStartu || undefined}
+              className={inputCls}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Po tym dniu nikt nie zgłosi drużyny. Puste = zapisy zamykasz ręcznie.
+            </p>
+            {!zapisyOk && (
+              <p className="mt-1 text-xs text-red-600">Zapisy muszą się kończyć najpóźniej w dniu startu.</p>
+            )}
+          </div>
 
           <div>
             <label className={labelCls}>Godzina startu</label>
@@ -282,6 +414,22 @@ export default function NowyTurniejPage() {
           </div>
 
           {blad && <p className="text-sm text-red-600">{blad}</p>}
+
+          {/* NAJWAŻNIEJSZE ZDANIE W KREATORZE. Jedyna rzecz, której organizator
+              nie policzy w głowie, a od której zależy, czy o 17:00 nie będzie
+              grał finału po ciemku. Liczy się PRAWDZIWYMI generatorami
+              terminarza na atrapach drużyn (`lib/turniejKreator.ts`), więc nie
+              może rozjechać się z tym, co pokaże panel. */}
+          <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3.5">
+            <p className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
+              <Timer className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              <span>{zdanieOCzasie(szacunek)}</span>
+            </p>
+            <p className="mt-1 pl-6 text-xs text-slate-400">
+              Przy jednym boisku, meczach 15 min i 5 min przerwy. Boiska, czas meczu
+              i format zmienisz w panelu przed wygenerowaniem terminarza.
+            </p>
+          </div>
 
           <Button onClick={handleSubmit} disabled={!gotowe || submitting} className="w-full inline-flex items-center justify-center gap-2">
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Utwórz turniej'}

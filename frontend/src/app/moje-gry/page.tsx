@@ -19,6 +19,7 @@ import { doRozliczenia } from '@/lib/myEvents';
 import PustyStanMeczow from '@/components/home/dashboard/PustyStanMeczow';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_RECURRING, SHOW_TURNIEJE } from '@/lib/features';
+import ZaproszeniaTurniejowe from '@/components/turnieje/ZaproszeniaTurniejowe';
 import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
 import type { EventItem } from '@/types';
 
@@ -320,6 +321,11 @@ function MojeGryContent() {
               statusFor={inviteStatusFor}
               href="/moje-gry?tab=zaproszenia"
             />
+            {/* Zaproszenie do drużyny turniejowej (migracja 154) stoi obok
+                zaproszeń na mecz, bo dla czytającego to ta sama rzecz: ktoś
+                czeka na moją odpowiedź. Świadomie POZA flagą SHOW_TURNIEJE —
+                patrz komentarz w samym komponencie. */}
+            {user && <ZaproszeniaTurniejowe userId={user.id} />}
             {/* „Grasz" ma nagłówek NA STAŁE (zgłoszone wprost 2026-08-28) —
                 zamiast znikać przy pustej liście, jak reszta sekcji na tej
                 stronie, pokazuje pusty stan z CTA. To jedyne miejsce, gdzie

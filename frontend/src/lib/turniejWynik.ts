@@ -121,3 +121,40 @@ export function jestSportemSetowym(sport: string): boolean {
 export function jestKoszykowka(sport: string): boolean {
   return sport === 'koszykówka';
 }
+
+/**
+ * Ile minut i sekund gra się ten mecz — do zegara w konsoli prowadzącego.
+ *
+ * Liczone z `rozpoczety_at` (kolumna, czyli prawda serwera), NIE z licznika
+ * w przeglądarce: odświeżenie strony w 34. minucie nie może zaczynać odliczania
+ * od zera. Cena tego wyboru jest jawna — **nie ma pauzy**. Przerwa między
+ * połowami wymagałaby zapisania jej długości w bazie, a zegar, który po
+ * odświeżeniu kłamie, jest gorszy niż zegar bez pauzy. Prowadzący widzi więc
+ * czas od pierwszego gwizdka, wraz z przerwą, i to jest w opisie pod nim
+ * napisane wprost.
+ */
+export function czasGry(rozpoczetyAt: string | undefined, teraz: Date = new Date()): string | null {
+  if (!rozpoczetyAt) return null;
+  const start = new Date(rozpoczetyAt).getTime();
+  if (Number.isNaN(start)) return null;
+  const sekundy = Math.max(0, Math.floor((teraz.getTime() - start) / 1000));
+  const m = Math.floor(sekundy / 60);
+  const s = sekundy % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * Czy minął regulaminowy czas gry — zegar robi się bursztynowy, nie czerwony.
+ * Czerwień w tej aplikacji znaczy „coś poszło źle" (AGENTS.md), a koniec czasu
+ * jest informacją dla prowadzącego, nie awarią.
+ */
+export function poCzasie(
+  rozpoczetyAt: string | undefined,
+  czasMeczuMin: number,
+  teraz: Date = new Date(),
+): boolean {
+  if (!rozpoczetyAt) return false;
+  const start = new Date(rozpoczetyAt).getTime();
+  if (Number.isNaN(start)) return false;
+  return teraz.getTime() - start >= czasMeczuMin * 60_000;
+}

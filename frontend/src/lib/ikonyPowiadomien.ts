@@ -23,7 +23,7 @@
 import {
   Bell, BellRing, CalendarCheck, CalendarClock, CalendarPlus, CalendarX, Check, CheckCircle,
   Clock, ClipboardCheck, ListChecks, MapPin, MessageCircle, Repeat, TicketCheck,
-  Trash2, UserCog, UserMinus, UserPlus, Users, X, AlertTriangle, type LucideIcon,
+  Timer, Trash2, UserCog, UserMinus, UserPlus, Users, X, AlertTriangle, type LucideIcon,
 } from 'lucide-react';
 
 export interface IkonaPowiadomienia {
@@ -103,10 +103,20 @@ export const IKONY: Record<string, IkonaPowiadomienia> = {
   turniej_druzyna_przyjeta:    { Ikona: CheckCircle,   klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Przyjęci' },
   turniej_druzyna_odrzucona:   { Ikona: X,             klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Decyzja' },
   turniej_kapitan_przejal:     { Ikona: UserCog,       klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Kapitan' },
+  // Zaproszenie do drużyny (migracja 154). NEUTRALNE, nie niebieskie: niebieski
+  // jest w AGENTS.md zarezerwowany dla „wymaga akceptacji uczestnictwa", czyli
+  // dla decyzji, na którą ktoś inny CZEKA i która go blokuje. Zaproszenie
+  // niczego nie blokuje — dokładnie jak `zaproszenie_na_mecz`.
+  turniej_zaproszenie_do_druzyny: { Ikona: UserPlus,     klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Zaproszenie' },
   // Terminarz (migracja 146) — neutralne: to informacja o planie, nie decyzja
   // do podjęcia ani awaria.
   turniej_terminarz_gotowy:   { Ikona: CalendarPlus,  klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Terminarz' },
   turniej_zmiana_terminu:     { Ikona: CalendarClock, klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Nowy termin' },
+  // „Wasz mecz jest następny" (migracja 155) — jedyne powiadomienie w Bojo,
+  // które dociera w minucie, w której jest potrzebne (wyzwalacz przy
+  // zakończeniu poprzedniego meczu na tej arenie, zero crona). Zielone
+  // `primary`, nie niebieskie: to stan, nie decyzja do podjęcia.
+  turniej_nastepny_mecz:      { Ikona: Timer,         klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Za chwilę' },
   // Ogłoszenie organizatora (migracja 150) — różowy, bo to wiadomość, tak
   // samo jak `ogloszenie_w_grupie`. Jedyny różowy typ w tym module.
   turniej_ogloszenie:         { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Ogłoszenie' },
