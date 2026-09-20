@@ -141,6 +141,24 @@ export async function getKontakty(turniejId: string): Promise<KontaktDruzyny[]> 
 // Zapis — drużyny
 // ---------------------------------------------------------------------------
 
+/**
+ * Zamienia naruszenia ograniczeń bazy na zdanie, które coś znaczy dla czytającego.
+ *
+ * Kapitan zgłaszający drużynę o zajętej nazwie dostawał wprost treść
+ * z Postgresa: `duplicate key value violates unique constraint
+ * "idx_druzyna_nazwa_w_turnieju"`. Z tego nie wynika, że wystarczy zmienić
+ * nazwę, więc zgłoszenie kończyło się w tym miejscu.
+ */
+function czytelnyBladDruzyny(wiadomosc: string): string {
+  if (wiadomosc.includes('idx_druzyna_nazwa_w_turnieju')) {
+    return 'Taka nazwa jest już zajęta w tym turnieju. Wybierz inną.';
+  }
+  if (wiadomosc.includes('idx_zawodnik_raz_w_turnieju')) {
+    return 'Ta osoba gra już w innej drużynie tego turnieju.';
+  }
+  return wiadomosc;
+}
+
 export async function zglosDruzyne(turniejId: string, dane: ZgloszenieDruzyny, userId: string): Promise<string> {
   const nazwa = validateName(dane.nazwa, 'Nazwa drużyny', 40);
   if (nazwa.length < 2) throw new Error('Nazwa drużyny musi mieć co najmniej 2 znaki.');
@@ -161,7 +179,7 @@ export async function zglosDruzyne(turniejId: string, dane: ZgloszenieDruzyny, u
     })
     .select('id')
     .single();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(czytelnyBladDruzyny(error.message));
   track('turniej_druzyna_zgloszona', { turniejId, druzynaId: data.id });
   return data.id as string;
 }

@@ -10,7 +10,8 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { useWstecz } from '@/lib/historia';
 import { getTurniej, przyjmujeZgloszenia } from '@/lib/turnieje';
-import { getDruzyny, zglosDruzyne } from '@/lib/turniejDruzyny';
+import { STATUS_DRUZYNY, liczDruzynyWTurnieju } from '@/lib/turniejEtykiety';
+import { getDruzyny, getMojaDruzyne, zglosDruzyne } from '@/lib/turniejDruzyny';
 import type { Turniej, TurniejDruzyna } from '@/types';
 
 const inputCls =
@@ -35,11 +36,21 @@ export default function ZglosDruzynePage() {
   const [blad, setBlad] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [zgloszona, setZgloszona] = useState<string | null>(null);
+  /** Drużyna, którą ten użytkownik już zgłosił do tego turnieju. */
+  const [mojaDruzyna, setMojaDruzyna] = useState<TurniejDruzyna | null>(null);
 
   useEffect(() => {
     let aktualne = true;
     Promise.all([getTurniej(id), getDruzyny(id)])
-      .then(([t, d]) => { if (aktualne) { setTurniej(t); setDruzyny(d); } })
+      .then(async ([t, d]) => {
+        if (!aktualne) return;
+        setTurniej(t);
+        setDruzyny(d);
+        if (user) {
+          const moja = await getMojaDruzyne(id, user.id).catch(() => null);
+          if (aktualne) setMojaDruzyna(moja);
+        }
+      })
       .finally(() => { if (aktualne) setLadowanie(false); });
     return () => { aktualne = false; };
   }, [id]);
@@ -126,7 +137,34 @@ export default function ZglosDruzynePage() {
     );
   }
 
-  if (!przyjmujeZgloszenia(turniej, druzyny.length)) {
+  // MASZ JUŻ ZGŁOSZENIE. Powrót na ten adres dawał czysty formularz, bez słowa
+  // o tym, że drużyna już czeka — więc ta sama osoba zakładała drugą. Stan
+  // istniejącego zgłoszenia jest tu jedyną sensowną odpowiedzią.
+  if (mojaDruzyna && !zgloszona) {
+    const status = STATUS_DRUZYNY[mojaDruzyna.status];
+    return (
+      <div className="flex min-h-screen flex-col bg-canvas">
+        <Header />
+        <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 text-center">
+          <h1 className="font-display text-2xl font-bold text-ink">Masz już drużynę w tym turnieju</h1>
+          <div className="mt-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+            <p className="font-medium text-ink">{mojaDruzyna.nazwa}</p>
+            <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>
+              {status.label}
+            </span>
+          </div>
+          <Link href={`/turnieje/${id}/druzyna/${mojaDruzyna.id}`} className="mt-4 block">
+            <Button className="w-full">Uzupełnij skład</Button>
+          </Link>
+          <Link href={`/turnieje/${id}`} className="mt-4 inline-block text-sm text-primary-600">
+            Wróć do turnieju
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  if (!przyjmujeZgloszenia(turniej, liczDruzynyWTurnieju(druzyny))) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
         <Header />

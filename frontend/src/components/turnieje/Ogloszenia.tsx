@@ -11,14 +11,24 @@ import type { TurniejOgloszenie } from '@/types';
 
 export interface OgloszeniaProps {
   ogloszenia: readonly TurniejOgloszenie[];
+  /** Zapytanie padło. Puste miejsce ma wtedy powiedzieć co innego niż „brak ogłoszeń". */
+  blad?: boolean;
   mozeZarzadzac: boolean;
   onDodaj: (tresc: string) => Promise<void>;
   onUsun: (id: string) => Promise<void>;
 }
 
-export default function Ogloszenia({ ogloszenia, mozeZarzadzac, onDodaj, onUsun }: OgloszeniaProps) {
+export default function Ogloszenia({ ogloszenia, blad, mozeZarzadzac, onDodaj, onUsun }: OgloszeniaProps) {
   const [tresc, setTresc] = useState('');
   const [wysylam, setWysylam] = useState(false);
+
+  if (blad) {
+    return (
+      <p className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-500 dark:text-slate-400 shadow-sm">
+        Nie udało się wczytać ogłoszeń. Reszta turnieju działa normalnie.
+      </p>
+    );
+  }
 
   if (ogloszenia.length === 0 && !mozeZarzadzac) return null;
 

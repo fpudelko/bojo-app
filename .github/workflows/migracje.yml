@@ -41,11 +41,16 @@ on:
   # co pójdzie, bez klikania przez człowieka — ten sam wzorzec co `sql.yml`:
   # token agenta nie ma prawa odpalać workflowów przez API, więc push jest
   # jedynym wyzwalaczem, który kontroluje sam.
+  # PUŁAPKA PRZY GAŁĘZI ROBOCZEJ: push, który nie niesie NOWEGO commita (np.
+  # ten sam commit pchnięty pod drugą nazwą), nie ma zmienionych plików, więc
+  # filtr `paths` nie ma czego dopasować i workflow nie rusza. Żeby wywołać
+  # podgląd, gałąź musi dostać własny commit dotykający jednej z tych ścieżek.
   push:
     branches: [master, 'claude/migracje/**']
     paths:
       - 'supabase/migrations/**'
       - 'scripts/migruj.sh'
+      - 'scripts/sprawdz-adres-bazy.sh'
       - '.github/workflows/migracje.yml'
 
   workflow_dispatch:

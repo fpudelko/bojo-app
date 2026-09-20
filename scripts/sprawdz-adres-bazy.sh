@@ -12,9 +12,16 @@
 set -euo pipefail
 
 NAZWA="${1:-SUPABASE_DB_URL}"
+# Odsyłacz zależy od tego, czyj to sekret: instrukcja dla roli tylko do odczytu
+# leży gdzie indziej niż dla migracji, a wysyłanie człowieka pod zły plik jest
+# gorsze niż brak odsyłacza.
+case "$NAZWA" in
+  *_RO) INSTRUKCJA="supabase/zapytania/README.md" ;;
+  *)    INSTRUKCJA="supabase/migrations/README.md" ;;
+esac
 
 if [ -z "${DB_URL:-}" ]; then
-  echo "::error::Brak sekretu $NAZWA. Instrukcja: supabase/zapytania/README.md" >&2
+  echo "::error::Brak sekretu $NAZWA. Instrukcja: $INSTRUKCJA" >&2
   exit 1
 fi
 
@@ -35,7 +42,7 @@ case "$CZYSTY" in
     # Maskowanie sekretów tego nie łapie, bo to część sekretu, nie całość —
     # hasło ląduje w publicznym logu. Zdarzyło się raz.
     if ! printf '%s' "$HASLO" | grep -qE '^[A-Za-z0-9._~-]+$'; then
-      echo "::error::Hasło w $NAZWA ma znaki wymagające kodowania URL (+ / = : @ itp). Wygeneruj je przez 'openssl rand -hex 32' i zaktualizuj sekret — patrz supabase/zapytania/README.md" >&2
+      echo "::error::Hasło w $NAZWA ma znaki wymagające kodowania URL (+ / = : @ itp). Wygeneruj je przez 'openssl rand -hex 32' i zaktualizuj sekret — patrz $INSTRUKCJA" >&2
       exit 1
     fi
     ;;

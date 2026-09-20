@@ -4567,6 +4567,52 @@ finał. Sekcja **znika przy zerze turniejów** — pusty kafelek na profilu 90% 
 Ścieżka zamyka się w obie strony: skład drużyny prowadził do profilu już wcześniej
 (`KartaDruzyny.tsx`), teraz profil prowadzi z powrotem do turnieju.
 
+### Naprawy po teście na żywo (2026-09-20)
+
+Dwa przejścia testowe na telefonie (bez konta i na kontach `test1`–`test4`) znalazły
+awarię przewracającą całą sekcję oraz kilka rzeczy, które psuły wrażenie.
+
+**AWARIA: strona turnieju nie otwierała się NIKOMU.** `TurniejClient` ładował osiem
+zapytań przez `Promise.all`, a jego `.catch()` ustawiał „Nie znaleziono turnieju".
+`Promise.all` odrzuca się w całości, gdy padnie JEDNO z nich — więc baza bez migracji
+`150` (brak `turniej_ogloszenia`, PostgREST oddaje 404) wywracała stronę dla kapitanów
+z rozesłanego linku i dla samego organizatora. Dziś `Promise.allSettled`: każda sekcja
+ma własny wynik i własny stan pusty, a „nie znaleziono" znaczy wyłącznie brak samego
+turnieju. Doszło też rozróżnienie „nie ma turnieju" od „nie udało się wczytać"
+(to drugie z przyciskiem „Spróbuj ponownie"), a ogłoszenia, których nie dało się
+pobrać, mówią to wprost zamiast udawać, że ich nie ma.
+
+**Jedna definicja liczby drużyn** (`liczDruzynyWTurnieju()` w `lib/turniejEtykiety.ts`).
+Trzy miejsca liczyły to na trzy sposoby: kafelek listy brał wszystkie wiersze (drużyna
+odrzucona blokowała slot), pulpit organizatora wyłącznie `przyjeta` (pokazywał „0 z 8"
+przy jednej czekającej), a `przyjmujeZgloszenia()` znów wszystkie. Miejsce zajmuje
+drużyna przyjęta ORAZ czekająca na decyzję; odrzucona i wycofana nie zajmują nic.
+
+**Duplikat nazwy drużyny** pokazywał kapitanowi treść z Postgresa (`duplicate key value
+violates unique constraint "idx_druzyna_nazwa_w_turnieju"`). `czytelnyBladDruzyny()`
+zamienia to na „Taka nazwa jest już zajęta w tym turnieju. Wybierz inną." (i analogicznie
+dla `idx_zawodnik_raz_w_turnieju`).
+
+**`/turnieje/[id]/zglos` pokazuje istniejące zgłoszenie.** Powrót na ten adres dawał
+czysty formularz, więc ta sama osoba zakładała drugą drużynę. Dziś widzi nazwę, status
+i przycisk „Uzupełnij skład".
+
+**Zakładki panelu mają etykiety, nie surowe klucze.** Renderowały `{z}` z CSS-owym
+`capitalize`, przez co wychodziło „Druzyny" bez ogonka: klucz jest bez polskich znaków,
+bo idzie do adresu jako `?tab=`.
+
+**`/turnieje/nowy` przekierowuje na `/turnieje/nowe`.** Literówka wpadała w trasę
+dynamiczną jako identyfikator i kończyła się „Nie znaleziono turnieju", czyli zdaniem
+sugerującym, że turniej istniał i przepadł.
+
+**Zakładka „Trwają" to dziś „Trwające"** — obok stoi plakietka o trwających zapisach
+i dwa czasowniki czytały się jak jedno zdanie. **Plakietka zapisów z terminem
+granicznym mówi datę** („Zapisy do czwartku") zamiast samego czasownika.
+
+**Ekran po utworzeniu turnieju nie pokazuje już surowego tekstu zaproszenia** z gołym
+adresem w środku. Arkusz systemowy pod „Wyślij kapitanom" niesie tę samą treść,
+sformatowaną przez system; zostaje wysyłka i link do skopiowania.
+
 ---
 
 ## Pomiar produktowy — co mierzymy i gdzie to czytać

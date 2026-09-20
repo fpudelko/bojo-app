@@ -14,7 +14,7 @@ import { useToast } from '@/lib/toast';
 import { useWstecz } from '@/lib/historia';
 import { createTurniej } from '@/lib/turnieje';
 import { szacunekZParametrow, zdanieOCzasie } from '@/lib/turniejKreator';
-import { linkDoTurnieju, tekstUdostepnieniaTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
+import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
 import { FORMAT_LABEL, FORMAT_OPIS } from '@/lib/turniejEtykiety';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 import type { TurniejFormat, TurniejWidocznosc } from '@/types';
@@ -136,7 +136,6 @@ export default function NowyTurniejPage() {
       miejsceNazwa: location.venue?.name ?? miejsceNazwa,
       wpisoweGrosze: wpisoweZl.trim() ? Math.round(parseFloat(wpisoweZl.replace(',', '.')) * 100) : 0,
     };
-    const tekst = tekstUdostepnieniaTurnieju(daneDoUdostepnienia, link);
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
         <Header />
@@ -151,6 +150,12 @@ export default function NowyTurniejPage() {
             </p>
           </div>
 
+          {/* ŚWIADOMIE BEZ PODGLĄDU GOTOWEGO TEKSTU. Miał tu blok z treścią
+              zaproszenia i gołym adresem w środku; surowy URL w tekście wygląda
+              źle i nic nie dodaje, bo arkusz systemowy pod „Wyślij kapitanom"
+              niesie dokładnie tę samą treść (`tekstUdostepnieniaTurnieju`),
+              tylko sformatowaną przez system. Zostaje wysyłka i link do
+              skopiowania. */}
           <div className="mt-6 space-y-2">
             <Button
               onClick={async () => {
@@ -169,19 +174,6 @@ export default function NowyTurniejPage() {
               <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-500 dark:text-slate-400">{link}</span>
               <Copy className="h-4 w-4 shrink-0 text-primary-600" />
             </button>
-          </div>
-
-          {/* Gotowy tekst na grupę — ta sama rzecz, którą dostaje arkusz
-              systemowy, ale WIDOCZNA. Organizator wkleja go na Facebooka
-              i nie musi go wymyślać od nowa. */}
-          <div className="mt-6 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-ink">Gotowy tekst na grupę</p>
-              <button onClick={() => kopiuj(tekst, 'Tekst')} className="shrink-0 text-xs font-medium text-primary-600">
-                Kopiuj
-              </button>
-            </div>
-            <pre className="whitespace-pre-wrap break-words font-sans text-sm text-slate-600 dark:text-slate-300">{tekst}</pre>
           </div>
 
           <div className="mt-6 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-300 shadow-sm">
