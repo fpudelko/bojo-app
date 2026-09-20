@@ -49,7 +49,8 @@ export function celPowiadomienia(n: AppNotification): string | null {
     if (n.type === 'turniej_zgloszenie_druzyny' || n.type === 'turniej_kapitan_przejal') {
       return `/turnieje/${n.turniejId}/panel`;
     }
-    if (n.type === 'turniej_terminarz_gotowy' || n.type === 'turniej_zmiana_terminu') {
+    if (n.type === 'turniej_terminarz_gotowy' || n.type === 'turniej_zmiana_terminu'
+        || n.type === 'turniej_nastepny_mecz') {
       return `/turnieje/${n.turniejId}?tab=terminarz`;
     }
     // Zaproszenie do drużyny (154) prowadzi na listę drużyn — stamtąd karta

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Copy, Download, Plus, Check, X as XIcon, Trash2, Ban } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Plus, Check, X as XIcon, Trash2, Ban, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import ToggleRow from '@/components/ui/ToggleRow';
@@ -29,11 +29,12 @@ import {
   domyslnaLiczbaGrup, rozlosujGrupy, meczeKazdyZKazdym, zbudujDrabinke, ulozHarmonogram,
   szacunekCzasu, type NowyMecz,
 } from '@/lib/turniejFormat';
-import { odmienZawodnikow, odmienDruzyny } from '@/lib/turniejEtykiety';
+import { odmienZawodnikow, odmienDruzyny, etykietaTerminu } from '@/lib/turniejEtykiety';
+import { pulpitPrzedTurniejem, opoznienieWMinutach, arenyTeraz } from '@/lib/turniejPulpit';
 import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz } from '@/types';
 import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
 
-type PanelTab = 'druzyny' | 'ludzie' | 'terminarz' | 'ustawienia';
+type PanelTab = 'pulpit' | 'druzyny' | 'ludzie' | 'terminarz' | 'ustawienia';
 
 const LITERY_GRUP = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -74,8 +75,15 @@ export default function PanelClient() {
   const [blikWpis, setBlikWpis] = useState('');
 
   const tabParam = searchParams.get('tab');
+  // Domyślnie PULPIT, nie „Drużyny": organizator wchodzi w panel z pytaniem
+  // „jak mi idzie" (przed turniejem) albo „co się dzieje" (w jego dniu),
+  // a nie po to, żeby przeczytać listę drużyn.
   const zakladka: PanelTab =
-    tabParam === 'ludzie' ? 'ludzie' : tabParam === 'ustawienia' ? 'ustawienia' : tabParam === 'terminarz' ? 'terminarz' : 'druzyny';
+    tabParam === 'druzyny' ? 'druzyny'
+      : tabParam === 'ludzie' ? 'ludzie'
+      : tabParam === 'ustawienia' ? 'ustawienia'
+      : tabParam === 'terminarz' ? 'terminarz'
+      : 'pulpit';
 
   const wczytaj = async () => {
     const [t, d, o, g, a, m] = await Promise.all([
@@ -370,6 +378,35 @@ export default function PanelClient() {
     catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się usunąć areny', 'error'); }
   };
 
+
+  // ── Pulpit ───────────────────────────────────────────────────────────────
+  const pozycjePulpitu = turniej
+    ? pulpitPrzedTurniejem(turniej, druzyny, mecze, !!blikTelefon)
+    : [];
+  const opoznienie = opoznienieWMinutach(mecze);
+  const areny_teraz = arenyTeraz(areny, mecze);
+  const meczeDoPrzesuniecia = mecze
+    .filter((m) => m.status === 'zaplanowany' && m.zaplanowanyAt)
+    .sort((a, b) => a.zaplanowanyAt!.localeCompare(b.zaplanowanyAt!));
+  const nazwaDruzynyPanel = (druzynaId?: string) =>
+    (druzynaId ? druzyny.find((d) => d.id === druzynaId)?.nazwa : undefined) ?? 'TBD';
+
+  /** Obsuwa do pełnych pięciu minut — organizator myśli „o dziesięć", nie
+   *  „o siedem". Minimum pięć, żeby przycisk nigdy nie proponował zera. */
+  const zaokraglijDo5 = (minuty: number) => Math.max(5, Math.round(minuty / 5) * 5);
+
+  const przesunOdNajblizszego = async () => {
+    const pierwszy = meczeDoPrzesuniecia[0];
+    if (!pierwszy || opoznienie === null) return;
+    try {
+      await przesunTerminarz(id, pierwszy.id, zaokraglijDo5(opoznienie));
+      await wczytaj();
+      toast('Terminarz przesunięty');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się przesunąć terminarza', 'error');
+    }
+  };
+
   const przesunAkcja = async () => {
     if (!przesunMeczId) return;
     try {
@@ -396,7 +433,7 @@ export default function PanelClient() {
           <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">Panel — {turniej.nazwa}</h1>
         </div>
         <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
-          {(['druzyny', 'ludzie', 'terminarz', 'ustawienia'] as PanelTab[]).map((z) => (
+          {(['pulpit', 'druzyny', 'ludzie', 'terminarz', 'ustawienia'] as PanelTab[]).map((z) => (
             <button
               key={z}
               onClick={() => router.push(`/turnieje/${id}/panel?tab=${z}`)}
@@ -412,6 +449,103 @@ export default function PanelClient() {
       </div>
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-5">
+        {zakladka === 'pulpit' && (
+          <div className="space-y-4">
+            {/* W DNIU TURNIEJU pulpit jest wieżą kontrolną, a nie listą zadań:
+                co trwa na każdej arenie, co jest następne i o ile jesteśmy
+                spóźnieni. „Przesuń resztę" stoi TUTAJ, a nie w zakładce
+                Terminarz, bo to jest ekran, w który organizator zagląda co
+                kwadrans — plan modułu nazywa ten przycisk najmocniejszą
+                funkcją organizatorską i trzymanie go dwa dotknięcia dalej
+                było jej marnowaniem. */}
+            {turniej.status === 'trwa' ? (
+              <>
+                <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+                    <span className="inline-block h-2 w-2 rounded-full bg-primary-600" /> Turniej trwa
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
+                    {opoznienie === null
+                      ? 'Idziecie zgodnie z planem.'
+                      : `Opóźnienie: +${opoznienie} min względem terminarza.`}
+                  </p>
+                  {opoznienie !== null && meczeDoPrzesuniecia.length > 0 && (
+                    <Button
+                      variant="outline"
+                      onClick={przesunOdNajblizszego}
+                      className="mt-3 w-full"
+                    >
+                      Przesuń resztę o {zaokraglijDo5(opoznienie)} min
+                    </Button>
+                  )}
+                </div>
+
+                {areny_teraz.map(({ arena, trwa, nastepny }) => (
+                  <div key={arena.id} className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{arena.nazwa}</p>
+                    {trwa && (
+                      <button
+                        onClick={() => router.push(`/turnieje/${id}/mecz/${trwa.id}`)}
+                        className="mt-1 flex w-full items-center gap-2 text-left"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+                          ▶ {nazwaDruzynyPanel(trwa.druzynaAId)} – {nazwaDruzynyPanel(trwa.druzynaBId)}
+                        </span>
+                        <span className="shrink-0 font-mono text-base font-bold text-ink">
+                          {trwa.wynikA}:{trwa.wynikB}
+                        </span>
+                      </button>
+                    )}
+                    {nastepny && (
+                      <button
+                        onClick={() => router.push(`/turnieje/${id}/mecz/${nastepny.id}`)}
+                        className="mt-1 block w-full truncate text-left text-sm text-slate-500 dark:text-slate-400"
+                      >
+                        {nastepny.zaplanowanyAt ? `${nastepny.zaplanowanyAt.slice(11, 16)} ` : 'potem '}
+                        {nazwaDruzynyPanel(nastepny.druzynaAId)} – {nazwaDruzynyPanel(nastepny.druzynaBId)}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+                  <p className="mb-3 font-display text-base font-bold text-ink">
+                    {etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}
+                  </p>
+                  <ul className="space-y-2">
+                    {pozycjePulpitu.map((poz) => (
+                      <li key={poz.klucz}>
+                        <button
+                          onClick={() => poz.zakladka && router.push(`/turnieje/${id}/panel?tab=${poz.zakladka}`)}
+                          className="flex w-full items-start gap-2 text-left"
+                        >
+                          <span className="shrink-0 text-sm">
+                            {poz.stan === 'gotowe' ? '✓' : poz.stan === 'uwaga' ? '⚠' : '✗'}
+                          </span>
+                          <span className={`min-w-0 flex-1 text-sm ${
+                            poz.stan === 'gotowe' ? 'text-slate-600 dark:text-slate-300' : 'text-ink'
+                          }`}>
+                            {poz.tekst}
+                          </span>
+                          {poz.zakladka && poz.stan !== 'gotowe' && (
+                            <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <Link href={`/turnieje/${id}`}>
+                  <Button variant="outline" className="w-full">Zobacz turniej oczami kapitana</Button>
+                </Link>
+              </>
+            )}
+          </div>
+        )}
+
         {zakladka === 'druzyny' && (
           <div className="space-y-6">
             {czekajace.length > 0 && (

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Undo2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Undo2, Timer, ChevronRight, MoreHorizontal } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/lib/toast';
@@ -12,14 +12,24 @@ import { useWstecz } from '@/lib/historia';
 import { getTurniej } from '@/lib/turnieje';
 import { getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
 import {
-  getMecz, getAreny, getZdarzenia, dodajZdarzenie, cofnijOstatnieZdarzenie,
-  rozpocznijMecz, zakonczMecz, updateMecz, czyProwadziMecz,
+  getMecz, getMecze, getAreny, getZdarzenia, dodajZdarzenie, cofnijOstatnieZdarzenie,
+  rozpocznijMecz, zakonczMecz, updateMecz, czyProwadziMecz, walkowerMeczu,
 } from '@/lib/turniejMecze';
 import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
+  czasGry, poCzasie,
 } from '@/lib/turniejWynik';
-import { FAZA_LABEL, STATUS_MECZU } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, STATUS_MECZU, etykietaTerminu } from '@/lib/turniejEtykiety';
+import ArkuszSkladu from '@/components/turnieje/ArkuszSkladu';
 import type { Turniej, TurniejMecz, TurniejDruzyna, TurniejArena, TurniejZdarzenie, ZdarzenieTyp } from '@/types';
+
+const TYTUL_ARKUSZA: Record<ZdarzenieTyp, string> = {
+  gol: 'Kto strzelił?',
+  punkty: 'Kto zdobył punkty?',
+  samobojczy: 'Kto strzelił samobójczego?',
+  zolta: 'Kto dostał żółtą kartkę?',
+  czerwona: 'Kto dostał czerwoną kartkę?',
+};
 
 const ETYKIETA_ZDARZENIA: Record<ZdarzenieTyp, string> = {
   gol: '⚽ Gol', samobojczy: '⚽ Samobójczy', zolta: '🟨 Żółta kartka', czerwona: '🟥 Czerwona kartka', punkty: '🏀 Punkty',
@@ -40,11 +50,22 @@ export default function MeczClient() {
   const [ladowanie, setLadowanie] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  const [wybranyA, setWybranyA] = useState('');
-  const [wybranyB, setWybranyB] = useState('');
-  const [asystaA, setAsystaA] = useState('');
-  const [asystaB, setAsystaB] = useState('');
+  // Arkusz składu zastąpił dwa natywne `<select>` (strzelec + asysta) —
+  // `krok` mówi, o co właśnie pytamy, a `wTrakcie` trzyma zdarzenie do
+  // zapisania, dopóki prowadzący nie odpowie na oba pytania.
+  const [arkusz, setArkusz] = useState<{
+    krok: 'strzelec' | 'asysta';
+    druzynaId: string;
+    typ: ZdarzenieTyp;
+    wartosc: number;
+    zawodnikId?: string;
+  } | null>(null);
   const [aktualnySet, setAktualnySet] = useState({ a: 0, b: 0 });
+  const [menuOtwarte, setMenuOtwarte] = useState(false);
+  const [nastepnyNaArenie, setNastepnyNaArenie] = useState<TurniejMecz | null>(null);
+  // Tyka co sekundę wyłącznie wtedy, gdy mecz trwa — zegar liczy się i tak
+  // z `rozpoczetyAt`, to tylko powód do przerysowania.
+  const [tik, setTik] = useState(0);
   const [pokazZakoncz, setPokazZakoncz] = useState(false);
   const [karneA, setKarneA] = useState(0);
   const [karneB, setKarneB] = useState(0);
@@ -72,6 +93,31 @@ export default function MeczClient() {
       .finally(() => { if (aktualne) setLadowanie(false); });
     return () => { aktualne = false; };
   }, [wczytaj]);
+
+  const trwa = mecz?.status === 'trwa';
+  useEffect(() => {
+    if (!trwa) return;
+    const id = setInterval(() => setTik((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [trwa]);
+
+  // Co dalej na tej arenie — pytanie, które prowadzący zadaje sobie w sekundzie
+  // po ostatnim gwizdku. Dotąd wracał na listę meczów i szukał wzrokiem.
+  const rozstrzygniety = mecz?.status === 'zakonczony' || mecz?.status === 'walkower';
+  useEffect(() => {
+    if (!rozstrzygniety || !mecz?.arenaId || !prowadzi) { setNastepnyNaArenie(null); return; }
+    let aktualne = true;
+    getMecze(id)
+      .then((lista) => {
+        if (!aktualne) return;
+        const kolejny = lista
+          .filter((m) => m.arenaId === mecz.arenaId && m.id !== mecz.id && m.status === 'zaplanowany')
+          .sort((a, b) => (a.zaplanowanyAt ?? '').localeCompare(b.zaplanowanyAt ?? '') || a.numer - b.numer)[0];
+        setNastepnyNaArenie(kolejny ?? null);
+      })
+      .catch(() => undefined);
+    return () => { aktualne = false; };
+  }, [rozstrzygniety, mecz?.arenaId, mecz?.id, prowadzi, id]);
 
   if (ladowanie) {
     return (
@@ -105,6 +151,20 @@ export default function MeczClient() {
   const trwajacy = mecz.status === 'trwa';
   const mozeZaczac = mecz.status === 'zaplanowany' && obieDruzynyZnane;
   const wszyscyZawodnicy = [...(druzynaA?.zawodnicy ?? []), ...(druzynaB?.zawodnicy ?? [])];
+  const skladDruzyny = (druzynaId: string) =>
+    (druzynaId === mecz.druzynaAId ? druzynaA?.zawodnicy : druzynaB?.zawodnicy) ?? [];
+  const nazwaDruzyny = (druzynaId: string) =>
+    (druzynaId === mecz.druzynaAId ? druzynaA?.nazwa : druzynaB?.nazwa) ?? 'drużyna';
+  /** Następny mecz na arenie gra INNYMI drużynami niż ten — nazwa musi przyjść
+   *  z pełnej listy, nie z dwóch drużyn tego meczu. */
+  const nazwaDruzynyZListy = (druzynaId?: string) =>
+    (druzynaId ? druzyny.find((d) => d.id === druzynaId)?.nazwa : undefined) ?? 'TBD';
+
+  // `tik` jest tu po to, żeby zegar przerysował się co sekundę — wartość
+  // nieużywana wprost, liczy się sam fakt zmiany stanu.
+  void tik;
+  const czas = czasGry(mecz.rozpoczetyAt);
+  const minalCzas = poCzasie(mecz.rozpoczetyAt, turniej?.czasMeczuMin ?? 0);
 
   const przeliczLokalnie = (lista: TurniejZdarzenie[]) => {
     if (!mecz.druzynaAId || !mecz.druzynaBId) return;
@@ -112,23 +172,85 @@ export default function MeczClient() {
     setMecz((m) => (m ? { ...m, wynikA, wynikB } : m));
   };
 
-  const dodajZdarzenieAkcja = async (druzynaId: string, typ: ZdarzenieTyp, zawodnikId?: string, asystaZawodnikId?: string) => {
+  /**
+   * `wartosc` JEST PRZEKAZYWANA — i to jest poprawka błędu, nie nowa funkcja.
+   * Koszykarskie przyciski `+1/+2/+3` wołały tę funkcję bez tego argumentu,
+   * a `dodajZdarzenie()` domyślała `wartosc: 1`. Trójka zapisywała się jako
+   * punkt: kolumna `turniej_zdarzenia.wartosc` i wyzwalacz `przelicz_wynik_meczu()`
+   * (147) liczyły wszystko poprawnie, tylko nikt im nie powiedział ile.
+   * Turniej koszykarski prowadzony tą konsolą kończył się fałszywym wynikiem.
+   */
+  const dodajZdarzenieAkcja = async (
+    druzynaId: string, typ: ZdarzenieTyp, zawodnikId?: string, asystaZawodnikId?: string, wartosc = 1,
+  ) => {
     const tymczasowe: TurniejZdarzenie = {
       id: `tymczasowe-${Date.now()}`, meczId, turniejId: turniej?.id ?? id, druzynaId,
       zawodnikId: zawodnikId || undefined, asystaZawodnikId: asystaZawodnikId || undefined,
-      typ, wartosc: 1, createdAt: new Date().toISOString(),
+      typ, wartosc, createdAt: new Date().toISOString(),
     };
     const nowaLista = [...zdarzenia, tymczasowe];
     setZdarzenia(nowaLista);
     przeliczLokalnie(nowaLista);
     try {
-      const realne = await dodajZdarzenie(meczId, { druzynaId, typ, zawodnikId: zawodnikId || undefined, asystaZawodnikId: asystaZawodnikId || undefined });
+      const realne = await dodajZdarzenie(meczId, {
+        druzynaId, typ, wartosc,
+        zawodnikId: zawodnikId || undefined,
+        asystaZawodnikId: asystaZawodnikId || undefined,
+      });
       setZdarzenia((obecne) => obecne.map((z) => (z.id === tymczasowe.id ? realne : z)));
     } catch (e) {
       const cofnieta = nowaLista.filter((z) => z.id !== tymczasowe.id);
       setZdarzenia(cofnieta);
       przeliczLokalnie(cofnieta);
       toast(e instanceof Error ? e.message : 'Nie udało się zapisać zdarzenia', 'error');
+    }
+  };
+
+  /** Zdarzenie wymagające wskazania człowieka otwiera arkusz; reszta (kartka
+   *  bez nazwiska, samobójczy) zapisuje się od razu. */
+  const zapytajOZawodnika = (druzynaId: string, typ: ZdarzenieTyp, wartosc = 1) => {
+    setArkusz({ krok: 'strzelec', druzynaId, typ, wartosc });
+  };
+
+  const odpowiedzArkusza = (zawodnikId: string | undefined) => {
+    if (!arkusz) return;
+    // Piłkarski gol pyta jeszcze o asystę — ale tylko wtedy, gdy strzelec jest
+    // wskazany. „Asysta przy golu nieznanego strzelca" to dane, których nikt
+    // nie potrzebuje, a jedno pytanie mniej to sekunda na boisku.
+    const pytacOAsyste = arkusz.krok === 'strzelec'
+      && arkusz.typ === 'gol'
+      && !koszykowka
+      && !!zawodnikId
+      && skladDruzyny(arkusz.druzynaId).length > 1;
+    if (pytacOAsyste) {
+      setArkusz({ ...arkusz, krok: 'asysta', zawodnikId });
+      return;
+    }
+    const strzelec = arkusz.krok === 'asysta' ? arkusz.zawodnikId : zawodnikId;
+    const asysta = arkusz.krok === 'asysta' ? zawodnikId : undefined;
+    setArkusz(null);
+    void dodajZdarzenieAkcja(arkusz.druzynaId, arkusz.typ, strzelec, asysta, arkusz.wartosc);
+  };
+
+  const walkowerAkcja = async (zwyciezcaId: string, nazwaZwyciezcy: string) => {
+    setMenuOtwarte(false);
+    const wynik = await potwierdz({
+      tytul: 'Walkower?',
+      konsekwencje: [
+        `${nazwaZwyciezcy} wygrywa bez gry`,
+        'Wynik zostaje 0:0, a drużyna dostaje trzy punkty',
+        'Tego nie da się cofnąć',
+      ],
+      potwierdzLabel: 'Wpisz walkower',
+      wariant: 'destrukcyjny',
+    });
+    if (wynik !== 'tak') return;
+    try {
+      await walkowerMeczu(meczId, zwyciezcaId);
+      await wczytaj();
+      toast('Walkower zapisany');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać walkoweru', 'error');
     }
   };
 
@@ -213,6 +335,36 @@ export default function MeczClient() {
           <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">
             M{mecz.numer} · {FAZA_LABEL[mecz.faza]}
           </h1>
+          {/* WALKOWER. Status istniał od migracji `146` i wpisywał go wyłącznie
+              generator terminarza przy wolnych losach — prowadzący, któremu
+              drużyna nie dojechała, nie miał jak go zapisać. Pod „⋯", bo to
+              wyjście awaryjne, nie codzienna akcja. */}
+          {prowadzi && (mecz.status === 'zaplanowany' || mecz.status === 'trwa') && obieDruzynyZnane && (
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setMenuOtwarte((v) => !v)}
+                aria-label="Więcej"
+                aria-expanded={menuOtwarte}
+                className="flex h-10 w-10 items-center justify-center text-slate-500 hover:text-ink"
+              >
+                <MoreHorizontal className="h-5 w-5" />
+              </button>
+              {menuOtwarte && (
+                <div className="absolute right-0 top-11 w-60 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg">
+                  <p className="px-3 pt-2.5 text-xs font-medium text-slate-400">Drużyna się nie zgłosiła</p>
+                  {([mecz.druzynaAId!, mecz.druzynaBId!] as const).map((zwyciezcaId) => (
+                    <button
+                      key={zwyciezcaId}
+                      onClick={() => walkowerAkcja(zwyciezcaId, nazwaDruzyny(zwyciezcaId))}
+                      className="block w-full px-3 py-2.5 text-left text-sm text-ink hover:bg-slate-50 dark:hover:bg-slate-700"
+                    >
+                      Walkower dla {nazwaDruzyny(zwyciezcaId)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -235,6 +387,26 @@ export default function MeczClient() {
               {druzynaB?.nazwa ?? 'TBD'}
             </span>
           </div>
+          {/* ZEGAR MECZU. Prowadzący pilnuje „2×10 minut" — dotąd stoperem
+              w innej aplikacji, przełączając się tam i z powrotem. Czas liczy
+              się z `rozpoczetyAt` (kolumna), więc odświeżenie strony w 34.
+              minucie nie zaczyna odliczania od zera. Ceną jest brak pauzy —
+              napisany wprost pod zegarem, bo zegar, który po odświeżeniu
+              kłamie, byłby gorszy niż zegar bez pauzy. */}
+          {trwajacy && czas && (
+            <div className="text-center">
+              <p className={`inline-flex items-center gap-1.5 font-mono text-2xl font-bold ${
+                minalCzas ? 'text-amber-600' : 'text-ink'
+              }`}>
+                <Timer className="h-5 w-5" /> {czas}
+              </p>
+              <p className="text-xs text-slate-400">
+                {minalCzas
+                  ? `Regulaminowe ${turniej?.czasMeczuMin ?? 0} min minęło`
+                  : `od pierwszego gwizdka · ${turniej?.czasMeczuMin ?? 0} min regulaminowe`}
+              </p>
+            </div>
+          )}
           {mecz.karneA !== undefined && mecz.karneB !== undefined && (
             <p className="text-center text-xs text-slate-400">Karne: {mecz.karneA}:{mecz.karneB}</p>
           )}
@@ -247,58 +419,68 @@ export default function MeczClient() {
           <Button onClick={rozpocznijAkcja} className="w-full">Rozpocznij mecz</Button>
         )}
 
+        {/* DWA WIELKIE PRZYCISKI OBOK SIEBIE, po jednym na drużynę. Sześć
+            godzin na stojąco, w słońcu, jedną ręką: gol pada i trzeba go
+            zapisać w jednym dotknięciu, a dopiero potem odpowiedzieć na
+            pytanie „kto strzelił" (arkusz ze składem, `ArkuszSkladu`). */}
         {prowadzi && trwajacy && !setowy && obieDruzynyZnane && (
           <div className="space-y-3">
-            {([
-              { druzyna: druzynaA, druzynaId: mecz.druzynaAId!, wybrany: wybranyA, setWybrany: setWybranyA, asysta: asystaA, setAsysta: setAsystaA },
-              { druzyna: druzynaB, druzynaId: mecz.druzynaBId!, wybrany: wybranyB, setWybrany: setWybranyB, asysta: asystaB, setAsysta: setAsystaB },
-            ] as const).map(({ druzyna, druzynaId, wybrany, setWybrany, asysta, setAsysta }) => (
-              <div key={druzynaId} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 space-y-2">
-                <p className="text-sm font-medium text-ink">{druzyna?.nazwa}</p>
-                {druzyna?.zawodnicy && druzyna.zawodnicy.length > 0 && (
-                  <select
-                    value={wybrany}
-                    onChange={(e) => setWybrany(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-2.5 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100"
-                  >
-                    <option value="">Bez wskazania zawodnika</option>
-                    {druzyna.zawodnicy.map((z) => <option key={z.id} value={z.id}>{z.imie}</option>)}
-                  </select>
-                )}
-                {!koszykowka && druzyna?.zawodnicy && druzyna.zawodnicy.length > 1 && (
-                  <select
-                    value={asysta}
-                    onChange={(e) => setAsysta(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-2.5 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100"
-                  >
-                    <option value="">Bez asysty</option>
-                    {druzyna.zawodnicy.filter((z) => z.id !== wybrany).map((z) => <option key={z.id} value={z.id}>Asysta: {z.imie}</option>)}
-                  </select>
-                )}
-                <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              {([mecz.druzynaAId!, mecz.druzynaBId!] as const).map((druzynaId) => (
+                <div key={druzynaId} className="space-y-2">
                   {koszykowka ? (
-                    [1, 2, 3].map((pkt) => (
-                      <button
-                        key={pkt}
-                        onClick={() => dodajZdarzenieAkcja(druzynaId, 'punkty', wybrany)}
-                        className="rounded-lg bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700"
-                      >
-                        +{pkt}
-                      </button>
-                    ))
-                  ) : (
                     <>
-                      <button onClick={() => dodajZdarzenieAkcja(druzynaId, 'gol', wybrany, asysta)} className="rounded-lg bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700">{ETYKIETA_ZDARZENIA.gol}</button>
-                      <button onClick={() => dodajZdarzenieAkcja(druzynaId, 'samobojczy', wybrany)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600">{ETYKIETA_ZDARZENIA.samobojczy}</button>
-                      <button onClick={() => dodajZdarzenieAkcja(druzynaId, 'zolta', wybrany)} className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700">{ETYKIETA_ZDARZENIA.zolta}</button>
-                      <button onClick={() => dodajZdarzenieAkcja(druzynaId, 'czerwona', wybrany)} className="rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600">{ETYKIETA_ZDARZENIA.czerwona}</button>
+                      <p className="truncate text-center text-sm font-medium text-ink">{nazwaDruzyny(druzynaId)}</p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[1, 2, 3].map((pkt) => (
+                          <button
+                            key={pkt}
+                            onClick={() => zapytajOZawodnika(druzynaId, 'punkty', pkt)}
+                            className="min-h-[64px] rounded-xl bg-primary-50 dark:bg-primary-950 text-lg font-bold text-primary-700 dark:text-primary-300 active:bg-primary-100"
+                          >
+                            +{pkt}
+                          </button>
+                        ))}
+                      </div>
                     </>
+                  ) : (
+                    <button
+                      onClick={() => zapytajOZawodnika(druzynaId, 'gol')}
+                      className="flex min-h-[96px] w-full flex-col items-center justify-center gap-1 rounded-2xl bg-primary-50 dark:bg-primary-950 px-2 py-3 active:bg-primary-100 dark:active:bg-primary-900"
+                    >
+                      <span className="text-2xl">⚽</span>
+                      <span className="text-sm font-bold text-primary-700 dark:text-primary-300">GOL</span>
+                      <span className="line-clamp-2 text-center text-xs text-slate-500 dark:text-slate-400">
+                        {nazwaDruzyny(druzynaId)}
+                      </span>
+                    </button>
+                  )}
+
+                  {!koszykowka && (
+                    <div className="flex justify-center gap-1.5">
+                      <button
+                        onClick={() => zapytajOZawodnika(druzynaId, 'zolta')}
+                        aria-label={`Żółta kartka — ${nazwaDruzyny(druzynaId)}`}
+                        className="min-h-[44px] min-w-[44px] rounded-lg bg-amber-50 dark:bg-amber-950 text-base"
+                      >🟨</button>
+                      <button
+                        onClick={() => zapytajOZawodnika(druzynaId, 'czerwona')}
+                        aria-label={`Czerwona kartka — ${nazwaDruzyny(druzynaId)}`}
+                        className="min-h-[44px] min-w-[44px] rounded-lg bg-red-50 dark:bg-red-950 text-base"
+                      >🟥</button>
+                      <button
+                        onClick={() => dodajZdarzenieAkcja(druzynaId, 'samobojczy')}
+                        aria-label={`Samobójczy — ${nazwaDruzyny(druzynaId)}`}
+                        className="min-h-[44px] min-w-[44px] rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300"
+                      >sam.</button>
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+
             {zdarzenia.length > 0 && (
-              <button onClick={cofnijAkcja} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-ink">
+              <button onClick={cofnijAkcja} className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-ink">
                 <Undo2 className="h-4 w-4" /> Cofnij ostatnie
               </button>
             )}
@@ -392,7 +574,55 @@ export default function MeczClient() {
             })}
           </div>
         )}
+        {/* CO DALEJ NA TEJ ARENIE. Sekunda po ostatnim gwizdku prowadzący
+            wracał na listę meczów i szukał kolejnego wzrokiem. Jedno zdanie
+            zamienia sześć godzin klikania po terminarzu w kolejkę. */}
+        {prowadzi && nastepnyNaArenie && (
+          <Link
+            href={`/turnieje/${id}/mecz/${nastepnyNaArenie.id}`}
+            className="flex items-center gap-3 rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Następny na tej arenie
+              </p>
+              <p className="truncate text-sm font-semibold text-ink">
+                {nazwaDruzynyZListy(nastepnyNaArenie.druzynaAId)} – {nazwaDruzynyZListy(nastepnyNaArenie.druzynaBId)}
+              </p>
+              {nastepnyNaArenie.zaplanowanyAt && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {etykietaTerminu(
+                    nastepnyNaArenie.zaplanowanyAt.slice(0, 10),
+                    nastepnyNaArenie.zaplanowanyAt.slice(11, 16),
+                  )}
+                </p>
+              )}
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-primary-600" />
+          </Link>
+        )}
       </main>
+
+      {arkusz && (
+        <ArkuszSkladu
+          tytul={arkusz.krok === 'asysta' ? 'Asysta?' : TYTUL_ARKUSZA[arkusz.typ]}
+          podtytul={nazwaDruzyny(arkusz.druzynaId)}
+          zawodnicy={
+            arkusz.krok === 'asysta'
+              ? skladDruzyny(arkusz.druzynaId).filter((z) => z.id !== arkusz.zawodnikId)
+              : skladDruzyny(arkusz.druzynaId)
+          }
+          etykietaPominiecia={arkusz.krok === 'asysta' ? 'Bez asysty' : 'Nie wiem kto — zapisz bez nazwiska'}
+          onWybor={odpowiedzArkusza}
+          onZamknij={() => {
+            // Zamknięcie arkusza STRZELCA anuluje całe zdarzenie (prowadzący
+            // pomylił drużynę), zamknięcie arkusza ASYSTY zapisuje gol bez
+            // niej — bo gol już padł i cofanie go byłoby zaskoczeniem.
+            if (arkusz.krok === 'asysta') odpowiedzArkusza(undefined);
+            else setArkusz(null);
+          }}
+        />
+      )}
       {oknoPotwierdzenia}
     </div>
   );

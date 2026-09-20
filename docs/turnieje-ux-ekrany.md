@@ -948,7 +948,7 @@ zaproszenia imienne z ekipy + karta na stronie głównej (§5.2, migracja) · do
 zakładka zależna od stanu · głowa „plakat" w zapisach · termin graniczny zapisów ·
 sprzedający `/t/[kod]` · przełącznik „Nasze mecze".
 
-**Etap B — dzień turnieju** *(migracja: `turniej_nastepny_mecz`)*
+**Etap B — dzień turnieju** — ✅ **ZROBIONE 2026-09-20** (migracja `155`)
 Konsola: arkusz składu zamiast `<select>`, zegar, walkower, **wartość punktu
 w koszykówce**, „następny mecz na tej arenie" · odświeżanie co 20 s · głowa „na żywo" ·
 pulpit organizatora w trybie dnia.

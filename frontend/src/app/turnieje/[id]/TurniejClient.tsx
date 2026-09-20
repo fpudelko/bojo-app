@@ -134,6 +134,26 @@ export default function TurniejClient() {
   const [tylkoNaszeReczne, setTylkoNaszeReczne] = useState<boolean | null>(null);
   const [organizator, setOrganizator] = useState<string | null>(null);
 
+  // ODŚWIEŻANIE CO 20 SEKUND, gdy turniej trwa. Plan (§10) zakładał je od
+  // początku — świadomie zamiast Supabase Realtime, który wymaga ręcznego
+  // włączenia replikacji („działa u mnie, milczy na produkcji"). W kodzie nie
+  // było ani jednego `setInterval`, więc wynik „na żywo" wymagał pociągnięcia
+  // strony w dół, czyli nie był na żywo.
+  //
+  // Odświeżamy WYŁĄCZNIE to, co się zmienia w trakcie gry (mecze i zdarzenia),
+  // nie cały komplet: drużyny, grupy i areny stoją w miejscu, a turniej na
+  // 200 meczów odpytywany co 20 sekund komplet by odczuł.
+  const turniejTrwa = !!turniej && turniej.status === 'trwa';
+  useEffect(() => {
+    if (!turniejTrwa) return;
+    const czasomierz = setInterval(() => {
+      Promise.all([getMecze(id), getZdarzeniaTurnieju(id)])
+        .then(([m, z]) => { setMecze(m); setZdarzenia(z); })
+        .catch(() => undefined);
+    }, 20_000);
+    return () => clearInterval(czasomierz);
+  }, [turniejTrwa, id]);
+
   const tabParam = searchParams.get('tab');
   // Stare adresy (`?tab=terminarz`, `?tab=wyniki`, `?tab=drabinka`) prowadzą
   // tam, gdzie ich treść dziś mieszka.
@@ -269,6 +289,7 @@ export default function TurniejClient() {
   const tabelaMaTresc = tabeleGrup.length > 0 || meczeDrabinki.length > 0;
   const stan = stanTurnieju(turniej, mecze);
   const zapisy = stanZapisowTurnieju(turniej, druzyny.length);
+  const meczeNaZywo = mecze.filter((m) => m.status === 'trwa');
 
   // Najbliższy mecz MOJEJ drużyny — do paska „co dotyczy mnie".
   const mojNastepnyMecz = mojaDruzyna
@@ -412,6 +433,39 @@ export default function TurniejClient() {
             <Share2 className="h-4 w-4" />
           </button>
         </div>
+
+        {/* TABLICA NA ŻYWO — w dniu turnieju to jest ekran, na który patrzy
+            sto osób naraz: uczestnicy między meczami, kibice na ławce, rodzice
+            przy juniorach. Wcześniej wynik trwającego meczu trzeba było
+            znaleźć na liście czterdziestu dwóch. */}
+        {meczeNaZywo.length > 0 && (
+          <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-300">
+              <span className="inline-block h-2 w-2 rounded-full bg-primary-600" /> Na żywo
+            </p>
+            <div className="space-y-2">
+              {meczeNaZywo.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
+                  className="flex w-full items-center gap-3 rounded-xl bg-white dark:bg-slate-800 px-3 py-2.5 text-left"
+                >
+                  <div className="min-w-0 flex-1">
+                    {m.arenaId && arenyPoId.get(m.arenaId) && (
+                      <p className="truncate text-xs text-slate-400">{arenyPoId.get(m.arenaId)}</p>
+                    )}
+                    <p className="truncate text-sm font-medium text-ink">
+                      {druzynyPoId.get(m.druzynaAId ?? '') ?? 'TBD'} – {druzynyPoId.get(m.druzynaBId ?? '') ?? 'TBD'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-mono text-lg font-bold text-ink">
+                    {m.wynikA}:{m.wynikB}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* PLAKAT ZAPISÓW — to, po co człowiek z Facebooka klika w link.
             „6/8 drużyn" (pasek wyżej) jest informacją; „Zostały 2 miejsca ·

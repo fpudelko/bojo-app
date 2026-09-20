@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-20 · migracja `154` · 60 tabel
+**Stan na:** 2026-09-20 · migracja `155` · 60 tabel
 
 ---
 
@@ -275,8 +275,18 @@ Kapitan może też przekazać kapitanat dalej albo wycofać drużynę.
 Organizator losuje grupy, generuje terminarz jednym przyciskiem (rozkłada mecze na
 dostępne areny/boiska bez kolizji drużyny w jednym slocie) i może go przesunąć w całości,
 gdy dzień się opóźnia. Wyznaczony prowadzący obsługuje mecz z telefonu: „Rozpocznij",
-gol/kartka/punkt jednym dotknięciem ze składu, „Cofnij ostatnie", „Zakończ" (karne przy
-remisie w fazie pucharowej). Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
+dwa wielkie przyciski „GOL" (po jednym na drużynę), a po dotknięciu arkusz ze składem
+— kto strzelił, potem opcjonalnie kto asystował, po jednym dotknięciu. Nad wynikiem
+tyka zegar meczu liczony od pierwszego gwizdka (bez pauzy, świadomie). Są też „Cofnij
+ostatnie", walkower dla drużyny, która nie dojechała, „Zakończ" (karne przy remisie
+w fazie pucharowej) i karta „następny na tej arenie", która prowadzi wprost do kolejnego
+meczu. W dniu turnieju strona odświeża się sama co 20 sekund, a nad zakładkami stoi
+tablica „Na żywo" z wynikiem każdego trwającego meczu i jego boiskiem. Zawodnicy dostają
+powiadomienie „Wasz mecz jest następny — Boisko 2, ok. 11:20" w chwili, gdy kończy się
+poprzedni mecz na ich arenie. Organizator ma w panelu pulpit: przed turniejem listę
+rzeczy do zrobienia (drużyny, zgłoszenia, terminarz, wpisowe, BLIK), w dniu turnieju
+— co trwa i co następne na każdym boisku, obsuwę względem planu i przycisk „Przesuń
+resztę o N minut". Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
 liczą się same z zapisanych wyników. Strona turnieju ma cztery zakładki — Info, Mecze
 (przełącznik Najbliższe/Rozegrane, a dla grającego dodatkowo Nasze/Wszystkie), Tabela
 i drabinka, Drużyny. Która otwiera się domyślnie, zależy od stanu turnieju: w zapisach
@@ -295,7 +305,7 @@ jednocześnie główna droga zakładania kont w tym module.
 
 **Mechanika.** Tabele `turnieje`, `turniej_druzyny`, `turniej_zawodnicy`, `turniej_grupy`,
 `turniej_areny`, `turniej_mecze`, `turniej_zdarzenia`, `turniej_ogloszenia`,
-`turniej_blik`, `turniej_osoby`, `turniej_zaproszenia` (migracje `145`–`150`, `154`). RLS jest jedyną granicą dostępu —
+`turniej_blik`, `turniej_osoby`, `turniej_zaproszenia` (migracje `145`–`150`, `154`–`155`). RLS jest jedyną granicą dostępu —
 funkcje `czy_zarzadza_turniejem()`/`czy_kapitan_druzyny()`/`czy_prowadzi_mecz()` decydują,
 kto edytuje co. Wynik meczu liczy się z zapisanych zdarzeń (gol/samobójczy/kartka/punkty),
 dopóki organizator nie wpisze go ręcznie (siatkówka i koszykówka mają własną logikę:
@@ -448,6 +458,16 @@ Domyślna zakładka strony turnieju zależy teraz od jego stanu (zapisy → Info
 Mecze, koniec → Tabela), w zapisach stoi nad nią licznik wolnych miejsc z terminem
 granicznym, `/t/[kod]` mówi najpierw, do czego człowiek dołącza (turniej, data, miejsce,
 kto już jest w składzie), a grający filtruje terminarz na „Nasze".
+
+MECHANIKA (dzień turnieju, migracja `155`): konsola prowadzącego dostała arkusz ze
+składem zamiast dwóch natywnych list rozwijanych (`ArkuszSkladu.tsx`), zegar meczu
+liczony z `rozpoczety_at` (`czasGry()`/`poCzasie()`), walkower (`walkower_meczu()`)
+i kartę „następny na tej arenie". Poprawiony błąd: koszykarskie `+1/+2/+3` zapisywały
+po jednym punkcie, bo wywołanie nie przekazywało `wartosc`. Powiadomienie
+`turniej_nastepny_mecz` idzie wyzwalaczem przy zakończeniu meczu — tylko gdy turniej
+trwa i tylko gdy następny mecz jest tego samego dnia. Strona turnieju odświeża mecze
+i zdarzenia co 20 s. Pulpit organizatora: `lib/turniejPulpit.ts`
+(`pulpitPrzedTurniejem()`, `opoznienieWMinutach()`, `arenyTeraz()`).
 
 MECHANIKA: migracja `154` (`turniej_zaproszenia`, funkcja `czy_sam_kapitan_druzyny()`
 — świadomie węższa niż `czy_kapitan_druzyny()`, bo organizator turnieju NIE widzi

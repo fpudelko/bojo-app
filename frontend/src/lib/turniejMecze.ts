@@ -296,6 +296,21 @@ export async function dodajZdarzenie(meczId: string, zdarzenie: NoweZdarzenie): 
   return toZdarzenie(data);
 }
 
+/** Walkower wpisany przez prowadzącego — RPC `walkower_meczu` (155).
+ *
+ *  Istnieje, bo `status = 'walkower'` wpisywał dotąd WYŁĄCZNIE generator
+ *  terminarza przy wolnych losach, a prowadzący, któremu drużyna nie
+ *  dojechała — przypadek z każdego turnieju amatorskiego — nie miał jak go
+ *  zapisać. Wynik zostaje 0:0, zwycięzcę niesie `zwyciezca_id`; tabela
+ *  (`obliczTabele()`) i drabinka czytają to tak samo jak wolny los. */
+export async function walkowerMeczu(meczId: string, zwyciezcaDruzynaId: string): Promise<void> {
+  const { error } = await supabase.rpc('walkower_meczu', {
+    p_mecz: meczId,
+    p_zwyciezca: zwyciezcaDruzynaId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 /** „Cofnij ostatnie" w konsoli prowadzącego — kasuje NAJNOWSZE zdarzenie tego
  *  meczu, nie wybrane przez id, bo to jest jedyna rzecz, o którą pyta UI
  *  (pomyłka przy ostatnim kliknięciu). Zwraca `null`, gdy nie było czego cofać. */

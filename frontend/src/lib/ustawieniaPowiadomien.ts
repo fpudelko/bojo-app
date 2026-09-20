@@ -266,6 +266,15 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     opis: 'Organizator przesunął godziny meczów Twojego turnieju',
     wazne: true,
   },
+  // Migracja 155. `wazne`: przychodzi w dniu turnieju, kilka minut przed
+  // wejściem na boisko — wyłączenie go czyni z niego rzecz bezużyteczną,
+  // a nie mniej natrętną.
+  {
+    typ: 'turniej_nastepny_mecz',
+    nazwa: 'Wasz mecz jest następny',
+    opis: 'Poprzedni mecz na Waszej arenie się skończył — gracie za chwilę',
+    wazne: true,
+  },
   // Ogłoszenie organizatora (migracja 150) — jedyna wiadomość w tym module,
   // więc `wazne`, tak jak terminarz.
   {
