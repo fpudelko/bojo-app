@@ -942,7 +942,7 @@ i `turniej_wynik_do_potwierdzenia`.
 Cztery etapy. **Etapy A–C to niemal wyłącznie interfejs nad logiką, która już istnieje
 i ma testy** — dwie migracje w całości (zaproszenia, powiadomienie) plus jedna funkcja.
 
-**Etap A — kapitan i pierwsze wrażenie** *(odblokowuje odmrożenie flagi)*
+**Etap A — kapitan i pierwsze wrażenie** — ✅ **ZROBIONE 2026-09-20** (migracja `154`)
 `/turnieje/[id]/druzyna/[id]` ze stałym linkiem i licznikiem „5 z 8" (§5.1) ·
 zaproszenia imienne z ekipy + karta na stronie głównej (§5.2, migracja) · domyślna
 zakładka zależna od stanu · głowa „plakat" w zapisach · termin graniczny zapisów ·

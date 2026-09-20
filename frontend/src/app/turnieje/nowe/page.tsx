@@ -33,6 +33,7 @@ export default function NowyTurniejPage() {
   const [sport, setSport] = useState<string>(FOCUS_SPORTS[0]);
   const [dataStartu, setDataStartu] = useState('');
   const [dataKonca, setDataKonca] = useState('');
+  const [zapisyDo, setZapisyDo] = useState('');
   const [godzinaStartu, setGodzinaStartu] = useState('10:00');
   const [location, setLocation] = useState<LocationResult>({ venue: null, lat: null, lng: null, address: '' });
   const [miejsceNazwa, setMiejsceNazwa] = useState('');
@@ -53,8 +54,9 @@ export default function NowyTurniejPage() {
 
   const nazwaOk = nazwa.trim().length >= 3;
   const dataOk = !!dataStartu && (!dataKonca || dataKonca >= dataStartu);
+  const zapisyOk = !zapisyDo || !dataStartu || zapisyDo <= dataStartu;
   const skladOk = minZawodnikow > 0 && minZawodnikow <= maxZawodnikow;
-  const gotowe = nazwaOk && dataOk && skladOk && maxDruzyn >= 2;
+  const gotowe = nazwaOk && dataOk && zapisyOk && skladOk && maxDruzyn >= 2;
 
   const handleSubmit = async () => {
     if (!user || !gotowe) return;
@@ -75,6 +77,9 @@ export default function NowyTurniejPage() {
           lng: location.lng ?? undefined,
           dataStartu,
           dataKonca: dataKonca || undefined,
+          // Koniec DNIA, nie północ na jego początku: „zapisy do 16
+          // października" znaczy dla każdego „jeszcze szesnastego".
+          zapisyDo: zapisyDo ? `${zapisyDo}T23:59:59` : undefined,
           godzinaStartu,
           maxDruzyn,
           minZawodnikow,
@@ -157,6 +162,29 @@ export default function NowyTurniejPage() {
           {dataKonca && dataKonca < dataStartu && (
             <p className="-mt-3 text-xs text-red-600">Data końca nie może być wcześniejsza niż data startu.</p>
           )}
+
+          {/* TERMIN GRANICZNY ZAPISÓW. Kolumna `zapisy_do` istniała w bazie od
+              migracji `145` i nie miała ani pola w kreatorze, ani skutku
+              w kodzie. Bez niej organizator, który zapomni ręcznie zamknąć
+              zapisy, przyjmuje zgłoszenie w piątek wieczorem po ułożonym
+              terminarzu — a kapitan nie ma żadnego powodu, żeby zgłosić się
+              dziś, a nie „kiedyś". */}
+          <div>
+            <label className={labelCls}>Zapisy do</label>
+            <input
+              type="date"
+              value={zapisyDo}
+              onChange={(e) => setZapisyDo(e.target.value)}
+              max={dataStartu || undefined}
+              className={inputCls}
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Po tym dniu nikt nie zgłosi drużyny. Puste = zapisy zamykasz ręcznie.
+            </p>
+            {!zapisyOk && (
+              <p className="mt-1 text-xs text-red-600">Zapisy muszą się kończyć najpóźniej w dniu startu.</p>
+            )}
+          </div>
 
           <div>
             <label className={labelCls}>Godzina startu</label>

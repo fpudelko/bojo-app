@@ -48,8 +48,27 @@ describe('KartaDruzyny — skład', () => {
       zawodnik({ id: 'z1', userId: 'u-1', imie: 'Z Kontem', numer: 1 }),
       zawodnik({ id: 'z2', userId: undefined, imie: 'Bez Konta', numer: 2 }),
     ]));
-    expect(screen.getAllByRole('link')).toHaveLength(1);
+    // Liczymy odnośniki W SAMYM SKŁADZIE, nie w całej karcie: poza listą stoi
+    // jeszcze wejście na ekran drużyny (niżej), a asercja o „dokładnie jednym
+    // odnośniku w karcie" psułaby się przy każdym nowym przycisku, zamiast
+    // pilnować reguły, o którą naprawdę chodzi.
+    const sklad = screen.getByRole('list');
+    expect(sklad.querySelectorAll('a')).toHaveLength(1);
     expect(screen.getByRole('link', { name: /Z Kontem/ })).toHaveAttribute('href', '/gracz/u-1');
+  });
+
+  it('karta prowadzi na ekran drużyny — tam mieszka link do wysłania kolegom', () => {
+    pokazSklad(druzyna([zawodnik({ userId: 'u-1', imie: 'Jakub Kowalski' })]));
+    expect(screen.getByRole('link', { name: /Otwórz drużynę/ }))
+      .toHaveAttribute('href', '/turnieje/t1/druzyna/d1');
+  });
+
+  it('kapitan widzi to samo wejście pod nazwą „Zarządzaj drużyną"', () => {
+    const d = druzyna([zawodnik({ userId: 'u-1', imie: 'Jakub Kowalski' })]);
+    render(<KartaDruzyny d={d} zalogowany czyMoja onZamienWEkipe={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Dragon Team/ }));
+    expect(screen.getByRole('link', { name: /Zarządzaj drużyną/ }))
+      .toHaveAttribute('href', '/turnieje/t1/druzyna/d1');
   });
 
   it('niezalogowany widzi ścianę logowania zamiast nazwisk', () => {

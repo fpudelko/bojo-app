@@ -244,6 +244,14 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     nazwa: 'Ktoś przejął drużynę',
     opis: 'Drużyna, którą dopisałeś ręcznie, ma teraz swojego kapitana',
   },
+  // Zaproszenie do drużyny (migracja 154). `wazne` jak `zaproszenie_na_mecz`:
+  // kapitan czeka na skład, a turniej ma jedną datę i nie przesunie się.
+  {
+    typ: 'turniej_zaproszenie_do_druzyny',
+    nazwa: 'Zaproszenie do drużyny turniejowej',
+    opis: 'Kapitan zaprasza Cię do składu na turniej',
+    wazne: true,
+  },
   // Terminarz (migracja 146). Ta sama waga co `zmiana_terminu` dla zwykłego
   // meczu: zmienia plan na konkretny dzień, więc `wazne`.
   {

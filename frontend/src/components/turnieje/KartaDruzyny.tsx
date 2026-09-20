@@ -85,10 +85,22 @@ export default function KartaDruzyny({
           ) : (
             <p className="text-sm text-slate-400">Skład jeszcze pusty.</p>
           )}
+          {/* Wejście na ekran drużyny — tam mieszka stały link do wysłania
+              kolegom, licznik składu, dopisywanie zawodników i zaproszenia
+              z ekipy. Pokazuje się KAŻDEMU, nie tylko kapitanowi: dla reszty
+              to podgląd składu i meczów tej drużyny. */}
+          <Link
+            href={`/turnieje/${d.turniejId}/druzyna/${d.id}`}
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary-600"
+          >
+            {czyMoja ? 'Zarządzaj drużyną' : 'Otwórz drużynę'}
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+
           {czyMoja && (
             <button
               onClick={() => onZamienWEkipe(d)}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600"
+              className="ml-4 inline-flex items-center gap-1.5 text-xs font-medium text-primary-600"
             >
               <Repeat className="h-3.5 w-3.5" /> Zamień drużynę w ekipę
             </button>

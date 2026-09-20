@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CalendarDays, MapPin, Users, Navigation, Settings, Share2, ChevronDown, Trophy, Wallet, UserRound } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, Users, Navigation, Settings, Share2, ChevronDown, ChevronRight, Trophy, Wallet, UserRound } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
@@ -13,10 +13,11 @@ import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import {
   getTurniej, uprawnieniaTurnieju, getMojaOsobe, przyjmujeZgloszenia,
   getOgloszenia, dodajOgloszenie, usunOgloszenie, getBlikTurnieju,
+  domyslnaZakladka,
 } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
-import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju } from '@/lib/turniejEtykiety';
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
@@ -128,17 +129,26 @@ export default function TurniejClient() {
   const [ladowanie, setLadowanie] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [widokReczny, setWidokReczny] = useState<WidokMeczow | null>(null);
+  // `null` = użytkownik jeszcze nie wybrał, więc obowiązuje domyślne „nasze"
+  // dla kogoś, kto w turnieju gra.
+  const [tylkoNaszeReczne, setTylkoNaszeReczne] = useState<boolean | null>(null);
   const [organizator, setOrganizator] = useState<string | null>(null);
 
   const tabParam = searchParams.get('tab');
   // Stare adresy (`?tab=terminarz`, `?tab=wyniki`, `?tab=drabinka`) prowadzą
-  // tam, gdzie ich treść dziś mieszka. Domyślna zakładka zostaje „Mecze" —
-  // „Info" trzeba dziś kliknąć świadomie, tak jak „Drużyny".
-  const zakladka: Zakladka =
+  // tam, gdzie ich treść dziś mieszka.
+  //
+  // BRAK `?tab=` NIE ZNACZY JUŻ „Mecze". Domyślną liczy `domyslnaZakladka()`
+  // ze stanu turnieju i z tego, co jest do zobaczenia — funkcja istniała od
+  // migracji `145` i nie była podpięta, więc KAŻDY link udostępniony w okresie
+  // zapisów (czyli każdy link, jaki organizator wysyła na Facebooka) lądował
+  // na napisie „Terminarz jeszcze nie jest gotowy".
+  const zakladkaZAdresu: Zakladka | null =
     tabParam === 'info' ? 'info'
       : tabParam === 'druzyny' ? 'druzyny'
       : tabParam === 'tabela' || tabParam === 'drabinka' ? 'tabela'
-      : 'mecze';
+      : tabParam === 'mecze' || tabParam === 'terminarz' || tabParam === 'wyniki' ? 'mecze'
+      : null;
   const widokZAdresu: WidokMeczow | null =
     tabParam === 'wyniki' ? 'rozegrane' : tabParam === 'terminarz' ? 'najblizsze' : null;
 
@@ -258,6 +268,7 @@ export default function TurniejClient() {
 
   const tabelaMaTresc = tabeleGrup.length > 0 || meczeDrabinki.length > 0;
   const stan = stanTurnieju(turniej, mecze);
+  const zapisy = stanZapisowTurnieju(turniej, druzyny.length);
 
   // Najbliższy mecz MOJEJ drużyny — do paska „co dotyczy mnie".
   const mojNastepnyMecz = mojaDruzyna
@@ -270,6 +281,8 @@ export default function TurniejClient() {
   );
 
   const widoczneZakladki: Zakladka[] = ['info', 'mecze', 'tabela', 'druzyny'];
+  const zakladka: Zakladka = zakladkaZAdresu
+    ?? domyslnaZakladka(turniej.status, { maMecze: mecze.length > 0, maTabele: tabelaMaTresc });
   const aktywna: Zakladka = tabelaMaTresc || zakladka !== 'tabela' ? zakladka : 'mecze';
 
   // Domyślny widok meczów zależy od tego, co jest do zobaczenia: przed
@@ -277,7 +290,18 @@ export default function TurniejClient() {
   // i adres biją domyślny.
   const domyslnyWidok: WidokMeczow = meczePrzyszle.length > 0 ? 'najblizsze' : 'rozegrane';
   const widokMeczow: WidokMeczow = widokReczny ?? widokZAdresu ?? domyslnyWidok;
-  const listaMeczow = widokMeczow === 'najblizsze' ? meczePrzyszle : meczeRozegrane;
+
+  // NASZE PRZED WSZYSTKIMI. Uczestnik nie szuka terminarza turnieju, tylko
+  // terminarza swojej drużyny — trzech pozycji z czterdziestu dwóch. Filtr
+  // jest prostopadły do przełącznika „najbliższe/rozegrane": tamten dzieli
+  // mecze po czasie, ten po drużynie.
+  const czyNasz = (m: TurniejMecz) =>
+    !!mojaDruzyna && (m.druzynaAId === mojaDruzyna.id || m.druzynaBId === mojaDruzyna.id);
+  const naszychMeczow = mecze.filter(czyNasz).length;
+  const tylkoNasze = mojaDruzyna ? (tylkoNaszeReczne ?? true) : false;
+
+  const listaPoCzasie = widokMeczow === 'najblizsze' ? meczePrzyszle : meczeRozegrane;
+  const listaMeczow = tylkoNasze ? listaPoCzasie.filter(czyNasz) : listaPoCzasie;
 
   const zawodnicyDoStatystyk = druzyny.flatMap((d) => d.zawodnicy ?? []);
   const mvpPoMeczach = mecze
@@ -389,11 +413,53 @@ export default function TurniejClient() {
           </button>
         </div>
 
+        {/* PLAKAT ZAPISÓW — to, po co człowiek z Facebooka klika w link.
+            „6/8 drużyn" (pasek wyżej) jest informacją; „Zostały 2 miejsca ·
+            zapisy do czwartku" jest powodem, żeby zgłosić drużynę DZIŚ. Ta
+            sama różnica, którą moduł meczowy rozstrzygnął dawno licznikiem
+            miejsc i oknem zapisu. Pokazuje się wyłącznie w zapisach — po ich
+            zamknięciu nie niesie już nic. */}
+        {turniej.status === 'zapisy' && (
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2.5 shadow-sm">
+            <div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                <div
+                  className="h-full rounded-full bg-primary-600 transition-all"
+                  style={{ width: `${zapisy.procent}%` }}
+                />
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
+                <span className="font-medium text-ink">{zapisy.miejscaLabel}</span>
+                {zapisy.terminLabel && (
+                  <span className="text-slate-500 dark:text-slate-400">⏳ {zapisy.terminLabel}</span>
+                )}
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              {turniej.wpisoweGrosze > 0
+                ? `${(turniej.wpisoweGrosze / 100).toFixed(0)} zł od drużyny · `
+                : 'Bez wpisowego · '}
+              skład {turniej.minZawodnikow}–{turniej.maxZawodnikow} osób
+            </p>
+          </div>
+        )}
+
         {/* Pasek „co dotyczy MNIE" — turniej bez niego jest zestawem tabelek
             dla widza, a wchodzi w niego przede wszystkim uczestnik. */}
         {mojaDruzyna && (
           <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4 space-y-1.5">
-            <p className="text-sm font-semibold text-ink">Twoja drużyna: {mojaDruzyna.nazwa}</p>
+            {/* Nazwa drużyny jest ODNOŚNIKIEM na jej ekran — tam stoi stały
+                link do wysłania kolegom, licznik składu i zaproszenia. Do
+                2026-09-20 ten pasek był ślepy: pokazywał nazwę i nie prowadził
+                donikąd, a link do drużyny kapitan widział jeden raz w życiu,
+                na ekranie potwierdzenia zgłoszenia. */}
+            <Link
+              href={`/turnieje/${id}/druzyna/${mojaDruzyna.id}`}
+              className="flex items-center gap-1 text-sm font-semibold text-ink"
+            >
+              <span className="min-w-0 truncate">Twoja drużyna: {mojaDruzyna.nazwa}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-primary-600" />
+            </Link>
             {mojNastepnyMecz ? (
               <button
                 onClick={() => router.push(`/turnieje/${id}/mecz/${mojNastepnyMecz.id}`)}
@@ -545,6 +611,22 @@ export default function TurniejClient() {
 
         {aktywna === 'mecze' && (
           <div className="space-y-4">
+            {mojaDruzyna && naszychMeczow > 0 && (
+              <div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+                {([true, false] as const).map((nasze) => (
+                  <button
+                    key={String(nasze)}
+                    onClick={() => setTylkoNaszeReczne(nasze)}
+                    className={[
+                      'flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                      tylkoNasze === nasze ? 'bg-white dark:bg-slate-700 text-ink shadow-sm' : 'text-slate-500',
+                    ].join(' ')}
+                  >
+                    {nasze ? `Nasze (${naszychMeczow})` : `Wszystkie (${mecze.length})`}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Przełącznik zamiast dwóch zakładek: „co jeszcze gramy"
                 i „jak poszło" to jedno pytanie o mecze z dwiema odpowiedziami,
                 a nie dwa osobne miejsca w nawigacji. */}
@@ -567,7 +649,13 @@ export default function TurniejClient() {
 
             {listaMeczow.length === 0 ? (
               <p className="py-10 text-center text-sm text-slate-400">
-                {uprawnienia.mozeEdytowac ? 'Terminarz jeszcze nie jest wygenerowany.' : 'Terminarz jeszcze nie jest gotowy.'}
+                {mecze.length > 0 && tylkoNasze
+                  ? (widokMeczow === 'najblizsze'
+                      ? 'Nie macie już meczów w terminarzu.'
+                      : 'Nie rozegraliście jeszcze żadnego meczu.')
+                  : uprawnienia.mozeEdytowac
+                    ? 'Terminarz jeszcze nie jest wygenerowany.'
+                    : 'Terminarz jeszcze nie jest gotowy.'}
               </p>
             ) : (
               <div className="space-y-2">

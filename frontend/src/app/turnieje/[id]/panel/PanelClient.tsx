@@ -689,6 +689,25 @@ export default function PanelClient() {
             )}
 
             <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
+              {/* Termin graniczny obok ręcznego zamknięcia, nie zamiast niego:
+                  data pilnuje zapisów, gdy organizator o nich zapomni, a
+                  przycisk zamyka je wcześniej, gdy komplet zbierze się szybciej. */}
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Zapisy do</label>
+              <input
+                type="date"
+                defaultValue={turniej.zapisyDo ? turniej.zapisyDo.slice(0, 10) : ''}
+                max={turniej.dataStartu}
+                onBlur={(e) => {
+                  const nowa = e.target.value ? `${e.target.value}T23:59:59` : '';
+                  if ((turniej.zapisyDo ?? '').slice(0, 10) === e.target.value) return;
+                  updateTurniej(id, { zapisyDo: nowa }).then(wczytaj);
+                }}
+                className={inputCls}
+              />
+              <p className="text-xs text-slate-400">
+                Po tym dniu nikt nie zgłosi drużyny. Puste = zapisy zamykasz ręcznie.
+              </p>
+
               <Button variant="outline" onClick={zamknijLubOtworzZapisy} className="w-full">
                 {turniej.status === 'zamkniete_zapisy' ? 'Otwórz zapisy' : 'Zamknij zapisy'}
               </Button>

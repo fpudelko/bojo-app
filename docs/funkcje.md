@@ -4418,6 +4418,58 @@ schowka) i obraz OG per turniej (`/turnieje/[id]/opengraph-image.tsx`, wzorem
 `/wydarzenia/[id]`). Stary moduł „BOJO Cup" (`tournaments` i sześć tabel
 `tournament_*`) skasowany migracją `151` — front zniknął już w Etapie 0.
 
+### Etap A przebudowy UX (migracja `154`) — kapitan i pierwsze wrażenie
+
+Projekt → [turnieje-ux-ekrany.md](./turnieje-ux-ekrany.md), diagnoza →
+[turnieje-scenariusze-ux.md](./turnieje-scenariusze-ux.md) (ustalenia `S-11`…`S-18`).
+
+**Ekran drużyny — nowa trasa `/turnieje/[id]/druzyna/[druzynaId]`.** Do 2026-09-20 kapitan
+widział link do swojej drużyny DOKŁADNIE RAZ, na ekranie potwierdzenia zgłoszenia; kto
+zamknął kartę, nie odzyskiwał go nigdzie poza panelem organizatora, do którego nie ma
+wstępu. A ten link jest w module turniejowym całą drogą powstawania kont: turniej na
+12 drużyn to ~90 zawodników, z których każdy zakłada konto, bo kapitan wysłał mu
+odnośnik. Ekran jest publiczny (skład za ścianą logowania), a kapitanowi daje stały link,
+licznik składu „5 z 8" z paskiem, dopisywanie zawodników bez konta, usuwanie ze składu,
+wpisowe z numerem BLIK, listę własnych meczów, zmianę nazwy, wycofanie drużyny oraz
+„Zamień drużynę w ekipę" po zakończeniu turnieju. Wejścia: pasek „Twoja drużyna" na
+`/turnieje/[id]` (był ślepy), karta drużyny na zakładce Drużyny, ekran po zgłoszeniu.
+
+**Imienne zaproszenia (`turniej_zaproszenia`).** Druga droga obok linku, dla tych, którzy
+konto już mają. Bliźniak `event_player_invites` (`060`) co do trzech zasad: zaproszenie
+nie zajmuje miejsca w składzie, duplikaty pomija baza, odrzucone zostaje w tabeli.
+Kandydaci pochodzą **wyłącznie z ekip kapitana** (`ZaprosZEkipyDialog.tsx`, wzorem
+`InviteFromGroupDialog.tsx`) — wyszukiwarka po całym Bojo wymagałaby udostępnienia listy
+wszystkich kont. Zaproszony widzi kartę „Dołączam / Nie mogę"
+(`ZaproszeniaTurniejowe.tsx`) na `/moje-gry`, tam gdzie widzi zaproszenia na mecz;
+świadomie POZA flagą `SHOW_TURNIEJE`, bo to nie jest wejście w nawigacji, tylko konkretna
+osoba czekająca na odpowiedź. **Organizator turnieju ich nie widzi i nie wystawia** —
+decyzja właściciela z 2026-09-20, pilnowana funkcją `czy_sam_kapitan_druzyny()` (węższą
+niż `czy_kapitan_druzyny()` z `145`) i jawną asercją w `supabase/test/rls.sql`.
+
+**Domyślna zakładka zależna od stanu.** `domyslnaZakladka()` istniała w `lib/turnieje.ts`
+od migracji `145` i NIE BYŁA PODPIĘTA: strona twardo otwierała „Mecze", więc każdy link
+udostępniony w okresie zapisów lądował na napisie „Terminarz jeszcze nie jest gotowy".
+Dziś zapisy → Info, zamknięte zapisy i trakt → Mecze (albo Drużyny, gdy terminarza nie
+ma), zakończony → Tabela, odwołany → Info. Adres (`?tab=`) nadal bije domyślną.
+
+**Termin graniczny zapisów.** Kolumna `turnieje.zapisy_do` istniała od `145` i była
+ignorowana przez `przyjmujeZgloszenia()`, która patrzyła wyłącznie na status i limit
+drużyn — organizator wypełniał pole, które nic nie robiło. Dziś pole jest w kreatorze
+i w panelu (Ustawienia), a w zapisach nad zakładkami stoi plakat: pasek zapełnienia,
+„Zostały 2 miejsca", „Zapisy do czwartku 16 października" i warunki wpisowego
+(`stanZapisowTurnieju()` w `lib/turniejEtykiety.ts`).
+
+**„Nasze mecze".** Na zakładce Mecze gracz z drużyny dostaje filtr Nasze/Wszystkie,
+domyślnie „Nasze" — uczestnik szuka trzech swoich meczów, nie czterdziestu dwóch
+turniejowych. Filtr jest prostopadły do przełącznika Najbliższe/Rozegrane.
+
+**`/t/[kod]` sprzedaje, zanim poprosi o konto.** Dla większości zawodników to PIERWSZY
+kontakt z Bojo — dotąd widzieli kłódkę, nazwę drużyny i prośbę o zalogowanie. Dziś
+najpierw: nazwa turnieju, data, miejsce i kto już jest w składzie, potem „Dołącz do
+drużyny". Ta sama zasada co brama logowania przed kreatorem
+([przeplyw-organizatora.md](./przeplyw-organizatora.md)) — ekran-brama sprzedaje,
+nie przekierowuje.
+
 ---
 
 ## Pomiar produktowy — co mierzymy i gdzie to czytać

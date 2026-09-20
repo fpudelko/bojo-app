@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-18 · migracja `153` · 59 tabel
+**Stan na:** 2026-09-20 · migracja `154` · 60 tabel
 
 ---
 
@@ -263,16 +263,25 @@ po każdym meczu. Nic z tego nie liczy tabeli ani statystyk automatycznie, a dru
 widzą planu na bieżąco.
 
 **Rozwiązanie w Bojo.** Organizator zakłada turniej (`/turnieje/nowe`), ustala format
-(grupy + puchar, sam puchar albo liga), liczbę drużyn, skład min/max i wpisowe. Kapitani
-zgłaszają drużyny linkiem, sami uzupełniają skład albo przekazują kapitanat dalej.
+(grupy + puchar, sam puchar albo liga), liczbę drużyn, skład min/max i wpisowe. Może podać
+TERMIN GRANICZNY ZAPISÓW — po tym dniu nikt nie zgłosi drużyny, niezależnie od wolnych
+miejsc. Kapitani zgłaszają drużyny linkiem, a potem kompletują skład na własnym ekranie
+drużyny (`/turnieje/[id]/druzyna/[id]`): stały link do wysłania kolegom, licznik „5 z 8",
+dopisywanie zawodników bez konta, wpisowe z numerem BLIK, lista własnych meczów. Drugą
+drogą obok linku jest IMIENNE ZAPROSZENIE: kapitan zaprasza ludzi ze swoich ekip Bojo,
+a zaproszony widzi kartę „Dołączam / Nie mogę" na `/moje-gry`, obok zaproszeń na mecz.
+Zaproszenie nie zajmuje miejsca w składzie i gaśnie samo, gdy człowiek wejdzie do drużyny.
+Kapitan może też przekazać kapitanat dalej albo wycofać drużynę.
 Organizator losuje grupy, generuje terminarz jednym przyciskiem (rozkłada mecze na
 dostępne areny/boiska bez kolizji drużyny w jednym slocie) i może go przesunąć w całości,
 gdy dzień się opóźnia. Wyznaczony prowadzący obsługuje mecz z telefonu: „Rozpocznij",
 gol/kartka/punkt jednym dotknięciem ze składu, „Cofnij ostatnie", „Zakończ" (karne przy
 remisie w fazie pucharowej). Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
-liczą się same z zapisanych wyników. Strona turnieju ma trzy zakładki — Mecze
-(przełącznik Najbliższe/Rozegrane), Tabela i drabinka, Drużyny — a nad nimi nagłówek
-z parametrami turnieju. W drabince
+liczą się same z zapisanych wyników. Strona turnieju ma cztery zakładki — Info, Mecze
+(przełącznik Najbliższe/Rozegrane, a dla grającego dodatkowo Nasze/Wszystkie), Tabela
+i drabinka, Drużyny. Która otwiera się domyślnie, zależy od stanu turnieju: w zapisach
+Info, w trakcie Mecze, po finale Tabela. W zapisach nad zakładkami stoi licznik wolnych
+miejsc z terminem granicznym i przyciskiem „Zgłoś drużynę". W drabince
 zwycięzca meczu jest pogrubiony, a pod wynikiem stoją rzuty karne, gdy to one
 rozstrzygnęły; w tabeli grupy miejsca awansujące mają pasek przy pozycji, a podpis,
 ile pierwszych miejsc wychodzi do fazy pucharowej, stoi raz pod kompletem tabel. Organizator może dopisać ogłoszenie widoczne dla
@@ -286,7 +295,7 @@ jednocześnie główna droga zakładania kont w tym module.
 
 **Mechanika.** Tabele `turnieje`, `turniej_druzyny`, `turniej_zawodnicy`, `turniej_grupy`,
 `turniej_areny`, `turniej_mecze`, `turniej_zdarzenia`, `turniej_ogloszenia`,
-`turniej_blik`, `turniej_osoby` (migracje `145`–`150`). RLS jest jedyną granicą dostępu —
+`turniej_blik`, `turniej_osoby`, `turniej_zaproszenia` (migracje `145`–`150`, `154`). RLS jest jedyną granicą dostępu —
 funkcje `czy_zarzadza_turniejem()`/`czy_kapitan_druzyny()`/`czy_prowadzi_mecz()` decydują,
 kto edytuje co. Wynik meczu liczy się z zapisanych zdarzeń (gol/samobójczy/kartka/punkty),
 dopóki organizator nie wpisze go ręcznie (siatkówka i koszykówka mają własną logikę:
@@ -417,6 +426,37 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-09-20 — Kapitan turnieju ma wreszcie gdzie skompletować skład
+
+PROBLEM: Link do drużyny turniejowej — w tym module CAŁA droga, którą powstają konta
+zawodników — kapitan widział DOKŁADNIE RAZ, na ekranie potwierdzenia zgłoszenia. Kto
+zamknął kartę, nie odzyskiwał go nigdzie: pasek „Twoja drużyna" pokazywał nazwę i nie
+prowadził donikąd, a jedyne inne miejsce z tym linkiem był panel organizatora, do którego
+kapitan nie ma wstępu. Operacje kapitańskie (dopisz zawodnika, zmień nazwę, wycofaj
+drużynę) istniały w kodzie od migracji `145` i nie miały ani jednego przycisku poza tym
+panelem. Do tego strona turnieju twardo otwierała zakładkę „Mecze", więc każdy link
+udostępniony w okresie zapisów lądował na napisie „Terminarz jeszcze nie jest gotowy",
+a kolumna `zapisy_do` istniała w bazie i była ignorowana — organizator wypełniał termin,
+który nic nie robił.
+
+ROZWIĄZANIE BOJO: powstał ekran drużyny (`/turnieje/[id]/druzyna/[id]`) ze stałym linkiem,
+licznikiem składu „5 z 8", dopisywaniem zawodników bez konta, wpisowym z numerem BLIK
+i listą własnych meczów. Kapitan może zaprosić IMIENNIE ludzi ze swoich ekip — zaproszony
+dostaje kartę „Dołączam / Nie mogę" na `/moje-gry`, tam gdzie widzi zaproszenia na mecz.
+Domyślna zakładka strony turnieju zależy teraz od jego stanu (zapisy → Info, trakt →
+Mecze, koniec → Tabela), w zapisach stoi nad nią licznik wolnych miejsc z terminem
+granicznym, `/t/[kod]` mówi najpierw, do czego człowiek dołącza (turniej, data, miejsce,
+kto już jest w składzie), a grający filtruje terminarz na „Nasze".
+
+MECHANIKA: migracja `154` (`turniej_zaproszenia`, funkcja `czy_sam_kapitan_druzyny()`
+— świadomie węższa niż `czy_kapitan_druzyny()`, bo organizator turnieju NIE widzi
+zaproszeń w cudzych drużynach; wyzwalacze: dopełnienie `turniej_id`, powiadomienie
+`turniej_zaproszenie_do_druzyny`, gaszenie zaproszenia po wejściu do drużyny).
+Nowa trasa `app/turnieje/[id]/druzyna/[druzynaId]`, `lib/turniejZaproszenia.ts`,
+`components/turnieje/ZaprosZEkipyDialog.tsx` i `ZaproszeniaTurniejowe.tsx`,
+`domyslnaZakladka()` i `przyjmujeZgloszenia()` (termin graniczny) w `lib/turnieje.ts`,
+`stanZapisowTurnieju()` w `lib/turniejEtykiety.ts`.
 
 ### 2026-09-18 — Strona mówi tym samym językiem, co pierwsza wiadomość do organizatora
 
@@ -689,32 +729,3 @@ usunięte z `lib/alerts.ts`; `dataWygasniecia()` zostaje, bo `opisAlertu()` musi
 przeczytać stary wiersz. Edycja starego alertu zeruje jego datę świadomie — termin,
 którego nie widać i nie da się zmienić, jest gorszy niż brak terminu.
 `alertKoniec.test.ts` skanuje źródło okna i pilnuje, żeby wymiar czasu nie wrócił.
-
-### 2026-09-15 — Filtry w adresie, a zamiar alertu przeżywa logowanie
-
-PROBLEM: filtry listy meczów na bojo.pl/wydarzenia żyły wyłącznie w pamięci strony.
-Wylogowany, który ustawił „piłka nożna, dzisiaj" i kliknął „Powiadom mnie o takich
-meczach", trafiał na logowanie i wracał na gołą listę — bez filtrów i bez powodu, dla
-którego tam kliknął; musiał ustawić wszystko od nowa i sam pamiętać, że chciał alert.
-Tego samego braku dotyczyło drugie zgłoszenie: nie dało się wysłać komuś linku do
-„piłka, dzisiaj, do 5 km", a każdy powrót albo odświeżenie to ustawianie od zera. Ekran
-logowania witał przy tym ogólnym „wejdź na swoje konto, żeby grać i organizować mecze",
-czyli odpowiedzią na pytanie, którego nikt nie zadał.
-
-ROZWIĄZANIE BOJO: filtry siedzą w adresie strony, więc link da się wysłać, zapisać
-w zakładkach i odświeżyć bez straty. Kliknięcie „Powiadom mnie" przez osobę bez konta
-niesie te filtry na logowanie razem z samym zamiarem — po zalogowaniu Bojo wraca do tej
-samej listy i od razu otwiera okno alertu. Ekran logowania mówi wtedy wprost, po co ktoś
-tam trafił. Adres pokazuje tylko to, co odbiega od ustawień domyślnych, a wartość, której
-Bojo nie rozumie, wraca do domyślnej, zamiast pokazywać pustą listę.
-
-MECHANIKA: `lib/filtryListy.ts` (`filtryZAdresu()`/`filtryDoAdresu()`) — nazwy
-parametrów wspólne z `/mapa` (`sport` powtarzalny, `km`) plus `kiedy`, `miejsca`, `sort`,
-`q`. Odczyt przez `window.location.search` po zamontowaniu, NIE `useSearchParams()`:
-`/wydarzenia` jest trasą prerenderowaną, a ten hook wywraca build produkcyjny (pułapka
-w AGENTS.md). Zapis przez `history.replaceState`, żeby zmiana filtra nie zasypywała
-historii przeglądarki. `logowanieDlaAlertu()`/`zamiarAlertuZAdresu()` w `lib/alerts.ts`
-przenoszą zamiar przez `next` ze znacznikiem `alert=1`, który ekran po powrocie zdejmuje
-z adresu. `?powod=alert` wybiera zdanie z `POWODY` w `AuthForm`. Dopełniacz „mecz"
-ujednolicony na „meczów". Testy: `filtryListy.test.ts`, `wieleAlertow.test.ts`,
-`filtry-w-adresie.klikalnosc.spec.ts`.

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   STATUS_TURNIEJU, STATUS_DRUZYNY, FORMAT_LABEL, FORMAT_OPIS, FAZA_LABEL,
-  opisFormatu, odmienDruzyny, odmienZawodnikow,
+  opisFormatu, odmienDruzyny, odmienZawodnikow, stanZapisowTurnieju,
 } from '@/lib/turniejEtykiety';
 import type { DruzynaStatus, MeczFaza, TurniejFormat, TurniejStatus } from '@/types';
 
@@ -74,5 +74,52 @@ describe('odmiana — rzeczowniki męskoosobowe liczą się jak "gracz", nie jak
     expect(odmienZawodnikow(3)).toBe('3 zawodnicy');
     expect(odmienZawodnikow(5)).toBe('5 zawodników');
     expect(odmienZawodnikow(13)).toBe('13 zawodników'); // n<5 dałoby błędnie "zawodnicy"
+  });
+});
+
+describe('stanZapisowTurnieju — plakat zapisów', () => {
+  const teraz = new Date('2026-10-10T12:00:00Z');
+
+  it('liczy wolne miejsca i zapełnienie', () => {
+    const s = stanZapisowTurnieju({ maxDruzyn: 8, zapisyDo: undefined }, 6, teraz);
+    expect(s.wolne).toBe(2);
+    expect(s.procent).toBe(75);
+    expect(s.miejscaLabel).toBe('Zostały 2 miejsca');
+  });
+
+  it('odmienia czasownik razem z rzeczownikiem', () => {
+    expect(stanZapisowTurnieju({ maxDruzyn: 8, zapisyDo: undefined }, 7, teraz).miejscaLabel)
+      .toBe('Zostało 1 miejsce');
+    expect(stanZapisowTurnieju({ maxDruzyn: 8, zapisyDo: undefined }, 3, teraz).miejscaLabel)
+      .toBe('Zostało 5 miejsc');
+    // Pułapka 12-14: reguła `n < 5` dałaby tu błędnie „Zostały 13 miejsca".
+    expect(stanZapisowTurnieju({ maxDruzyn: 16, zapisyDo: undefined }, 3, teraz).miejscaLabel)
+      .toBe('Zostało 13 miejsc');
+  });
+
+  it('komplet mówi „komplet", nie „Zostało 0 miejsc"', () => {
+    const s = stanZapisowTurnieju({ maxDruzyn: 8, zapisyDo: undefined }, 8, teraz);
+    expect(s.wolne).toBe(0);
+    expect(s.procent).toBe(100);
+    expect(s.miejscaLabel).toBe('Komplet drużyn');
+  });
+
+  it('nie przekracza 100% przy nadkomplecie (drużyny dodane ręcznie ponad limit)', () => {
+    expect(stanZapisowTurnieju({ maxDruzyn: 8, zapisyDo: undefined }, 10, teraz).procent).toBe(100);
+    expect(stanZapisowTurnieju({ maxDruzyn: 8, zapisyDo: undefined }, 10, teraz).wolne).toBe(0);
+  });
+
+  it('pokazuje termin graniczny, a po nim mówi wprost, że zapisy są zamknięte', () => {
+    const przed = stanZapisowTurnieju({ maxDruzyn: 8, zapisyDo: '2026-10-12T23:59:59' }, 3, teraz);
+    expect(przed.poTerminie).toBe(false);
+    expect(przed.terminLabel).toContain('Zapisy do');
+
+    const po = stanZapisowTurnieju({ maxDruzyn: 8, zapisyDo: '2026-10-09T23:59:59' }, 3, teraz);
+    expect(po.poTerminie).toBe(true);
+    expect(po.terminLabel).toBe('Zapisy zamknięte');
+  });
+
+  it('bez terminu nie wymyśla etykiety', () => {
+    expect(stanZapisowTurnieju({ maxDruzyn: 8, zapisyDo: undefined }, 3, teraz).terminLabel).toBeUndefined();
   });
 });

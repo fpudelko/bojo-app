@@ -104,9 +104,17 @@ export default function ZglosDruzynePage() {
           <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
             Teraz zaproś swoich do drużyny — każdy, kto wejdzie w ten link, dopisze się do składu sam.
           </p>
+          {/* GŁÓWNA droga to ekran drużyny, nie kopiowanie linku.
+              Do 2026-09-20 ten ekran był JEDYNYM miejscem z linkiem do
+              drużyny: kto zamknął kartę, nie odzyskiwał go nigdzie — a to
+              jest w tym module cała pętla wzrostu. Kopiowanie zostaje jako
+              druga droga, dla kogoś, kto chce wkleić link od razu. */}
+          <Link href={`/turnieje/${id}/druzyna/${zgloszona}`}>
+            <Button className="w-full">Uzupełnij skład</Button>
+          </Link>
           <button
             onClick={() => druzyna && kopiujLinkDruzyny(druzyna.kodDolaczenia)}
-            className="mx-auto inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-sm font-medium text-ink hover:bg-slate-50 dark:hover:bg-slate-800"
+            className="mx-auto mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-sm font-medium text-ink hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             <Copy className="h-4 w-4" /> Kopiuj link drużyny
           </button>

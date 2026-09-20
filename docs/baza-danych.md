@@ -158,6 +158,7 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `turniej_zdarzenia` | `147` | Gole/kartki/punkty (piłka nożna, koszykówka). Siatkówka/plażówka NIE korzysta z tej tabeli — wynik trzyma się w `turniej_mecze.sety`. Wyzwalacz `trg_zdarzenia_przelicz` (`AFTER INSERT OR DELETE`) przelicza `turniej_mecze.wynik_a`/`wynik_b` przez `przelicz_wynik_meczu()`; samobójczy dolicza się PRZECIWNIKOWI drużyny z `druzyna_id` |
 | `turniej_ogloszenia` | `150` | Ogłoszenia organizatora — **publiczne** (`SELECT USING (true)`, jak terminarz), inaczej niż skład. Pisze wyłącznie `czy_zarzadza_turniejem()`. Wyzwalacz notyfikuje każdego zawodnika z kontem w przyjętej drużynie (typ `turniej_ogloszenie`) |
 | `turniej_blik` | `150` | Numer BLIK organizatora do wpisowego — osobna tabela z tego samego powodu co `event_blik` (`120`): RLS wierszowe, `turnieje` czyta każdy. Widzi zarządzający i kapitan KAŻDEJ drużyny (także rezerwowej) |
+| `turniej_zaproszenia` | `154` | Imienne zaproszenia kapitana do drużyny — bliźniak `event_player_invites` (`060`). Widzi je i wystawia WYŁĄCZNIE kapitan (`czy_sam_kapitan_druzyny()`, świadomie węższa niż `czy_kapitan_druzyny()` z `145`, która przepuszcza też zarządzających turniejem) oraz zaproszony. Wyzwalacze: dopełnienie `turniej_id` z drużyny, powiadomienie do zaproszonego, wygaszenie zaproszenia po realnym wejściu do składu |
 
 **Tabela `games` (`001`) jest martwa** — powstała w pierwszym schemacie i została
 zastąpiona przez `events` (`002`). Żaden kod jej nie używa.
@@ -284,6 +285,7 @@ powiadomienia nawet sobie bez przejścia przez taką funkcję. Każda z nich to
 | `przelicz_wynik_meczu` | Sumuje `turniej_zdarzenia` na `wynik_a`/`wynik_b` meczu — wołana wyzwalaczem po każdym dopisaniu/skasowaniu zdarzenia, nigdy ręcznie z klienta (`SECURITY DEFINER`, `147`) |
 | `zakoncz_mecz` | Wyznacza zwycięzcę (albo `NULL` przy remisie w grupie/lidze), zapisuje karne i MVP. Odmawia remisu w fazie pucharowej bez rozstrzygających karnych — inaczej `propaguj_zwyciezce` (146) nie miałby kogo przenieść dalej (`SECURITY DEFINER`, `147`) |
 | `zamien_druzyne_w_ekipe` | Zakłada `groups` z nazwy drużyny turniejowej i dopisuje do `group_members` cały skład z `user_id`. Sprawdza wprost `kapitan_id = auth.uid()` — to przycisk kapitana, nie zarządzającego turniejem (`SECURITY DEFINER`, `150`) |
+| `czy_sam_kapitan_druzyny` | Tylko `kapitan_id = auth.uid()`, bez zarządzających turniejem — polityki `turniej_zaproszenia`. Organizator turnieju nie widzi i nie tyka zaproszeń w cudzych drużynach (decyzja właściciela 2026-09-20, asercja w `supabase/test/rls.sql`) (`SECURITY DEFINER`, `154`) |
 | `sync_reserve_claim` | Utrzymuje kolejkę ofert zwolnionego miejsca i powiadamia o ofercie (`SECURITY DEFINER`, `062`) |
 | `zglos_brak_pelnej_nazwy` | Wołana z przeglądarki (`supabase.rpc()`) przez świeżo zalogowanego użytkownika bez pełnego imienia i nazwiska — wstawia powiadomienie `uzupelnij_profil`, chyba że już istnieje (`SECURITY DEFINER`, `086`) |
 | `accept_team_proposal` | Przenosi propozycję składów na realne drużyny (`SECURITY DEFINER`) |

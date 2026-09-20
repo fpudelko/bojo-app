@@ -843,6 +843,72 @@ SELECT _oczekuj('drugi wolny wpis zostaje faktycznie wolny',
                 (SELECT count(*) FROM turniej_zawodnicy
                   WHERE id = :'wolny_wpis_2'::uuid AND user_id IS NULL), 1);
 
+SELECT _sekcja('Turniej: imienne zaproszenia do drużyny (migracja 154)');
+
+-- Najważniejsza asercja tej sekcji to ta o ORGANIZATORZE. Decyzja właściciela
+-- z 2026-09-20 brzmi: organizator turnieju NIE widzi i NIE tyka zaproszeń
+-- w cudzych drużynach. Gdyby polityka użyła `czy_kapitan_druzyny()` (145) —
+-- czyli funkcji o niemal identycznej nazwie, która celowo przepuszcza także
+-- zarządzających turniejem — nic by się nie wywróciło i nikt by tego nie
+-- zauważył. Dlatego stoi tu jawny test, a nie tylko komentarz w migracji.
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN1, false);
+INSERT INTO turniej_zaproszenia (druzyna_id, turniej_id, user_id, zaprosil_id)
+  VALUES (:T_DRUZYNA1::uuid, :TURNIEJ::uuid, :OBCY::uuid, :T_KAPITAN1::uuid);
+RESET ROLE;
+SELECT _oczekuj('kapitan zaprosił kogoś do WŁASNEJ drużyny',
+                (SELECT count(*) FROM turniej_zaproszenia
+                  WHERE druzyna_id = :T_DRUZYNA1::uuid AND user_id = :OBCY::uuid), 1);
+SELECT _oczekuj('wyzwalacz dopełnił turniej_id z drużyny, nie z tego, co przysłał klient',
+                (SELECT count(*) FROM turniej_zaproszenia
+                  WHERE druzyna_id = :T_DRUZYNA1::uuid AND turniej_id = :TURNIEJ::uuid), 1);
+SELECT _oczekuj('zaproszony dostał powiadomienie',
+                (SELECT count(*) FROM notifications
+                  WHERE user_id = :OBCY::uuid AND type = 'turniej_zaproszenie_do_druzyny'), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN2, false);
+SELECT _oczekuj_odmowe('kapitan D2 nie zaprosi nikogo do CUDZEJ drużyny (D1)', format(
+  'INSERT INTO turniej_zaproszenia (druzyna_id, turniej_id, user_id) VALUES (%L, %L, %L)',
+  :T_DRUZYNA1, :TURNIEJ, :T_PROWADZACY));
+SELECT _oczekuj('kapitan D2 nie widzi zaproszeń drużyny D1',
+                (SELECT count(*) FROM turniej_zaproszenia WHERE druzyna_id = :T_DRUZYNA1::uuid), 0);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT _oczekuj('ORGANIZATOR TURNIEJU NIE WIDZI zaproszeń w cudzej drużynie (decyzja 2026-09-20)',
+                (SELECT count(*) FROM turniej_zaproszenia WHERE turniej_id = :TURNIEJ::uuid), 0);
+SELECT _oczekuj_odmowe('organizator nie zaprosi nikogo do cudzej drużyny', format(
+  'INSERT INTO turniej_zaproszenia (druzyna_id, turniej_id, user_id) VALUES (%L, %L, %L)',
+  :T_DRUZYNA1, :TURNIEJ, :T_PROWADZACY));
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj('zaproszony widzi SWOJE zaproszenie',
+                (SELECT count(*) FROM turniej_zaproszenia WHERE user_id = :OBCY::uuid), 1);
+UPDATE turniej_zaproszenia SET dismissed_at = now() WHERE user_id = :OBCY::uuid;
+RESET ROLE;
+SELECT _oczekuj('zaproszony schował swoje zaproszenie',
+                (SELECT count(*) FROM turniej_zaproszenia
+                  WHERE user_id = :OBCY::uuid AND dismissed_at IS NOT NULL), 1);
+
+-- Zaproszenie gaśnie samo, gdy człowiek realnie wejdzie do drużyny — inaczej
+-- karta „X zaprasza Cię do drużyny" wisiałaby na stronie głównej komuś, kto
+-- w tej drużynie już gra.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN1, false);
+INSERT INTO turniej_zaproszenia (druzyna_id, turniej_id, user_id, zaprosil_id)
+  VALUES (:T_DRUZYNA1::uuid, :TURNIEJ::uuid, :T_PROWADZACY::uuid, :T_KAPITAN1::uuid);
+RESET ROLE;
+INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, user_id, imie)
+  VALUES (:T_DRUZYNA1::uuid, :TURNIEJ::uuid, :T_PROWADZACY::uuid, 'Piotr Prowadzący');
+SELECT _oczekuj('wejście do drużyny zgasiło zaproszenie',
+                (SELECT count(*) FROM turniej_zaproszenia
+                  WHERE user_id = :T_PROWADZACY::uuid AND dismissed_at IS NULL), 0);
+
 -- ---------------------------------------------------------------------------
 -- Fixture: terminarz (grupy, areny, mecze) — migracja 146.
 -- Reużywa TURNIEJ/T_DRUZYNA1/T_DRUZYNA2/T_ORGANIZATOR/T_PROWADZACY z sekcji

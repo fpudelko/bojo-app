@@ -861,6 +861,33 @@ export interface TurniejOgloszenie {
   createdAt: string;
 }
 
+/** Imienne zaproszenie kapitana do drużyny (`turniej_zaproszenia`, migracja
+ *  `154`). Bliźniak `PlayerInvite` z `lib/playerInvites.ts`: nie zajmuje
+ *  miejsca w składzie i niczego nie przesądza — jest wyłącznie sposobem, żeby
+ *  turniej pojawił się u zapraszanego w aplikacji, zamiast ginąć w linku
+ *  wklejonym na czacie. */
+export interface TurniejZaproszenie {
+  id: string;
+  turniejId: string;
+  druzynaId: string;
+  userId: string;
+  zaprosilId?: string;
+  groupId?: string;
+  createdAt: string;
+  dismissedAt?: string;
+}
+
+/** Zaproszenie razem z tym, co trzeba pokazać na karcie na stronie głównej.
+ *  Osobny typ, bo `turniej_zaproszenia` wskazuje na `auth.users`, nie na
+ *  `profiles` — PostgREST nie zbuduje joinu (patrz docs/baza-danych.md). */
+export interface ZaproszenieZKontekstem {
+  zaproszenie: TurniejZaproszenie;
+  turniej: Turniej;
+  druzynaNazwa: string;
+  kodDolaczenia: string;
+  zaprosilNazwa?: string;
+}
+
 /** Wiersz tabeli — liczony w przeglądarce (`lib/turniejTabela.ts`), nie ma
  *  odpowiednika w bazie: zero widoków SQL w tym module, żeby nie omijać RLS. */
 export interface WierszTabeli {

@@ -103,6 +103,11 @@ export const IKONY: Record<string, IkonaPowiadomienia> = {
   turniej_druzyna_przyjeta:    { Ikona: CheckCircle,   klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Przyjęci' },
   turniej_druzyna_odrzucona:   { Ikona: X,             klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Decyzja' },
   turniej_kapitan_przejal:     { Ikona: UserCog,       klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Kapitan' },
+  // Zaproszenie do drużyny (migracja 154). NEUTRALNE, nie niebieskie: niebieski
+  // jest w AGENTS.md zarezerwowany dla „wymaga akceptacji uczestnictwa", czyli
+  // dla decyzji, na którą ktoś inny CZEKA i która go blokuje. Zaproszenie
+  // niczego nie blokuje — dokładnie jak `zaproszenie_na_mecz`.
+  turniej_zaproszenie_do_druzyny: { Ikona: UserPlus,     klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Zaproszenie' },
   // Terminarz (migracja 146) — neutralne: to informacja o planie, nie decyzja
   // do podjęcia ani awaria.
   turniej_terminarz_gotowy:   { Ikona: CalendarPlus,  klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Terminarz' },
