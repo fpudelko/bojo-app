@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   STATUS_TURNIEJU, STATUS_DRUZYNY, FORMAT_LABEL, FORMAT_OPIS, FAZA_LABEL,
-  opisFormatu, odmienDruzyny, odmienZawodnikow, stanZapisowTurnieju,
+  opisFormatu, odmienDruzyny, odmienZawodnikow, stanZapisowTurnieju, liczDruzynyWTurnieju, stanTurnieju,
 } from '@/lib/turniejEtykiety';
 import type { DruzynaStatus, MeczFaza, TurniejFormat, TurniejStatus } from '@/types';
 
@@ -121,5 +121,46 @@ describe('stanZapisowTurnieju — plakat zapisów', () => {
 
   it('bez terminu nie wymyśla etykiety', () => {
     expect(stanZapisowTurnieju({ maxDruzyn: 8, zapisyDo: undefined }, 3, teraz).terminLabel).toBeUndefined();
+  });
+});
+
+describe('liczDruzynyWTurnieju — jedna definicja dla trzech ekranów', () => {
+  it('liczy przyjęte i czekające, pomija odrzucone i wycofane', () => {
+    expect(liczDruzynyWTurnieju([
+      { status: 'przyjeta' }, { status: 'zgloszona' },
+      { status: 'odrzucona' }, { status: 'wycofana' },
+    ])).toBe(2);
+  });
+
+  it('rezerwa nie zajmuje miejsca w turnieju', () => {
+    expect(liczDruzynyWTurnieju([{ status: 'przyjeta' }, { status: 'rezerwa' }])).toBe(1);
+  });
+
+  it('pusty turniej to zero, nie błąd', () => {
+    expect(liczDruzynyWTurnieju([])).toBe(0);
+  });
+});
+
+describe('stanTurnieju — zapisy z terminem granicznym', () => {
+  const dzisiaj = new Date('2026-10-10T12:00:00Z');
+
+  it('z terminem mówi konkretną datę zamiast samego czasownika', () => {
+    const s = stanTurnieju(
+      { status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: '2026-10-16T23:59:59' }, [], dzisiaj,
+    );
+    expect(s.label).toContain('Zapisy do');
+    expect(s.label).not.toBe('Trwają zapisy');
+  });
+
+  it('bez terminu zostaje przy dotychczasowym zdaniu', () => {
+    const s = stanTurnieju({ status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: undefined }, [], dzisiaj);
+    expect(s.label).toBe('Trwają zapisy');
+  });
+
+  it('termin, który już minął, nie udaje otwartych zapisów z datą', () => {
+    const s = stanTurnieju(
+      { status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: '2026-10-09T23:59:59' }, [], dzisiaj,
+    );
+    expect(s.label).toBe('Trwają zapisy');
   });
 });

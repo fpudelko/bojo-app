@@ -58,7 +58,9 @@ type Karta = 'moje' | 'zapisy' | 'trwaja' | 'zakonczone';
 const ETYKIETY: Record<Karta, string> = {
   moje: 'Biorę udział',
   zapisy: 'Zapisy',
-  trwaja: 'Trwają',
+  // Nie czasownik, tylko przymiotnik: obok stoi plakietka o trwających
+  // zapisach i dwa czasowniki obok siebie czytały się jak jedno zdanie.
+  trwaja: 'Trwające',
   zakonczone: 'Zakończone',
 };
 

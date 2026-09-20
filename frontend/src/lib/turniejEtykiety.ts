@@ -19,6 +19,29 @@ export const STATUS_TURNIEJU: Record<TurniejStatus, { label: string; ton: string
   odwolany:         { label: 'Odwołany',         ton: 'bg-red-50 text-red-600' },
 };
 
+/**
+ * Które drużyny ZAJMUJĄ MIEJSCE w turnieju.
+ *
+ * Powstało, bo trzy miejsca liczyły to na trzy sposoby: kafelek na liście brał
+ * WSZYSTKIE wiersze (więc drużyna odrzucona dalej zajmowała slot i blokowała
+ * zapisy), pulpit organizatora liczył wyłącznie `przyjeta` (więc pokazywał
+ * zero przy jednej czekającej), a `przyjmujeZgloszenia()` znów wszystkie.
+ * Organizator widział przez to dwie różne liczby na dwóch ekranach.
+ *
+ * Miejsce zajmuje drużyna przyjęta ORAZ czekająca na decyzję: dopóki
+ * organizator nie odpowie, ta druga ma prawo do slotu. Odrzucona i wycofana
+ * nie zajmują nic. To jest cała reguła.
+ */
+export function zajmujeMiejsce(status: DruzynaStatus): boolean {
+  return status === 'zgloszona' || status === 'przyjeta';
+}
+
+export function liczDruzynyWTurnieju(
+  druzyny: readonly { status: DruzynaStatus }[],
+): number {
+  return druzyny.filter((d) => zajmujeMiejsce(d.status)).length;
+}
+
 export const STATUS_DRUZYNY: Record<DruzynaStatus, { label: string; ton: string }> = {
   // Niebieski jak wszędzie w tej apce: „wymaga akceptacji uczestnictwa"
   // (organizator ma decyzję do podjęcia), nie inny odcień znaczenia.
@@ -149,15 +172,24 @@ export interface StanTurnieju {
  * zamknięte zapisy) — terminarz dokłada to, czego kolumna nie wie.
  */
 export function stanTurnieju(
-  t: Pick<Turniej, 'status' | 'dataStartu'>,
+  t: Pick<Turniej, 'status' | 'dataStartu' | 'zapisyDo'>,
   mecze: readonly { status: string; zaplanowanyAt?: string; faza: MeczFaza }[],
   dzisiaj: Date = new Date(),
 ): StanTurnieju {
   if (t.status === 'odwolany') return { label: 'Odwołany', ton: 'bg-red-50 text-red-600' };
   if (t.status === 'szkic') return { label: 'W przygotowaniu', ton: 'bg-slate-100 text-slate-600' };
   if (t.status === 'zapisy') {
-    return { label: 'Trwają zapisy', ton: 'bg-primary-50 text-primary-700',
-             szczegol: `Start ${etykietaTerminu(t.dataStartu, undefined, dzisiaj).toLowerCase()}` };
+    // KONKRETNA DATA BIJE CZASOWNIK. Sam fakt, że zapisy trwają, mówi tylko,
+    // że drzwi są otwarte; termin graniczny mówi, ile zostało czasu, i to jest
+    // jedyny powód, żeby kapitan zgłosił drużynę dziś, a nie kiedyś.
+    const doKiedy = t.zapisyDo && new Date(t.zapisyDo).getTime() > dzisiaj.getTime()
+      ? etykietaTerminu(t.zapisyDo.slice(0, 10), undefined, dzisiaj).toLowerCase()
+      : null;
+    return {
+      label: doKiedy ? `Zapisy do ${doKiedy}` : 'Trwają zapisy',
+      ton: 'bg-primary-50 text-primary-700',
+      szczegol: `Start ${etykietaTerminu(t.dataStartu, undefined, dzisiaj).toLowerCase()}`,
+    };
   }
 
   const rozegrane = mecze.filter((m) => m.status === 'zakonczony' || m.status === 'walkower');

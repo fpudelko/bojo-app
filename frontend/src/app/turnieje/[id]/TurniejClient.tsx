@@ -17,7 +17,7 @@ import {
 } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
-import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju } from '@/lib/turniejEtykiety';
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
@@ -125,10 +125,13 @@ export default function TurniejClient() {
   const [grupy, setGrupy] = useState<TurniejGrupa[]>([]);
   const [zdarzenia, setZdarzenia] = useState<TurniejZdarzenie[]>([]);
   const [ogloszenia, setOgloszenia] = useState<TurniejOgloszenie[]>([]);
+  /** Ogłoszeń nie dało się wczytać — puste miejsce ma powiedzieć co innego niż „nie ma ogłoszeń". */
+  const [ogloszeniaBlad, setOgloszeniaBlad] = useState(false);
   const [mojaDruzyna, setMojaDruzyna] = useState<TurniejDruzyna | null>(null);
   const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
   const [ladowanie, setLadowanie] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [bladWczytania, setBladWczytania] = useState(false);
   const [widokReczny, setWidokReczny] = useState<WidokMeczow | null>(null);
   // `null` = użytkownik jeszcze nie wybrał, więc obowiązuje domyślne „nasze"
   // dla kogoś, kto w turnieju gra.
@@ -181,7 +184,19 @@ export default function TurniejClient() {
         if (!aktualne) return;
         if (!t) { setNotFound(true); setLadowanie(false); return; }
         setTurniej(t);
-        const [d, o, m, a, g, z, og, mj] = await Promise.all([
+        // `allSettled`, NIE `all` — i to jest naprawa awarii, nie ostrożność.
+        //
+        // `Promise.all` odrzuca się w całości, gdy padnie JEDNO z ośmiu
+        // zapytań, a `.catch()` niżej zamieniał to na „Nie znaleziono
+        // turnieju". Skutek zobaczony na żywo: baza bez migracji `150` nie ma
+        // tabeli `turniej_ogloszenia`, PostgREST oddawał 404 i CAŁA STRONA
+        // TURNIEJU nie otwierała się nikomu — ani kapitanom z rozesłanego
+        // linku, ani samemu organizatorowi. Brak jednej sekcji nigdy nie może
+        // znaczyć „nie ma turnieju": turniej wczytał się linijkę wyżej.
+        //
+        // Każda sekcja dostaje więc własny wynik i własny stan pusty. Jedyne,
+        // co naprawdę przesądza o „nie znaleziono", to brak samego turnieju.
+        const [d, o, m, a, g, z, og, mj] = await Promise.allSettled([
           user ? getDruzynyZeSkladem(id) : getDruzyny(id),
           user ? getMojaOsobe(id, user.id) : Promise.resolve(null),
           getMecze(id),
@@ -192,14 +207,15 @@ export default function TurniejClient() {
           user ? getMojaDruzyne(id, user.id) : Promise.resolve(null),
         ]);
         if (!aktualne) return;
-        setDruzyny(d);
-        setOsoba(o);
-        setMecze(m);
-        setAreny(a);
-        setGrupy(g);
-        setZdarzenia(z);
-        setOgloszenia(og);
-        setMojaDruzyna(mj);
+        setDruzyny(d.status === 'fulfilled' ? d.value : []);
+        setOsoba(o.status === 'fulfilled' ? o.value : null);
+        setMecze(m.status === 'fulfilled' ? m.value : []);
+        setAreny(a.status === 'fulfilled' ? a.value : []);
+        setGrupy(g.status === 'fulfilled' ? g.value : []);
+        setZdarzenia(z.status === 'fulfilled' ? z.value : []);
+        setOgloszenia(og.status === 'fulfilled' ? og.value : []);
+        setOgloszeniaBlad(og.status === 'rejected');
+        setMojaDruzyna(mj.status === 'fulfilled' ? mj.value : null);
         // BLIK: tylko organizator/zarządzający i kapitanowie mają RLS-owe
         // prawo do wiersza — reszta po prostu nie dostanie nic, więc wołanie
         // „na wszelki wypadek" jest bezpieczne i nie wymaga sprawdzania roli
@@ -213,7 +229,9 @@ export default function TurniejClient() {
           getBlikTurnieju(id).then((tel) => { if (aktualne) setBlikTelefon(tel); }).catch(() => {});
         }
       })
-      .catch(() => { if (aktualne) setNotFound(true); })
+      // Tu dochodzi się WYŁĄCZNIE wtedy, gdy padło samo `getTurniej` (sieć,
+      // RLS). „Nie znaleziono" byłoby wtedy kłamstwem — turniej może istnieć.
+      .catch(() => { if (aktualne) setBladWczytania(true); })
       .finally(() => { if (aktualne) setLadowanie(false); });
     return () => { aktualne = false; };
   }, [id, user]);
@@ -223,6 +241,24 @@ export default function TurniejClient() {
       <div className="flex min-h-screen flex-col bg-canvas">
         <Header />
         <div className="flex-1 py-24 text-center text-sm text-slate-400">Ładuję…</div>
+      </div>
+    );
+  }
+
+  if (bladWczytania && !turniej) {
+    return (
+      <div className="flex min-h-screen flex-col bg-canvas">
+        <Header />
+        <div className="flex-1 py-24 text-center">
+          <p className="font-medium text-ink">Nie udało się wczytać turnieju</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Sprawdź połączenie i spróbuj ponownie.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-3 text-sm font-medium text-primary-600"
+          >
+            Spróbuj ponownie
+          </button>
+        </div>
       </div>
     );
   }
@@ -289,7 +325,8 @@ export default function TurniejClient() {
 
   const tabelaMaTresc = tabeleGrup.length > 0 || meczeDrabinki.length > 0;
   const stan = stanTurnieju(turniej, mecze);
-  const zapisy = stanZapisowTurnieju(turniej, druzyny.length);
+  const liczbaWTurnieju = liczDruzynyWTurnieju(druzyny);
+  const zapisy = stanZapisowTurnieju(turniej, liczbaWTurnieju);
   const meczeNaZywo = mecze.filter((m) => m.status === 'trwa');
   // Tabela LIGI (nie grupy) jako podstawa podium — patrz `turniejPodium.ts`.
   const tabelaLigi = turniej.format === 'liga' && tabeleGrup.length === 1
@@ -631,6 +668,7 @@ export default function TurniejClient() {
 
         <Ogloszenia
           ogloszenia={ogloszenia}
+          blad={ogloszeniaBlad}
           mozeZarzadzac={uprawnienia.mozeEdytowac}
           onDodaj={dodajOgloszenieAkcja}
           onUsun={usunOgloszenieAkcja}
@@ -640,7 +678,7 @@ export default function TurniejClient() {
             niezalogowanego — przegląd złapał stronę bez żadnego przycisku,
             bo „Zgłoś drużynę" wisiało wyłącznie na zakładce Info, a „Utwórz
             turniej" tylko dla zalogowanych. */}
-        {przyjmujeZgloszenia(turniej, druzyny.length) && !mojaDruzyna && (
+        {przyjmujeZgloszenia(turniej, liczbaWTurnieju) && !mojaDruzyna && (
           <Link href={`/turnieje/${id}/zglos`}>
             <Button className="w-full">Zgłoś drużynę</Button>
           </Link>
@@ -720,7 +758,7 @@ export default function TurniejClient() {
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-500">{druzyny.length}/{turniej.maxDruzyn} drużyn</span>
-              {przyjmujeZgloszenia(turniej, druzyny.length) && (
+              {przyjmujeZgloszenia(turniej, liczbaWTurnieju) && (
                 <Link href={`/turnieje/${id}/zglos`} className="text-sm font-medium text-primary-600">+ Zgłoś drużynę</Link>
               )}
             </div>

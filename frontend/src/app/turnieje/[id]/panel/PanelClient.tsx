@@ -36,6 +36,17 @@ import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
 
 type PanelTab = 'pulpit' | 'druzyny' | 'ludzie' | 'terminarz' | 'ustawienia';
 
+// Etykiety, nie surowe klucze z CSS-owym `capitalize`. Tamto wypisywało
+// `Druzyny` bez ogonka, bo klucz jest bez polskich znaków (i musi być, bo
+// idzie do adresu jako `?tab=`). Zgłoszone z testu na żywo.
+const ETYKIETY_PANELU: Record<PanelTab, string> = {
+  pulpit: 'Pulpit',
+  druzyny: 'Drużyny',
+  ludzie: 'Ludzie',
+  terminarz: 'Terminarz',
+  ustawienia: 'Ustawienia',
+};
+
 const LITERY_GRUP = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 const inputCls =
@@ -438,11 +449,11 @@ export default function PanelClient() {
               key={z}
               onClick={() => router.push(`/turnieje/${id}/panel?tab=${z}`)}
               className={[
-                'shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition-colors',
+                'shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
                 zakladka === z ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800',
               ].join(' ')}
             >
-              {z}
+              {ETYKIETY_PANELU[z]}
             </button>
           ))}
         </div>

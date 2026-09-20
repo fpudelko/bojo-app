@@ -64,6 +64,9 @@ fi
 
 psql_cicho() { psql "$DB_URL" -v ON_ERROR_STOP=1 -qtA "$@"; }
 
+# Numer z nazwy pliku: `154_turniej_zaproszenia.sql` → `154`.
+numer_z_nazwy() { printf '%s' "${1%%_*}" | sed 's/^0*//'; }
+
 # ── Dziennik ────────────────────────────────────────────────────────────────
 # `IF NOT EXISTS`, bo skrypt musi działać zarówno na bazie, która go już ma,
 # jak i na świeżej. Tabela NIE jest zwykłą migracją w `supabase/migrations/`:
@@ -90,20 +93,137 @@ LICZBA_ZASTOSOWANYCH="$(printf '%s' "$ZASTOSOWANE" | grep -c . || true)"
 # ── Czy baza jest pusta ─────────────────────────────────────────────────────
 NIEPUSTA="$(psql_cicho -c "SELECT to_regclass('public.events') IS NOT NULL")"
 
+DZIENNIK_PUSTY_NA_ZAJETEJ=0
 if [ "$LICZBA_ZASTOSOWANYCH" -eq 0 ] && [ "$NIEPUSTA" = "t" ] && [ "$TRYB" != "oznacz" ]; then
-  cat >&2 <<'BLAD'
+  DZIENNIK_PUSTY_NA_ZAJETEJ=1
+  # PODGLĄD PRZEPUSZCZAMY. Strażnik istnieje po to, żeby nie URUCHOMIĆ 001 na
+  # żywej bazie — a podgląd niczego nie uruchamia. Zatrzymanie go tutaj
+  # odbierało jedyną drogę, którą da się sprawdzić, JAKI numer podać
+  # w `--oznacz-do`, czyli blokowało dokładnie tę diagnozę, do której strażnik
+  # ma skłonić.
+  if [ "$TRYB" != "podglad" ]; then
+    cat >&2 <<'BLAD'
 ✗ Ta baza ma już schemat, ale dziennik migracji jest PUSTY.
 
   Znaczy to, że migracje szły na nią ręcznie i nikt tego nie zapisał. Gdybym
   ruszył teraz, zacząłbym od 001 — na żywej bazie.
 
   Zrób to RAZ, dla tej bazy:
-      1. sprawdź, która migracja poszła jako ostatnia,
+      1. uruchom podgląd (bez --wykonaj) — podpowie numer,
       2. DB_URL=… ./scripts/migruj.sh --oznacz-do <numer>
 
   Nic to nie uruchamia — tylko zapisuje, że pliki do tego numeru już były.
 BLAD
-  exit 1
+    exit 1
+  fi
+fi
+
+# ── Podpowiedź numeru do backfillu ──────────────────────────────────────────
+#
+# Baza ma schemat, dziennika nie ma. Pytanie brzmi: do którego pliku migracje
+# już poszły. `supabase/zapytania/stan-migracji.sql` odpowiada na to listą
+# pisaną ręcznie — i dlatego zgnił (zna pliki do `125`, a jest ich 156).
+#
+# Tutaj wyprowadzamy to Z SAMYCH MIGRACJI: z każdego pliku wyciągamy tabele,
+# które zakłada, i pytamy bazę, czy istnieją. Idziemy po kolei i zatrzymujemy
+# się na pierwszym pliku, którego tabel BRAKUJE — bo migracje szły po kolei,
+# więc szukamy końca ciągłego przedrostka, nie najwyższego trafienia.
+#
+# OGRANICZENIE, KTÓRE TRZEBA ZNAĆ: migracja, która nie zakłada żadnej tabeli
+# (sama polityka, funkcja, kolumna), jest dla tej sondy NIEWIDOCZNA i zostaje
+# pominięta w liczeniu. Wynik jest więc DOLNĄ GRANICĄ, a nie wyrokiem.
+if [ "$DZIENNIK_PUSTY_NA_ZAJETEJ" -eq 1 ]; then
+  echo "⚠ Baza ma schemat, a dziennik migracji jest pusty."
+  echo "  Sprawdzam, dokąd migracje już doszły."
+  echo ""
+
+  # `|| true` przy grepie NIE jest ostrożnościowe: większość migracji nie
+  # zakłada żadnej tabeli (sama polityka, funkcja, kolumna), grep zwraca wtedy
+  # 1, a `set -o pipefail` wywraca na tym całą funkcję i skrypt.
+  tabele_pliku() {
+    sed 's/--.*//' "$1" \
+      | { grep -oiE 'CREATE[[:space:]]+TABLE[[:space:]]+(IF[[:space:]]+NOT[[:space:]]+EXISTS[[:space:]]+)?(public\.)?[a-z_][a-z0-9_]*' || true; } \
+      | sed -E 's/.*[[:space:]]+(public\.)?([a-z_][a-z0-9_]*)$/\2/' \
+      | sort -u
+  }
+
+  # TABELE SKASOWANE PRZEZ PÓŹNIEJSZE MIGRACJE TRZEBA ODJĄĆ. Bez tego sonda
+  # na kompletnej bazie zatrzymywała się na `029_tournaments.sql`: zakłada ona
+  # tabelę `tournaments`, którą `151` świadomie kasuje razem ze starym „BOJO
+  # Cup". Ciąg urywał się na braku, który jest stanem docelowym, nie luką.
+  # Ta sama reguła co w `scripts/check-docs.mjs` przy liczeniu tabel:
+  # CREATE minus DROP.
+  #
+  # Tabela skasowana i założona ponownie wypada z liczenia w obie strony —
+  # sonda ma wtedy mniej sygnału, ale nie może pokazać fałszywego trafienia.
+  # Liczy się też ZMIANA NAZWY, nie tylko `DROP`: migracja `133` zakłada
+  # `maile_goscia`, a `134` robi z niej `maile_wyslane`. Stara nazwa nie
+  # istnieje na poprawnie zmigrowanej bazie i bez tego sonda urywała ciąg
+  # dokładnie tam, uznając stan docelowy za lukę.
+  SKASOWANE="$(for f in "$MIGRACJE"/*.sql; do
+    BEZ_KOMENTARZY="$(sed 's/--.*//' "$f")"
+    printf '%s\n' "$BEZ_KOMENTARZY" \
+      | { grep -oiE 'DROP[[:space:]]+TABLE[[:space:]]+(IF[[:space:]]+EXISTS[[:space:]]+)?(public\.)?[a-z_][a-z0-9_]*' || true; } \
+      | sed -E 's/.*[[:space:]]+(public\.)?([a-z_][a-z0-9_]*)$/\2/'
+    printf '%s\n' "$BEZ_KOMENTARZY" \
+      | { grep -oiE 'ALTER[[:space:]]+TABLE[[:space:]]+(IF[[:space:]]+EXISTS[[:space:]]+)?(public\.)?[a-z_][a-z0-9_]*[[:space:]]+RENAME[[:space:]]+TO' || true; } \
+      | sed -E 's/^ALTER[[:space:]]+TABLE[[:space:]]+(IF[[:space:]]+EXISTS[[:space:]]+)?(public\.)?([a-z_][a-z0-9_]*)[[:space:]]+RENAME.*$/\3/I'
+  done | sort -u)"
+
+  bez_skasowanych() {
+    while IFS= read -r tab; do
+      [ -n "$tab" ] || continue
+      printf '%s\n' "$SKASOWANE" | grep -qxF "$tab" || printf '%s\n' "$tab"
+    done
+  }
+
+  # Wszystkie tabele ze wszystkich migracji, odpytane JEDNYM zapytaniem.
+  WSZYSTKIE_TABELE="$(for f in "$MIGRACJE"/*.sql; do tabele_pliku "$f"; done | sort -u | bez_skasowanych)"
+  LISTA_SQL="$(printf '%s\n' "$WSZYSTKIE_TABELE" | { grep . || true; } | sed "s/.*/'&'/" | paste -sd, -)"
+  ISTNIEJACE=""
+  if [ -n "$LISTA_SQL" ]; then
+    ISTNIEJACE="$(psql_cicho -c "SELECT t FROM unnest(ARRAY[$LISTA_SQL]) t WHERE to_regclass('public.' || t) IS NOT NULL")"
+  fi
+
+  OSTATNI_ZNANY=0
+  OSTATNI_PLIK=""
+  PIERWSZY_BRAK=""
+  for f in "$MIGRACJE"/*.sql; do
+    nazwa="$(basename "$f")"
+    numer="$(numer_z_nazwy "$nazwa")"
+    tabele="$(tabele_pliku "$f" | bez_skasowanych)"
+    # Plik bez tabel nie niesie informacji — przechodzimy dalej, nie zrywając
+    # ciągu (inaczej pierwsza migracja „tylko polityki" ucinałaby wynik).
+    [ -n "$tabele" ] || continue
+    brakuje=""
+    while IFS= read -r tab; do
+      [ -n "$tab" ] || continue
+      printf '%s\n' "$ISTNIEJACE" | grep -qxF "$tab" || brakuje="$tab"
+    done <<< "$tabele"
+    if [ -n "$brakuje" ]; then
+      PIERWSZY_BRAK="$nazwa (brak tabeli $brakuje)"
+      break
+    fi
+    OSTATNI_ZNANY="$numer"
+    OSTATNI_PLIK="$nazwa"
+  done
+
+  if [ "$OSTATNI_ZNANY" -eq 0 ]; then
+    echo "  Nie rozpoznałem ANI JEDNEJ migracji po tabelach."
+    echo "  To nie wygląda na bazę Bojo — sprawdź, czy sekret wskazuje właściwy projekt."
+  else
+    echo "  Ostatnia rozpoznana: $OSTATNI_PLIK"
+    [ -n "$PIERWSZY_BRAK" ] && echo "  Pierwsza brakująca:  $PIERWSZY_BRAK"
+    echo ""
+    echo "  → Uruchom raz:  Actions → Migracje → oznacz_do = $OSTATNI_ZNANY"
+    echo ""
+    echo "  To DOLNA GRANICA: migracja bez własnej tabeli (sama polityka,"
+    echo "  funkcja albo kolumna) jest dla tej sondy niewidoczna. Jeśli wiesz,"
+    echo "  że poszło więcej, podaj wyższy numer."
+  fi
+  echo ""
+  echo "Podgląd nie zmienił niczego w bazie."
+  exit 0
 fi
 
 # ── Lista do zrobienia ──────────────────────────────────────────────────────
@@ -115,7 +235,6 @@ for plik in "$MIGRACJE"/*.sql; do
   fi
 done
 
-numer_z_nazwy() { printf '%s' "${1%%_*}" | sed 's/^0*//'; }
 
 # ── Tryb: oznacz (backfill) ─────────────────────────────────────────────────
 if [ "$TRYB" = "oznacz" ]; then

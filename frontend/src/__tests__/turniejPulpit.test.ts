@@ -18,14 +18,30 @@ const mecz = (n: Partial<TurniejMecz> = {}): TurniejMecz => ({
 describe('pulpitPrzedTurniejem', () => {
   const turniej = { maxDruzyn: 8, wpisoweGrosze: 10000 };
 
-  it('liczy przyjęte drużyny, nie wszystkie zgłoszenia', () => {
+  it('liczy drużyny ZAJMUJĄCE MIEJSCE: przyjęte i czekające, bez odrzuconych', () => {
+    // Reguła jest wspólna z kafelkiem listy i ze stroną turnieju
+    // (`liczDruzynyWTurnieju`). Drużyna czekająca na decyzję ma prawo do slotu,
+    // dopóki organizator nie odpowie; odrzucona nie zajmuje nic.
+    //
+    // Wcześniej pulpit liczył wyłącznie przyjęte i pokazywał „0 z 8" w chwili,
+    // gdy kafelek obok mówił „1/8" — zgłoszone z testu na żywo.
     const p = pulpitPrzedTurniejem(
       turniej,
       [druzyna('przyjeta'), druzyna('przyjeta'), druzyna('zgloszona'), druzyna('odrzucona')],
       [],
       false,
     );
-    expect(p.find((x) => x.klucz === 'druzyny')?.tekst).toBe('2 z 8 drużyn');
+    expect(p.find((x) => x.klucz === 'druzyny')?.tekst).toBe('3 z 8 drużyn');
+  });
+
+  it('wycofana i odrzucona zwalniają miejsce', () => {
+    const p = pulpitPrzedTurniejem(
+      turniej,
+      [druzyna('przyjeta'), druzyna('odrzucona'), druzyna('wycofana')],
+      [],
+      false,
+    );
+    expect(p.find((x) => x.klucz === 'druzyny')?.tekst).toBe('1 z 8 drużyn');
   });
 
   it('czekające zgłoszenia pokazują się osobno — to decyzja do podjęcia', () => {

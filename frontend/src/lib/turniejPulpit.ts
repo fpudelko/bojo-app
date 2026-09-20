@@ -12,6 +12,7 @@
  * bez czekania na sobotę.
  */
 
+import { liczDruzynyWTurnieju } from './turniejEtykiety';
 import type { Turniej, TurniejArena, TurniejDruzyna, TurniejMecz } from '@/types';
 
 export type StanPozycji = 'gotowe' | 'uwaga' | 'brak';
@@ -43,10 +44,14 @@ export function pulpitPrzedTurniejem(
 
   const pozycje: PozycjaPulpitu[] = [];
 
+  // Ta sama liczba co na kafelku listy i na stronie turnieju. Wcześniej pulpit
+  // liczył wyłącznie przyjęte i pokazywał zero, gdy jedna drużyna czekała na
+  // decyzję, a kafelek obok mówił w tej samej chwili co innego.
+  const wTurnieju = liczDruzynyWTurnieju(druzyny);
   pozycje.push({
     klucz: 'druzyny',
-    stan: przyjete.length >= t.maxDruzyn ? 'gotowe' : przyjete.length >= 2 ? 'uwaga' : 'brak',
-    tekst: `${przyjete.length} z ${t.maxDruzyn} drużyn`,
+    stan: wTurnieju >= t.maxDruzyn ? 'gotowe' : wTurnieju >= 2 ? 'uwaga' : 'brak',
+    tekst: `${wTurnieju} z ${t.maxDruzyn} drużyn`,
     zakladka: 'druzyny',
   });
 
