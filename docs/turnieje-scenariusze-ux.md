@@ -307,23 +307,25 @@ mecze).
 
 ---
 
-## 10. Rozstrzygnięcia do podjęcia przez właściciela produktu
+## 10. Rozstrzygnięcia właściciela produktu (podjęte 2026-09-20)
 
-Zapisane, żeby nie wracały co miesiąc jako „a może by jednak".
+Zapisane, żeby nie wracały co miesiąc jako „a może by jednak". Co z nich wynika dla
+ekranów → [turnieje-ux-ekrany.md](./turnieje-ux-ekrany.md).
 
-1. **Czy „Szukam drużyny" (`S-29`) wchodzi do zakresu?** Jedyny scenariusz pozyskujący
-   użytkownika bez organizatora, ale nowa encja i nowa powierzchnia.
-2. **Czy statystyki turniejowe wchodzą na profil gracza (`S-22`)?** Bez tego konto
-   założone dla turnieju żyje jeden dzień.
-3. **Czy pierwszy turniej organizujemy sami?** Wszystkie ustalenia tego dokumentu są
-   czytaniem kodu. Jeden własny turniej na 8 drużyn zweryfikuje je taniej i pewniej niż
-   kolejna runda audytu — i da pierwszy prawdziwy komplet danych na produkcji zamiast
-   seedów (`seed_turnieje.sql`, marker `[TUR]`).
-4. **Czy wejście do turniejów wraca do nawigacji po odmrożeniu?** Dziś wejścia są
-   w `/profil` i `/moje-gry`, dolna nawigacja została nietknięta (plan §15). Przy
-   turnieju, który ma być kanałem pozyskania, warto to rozstrzygnąć osobno.
-
----
+1. **„Szukam drużyny" (`S-29`) — ODŁOŻONE.** Jedyny scenariusz pozyskujący użytkownika
+   bez organizatora, ale nowa encja i nowa powierzchnia. Wraca po pierwszym prawdziwym
+   turnieju.
+2. **Statystyki turniejowe (`S-22`) — WCHODZĄ na profil gracza.** Osobną sekcją i osobną
+   funkcją, bez ruszania `get_player_stats()`, żeby liczby, które ktoś już widział, nie
+   zmieniły po cichu znaczenia.
+3. **Kapitan zaprasza DWIEMA drogami** — linkiem (dla kolegów spoza Bojo) i imiennie,
+   z własnych ekip, wzorem `event_player_invites` (migracja `060`). Domyka to pętlę
+   „turniej → ekipa → następny turniej".
+4. **Pierwszy turniej prowadzi obcy organizator, nie my.** Zmienia to wymagania wobec
+   modułu mocniej, niż wygląda: nikogo nie będzie obok, gdy o 11:40 coś nie zadziała.
+   Konsekwencje spisane w [turnieje-ux-ekrany.md §13](./turnieje-ux-ekrany.md).
+5. **Tryb „drużyny umawiają się same" — ODŁOŻONY** (projekt zachowany w §12 tamtego
+   dokumentu).
 
 ## 11. Czego ten dokument nie sprawdził
 

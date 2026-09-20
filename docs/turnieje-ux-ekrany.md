@@ -13,6 +13,22 @@
 
 ---
 
+## Decyzje właściciela produktu (2026-09-20)
+
+Zapisane, żeby nie wracały co miesiąc jako „a może by jednak".
+
+1. **Tryb „drużyny umawiają się same" — ODŁOŻONY.** Projekt zostaje w §12, żeby nie
+   przepadł; nie budujemy go teraz. Dwie pozostałe wartości `tryb_terminarza`
+   (`jeden_dzien`, `kolejki`) zostają w zakresie.
+2. **„Szukam drużyny" (gracz bez drużyny) — ODŁOŻONE.**
+3. **Kapitan zaprasza DWIEMA drogami: linkiem i imiennie** — tak samo jak organizator
+   zaprasza na mecz (`event_player_invites`, migracja `060`). Projekt → §5.2.
+4. **Wyniki turniejowe TRAFIAJĄ na profil gracza.** Projekt → §6.5.
+5. **Pierwszy turniej prowadzi obcy organizator, nie my** — ktoś, kto turnieje robi
+   i tak, a naszej aplikacji użyje do obsługi. Co to zmienia → §13.
+
+---
+
 ## 0. Co ten dokument rozstrzyga
 
 Trzy rzeczy, których nie było w planie:
@@ -75,6 +91,12 @@ Kiedy gracie?
      Ty dajesz pary i termin graniczny kolejki.
      Kiedy i gdzie — dogadują kapitanowie.
 ```
+
+> **Zakres po decyzji z 2026-09-20:** budujemy `jeden_dzien` i `kolejki`. Trzeci tryb
+> (`umawiane`) jest odłożony — kolumna dostaje na razie dwie wartości, trzecia dokłada
+> się później bez zmiany istniejących wierszy. Projekt trzeciego trybu zostaje w §12,
+> bo ma wartość w chwili, gdy decyzja się odwróci, a odtwarzanie go od zera kosztuje
+> drugi raz tyle samo.
 
 **Trzeci tryb to mechanika skasowanego „BOJO Cup"** (migracje `029`/`030`, usunięte
 migracją `151`): drużyny umawiają mecze same, wynik zgłasza kapitan, rywal potwierdza.
@@ -539,7 +561,7 @@ zawodnika, zmień nazwę, przekaż kapitaństwo, wycofaj drużynę) **są napisa
 i przetestowane** w `lib/turniejDruzyny.ts` i nie mają ani jednego przycisku poza panelem
 organizatora (`S-14`).
 
-### Nowa trasa: `/turnieje/[id]/druzyna/[druzynaId]`
+### 5.1. Nowa trasa: `/turnieje/[id]/druzyna/[druzynaId]`
 
 Publiczna dla wszystkich (skład za ścianą logowania), z dodatkowymi przyciskami dla
 kapitana.
@@ -591,51 +613,85 @@ w czynność: widać, ilu brakuje, i jest jeden przycisk, żeby to zmienić. Tur
 Wejścia do tego ekranu: pasek „Twoja drużyna" na stronie turnieju, karta drużyny
 w zakładce Drużyny, powiadomienie o przyjęciu zgłoszenia, `/moje-gry`.
 
-### Kapitan w trybie „drużyny umawiają się same"
+### 5.2. Kapitan zaprasza imiennie — drugą drogą obok linku
 
-Dochodzi jedna rzecz, której w pozostałych trybach nie ma — **umówienie meczu**:
+Link działa na WhatsAppie i dla kolegów spoza Bojo; **imienne zaproszenie działa dla
+tych, którzy konto już mają** — i to ono zamienia turniej w rzecz, która sama pojawia
+się w aplikacji, zamiast ginąć w linku wklejonym na czacie.
+
+Wzorzec jest gotowy i nie wymyślamy go od nowa: `event_player_invites` (migracja `060`,
+`lib/playerInvites.ts`). Powtarzamy jego trzy zasady co do joty:
+
+- **zaproszenie nie zajmuje miejsca w składzie i niczego nie przesądza** — jest
+  wyłącznie sposobem, żeby rzecz pojawiła się u zapraszanego,
+- **duplikaty pomija baza** (`UNIQUE (druzyna_id, user_id)`), więc powtórne „zaproś
+  ekipę" nie wskrzesza zaproszenia, które ktoś świadomie odrzucił,
+- **odrzucone zostaje w tabeli** (`dismissed_at`), żeby nie wróciło.
+
+**Skąd kapitan bierze ludzi: ze swoich ekip** — dokładnie tak, jak
+`InviteFromGroupDialog.tsx` bierze ich przy meczu (`getMyGroups` → `getGroupMembers`,
+domyślnie zaznaczeni wszyscy, bo „zaproś całą ekipę" to najczęstszy przypadek).
 
 ```
 ┌──────────────────────────────────┐
-│  ⚠ MECZ DO ROZEGRANIA            │
+│  SKŁAD: 5 z 8                    │
+│  ▓▓▓▓▓▓▓▓▓▓░░░░░░                │
 │                                  │
-│  Dziki  vs  Wilki                │
-│  Kolejka 3 · do 31 marca         │
-│  Zostały 4 dni                   │
-│                                  │
-│  Wilki proponują:                │
-│  ┌──────────────────────────────┐│
-│  │ czwartek 27.03, 20:00        ││
-│  │ 📍 Hala Sportowa Grunwald    ││
-│  │  [ Pasuje ]   [ Nie pasuje ] ││
-│  └──────────────────────────────┘│
-│                                  │
-│  albo zaproponuj inny termin →   │
+│ ┌──────────────┐┌──────────────┐ │
+│ │ 📤 Wyślij    ││ 👥 Zaproś    │ │
+│ │    link      ││    z ekipy   │ │
+│ └──────────────┘└──────────────┘ │
 └──────────────────────────────────┘
-```
-
-Po meczu — zgłoszenie wyniku z potwierdzeniem rywala:
-
-```
+        ↓ „Zaproś z ekipy"
 ┌──────────────────────────────────┐
-│  WPISZ WYNIK                     │
-│  Dziki  [ 3 ] – [ 2 ]  Wilki     │
+│  Zaproś do drużyny Dziki     ✕   │
 │                                  │
-│  Strzelcy Dziki (opcjonalnie)    │
-│  + dodaj                         │
+│  Ekipa: [ Czwartkowa gierka  ▾ ] │
+│                                  │
+│  ☑ Marek Nowak                   │
+│  ☑ Paweł Kot                     │
+│  ☑ Jan Mak                       │
+│  ☐ Adam Wilk    już w składzie   │
+│  ☐ Ola Sowa     zaproszona       │
 │                                  │
 │ ┌──────────────────────────────┐ │
-│ │       Zgłoś wynik            │ │
+│ │      Zaproś 3 osoby          │ │
 │ └──────────────────────────────┘ │
-│  Wilki muszą potwierdzić.        │
-│  Bez potwierdzenia w 3 dni       │
-│  wynik zatwierdza organizator.   │
 └──────────────────────────────────┘
 ```
 
----
+Zaproszony widzi turniej **tam, gdzie dziś widzi zaproszenia na mecz** — na stronie
+głównej (`DashboardSections.tsx`), nie w osobnym miejscu do nauczenia się:
 
-## 6. Gracz — trzy ekrany i jedno powiadomienie
+```
+┌──────────────────────────────────┐
+│  ZAPROSZENIA                     │
+│ ┌──────────────────────────────┐ │
+│ │ 🏆 Marek zaprasza Cię do      │ │
+│ │    drużyny Dziki             │ │
+│ │    Puchar Dzielnicy          │ │
+│ │    ⚽ sob. 18.10, Orlik       │ │
+│ │    [ Dołączam ]  [ Nie mogę ]│ │
+│ └──────────────────────────────┘ │
+└──────────────────────────────────┘
+```
+
+### 5.3. Pętla, która się domyka
+
+To jest powód, dla którego „Zamień drużynę w ekipę" przestaje być miłym dodatkiem
+i staje się mechanizmem:
+
+```
+   turniej  ──►  drużyna  ──►  „Zamień w ekipę"  ──►  EKIPA
+                                                        │
+   następny turniej  ◄── „Zaproś z ekipy" (1 dotknięcie)┘
+```
+
+Pierwszy turniej kapitan zbiera po jednym, linkiem, przez WhatsAppa. Drugi — jednym
+dotknięciem z ekipy, która została po pierwszym. **Trzeci turniej jest dla niego
+tańszy niż Excel**, a to jest jedyny trwały powód, dla którego ktoś zostaje w Bojo.
+
+## 6. Gracz — cztery ekrany, jedno powiadomienie i ślad, który zostaje
 
 Gracz to 90 osób z tych ~105 w turnieju. Ma dziś **zero własnych ekranów**.
 
@@ -720,26 +776,87 @@ dzień przed kolejką albo „zostały 4 dni na rozegranie meczu".
 
 ---
 
-## 7. Zapisywanie wyników — trzy drogi, jedna tabela
+### 6.5. Po turnieju: ślad na profilu gracza
 
-To jest miejsce, w którym trzy tryby najmocniej się rozjeżdżają. **Dane docelowe są te
-same** (`turniej_mecze.wynik_a/b` + `turniej_zdarzenia`) — różni się droga:
+**Decyzja 2026-09-20: wyniki turniejowe trafiają na `/gracz/[id]`.** To jedyny powód,
+dla którego zawodnik wraca do Bojo w tygodniu po turnieju — bez tego konto założone pod
+jeden turniej jest kontem założonym na jeden dzień.
+
+**Nie dopisujemy tego do istniejących liczników.** `get_player_stats()` (migracja `074`)
+liczy `matches_played`, `goals_total`, `no_shows` z meczów — i te liczby mają dziś
+konsekwencje: `matchesPlayed` i `noShows` sterują odznaką rzetelnego gracza i paskiem
+frekwencji (`/gracz/[id]/page.tsx`). Wrzucenie tam turniejów po cichu zmieniłoby
+znaczenie liczb, które ktoś już widział. Do tego mecz turniejowy jest **inną rzeczą** niż
+gierka: nie ma w nim rezerwy, zapisów ani nieobecności.
+
+Dlatego: **osobna sekcja, osobna funkcja** — `get_player_turniej_stats(p_user_id)`,
+licząca z `turniej_zawodnicy` (po `user_id`), `turniej_zdarzenia` i `turniej_mecze`.
+Twarda granica z planu zostaje nienaruszona: zero zmian w `events`, `event_participants`
+i `get_player_stats`.
 
 ```
-JEDEN DZIEŃ            KOLEJKI               UMAWIANE
-prowadzący             organizator           kapitan zgłasza
-na boisku, na żywo     po kolejce            rywal potwierdza
-      │                      │                     │
-      │ konsola              │ lista kolejki       │ formularz
-      │ gol po golu          │ 5 wyników naraz     │ + potwierdzenie
-      ▼                      ▼                     ▼
- turniej_zdarzenia      wynik_recznie=true    wynik_recznie=true
-      │                      │                po potwierdzeniu
-      └──────────┬───────────┴─────────────────────┘
+┌──────────────────────────────────┐
+│  🏆 Statystyki                   │
+│ ┌──────────────┐┌──────────────┐ │
+│ │ Mecze        ││ Zorganizowane│ │
+│ │ rozegrane 47 ││            6 │ │
+│ └──────────────┘└──────────────┘ │
+│  Frekwencja  ▓▓▓▓▓▓▓▓▓░  94%     │
+├──────────────────────────────────┤
+│  🏅 Turnieje                     │
+│ ┌──────┐┌──────┐┌──────┐┌──────┐ │
+│ │  3   ││  11  ││  7   ││  2   │ │
+│ │turni.││mecze ││ gole ││ MVP  │ │
+│ └──────┘└──────┘└──────┘└──────┘ │
+│                                  │
+│  🥇 Puchar Dzielnicy   wrz 2026  │
+│     Dziki · 1. miejsce           │
+│     5 meczów · 4 gole · 1 MVP    │
+│                                  │
+│  🥉 Liga Jeżycka       cze 2026  │
+│     Dziki · 3. miejsce           │
+│     6 meczów · 3 gole            │
+└──────────────────────────────────┘
+```
+
+Trzy rzeczy, które ta sekcja musi trzymać:
+
+- **Miejsce w turnieju jest ważniejsze niż liczby.** „1. miejsce" pamięta się rok;
+  „4 gole" nie. Wyliczane z `posortujTabele()` i drabinki, tak samo jak na stronie
+  turnieju — **nie zapisywane jako osobna kolumna**, bo dwie prawdy o tym, kto wygrał,
+  rozjadą się przy pierwszej korekcie wyniku.
+- **Sekcja stoi za ścianą logowania**, jak reszta modułu (plan §5). Kto nie ma konta,
+  widzi kartę z zaproszeniem — a to jest dobre miejsce na konwersję, bo ogląda
+  konkretnego człowieka, nie abstrakcyjną listę.
+- **Zero sekcji, gdy zero turniejów.** Pusta „🏅 Turnieje: 0" na profilu 90% graczy to
+  szum. Sekcja pojawia się przy pierwszym turnieju.
+
+Wejście w drugą stronę już działa: skład drużyny prowadzi do `/gracz/[id]`
+(`KartaDruzyny.tsx`), więc po dołożeniu tej sekcji **ścieżka się zamyka** — z turnieju
+w profil i z profilu w turniej.
+
+---
+
+## 7. Zapisywanie wyników — dwie drogi, jedna tabela
+
+To jest miejsce, w którym tryby najmocniej się rozjeżdżają. **Dane docelowe są te same**
+(`turniej_mecze.wynik_a/b` + `turniej_zdarzenia`) — różni się droga:
+
+```
+JEDEN DZIEŃ            KOLEJKI              (UMAWIANE — §12,
+prowadzący             organizator           odłożone)
+na boisku, na żywo     po kolejce
+      │                      │
+      │ konsola              │ lista kolejki
+      │ gol po golu          │ 5 wyników naraz
+      ▼                      ▼
+ turniej_zdarzenia      wynik_recznie=true
+      │                      │
+      └──────────┬───────────┘
                  ▼
         turniej_mecze.wynik_a/b
                  ▼
-        obliczTabele()  ·  Drabinka  ·  Klasyfikacja
+        obliczTabele() · Drabinka · Klasyfikacja · profil gracza (§6.5)
 ```
 
 Wpis zbiorczy dla trybu „kolejki" — ekran, którego dziś nie ma:
@@ -773,6 +890,9 @@ Zasada z planu (§6) zostaje nietknięta: **zdarzenia rządzą, dopóki nie wejd
 | **Tabela** | po fazie grupowej | od pierwszej kolejki, z formą | z kolumną „rozegranych" (drużyny mają różną liczbę meczów!) |
 | **Drabinka** | pionowa lista rund, drzewko od `md:` | jak obok | jak obok |
 
+> Kolumna „umawiają się same” opisuje tryb odłożony (§12) — zostaje w tabeli, żeby przy
+> jego budowie nie zaczynać od zera.
+
 **Tabela w trybie „umawiane" musi pokazywać liczbę rozegranych meczów** i sortować
 z tym w głowie — bo drużyna z 6 meczami i 12 punktami nie stoi wyżej niż drużyna
 z 3 meczami i 9 punktami w żadnym sensownym odczytaniu. To jedyne miejsce, w którym
@@ -782,62 +902,169 @@ z 3 meczami i 9 punktami w żadnym sensownym odczytaniu. To jedyne miejsce, w kt
 
 ## 9. Co to znaczy dla schematu — minimalna lista
 
-Wszystko poniżej dotyczy **wyłącznie tabel turniejowych**, więc twarda granica z planu
-(§3: „moduł nie modyfikuje ani jednej istniejącej tabeli poza `notifications.turniej_id`")
-zostaje nienaruszona.
+Wszystko poniżej dotyczy **wyłącznie tabel turniejowych i nowych funkcji**, więc twarda
+granica z planu (§3: „moduł nie modyfikuje ani jednej istniejącej tabeli poza
+`notifications.turniej_id`") zostaje nienaruszona. `get_player_stats()` też nie jest
+ruszane (§6.5).
 
-| Zmiana | Po co | Tryb |
+### W zakresie
+
+| Zmiana | Po co | Etap |
 |---|---|---|
-| `turnieje.tryb_terminarza` | trzy rodzaje turnieju (§1) | wszystkie |
-| `turniej_mecze.field_id`, `miejsce_nazwa` | każdy mecz gdzie indziej | umawiane |
-| `turniej_mecze.termin_do` | „rozegrajcie do 31 marca" | umawiane |
-| `turniej_terminy` (nowa tabela) | propozycja terminu i odpowiedź rywala | umawiane |
-| `turniej_mecze.wynik_zglosil_druzyna_id`, `wynik_potwierdzony_at` | wynik zgłasza kapitan, rywal potwierdza | umawiane |
-| typ `turniej_nastepny_mecz` | `S-19` | jeden dzień |
-| typ `turniej_termin_propozycja`, `turniej_wynik_do_potwierdzenia` | umawianie i potwierdzanie | umawiane |
+| `turniej_zaproszenia` (nowa tabela) | kapitan zaprasza imiennie, wzorem `event_player_invites` (§5.2) | A |
+| typ `turniej_zaproszenie_do_druzyny` | zaproszony musi je gdzieś zobaczyć | A |
+| typ `turniej_nastepny_mecz` | „wasz mecz jest następny" (`S-19`) | B |
+| `get_player_turniej_stats()` (nowa funkcja) | sekcja Turnieje na profilu (§6.5) | C |
+| `turnieje.tryb_terminarza` (`jeden_dzien`/`kolejki`) | dwa rodzaje turnieju (§1) | D |
 
-**Nic z tego nie jest potrzebne do naprawienia dzisiejszych dziur.** Tryb „jeden dzień"
-jest zbudowany w całości; §§3–6 tego dokumentu (poza kapitańskim umawianiem meczu)
-dotyczą wyłącznie interfejsu nad istniejącą logiką.
+### Nie wymaga niczego w bazie
 
-Kolumna `turnieje.zapisy_do` **już istnieje** (migracja `145`) i jest ignorowana przez
-`przyjmujeZgloszenia()` — termin graniczny zapisów to dziś zmiana w jednej czystej
-funkcji, nie migracja.
+- Ekran drużyny, licznik składu, stały link (`S-13`, `S-14`, `S-15`) — `lib/turniejDruzyny.ts`
+  ma wszystkie operacje napisane i przetestowane.
+- Głowa zależna od stanu, domyślna zakładka, „nasze mecze", podium, plakat, pulpit.
+- Konsola: arkusz składu, zegar, walkower, **wartość punktu w koszykówce** — kolumna
+  `turniej_zdarzenia.wartosc` istnieje i jest poprawnie obsługiwana przez wyzwalacz;
+  brakuje jednego argumentu w wywołaniu.
+- **Termin graniczny zapisów**: `turnieje.zapisy_do` istnieje od migracji `145` i jest
+  ignorowany przez `przyjmujeZgloszenia()`, która patrzy wyłącznie na status i limit.
+  To zmiana w jednej czystej funkcji.
+
+### Odłożone razem z trybem „umawiane" (§12)
+
+`turniej_mecze.field_id`/`miejsce_nazwa`/`termin_do`, tabela `turniej_terminy`,
+`wynik_zglosil_druzyna_id`/`wynik_potwierdzony_at`, typy `turniej_termin_propozycja`
+i `turniej_wynik_do_potwierdzenia`.
 
 ---
 
 ## 10. Kolejność budowy
 
-**Etap A — kapitan i pierwsze wrażenie** (bez migracji, odblokowuje odmrożenie flagi)
-`/turnieje/[id]/druzyna/[id]` z linkiem i licznikiem składu · domyślna zakładka zależna
-od stanu · głowa „plakat" w zapisach · `zapisy_do` w kreatorze i w `przyjmujeZgloszenia()`
-· sprzedający `/t/[kod]` · przełącznik „Nasze mecze".
+Cztery etapy. **Etapy A–C to niemal wyłącznie interfejs nad logiką, która już istnieje
+i ma testy** — dwie migracje w całości (zaproszenia, powiadomienie) plus jedna funkcja.
 
-**Etap B — dzień turnieju** (jedna migracja: powiadomienie)
-Konsola: arkusz składu zamiast `<select>`, zegar, walkower, wartość punktu w koszykówce,
-„następny mecz na tej arenie" · odświeżanie co 20 s · głowa „na żywo" · pulpit
-organizatora w trybie dnia · `turniej_nastepny_mecz`.
+**Etap A — kapitan i pierwsze wrażenie** *(odblokowuje odmrożenie flagi)*
+`/turnieje/[id]/druzyna/[id]` ze stałym linkiem i licznikiem „5 z 8" (§5.1) ·
+zaproszenia imienne z ekipy + karta na stronie głównej (§5.2, migracja) · domyślna
+zakładka zależna od stanu · głowa „plakat" w zapisach · termin graniczny zapisów ·
+sprzedający `/t/[kod]` · przełącznik „Nasze mecze".
 
-**Etap C — początek i koniec łuku** (bez migracji)
+**Etap B — dzień turnieju** *(migracja: `turniej_nastepny_mecz`)*
+Konsola: arkusz składu zamiast `<select>`, zegar, walkower, **wartość punktu
+w koszykówce**, „następny mecz na tej arenie" · odświeżanie co 20 s · głowa „na żywo" ·
+pulpit organizatora w trybie dnia.
+
+**Etap C — początek i koniec łuku** *(funkcja `get_player_turniej_stats`)*
 Kreator w dwóch aktach z wyliczeniem czasu · ekran-plakat po publikacji · podium
-z udostępnianiem · „Zamień drużynę w ekipę" na podium · „Zrób podobny turniej".
+z udostępnianiem · „Zamień drużynę w ekipę" na podium · „Zrób podobny turniej" ·
+**sekcja Turnieje na profilu gracza** (§6.5).
 
-**Etap D — tryby `kolejki` i `umawiane`** (migracje wg §9)
-Dopiero po pierwszym prawdziwym turnieju jednodniowym. Tryb „umawiane" to najwięcej
-nowej powierzchni w całym dokumencie i nie ma powodu budować go przed potwierdzeniem,
-że tryb prosty działa na żywych ludziach.
+**Etap D — tryb `kolejki`** *(migracja: `tryb_terminarza`)*
+Zbiorczy wpis wyników kolejki, terminarz rozłożony na tygodnie, przypomnienie dzień
+przed kolejką. Dopiero po pierwszym prawdziwym turnieju jednodniowym.
+
+**Kolejność jest podyktowana tym, kto z czego korzysta.** Etap A dotyczy dwunastu
+kapitanów i dziewięćdziesięciu zawodników, etap B — trzech prowadzących w ciągu sześciu
+godzin, etap C — jednego organizatora i tych samych dziewięćdziesięciu tydzień później.
+A jest przed B, bo bez składów w drużynach nie ma czego prowadzić.
 
 ---
 
-## 11. Otwarte decyzje
+## 11. Co zostaje otwarte
 
-1. **Czy tryb „umawiane" wchodzi do zakresu?** Przywraca mechanikę skasowanego BOJO Cup
-   jako tryb, nie jako moduł (§1) — ale to najwięcej nowej powierzchni tutaj.
-2. **Czy „Zgłoś się pojedynczo" (gracz bez drużyny) wchodzi?** Jedyne wejście, które
-   pozyskuje użytkownika bez organizatora; nowa encja.
-3. **Czy kapitan może zapraszać imiennie**, czy tylko linkiem? Link jest prostszy
-   i działa na WhatsAppie; zaproszenie imienne dokłada powiadomienie i listę oczekujących.
-4. **Czy wyniki turniejowe idą na profil gracza?** Bez tego konto założone pod turniej
-   żyje jeden dzień.
-5. **Czy pierwszy turniej organizujemy sami** — jeden na 8 drużyn zweryfikuje ten
-   dokument taniej niż kolejna runda projektowania.
+1. **Czy kapitan może zapraszać ludzi spoza swoich ekip?** Dziś projekt bierze
+   kandydatów wyłącznie z ekip (§5.2), jak przy meczu. Wyszukiwanie po nazwisku w całym
+   Bojo to osobna decyzja z własnymi konsekwencjami dla prywatności.
+2. **Czy organizator widzi, kogo kapitanowie zaprosili?** Przy meczu widzi
+   (`EventInvitesStatus.tsx`). W turnieju to cudza drużyna — skłaniam się do „nie, widzi
+   tylko licznik składu".
+3. **Ile miejsca dostaje sekcja Turnieje na profilu**, gdy ktoś zagrał w piętnastu?
+   Projekt zakłada trzy ostatnie i „pokaż wszystkie".
+
+---
+
+## 12. Odłożone świadomie: tryb „drużyny umawiają się same"
+
+**Decyzja 2026-09-20: nie budujemy tego teraz.** Projekt zostaje w całości, bo ma wartość
+w chwili, gdy decyzja się odwróci — a odtworzenie go od zera kosztuje drugi raz tyle samo.
+Lista zmian w schemacie, które za tym idą, jest w §9.
+
+Przypomnienie z §1: to jest mechanika skasowanego „BOJO Cup" (migracje `029`/`030`,
+usunięte migracją `151`). Tamten moduł zginął, bo był **osobnym produktem dla jednej
+edycji zakładanej przez admina** — nie dlatego, że mechanika była zła.
+
+### 12.1. Kapitan umawia mecz i zgłasza wynik
+
+Dochodzi jedna rzecz, której w pozostałych trybach nie ma — **umówienie meczu**:
+
+```
+┌──────────────────────────────────┐
+│  ⚠ MECZ DO ROZEGRANIA            │
+│                                  │
+│  Dziki  vs  Wilki                │
+│  Kolejka 3 · do 31 marca         │
+│  Zostały 4 dni                   │
+│                                  │
+│  Wilki proponują:                │
+│  ┌──────────────────────────────┐│
+│  │ czwartek 27.03, 20:00        ││
+│  │ 📍 Hala Sportowa Grunwald    ││
+│  │  [ Pasuje ]   [ Nie pasuje ] ││
+│  └──────────────────────────────┘│
+│                                  │
+│  albo zaproponuj inny termin →   │
+└──────────────────────────────────┘
+```
+
+Po meczu — zgłoszenie wyniku z potwierdzeniem rywala:
+
+```
+┌──────────────────────────────────┐
+│  WPISZ WYNIK                     │
+│  Dziki  [ 3 ] – [ 2 ]  Wilki     │
+│                                  │
+│  Strzelcy Dziki (opcjonalnie)    │
+│  + dodaj                         │
+│                                  │
+│ ┌──────────────────────────────┐ │
+│ │       Zgłoś wynik            │ │
+│ └──────────────────────────────┘ │
+│  Wilki muszą potwierdzić.        │
+│  Bez potwierdzenia w 3 dni       │
+│  wynik zatwierdza organizator.   │
+└──────────────────────────────────┘
+```
+
+---
+
+## 13. Co zmienia to, że pierwszy turniej prowadzi ktoś obcy
+
+**Decyzja 2026-09-20: pierwszym prawdziwym turniejem w Bojo nie będzie nasz turniej.**
+Będzie nim turniej kogoś, kto organizuje je i tak, a naszej aplikacji użyje do obsługi.
+
+To brzmi jak szczegół operacyjny, a jest zmianą wymagań dla interfejsu. Turniej własny
+wolno zrobić po łebkach, bo stoi się obok i naprawia na żywo. **Przy cudzym turnieju
+nikogo obok nie ma** — o 11:40, gdy coś nie działa, organizator ma osiemdziesiąt osób
+na boisku i telefon w ręku.
+
+Cztery konsekwencje, których nie widać z samych scenariuszy:
+
+1. **Każda operacja musi mieć odwrócenie w interfejsie.** „Cofnij ostatnie" w konsoli
+   jest — ale ręczna korekta wyniku po zakończeniu meczu, cofnięcie walkowera i usunięcie
+   drużyny po wygenerowaniu terminarza to dziś operacje albo niemożliwe, albo robione
+   przez nas w SQL. Przy cudzym turnieju „napisz do nas, poprawimy" nie jest odpowiedzią.
+2. **Puste stany muszą mówić, co zrobić.** „Terminarz jeszcze nie jest gotowy" jest
+   opisem. „Wygeneruj terminarz — masz 8 drużyn, zajmie to chwilę" jest instrukcją.
+   Organizator uczy się modułu w piątek wieczorem, sam, bez nas.
+3. **Zero danych testowych na produkcji.** To był jeden z wprost wymienionych powodów
+   wyłączenia flagi 2026-09-17 (`lib/features.ts`). Obcy organizator zobaczy listę
+   `/turnieje` z naszymi `[TUR]`-ami obok swojego turnieju — i to jest pierwsza rzecz,
+   po której oceni, czy to jest poważne narzędzie. Sprzątanie: `supabase/wyczysc-testowe.sql`.
+4. **Potrzebna jest jedna strona „jak poprowadzić turniej w Bojo"** — nie dokumentacja,
+   tylko pięć kroków z ekranami, do wysłania organizatorowi razem z zaproszeniem.
+   Najbliższy istniejący wzorzec to [outreach-organizatorzy.md](./outreach-organizatorzy.md)
+   (tam dla meczu) i [testy-przedpremierowe.md](./testy-przedpremierowe.md) (tam dla nas).
+
+Piąta konsekwencja jest najważniejsza i nie jest kodem: **ten turniej trzeba obejrzeć.**
+Cały dokument, który właśnie czytasz, jest rekonstrukcją z kodu. Jeden prawdziwy turniej
+powie o tych ekranach więcej niż kolejna runda projektowania — pod warunkiem, że ktoś od
+nas będzie tam tego dnia patrzył, nawet nie pomagając.
