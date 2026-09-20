@@ -129,7 +129,7 @@ export default function ProfilePage() {
     // czego właściwie brakuje.
     if (!trimmed) { setError('Podaj imię i nazwisko.'); return; }
     if (!isPelneImie(trimmed)) {
-      setError('Podaj imię i nazwisko — nazwisko może być samym inicjałem, np. „Krzysiek W”.');
+      setError('Podaj imię i nazwisko, nazwisko może być samym inicjałem, np. „Krzysiek W”.');
       return;
     }
     if (trimmed === currentName) { setEditing(false); return; }
@@ -270,7 +270,7 @@ export default function ProfilePage() {
                   placeholder="np. Jan Kowalski" className={inputCls} maxLength={40} autoFocus
                 />
                 <p className="text-xs text-slate-500">
-                  Pod tą nazwą widzą Cię gracze na stronie meczu — dlatego prosimy o imię
+                  Pod tą nazwą widzą Cię gracze na stronie meczu, dlatego prosimy o imię
                   i nazwisko, nie pseudonim.
                 </p>
                 {error && <p className="text-sm text-red-600">{error}</p>}

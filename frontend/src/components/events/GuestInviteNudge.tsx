@@ -64,7 +64,7 @@ export default function GuestInviteNudge({
                 informację, nie mniej. */}
             <h2 className="font-semibold text-ink">Dodano „{guestName}" do składu ✓</h2>
             {naRezerwie && (
-              <p className="mt-0.5 text-xs font-medium text-amber-700">Komplet — na rezerwę</p>
+              <p className="mt-0.5 text-xs font-medium text-amber-700">Komplet, na rezerwę</p>
             )}
           </div>
           <button onClick={onClose} className="ml-auto shrink-0 text-slate-400 hover:text-slate-600" aria-label="Zamknij">
@@ -81,7 +81,7 @@ export default function GuestInviteNudge({
               • Powiadomienia o zmianach terminu i odwołaniu meczu
             </li>
             <li>
-              • Zapisy go w bazie graczy — następny raz jednym kliknięciem
+              • Zapisy go w bazie graczy, następny raz jednym kliknięciem
             </li>
             <li>
               • Sam potwierdzi lub się wypisze

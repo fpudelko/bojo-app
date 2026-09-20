@@ -9,7 +9,7 @@
  */
 export const KALKULATOR_ODPOWIEDZ =
   'Koszt wynajmu boiska dzieli się na liczbę graczy, którzy realnie wchodzą do ' +
-  'składu — nie na tych, którzy „może wpadną". Przy 280 zł za halę i czternastu ' +
+  'składu, nie na tych, którzy „może wpadną". Przy 280 zł za halę i czternastu ' +
   'graczach wychodzi 20 zł od osoby. Jeśli część ekipy ma kartę Multisport, ' +
   'FitProfit albo Medicover Sport, ich stawka bywa inna, więc reszta dopłaca ' +
   'różnicę. Ten kalkulator liczy to tak samo, jak robi to Bojo przy każdym ' +
@@ -19,10 +19,10 @@ export const KALKULATOR_ODPOWIEDZ =
  *  co na /faq, zero duplikowanej treści (jedno źródło, patrz app/faq/page.tsx
  *  dla tego samego wzorca filtrowania). */
 export const KALKULATOR_HINT_KARTA =
-  'Multisport, FitProfit, Medicover Sport — Bojo nie rozróżnia karty, tylko kwotę zniżki.';
+  'Multisport, FitProfit, Medicover Sport: Bojo nie rozróżnia karty, tylko kwotę zniżki.';
 
 export const KALKULATOR_HINT_BEZ_ZNIZKI =
-  'Bez podanej kwoty zniżki posiadacze karty płacą tyle samo, co reszta — suma to liczy ' +
+  'Bez podanej kwoty zniżki posiadacze karty płacą tyle samo, co reszta, suma to liczy ' +
   'tak samo, jak zrobiłby to Bojo na stronie meczu.';
 
 export const KALKULATOR_PYTANIA: readonly string[] = [

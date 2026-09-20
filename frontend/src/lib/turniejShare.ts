@@ -27,7 +27,7 @@ export function tekstUdostepnieniaTurnieju(
     // zostaw surową datę
   }
 
-  const linie = [`🏆 ${t.nazwa} — turniej w Bojo`, '', `${kiedy}, godz. ${t.godzinaStartu}`];
+  const linie = [`🏆 ${t.nazwa}: turniej w Bojo`, '', `${kiedy}, godz. ${t.godzinaStartu}`];
   if (t.miejsceNazwa) linie.push(t.miejsceNazwa);
   if (t.wpisoweGrosze > 0) linie.push(`Wpisowe: ${(t.wpisoweGrosze / 100).toFixed(0)} zł/drużyna`);
   linie.push('', 'Zgłoś drużynę:', link);
@@ -48,7 +48,7 @@ export async function udostepnijTurniej(
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
-      await navigator.share({ title: `${t.nazwa} — turniej w Bojo`, text });
+      await navigator.share({ title: `${t.nazwa}: turniej w Bojo`, text });
       wynik = 'shared';
     } catch {
       wynik = 'failed';

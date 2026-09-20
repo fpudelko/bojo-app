@@ -22,7 +22,7 @@ export const O_BOJO_ODPOWIEDZ =
   'Bojo (bojo.pl) to darmowa aplikacja webowa do organizowania amatorskich meczów, ' +
   'budowana przez mały zespół. Misja Bojo: łączyć ludzi przez najprostszy sposób ' +
   'organizowania i dołączania do amatorskich gier sportowych. Bojo zaczyna od ' +
-  'organizatorów — najpierw zdejmuje robotę z osoby, która zbiera skład, bo to ona ' +
+  'organizatorów: najpierw zdejmuje robotę z osoby, która zbiera skład, bo to ona ' +
   'przyprowadza resztę graczy.';
 
 /** Co realnie działa dziś — pokrycie identyczne jak w outreach-organizatorzy.md
@@ -31,7 +31,7 @@ export const O_BOJO_ODPOWIEDZ =
  *  ale każda pozycja musi mieć to samo pokrycie — zmiana w jednym miejscu
  *  wymaga sprawdzenia drugiego. */
 export const O_BOJO_DZIALA: readonly string[] = [
-  'Zakładanie meczu w trzech krokach — publicznego albo prywatnego, dostępnego ' +
+  'Zakładanie meczu w trzech krokach: publicznego albo prywatnego, dostępnego ' +
   'wyłącznie przez link lub kod.',
   'Zapis z linku bez zakładania konta: imię i e-mail i gracz jest w składzie. ' +
   'Konto zakłada wyłącznie organizator.',
@@ -56,14 +56,14 @@ export const O_BOJO_NIE_MA: readonly string[] = [
   'Bojo nie znajdzie Ci dziś brakujących graczy. Otwartych meczów jest za mało, więc ' +
   'otwarcie meczu publicznie to dodatkowa szansa, nie gwarancja kompletu.',
   'Bojo nie wysyła SMS-ów.',
-  'Bojo nie przelewa pieniędzy — liczy, kto ile jest winien, i pilnuje, kto już oddał. ' +
+  'Bojo nie przelewa pieniędzy: liczy, kto ile jest winien, i pilnuje, kto już oddał. ' +
   'Rozliczacie się jak dotąd.',
   'Bojo nie rezerwuje obiektu. Halę czy orlik załatwiasz bezpośrednio, tak jak dotąd; ' +
   'Bojo zaczyna się krok później.',
-  'Bojo nie awansuje rezerwowego samo — zwolnione miejsce jest oferowane pierwszej ' +
+  'Bojo nie awansuje rezerwowego samo: zwolnione miejsce jest oferowane pierwszej ' +
   'osobie z rezerwy, a decyzja należy do niej.',
   'Nie ma rankingów ani doboru meczów po poziomie umiejętności.',
-  'Szczegóły boisk — nawierzchnia, typ obiektu, zdjęcia — są dziś wypełnione tylko ' +
+  'Szczegóły boisk (nawierzchnia, typ obiektu, zdjęcia) są dziś wypełnione tylko ' +
   'dla części katalogu.',
 ];
 
@@ -79,7 +79,7 @@ export const O_BOJO_PROZA: readonly SekcjaProza[] = [
       'takich gier jest do wyboru i tym łatwiej znaleźć zarówno otwarty mecz, jak ' +
       'i brakujących do składu.',
       'Bojo buduje mały zespół, który sam organizuje gierki i sam liczył „+1" ' +
-      'w komentarzach. Bojo jest darmowe, bez reklam i bez limitów — na tym etapie ' +
+      'w komentarzach. Bojo jest darmowe, bez reklam i bez limitów, na tym etapie ' +
       'zależy nam na tym, żeby ktoś realnie tego użył i powiedział, co jest do poprawki.',
     ],
   },
@@ -88,12 +88,12 @@ export const O_BOJO_PROZA: readonly SekcjaProza[] = [
     tytul: 'Dlaczego Bojo zaczyna od organizatorów',
     akapity: [
       'Narzędzie do zbierania składu jest bezużyteczne, dopóki nie ma ani graczy, ' +
-      'ani organizatorów — i dokładnie w tym miejscu większość takich pomysłów umiera. ' +
+      'ani organizatorów, i dokładnie w tym miejscu większość takich pomysłów umiera. ' +
       'Bojo omija to z jednej strony: aplikacja ma być użyteczna dla organizatora ' +
       'w dniu pierwszym, zanim po drugiej stronie ktokolwiek się pojawi. Organizator ' +
       'zyskuje na Bojo nawet wtedy, gdy zaprosi wyłącznie własną ekipę.',
       'Dlatego gracz nie musi zakładać konta, żeby dołączyć. Organizator, który ' +
-      'wysyła link do Bojo, nie zmusza nikogo do rejestracji — to jest warunek, bez ' +
+      'wysyła link do Bojo, nie zmusza nikogo do rejestracji: to jest warunek, bez ' +
       'którego całe to podejście by nie działało, a nie uprzejmość wobec graczy.',
     ],
   },
@@ -102,9 +102,9 @@ export const O_BOJO_PROZA: readonly SekcjaProza[] = [
     tytul: 'Jak się z nami skontaktować',
     akapity: [
       'Bojo nie ma działu obsługi i nie będzie go udawać. Piszesz na adres z tej ' +
-      'strony, a odpowiada ktoś z zespołu, który Bojo buduje — zwykle tego samego ' +
+      'strony, a odpowiada ktoś z zespołu, który Bojo buduje, zwykle tego samego ' +
       'dnia. Jeśli coś w aplikacji nie działa, szybszy jest formularz „Zgłoś błąd" ' +
-      'w stopce — dokleja sam adres strony i przeglądarkę, więc da się to odtworzyć.',
+      'w stopce: dokleja sam adres strony i przeglądarkę, więc da się to odtworzyć.',
       'Uwagi od organizatorów, którzy realnie rozegrali na Bojo mecz, mają dziś ' +
       'pierwszeństwo przed wszystkim innym w kolejce zadań. To nie jest grzeczność ' +
       'ani deklaracja: na tym etapie to jest jedyne sensowne kryterium, czym się zajmować.',

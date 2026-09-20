@@ -47,13 +47,13 @@ export function tekstRozliczenia(
   const oczekiwane = sklad.reduce((s, p) => s + kwota(p).priceGrosze, 0);
 
   const linie: string[] = [
-    `Rozliczenie — ${eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers })}`,
+    `Rozliczenie: ${eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers })}`,
     kiedy,
     `${zl(e.costGrosze)} od osoby · zebrane ${zl(zebrano)} z ${zl(oczekiwane)}`,
   ];
 
   if (zaleglosci.length === 0) {
-    linie.push('Wszyscy oddali — dzięki!');
+    linie.push('Wszyscy oddali, dzięki!');
   } else {
     linie.push('');
     linie.push(`Zaległości (${withCount(zaleglosci.length, 'osoba', 'osoby', 'osób')}):`);
@@ -62,7 +62,7 @@ export function tekstRozliczenia(
     for (const p of zaleglosci) {
       const k = kwota(p);
       const adnotacja = nieobecni.has(p.id) ? ' (nie przyszedł/-a)' : '';
-      linie.push(`· ${p.name} — ${k.discountUnspecified ? 'zniżka z karty, dogadajmy kwotę' : zl(k.priceGrosze)}${adnotacja}`);
+      linie.push(`· ${p.name}: ${k.discountUnspecified ? 'zniżka z karty, dogadajmy kwotę' : zl(k.priceGrosze)}${adnotacja}`);
     }
   }
 

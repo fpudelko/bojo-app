@@ -6,7 +6,7 @@ import { FAQ, KATEGORIE_FAQ } from '@/content/faq';
 import { faqJsonLd } from '@/lib/structuredData';
 
 export const metadata: Metadata = {
-  title: 'FAQ — pytania o Bojo',
+  title: 'FAQ: pytania o Bojo',
   description:
     'Wszystkie pytania i odpowiedzi o Bojo: konto i logowanie, organizację meczu, ' +
     'pieniądze, ekipy i boiska.',
@@ -18,7 +18,7 @@ export default function FaqPage() {
     <StronaTresci
       nadtytul="Pomoc"
       h1="Pytania i odpowiedzi o Bojo"
-      lead="Wszystko w jednym miejscu — od zakładania konta po rozliczenie po meczu. Podzielone na sześć krótkich kategorii."
+      lead="Wszystko w jednym miejscu: od zakładania konta po rozliczenie po meczu. Podzielone na sześć krótkich kategorii."
       tytulDlaOkruszkow="FAQ"
     >
       <SpisTresci

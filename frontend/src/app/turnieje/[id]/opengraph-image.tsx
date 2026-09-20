@@ -9,7 +9,7 @@ import { sportEmoji } from '@/lib/sports';
 // liczba drużyn, wpisowe — dokładnie to, co widać na karcie turnieju.
 
 export const runtime = 'edge';
-export const alt = 'Bojo — szczegóły turnieju';
+export const alt = 'Bojo: szczegóły turnieju';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 

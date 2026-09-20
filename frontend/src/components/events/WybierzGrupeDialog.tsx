@@ -118,7 +118,7 @@ export default function WybierzGrupeDialog({
 
               <div>
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">
-                  Sport <span className="font-normal text-slate-400">— opcjonalnie</span>
+                  Sport <span className="font-normal text-slate-400">(opcjonalnie)</span>
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {FOCUS_SPORTS.map((s) => (

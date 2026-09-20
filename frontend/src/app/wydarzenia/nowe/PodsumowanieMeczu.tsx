@@ -78,7 +78,7 @@ export default function PodsumowanieMeczu({
               onClick={() => naKrok(w.krok)}
               className="shrink-0 rounded-lg px-1.5 py-0.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-slate-800"
             >
-              Zmień<span className="sr-only"> — {w.etykieta}</span>
+              Zmień<span className="sr-only">: {w.etykieta}</span>
             </button>
           </div>
         ))}

@@ -46,7 +46,7 @@ export default function ZglosBladPage() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-50">
               <CheckCircle2 className="h-6 w-6 text-green-600" />
             </div>
-            <h1 className="font-display text-xl font-bold text-ink">Dzięki — mamy to</h1>
+            <h1 className="font-display text-xl font-bold text-ink">Dzięki, mamy to</h1>
             <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
               Zgłoszenie trafiło do nas razem z adresem strony i wersją aplikacji,
               więc nie musisz nic dopowiadać.
@@ -68,7 +68,7 @@ export default function ZglosBladPage() {
                 </h1>
                 <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                   Napisz, co się stało. Adres strony, przeglądarkę i wersję aplikacji
-                  dołączymy automatycznie — nie musisz ich szukać.
+                  dołączymy automatycznie, nie musisz ich szukać.
                 </p>
               </div>
             </div>

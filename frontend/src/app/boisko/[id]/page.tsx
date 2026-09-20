@@ -205,7 +205,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   const gdzie = miejscowosc ? `, ${miejscowosc}` : '';
   return {
     // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
-    title: `${field.name} — ${sportsStr}${gdzie}`,
+    title: `${field.name}: ${sportsStr}${gdzie}`,
     // Opis pod WYNIK WYSZUKIWANIA — fakty o obiekcie, nie obietnica meczów.
     // Pełne uzasadnienie przy `metaOpisObiektu()` w content/opisObiektu.ts; w skrócie:
     // poprzednia wersja powtarzała nazwę i adres stojące w tytule tuż nad nią, a potem

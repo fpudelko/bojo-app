@@ -375,7 +375,7 @@ export async function leaveGroup(groupId: string, userId: string): Promise<void>
     .select('id');
   if (error) throw new Error(error.message);
   if (!data || data.length === 0) {
-    throw new Error('Nie udało się opuścić grupy — spróbuj ponownie.');
+    throw new Error('Nie udało się opuścić grupy, spróbuj ponownie.');
   }
 }
 
@@ -391,7 +391,7 @@ export async function removeMember(groupId: string, userId: string): Promise<voi
     .select('id');
   if (error) throw new Error(error.message);
   if (!data || data.length === 0) {
-    throw new Error('Nie udało się usunąć gracza — brak uprawnień albo już go tu nie ma.');
+    throw new Error('Nie udało się usunąć gracza, brak uprawnień albo już go tu nie ma.');
   }
 }
 

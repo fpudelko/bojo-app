@@ -39,9 +39,9 @@ export function geoErrorMessage(kind: GeoErrorKind): string {
     case 'denied':
       return 'Ta strona ma zablokowaną lokalizację w przeglądarce. Odblokuj ją w ustawieniach strony (ikona po lewej stronie adresu) albo wpisz miasto ręcznie.';
     case 'denied-system':
-      return 'To nie przeglądarka blokuje — lokalizacji nie ma zgody na poziomie telefonu. Daj przeglądarce dostęp do lokalizacji w ustawieniach telefonu (Android: Ustawienia → Aplikacje → przeglądarka → Uprawnienia; iPhone: Ustawienia → Prywatność → Usługi lokalizacji). Albo wpisz miasto ręcznie.';
+      return 'To nie przeglądarka blokuje, lokalizacji nie ma zgody na poziomie telefonu. Daj przeglądarce dostęp do lokalizacji w ustawieniach telefonu (Android: Ustawienia → Aplikacje → przeglądarka → Uprawnienia; iPhone: Ustawienia → Prywatność → Usługi lokalizacji). Albo wpisz miasto ręcznie.';
     case 'denied-dismissed':
-      return 'Pytanie o lokalizację zostało zamknięte bez odpowiedzi. Naciśnij jeszcze raz i wybierz „Zezwól" — albo wpisz miasto ręcznie.';
+      return 'Pytanie o lokalizację zostało zamknięte bez odpowiedzi. Naciśnij jeszcze raz i wybierz „Zezwól", albo wpisz miasto ręcznie.';
     case 'denied-nieznane':
       return 'Brak zgody na lokalizację. Sprawdź dwa miejsca: ustawienia tej strony w przeglądarce ORAZ dostęp przeglądarki do lokalizacji w ustawieniach telefonu. Albo po prostu wpisz miasto ręcznie.';
     case 'unavailable':

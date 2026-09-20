@@ -58,7 +58,7 @@ function GoogleBlockedSection() {
         <p className="text-xs font-semibold text-amber-800 mb-1">Google jest zablokowane w tej przeglądarce</p>
         <p className="text-xs text-amber-700 mb-2.5 leading-relaxed">
           Ta aplikacja nie pozwala dokończyć logowania Google. Dotknij „⋯" (więcej opcji)
-          u góry ekranu i wybierz „Otwórz w przeglądarce" — albo skopiuj link i wklej go
+          u góry ekranu i wybierz „Otwórz w przeglądarce", albo skopiuj link i wklej go
           w Safari/Chrome. Możesz też zalogować się e-mailem poniżej.
         </p>
         <button
@@ -104,7 +104,7 @@ interface Props {
 
 /** Zdanie pod nagłówkiem logowania, zależne od tego, skąd ktoś przyszedł. */
 const POWODY: Record<string, string> = {
-  alert: 'Zaloguj się, żeby dostawać powiadomienia o nowych meczach — alert przypiszemy do Twojego konta.',
+  alert: 'Zaloguj się, żeby dostawać powiadomienia o nowych meczach, alert przypiszemy do Twojego konta.',
 };
 
 export default function AuthForm({ next, onSuccess, initialMode, powod }: Props) {
@@ -142,7 +142,7 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
     // bo przeglądarka przepuściłaby jednoczłonowe „Jan" — a nazwa idzie na
     // publiczną stronę meczu i ma mówić, kto go organizuje.
     if (mode === 'signup' && !isPelneImie(name)) {
-      setError('Podaj imię i nazwisko — nazwisko może być samym inicjałem, np. „Krzysiek W”.');
+      setError('Podaj imię i nazwisko, nazwisko może być samym inicjałem, np. „Krzysiek W”.');
       return;
     }
     setBusy(true);
@@ -156,11 +156,11 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
         if (password.length < 6) { setError('Hasło musi mieć co najmniej 6 znaków.'); return; }
         const { needsConfirmation } = await signUpWithEmail(email, password, name, next);
         if (needsConfirmation) {
-          setInfo('Konto utworzone! Wysłaliśmy link potwierdzający na Twój e-mail — kliknij go, aby się zalogować.');
+          setInfo('Konto utworzone! Wysłaliśmy link potwierdzający na Twój e-mail, kliknij go, aby się zalogować.');
         } else { onSuccess?.(); router.push(dest); router.refresh(); }
       } else if (mode === 'magic') {
         await sendMagicLink(email, next);
-        setInfo('Sprawdź skrzynkę — wysłaliśmy link do logowania. Kliknij go na tym urządzeniu.');
+        setInfo('Sprawdź skrzynkę, wysłaliśmy link do logowania. Kliknij go na tym urządzeniu.');
       } else if (mode === 'reset') {
         await sendPasswordReset(email);
         setInfo('Jeśli konto istnieje, wysłaliśmy link do ustawienia nowego hasła.');
@@ -194,8 +194,8 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
       <h2 className="font-display text-2xl font-bold tracking-tight text-ink">{TITLES[mode]}</h2>
       <p className="mt-1 text-sm text-slate-500">
         {mode === 'signin' && ((powod && POWODY[powod]) || 'Wejdź na swoje konto, żeby grać i organizować mecze.')}
-        {mode === 'signup' && 'Załóż konto w kilka sekund — wystarczy e-mail.'}
-        {mode === 'magic' && 'Wyślemy Ci jednorazowy link — bez hasła.'}
+        {mode === 'signup' && 'Załóż konto w kilka sekund, wystarczy e-mail.'}
+        {mode === 'magic' && 'Wyślemy Ci jednorazowy link, bez hasła.'}
         {mode === 'reset' && 'Podaj e-mail, a wyślemy link do zmiany hasła.'}
       </p>
 
@@ -226,7 +226,7 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
                 wyglądało na wymagające pełnego nazwiska i człowiek wpisujący
                 „Krzysiek W" dostawał odmowę bez wskazówki, co poprawić. */}
             <p className="mt-1 pl-1 text-xs text-slate-500">
-              Widoczne dla graczy na Twoich meczach. Nazwisko może być samym inicjałem — „Krzysiek W”.
+              Widoczne dla graczy na Twoich meczach. Nazwisko może być samym inicjałem: „Krzysiek W”.
             </p>
           </div>
         )}
@@ -272,7 +272,7 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
                 fraza, której używa `submitLabel` po przełączeniu na tryb
                 `magic` — nazwa nie zaskakuje, gdy przycisk już to zrobi. */}
             <button onClick={() => switchMode('magic')} className="font-semibold text-primary-700 hover:text-primary-800">
-              Wyślij link logowania — bez hasła
+              Wyślij link logowania, bez hasła
             </button>
             <p className="text-slate-500">Nie masz konta?{' '}<button onClick={() => switchMode('signup')} className="font-semibold text-primary-700 hover:text-primary-800">Załóż je</button></p>
           </>

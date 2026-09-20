@@ -35,7 +35,7 @@ export function tekstZaproszeniaDoGrupy(
   ktoZaprasza?: string,
   najblizszy?: Pick<EventItem, 'date' | 'time' | 'fieldName'>,
 ): string {
-  const naglowek = `⚽ ${g.name} — nasza ekipa w Bojo`;
+  const naglowek = `⚽ ${g.name}: nasza ekipa w Bojo`;
   const wstep = ktoZaprasza?.trim()
     ? `${ktoZaprasza.trim()} zaprasza Cię do ekipy.`
     : 'Zapraszamy Cię do ekipy.';

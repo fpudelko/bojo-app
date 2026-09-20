@@ -33,7 +33,7 @@ export async function zaktualizujJedenWiersz(
   if (error) throw new Error(error.message);
   if (!data || data.length === 0) {
     throw new Error(
-      `${opis} — baza nie zmieniła żadnego wiersza. `
+      `${opis}, baza nie zmieniła żadnego wiersza. `
       + 'Najczęstsza przyczyna: brak uprawnień (RLS) albo wpis już nie istnieje.',
     );
   }
@@ -63,7 +63,7 @@ export async function zaktualizujWiersze(
   if (error) throw new Error(error.message);
   if (!data || data.length !== identyfikatory.length) {
     throw new Error(
-      `${opis} — baza zmieniła ${data?.length ?? 0} z ${identyfikatory.length} wierszy. `
+      `${opis}, baza zmieniła ${data?.length ?? 0} z ${identyfikatory.length} wierszy. `
       + 'Najczęstsza przyczyna: brak uprawnień (RLS) albo wpis już nie istnieje.',
     );
   }
@@ -102,7 +102,7 @@ export async function pobierzWszystkie<T>(
   }
   throw new Error(
     `pobierzWszystkie: przekroczono bezpiecznik ${maksWierszy} wierszy. `
-    + 'Zapytanie zwraca stale pełne strony — sprawdź, czy ma stabilne sortowanie.',
+    + 'Zapytanie zwraca stale pełne strony, sprawdź, czy ma stabilne sortowanie.',
   );
 }
 
@@ -137,7 +137,7 @@ export async function zPonowieniemPoOdswiezeniu<T>(zapis: () => Promise<T>): Pro
 
     const { data, error } = await supabase.auth.refreshSession();
     if (error || !data.session) {
-      throw new Error('Sesja wygasła — zaloguj się ponownie.');
+      throw new Error('Sesja wygasła, zaloguj się ponownie.');
     }
     // Druga próba jest OSTATNIA. Gdyby i ona padła na tym samym, problemem nie
     // jest sesja i błąd ma polecieć w oryginalnej postaci — inaczej zapętlimy

@@ -26,8 +26,8 @@ export function siteJsonLd(base: string = SITE_URL) {
         // everything else on the site can only imply it (docs/seo-geo-strategia.md, 2c/5a).
         disambiguatingDescription:
           'Bojo (bojo.pl) to aplikacja webowa do organizowania amatorskich meczów sportowych '
-          + 'w Polsce. Nazwa pokrywa się z potocznym polskim słowem „bojo" oznaczającym boisko '
-          + '— ten wpis dotyczy aplikacji.',
+          + 'w Polsce. Nazwa pokrywa się z potocznym polskim słowem „bojo" oznaczającym boisko. '
+          + 'Ten wpis dotyczy aplikacji.',
         url: base,
         description:
           'Platforma do organizowania amatorskich meczów sportowych i baza boisk w Polsce.',
@@ -54,11 +54,11 @@ export function siteJsonLd(base: string = SITE_URL) {
         url: base,
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'PLN' },
         featureList: [
-          'Tworzenie meczu w trzech krokach — sport, termin, opcje',
+          'Tworzenie meczu w trzech krokach: sport, termin, opcje',
           'Dołączanie do meczu bez zakładania konta',
           'Lista rezerwowa z widoczną kolejnością',
           'Kalkulator podziału kosztów boiska między graczy',
-          'Zniżki z kart sportowych — Multisport, FitProfit, Medicover Sport',
+          'Zniżki z kart sportowych: Multisport, FitProfit, Medicover Sport',
           'Publiczne mecze widoczne dla graczy z okolicy, gdy brakuje składu',
           'Grupy i stałe ekipy z historią meczów',
         ],

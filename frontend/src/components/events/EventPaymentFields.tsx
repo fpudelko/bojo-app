@@ -157,7 +157,7 @@ export default function EventPaymentFields({
               </p>
             ) : (
               <p className="mt-1 text-xs text-slate-500">
-                Zostaw puste, jeśli zniżka zależy od dnia, limitu wejść itp. — gracze zobaczą,
+                Zostaw puste, jeśli zniżka zależy od dnia, limitu wejść itp., gracze zobaczą,
                 że karta daje zniżkę, i dopytają Cię o szczegóły.
               </p>
             )}

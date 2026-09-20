@@ -120,7 +120,7 @@ export default function EventDateTimeField({
             {CZASY_GRY.map((m) => (
               <option key={m} value={m}>{m} min</option>
             ))}
-            <option value="wlasny">Inny — wpisz…</option>
+            <option value="wlasny">Inny: wpisz…</option>
           </select>
         )}
         {addMinutes(time, durationMin) && (

@@ -21,7 +21,7 @@ import { KONTAKT_HREF } from '@/content/kontakt';
 // tym fragmentem: nazwa encji na początku, cztery fakty, zero przymiotników.
 export const LANDING_DIRECT_ANSWER =
   'Bojo to darmowa aplikacja webowa do organizowania amatorskich meczów. ' +
-  'Zakładasz grę — sport, boisko z mapy, termin i liczba miejsc — i wysyłasz ' +
+  'Zakładasz grę (sport, boisko z mapy, termin i liczba miejsc) i wysyłasz ' +
   'jeden link tam, gdzie Twoja ekipa już rozmawia. Osoba z linkiem zapisuje ' +
   'się bez zakładania konta, podając imię i e-mail. Bojo liczy zajęte ' +
   'miejsca, prowadzi listę rezerwową z widoczną kolejnością i dzieli koszt ' +
@@ -43,7 +43,7 @@ export const LANDING_HERO = {
   h1: ['Zorganizuj mecz', 'w dwie minuty'],
   lead:
     'Stwórz grę i wyślij ekipie jeden link. Brakuje ludzi do składu? ' +
-    'Otwórz mecz publicznie — zobaczą go gracze z okolicy.',
+    'Otwórz mecz publicznie: zobaczą go gracze z okolicy.',
   trust: ['Za darmo', 'Google lub e-mail', 'Bez instalacji'],
 } as const;
 
@@ -62,7 +62,7 @@ export const LANDING_STEPS = [
     title: 'Wyślij jeden link',
     body:
       'Ekipa dołącza bez zakładania grupy na Messengerze. Kto gra, kto rezerwa i kto ' +
-      'tylko obserwuje — widać od razu.',
+      'tylko obserwuje: widać od razu.',
   },
   {
     icon: 'Users',
@@ -72,8 +72,8 @@ export const LANDING_STEPS = [
     wczesnyEtap: true,
     title: 'Brakuje ludzi? Otwórz mecz',
     body:
-      'Ustaw mecz jako publiczny, a trafi na listę otwartych gier — gracze znajdą mecz, ' +
-      'Ty znajdziesz brakujących do składu. Graczy szukających gry wciąż przybywa — na ' +
+      'Ustaw mecz jako publiczny, a trafi na listę otwartych gier: gracze znajdą mecz, ' +
+      'Ty znajdziesz brakujących do składu. Graczy szukających gry wciąż przybywa, na ' +
       'razie najpewniejszy skład zbierzesz linkiem do znajomych.',
   },
 ] as const;
@@ -83,7 +83,7 @@ export const LANDING_VALUES = [
     icon: 'Zap',
     title: 'Kreator w trzech krokach',
     body:
-      'Sport, boisko z mapy, termin. Mecz publiczny albo prywatny — dostępny wyłącznie ' +
+      'Sport, boisko z mapy, termin. Mecz publiczny albo prywatny: dostępny wyłącznie ' +
       'przez link lub kod.',
   },
   {
@@ -105,7 +105,7 @@ export const LANDING_VALUES = [
     title: 'Wiadomo, kto ile płaci',
     body:
       'Koszt dzieli się na graczy, zniżki z Multisport, FitProfit i Medicover są ' +
-      'uwzględniane, wpłaty odhaczasz jednym kliknięciem. Bojo pilnuje rozliczenia — ' +
+      'uwzględniane, wpłaty odhaczasz jednym kliknięciem. Bojo pilnuje rozliczenia: ' +
       'pieniędzy nie przelewa.',
   },
   {
@@ -125,7 +125,7 @@ export const LANDING_VALUES = [
     // Dzwonek nazwałby kanał obrazkiem, skoro nie wolno go nazwać słowem.
     title: 'Skład wie, że gra',
     body:
-      'Dzień przed meczem odzywamy się do każdego zapisanego — nie musisz nikogo ' +
+      'Dzień przed meczem odzywamy się do każdego zapisanego: nie musisz nikogo ' +
       'obdzwaniać. Gdy zmienisz termin albo odwołasz mecz, cały skład dowiaduje się ' +
       'w tej samej chwili.',
   },
@@ -138,7 +138,7 @@ export const LANDING_VALUES = [
     title: 'Boiska w jednym miejscu',
     body:
       'Dziesiątki tysięcy obiektów na mapie: lokalizacja, dojazd i nadchodzące mecze. ' +
-      'Szczegóły — nawierzchnię, typ i zdjęcia — uzupełniamy obiekt po obiekcie.',
+      'Szczegóły (nawierzchnię, typ i zdjęcia) uzupełniamy obiekt po obiekcie.',
   },
 ] as const;
 
@@ -151,7 +151,7 @@ export { FAQ_LANDING as LANDING_FAQ } from '@/content/faq';
 
 export const LANDING_STATS = {
   sportsValue: '4',
-  sportsLabel: 'dyscypliny dziś — piłka, siatka, plażówka, kosz',
+  sportsLabel: 'dyscypliny dziś: piłka, siatka, plażówka, kosz',
   timeValue: '2 min',
   timeLabel: 'tyle zajmuje stworzenie meczu',
   priceValue: '0 zł',
@@ -187,7 +187,7 @@ export const LANDING_MISJA = {
     'się dobrać bez obdzwaniania znajomych.',
   ],
   uczciwie: {
-    tytul: 'Gdzie jesteśmy dziś — wprost',
+    tytul: 'Gdzie jesteśmy dziś, wprost',
     punkty: [
       'Działa: zakładanie meczu, zapis z linku bez konta, skład, rezerwa, podział ' +
       'kosztów, ekipa, wyniki i statystyki.',
@@ -214,7 +214,7 @@ export const LANDING_ZAPROSZENIE = {
   nadtytul: 'Jesteśmy na początku',
   tytul: 'Zorganizuj następną gierkę na Bojo',
   body:
-    'Nie obiecujemy Ci dziś, że przyślemy graczy — jest nas na to za wcześnie i nie ' +
+    'Nie obiecujemy Ci dziś, że przyślemy graczy, jest nas na to za wcześnie i nie ' +
     'będziemy tego ściemniać. Obiecujemy narzędzie, które zdejmuje z Ciebie liczenie ' +
     'składu, i odpowiedź od człowieka, kiedy coś nie zagra. Każdy mecz wystawiony ' +
     'tutaj przybliża moment, w którym brakującego gracza da się dobrać w okolicy.',

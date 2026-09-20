@@ -49,7 +49,7 @@ export default function ZaprosDoGrupySheet({
           </button>
         </div>
         <p className="mb-4 text-sm text-slate-500">
-          Wyślij link — po kliknięciu znajomy od razu zobaczy ekipę i najbliższy mecz.
+          Wyślij link, po kliknięciu znajomy od razu zobaczy ekipę i najbliższy mecz.
         </p>
         <div className="flex flex-wrap gap-2">
           <button

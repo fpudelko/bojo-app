@@ -103,7 +103,7 @@ export default function ZachetaPush({ widoczna }: {
     setBusy(true);
     try {
       await wlaczPush(user.id);
-      toast('Damy znać o tym meczu — powiadomienia włączone');
+      toast('Damy znać o tym meczu, powiadomienia włączone');
       setSchowana(true);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się włączyć powiadomień', 'error');

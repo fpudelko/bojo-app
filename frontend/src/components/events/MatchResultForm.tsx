@@ -31,7 +31,7 @@ function ResultSummary({ result }: { result: MatchResult }) {
   if (!rd) {
     return (
       <div className="text-center py-2 mb-4">
-        <p className="text-3xl font-bold text-slate-900 tracking-tight">{result.scoreA} — {result.scoreB}</p>
+        <p className="text-3xl font-bold text-slate-900 tracking-tight">{result.scoreA}:{result.scoreB}</p>
         <p className="text-xs text-slate-400 mt-1">{TEAM_LABELS.A} · {TEAM_LABELS.B}</p>
       </div>
     );
@@ -39,7 +39,7 @@ function ResultSummary({ result }: { result: MatchResult }) {
   if (rd.type === 'goals') {
     return (
       <div className="text-center py-2 mb-4">
-        <p className="text-3xl font-bold text-slate-900 tracking-tight">{rd.scoreA} — {rd.scoreB}</p>
+        <p className="text-3xl font-bold text-slate-900 tracking-tight">{rd.scoreA}:{rd.scoreB}</p>
         <p className="text-xs text-slate-400 mt-1">{TEAM_LABELS.A} · {TEAM_LABELS.B}</p>
         {rd.scorers && rd.scorers.length > 0 && (
           <p className="text-xs text-slate-500 mt-1">{rd.scorers.length} bramka{rd.scorers.length > 1 ? 'rzy' : 'rz'}</p>
@@ -50,7 +50,7 @@ function ResultSummary({ result }: { result: MatchResult }) {
   if (rd.type === 'volleyball') {
     return (
       <div className="py-2 mb-4">
-        <p className="text-3xl font-bold text-slate-900 tracking-tight text-center">{rd.setsA} — {rd.setsB} <span className="text-base font-normal text-slate-400">sety</span></p>
+        <p className="text-3xl font-bold text-slate-900 tracking-tight text-center">{rd.setsA}:{rd.setsB} <span className="text-base font-normal text-slate-400">sety</span></p>
         <div className="flex justify-center gap-2 mt-2 flex-wrap">
           {rd.sets.map((s, i) => (
             <span key={i} className="text-xs bg-slate-100 text-slate-600 rounded px-2 py-0.5">{s.a}:{s.b}</span>
@@ -62,7 +62,7 @@ function ResultSummary({ result }: { result: MatchResult }) {
   if (rd.type === 'basketball') {
     return (
       <div className="text-center py-2 mb-4">
-        <p className="text-3xl font-bold text-slate-900 tracking-tight">{rd.scoreA} — {rd.scoreB}</p>
+        <p className="text-3xl font-bold text-slate-900 tracking-tight">{rd.scoreA}:{rd.scoreB}</p>
         <p className="text-xs text-slate-400 mt-1">pkt</p>
       </div>
     );
@@ -200,7 +200,7 @@ export default function MatchResultForm({
         const golePrzekroczoneNow = scorers.reduce((s, x) => s + x.goals, 0) > sa + sb;
         const asystyPrzekroczoneNow = scorers.reduce((s, x) => s + (x.assists ?? 0), 0) > sa + sb;
         if (golePrzekroczoneNow || asystyPrzekroczoneNow) {
-          setError('Popraw liczbę goli/asyst u strzelców — suma przekracza wynik końcowy.');
+          setError('Popraw liczbę goli/asyst u strzelców, suma przekracza wynik końcowy.');
           setSaving(false);
           return;
         }
@@ -273,7 +273,7 @@ export default function MatchResultForm({
                 <div className="flex items-center gap-3">
                   <input type="number" min={0} max={99} value={scoreA} onChange={(e) => setScoreA(e.target.value)}
                     className="w-16 text-center border border-slate-300 rounded-lg px-2 py-2 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="N" />
-                  <span className="text-slate-400 font-bold text-xl">—</span>
+                  <span className="text-slate-400 font-bold text-xl">:</span>
                   <input type="number" min={0} max={99} value={scoreB} onChange={(e) => setScoreB(e.target.value)}
                     className="w-16 text-center border border-slate-300 rounded-lg px-2 py-2 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="C" />
                 </div>
@@ -326,7 +326,7 @@ export default function MatchResultForm({
             <div>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium text-slate-700">Sety</p>
-                <div className="text-2xl font-bold text-slate-900">{setsA} — {setsB}</div>
+                <div className="text-2xl font-bold text-slate-900">{setsA}:{setsB}</div>
               </div>
               <div className="space-y-2">
                 {sets.map((s, i) => (
@@ -363,7 +363,7 @@ export default function MatchResultForm({
                 <div className="flex items-center gap-3">
                   <input type="number" min={0} value={basketA} onChange={(e) => setBasketA(e.target.value)}
                     className="w-20 text-center border border-slate-300 rounded-lg px-2 py-2 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="A" />
-                  <span className="text-slate-400 font-bold text-xl">—</span>
+                  <span className="text-slate-400 font-bold text-xl">:</span>
                   <input type="number" min={0} value={basketB} onChange={(e) => setBasketB(e.target.value)}
                     className="w-20 text-center border border-slate-300 rounded-lg px-2 py-2 text-xl font-bold focus:outline-none focus:ring-2 focus:ring-green-700" placeholder="B" />
                 </div>
@@ -403,7 +403,7 @@ export default function MatchResultForm({
           {family === 'racing' && (
             <div>
               <p className="text-sm font-medium text-slate-700 mb-3">
-                <Medal className="w-4 h-4 inline mr-1" />Klasyfikacja — przeciągnij aby zmienić kolejność
+                <Medal className="w-4 h-4 inline mr-1" />Klasyfikacja: przeciągnij aby zmienić kolejność
               </p>
               <ul className="space-y-2">
                 {rankings.map((r, i) => {

@@ -58,7 +58,7 @@ function syncSessionHint(hasSession: boolean) {
 function mapAuthError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('invalid login credentials')) return 'Nieprawidłowy e-mail lub hasło.';
-  if (m.includes('email not confirmed')) return 'Potwierdź e-mail, zanim się zalogujesz — sprawdź skrzynkę (także spam).';
+  if (m.includes('email not confirmed')) return 'Potwierdź e-mail, zanim się zalogujesz, sprawdź skrzynkę (także spam).';
   if (m.includes('user already registered') || m.includes('already been registered')) return 'Konto z tym adresem już istnieje. Zaloguj się hasłem lub przez Google.';
   if (m.includes('password should be at least')) return 'Hasło musi mieć co najmniej 6 znaków.';
   if (m.includes('unable to validate email') || m.includes('invalid email')) return 'Podaj poprawny adres e-mail.';

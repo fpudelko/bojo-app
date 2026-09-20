@@ -30,7 +30,7 @@ export async function cofnijOdmowe(eventId: string, userId: string): Promise<voi
     .select('event_id');
   if (error) throw new Error(error.message);
   if (!data || data.length === 0) {
-    throw new Error('Nie udało się cofnąć odmowy — spróbuj ponownie.');
+    throw new Error('Nie udało się cofnąć odmowy, spróbuj ponownie.');
   }
 }
 

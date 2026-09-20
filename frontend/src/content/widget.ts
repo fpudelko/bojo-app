@@ -5,6 +5,6 @@
 export const WIDGET_BRAK_MECZOW =
   'Obecnie brak zaplanowanych meczów na tym obiekcie. Pełny kalendarz jest na Bojo.';
 
-export const WIDGET_STOPKA = 'Mecze i zapisy — Bojo';
+export const WIDGET_STOPKA = 'Mecze i zapisy | Bojo';
 
 export const WIDGET_NIEZNANY_OBIEKT = 'Ten widget wskazuje na obiekt, którego nie ma już w Bojo.';

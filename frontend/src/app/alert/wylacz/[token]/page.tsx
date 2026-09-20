@@ -23,7 +23,7 @@ import WylaczAlertClient from './WylaczAlertClient';
  * `noindex`: adres z sekretem nie ma prawa trafić do wyszukiwarki.
  */
 export const metadata: Metadata = {
-  title: 'Wyłącz powiadomienia o nowych meczach — Bojo',
+  title: 'Wyłącz powiadomienia o nowych meczach: Bojo',
   robots: { index: false, follow: false },
 };
 

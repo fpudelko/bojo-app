@@ -36,9 +36,9 @@ function todayISO(): string {
 }
 
 function formatPl(iso?: string): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
@@ -862,7 +862,7 @@ function OutreachRow({ field: f, o, isExpanded, onToggle, onPatch, currentUser, 
             <div className="grid md:grid-cols-3 gap-4">
               {/* Notes */}
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Notatki — co odpowiedzieli</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Notatki: co odpowiedzieli</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}

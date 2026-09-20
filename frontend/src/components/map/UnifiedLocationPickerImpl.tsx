@@ -242,7 +242,7 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
       {(filtrOdsial || brakWynikow) && (
         <div className="absolute top-14 left-2 right-2 z-[1001] rounded-lg bg-white/95 px-3 py-2 text-xs text-slate-600 shadow backdrop-blur-sm">
           {filtrOdsial
-            ? `Żadne ze znalezionych miejsc nie ma w opisie sportu „${sportLabel(sport ?? '')}" — pokazujemy wszystkie.`
+            ? `Żadne ze znalezionych miejsc nie ma w opisie sportu „${sportLabel(sport ?? '')}", pokazujemy wszystkie.`
             : 'Nie znaleziono takiego miejsca. Naciśnij lupę, żeby wyszukać adres, albo dotknij mapy w wybranym punkcie.'}
         </div>
       )}

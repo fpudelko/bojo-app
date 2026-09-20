@@ -51,7 +51,7 @@ export default function NajblizszyMeczGrupy({
         ostatni, nowaData, czas, user.id, displayName(user),
         true, false, ostatni.endTime?.slice(0, 5),
       );
-      toast('Nowy termin utworzony — cała ekipa dostanie powiadomienie w aplikacji.');
+      toast('Nowy termin utworzony, cała ekipa dostanie powiadomienie w aplikacji.');
       // `?utworzono=1` — panel „Mecz gotowy — wyślij link", tak samo jak po
       // kreatorze (audyt 2026-09-12, ustalenie `S-6`). Ekipa dostaje
       // powiadomienie w aplikacji, ale goście bez konta i osoby spoza grupy
@@ -125,7 +125,7 @@ export default function NajblizszyMeczGrupy({
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center dark:border-slate-700 dark:bg-slate-800">
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Ekipa nie ma jeszcze żadnego meczu</p>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Wrzuć pierwszy termin — wszyscy członkowie dostaną powiadomienie w aplikacji.
+          Wrzuć pierwszy termin, wszyscy członkowie dostaną powiadomienie w aplikacji.
         </p>
         {canCreateEvents && (
           <Link href={`/wydarzenia/nowe?group=${groupId}`} className="mt-3 inline-block">

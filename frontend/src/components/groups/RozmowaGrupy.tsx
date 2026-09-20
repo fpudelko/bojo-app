@@ -167,7 +167,7 @@ export default function RozmowaGrupy({ groupId, permissions, klawiatura = false 
           <div className="flex h-full flex-col items-center justify-center text-center">
             <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Cisza w ekipie</p>
             <p className="mt-1 text-sm text-slate-400">
-              Napisz coś — kto bierze piłki, gdzie parkujemy, kto odpada w ten czwartek.
+              Napisz coś, kto bierze piłki, gdzie parkujemy, kto odpada w ten czwartek.
             </p>
           </div>
         ) : (

@@ -109,7 +109,7 @@ export default function RozmowaWydarzenia({ eventId, klawiatura = false }: { eve
           <div className="flex h-full flex-col items-center justify-center text-center">
             <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Cisza przed meczem</p>
             <p className="mt-1 text-sm text-slate-400">
-              Napisz coś — gdzie parkujemy, kto bierze piłki, o której się zbieramy.
+              Napisz coś, gdzie parkujemy, kto bierze piłki, o której się zbieramy.
             </p>
           </div>
         ) : (

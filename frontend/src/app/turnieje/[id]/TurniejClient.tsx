@@ -367,7 +367,7 @@ export default function TurniejClient() {
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 py-5">
         {turniej.status === 'szkic' && uprawnienia.mozeEdytowac && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-sm text-amber-800 dark:text-amber-300">
-            Ten turniej jest szkicem — nikt poza Tobą go nie widzi.
+            Ten turniej jest szkicem, nikt poza Tobą go nie widzi.
           </div>
         )}
 
@@ -408,7 +408,7 @@ export default function TurniejClient() {
             )}
             {turniej.wpisoweGrosze > 0 && mojaDruzyna.kapitanId === user?.id && (
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Wpisowe {(turniej.wpisoweGrosze / 100).toFixed(0)} zł —{' '}
+                Wpisowe {(turniej.wpisoweGrosze / 100).toFixed(0)} zł:{' '}
                 {mojaDruzyna.wpisoweOplaconeAt
                   ? <span className="text-primary-700">opłacone ✓</span>
                   : blikTelefon

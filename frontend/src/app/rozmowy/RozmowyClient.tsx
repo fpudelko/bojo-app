@@ -151,7 +151,7 @@ export default function RozmowyClient() {
             <p className="text-3xl" aria-hidden="true">💬</p>
             <p className="mt-2 text-sm font-semibold text-ink">Jeszcze cicho</p>
             <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500 dark:text-slate-400">
-              Rozmowy z Twoich meczów i ekip pojawią się tutaj — razem, od najnowszej.
+              Rozmowy z Twoich meczów i ekip pojawią się tutaj, razem, od najnowszej.
             </p>
             <div className="mt-4 flex justify-center gap-2">
               <Link

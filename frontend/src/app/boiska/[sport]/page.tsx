@@ -67,12 +67,12 @@ export async function generateMetadata(
   const entry = SPORT_MAP[params.sport];
   if (!entry) return { title: 'Nie znaleziono' };
   const strona = numerStrony(searchParams);
-  const sufiks = strona > 1 ? ` — strona ${strona}` : '';
+  const sufiks = strona > 1 ? `, strona ${strona}` : '';
   const { canonical, robots } = metadanePaginacjiHuba(`/boiska/${params.sport}`, strona);
   return {
     // BEZ ręcznego „| Bojo” — dokłada go `title.template` z layout.tsx.
     title: `Boiska do ${entry.label} w Polsce${sufiks}`,
-    description: `Znajdź boiska do ${entry.label} w Polsce. Lista obiektów, lokalizacje, dostępność. Bojo — zbierz skład i zagraj.`,
+    description: `Znajdź boiska do ${entry.label} w Polsce. Lista obiektów, lokalizacje, dostępność. Bojo, zbierz skład i zagraj.`,
     alternates: { canonical },
     robots,
     openGraph: {
@@ -119,7 +119,7 @@ export default async function SportCategoryPage(
   // obiektów było drugą przyczyną rozmiaru: ta sama lista szła dwa razy — raz
   // jako HTML, raz jako dane dla robotów.
   const jsonLd = venueListJsonLd(
-    `Boiska do ${entry.label} w Polsce${strona > 1 ? ` — strona ${strona}` : ''}`,
+    `Boiska do ${entry.label} w Polsce${strona > 1 ? `, strona ${strona}` : ''}`,
     fields.map((field) => ({ name: field.name, slug: slugify(field.name) })),
   );
 
@@ -227,7 +227,7 @@ export default async function SportCategoryPage(
             ← Wróć do mapy boisk
           </Link>
           <Link href="/jak-dziala-bojo" className="text-primary-600 hover:underline text-sm">
-            Jak działa Bojo — zbierz skład na to boisko →
+            Jak działa Bojo: zbierz skład na to boisko →
           </Link>
           {/* Wejście do landingów `/[sport]/[miasto]`. Do 2026-08-26 stał tu jeden
               link zaszyty na sztywno na Poznań, więc osiem z dwunastu tych stron

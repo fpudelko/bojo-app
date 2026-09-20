@@ -164,7 +164,7 @@ function VenueCard({
             <button
               disabled={busy}
               className={btnGhost}
-              title="Usuń zdjęcie — wróć do satelity"
+              title="Usuń zdjęcie, wróć do satelity"
               onClick={() => act({ photo_url: null, photo_reference: null, photo_source: null })}
             >
               <Satellite className="w-3.5 h-3.5" /> Satelita
@@ -194,7 +194,7 @@ function VenueCard({
             </button>
           )}
           {onSkip && !isSkipped && (
-            <button disabled={busy} className={btnSkip} onClick={onSkip} title="Pomiń — wróć później">
+            <button disabled={busy} className={btnSkip} onClick={onSkip} title="Pomiń, wróć później">
               <ChevronRight className="w-3.5 h-3.5" /> Pomiń
             </button>
           )}
@@ -471,7 +471,7 @@ export default function ModeracjaPage() {
               className="flex items-center gap-2 text-sm font-semibold text-amber-700 mb-3 hover:text-amber-900 transition-colors"
             >
               <ChevronDown className={`w-4 h-4 transition-transform ${skippedOpen ? '' : '-rotate-90'}`} />
-              Pominięte — {skippedVenues.length}
+              Pominięte: {skippedVenues.length}
               <span className="text-xs font-normal text-amber-600 ml-1">(wróć do nich później)</span>
             </button>
 

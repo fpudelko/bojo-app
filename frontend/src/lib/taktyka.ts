@@ -144,27 +144,27 @@ export function pozycjeZeSchematu(schemat: string): Pozycja[] {
  * wychodzimy kontrą" mówi wszystko.
  */
 export const USTAWIENIA_PILKA: Ustawienie[] = [
-  { schemat: '1-1-2',     ilu: 4,  opis: 'Czwórka: jeden z tyłu, dwóch z przodu — dużo biegania' },
+  { schemat: '1-1-2',     ilu: 4,  opis: 'Czwórka: jeden z tyłu, dwóch z przodu, dużo biegania' },
   { schemat: '1-2-1',     ilu: 4,  opis: 'Czwórka: dwóch z tyłu, jeden na szpicy' },
   { schemat: '1-2-2',     ilu: 5,  opis: 'Klasyk na orlik: równo z tyłu i z przodu' },
   { schemat: '1-1-2-1',   ilu: 5,  opis: 'Diament: jeden kryje, dwóch na bokach, jeden pod bramką' },
-  { schemat: '1-3-1',     ilu: 5,  opis: 'Trzech z tyłu i szpica — dla obrony wyniku' },
-  { schemat: '1-2-2-1',   ilu: 6,  opis: 'Najbezpieczniejsze sześć — wyraźne linie' },
+  { schemat: '1-3-1',     ilu: 5,  opis: 'Trzech z tyłu i szpica, dla obrony wyniku' },
+  { schemat: '1-2-2-1',   ilu: 6,  opis: 'Najbezpieczniejsze sześć, wyraźne linie' },
   { schemat: '1-3-2',     ilu: 6,  opis: 'Mur z tyłu, dwóch szuka kontry' },
-  { schemat: '1-2-3',     ilu: 6,  opis: 'Trzech z przodu — atakujemy, ryzykujemy z tyłu' },
+  { schemat: '1-2-3',     ilu: 6,  opis: 'Trzech z przodu, atakujemy, ryzykujemy z tyłu' },
   { schemat: '1-3-2-1',   ilu: 7,  opis: 'Siódemka najczęściej grana: stabilnie, jeden na szpicy' },
   { schemat: '1-2-3-1',   ilu: 7,  opis: 'Szeroko przez skrzydła, jeden w polu karnym' },
   { schemat: '1-3-1-2',   ilu: 7,  opis: 'Dwóch napastników, jeden rozgrywa między liniami' },
   { schemat: '1-3-3-1',   ilu: 8,  opis: 'Ósemka z mocnym środkiem' },
-  { schemat: '1-4-2-1',   ilu: 8,  opis: 'Czterech z tyłu — dla drużyny, która broni wyniku' },
+  { schemat: '1-4-2-1',   ilu: 8,  opis: 'Czterech z tyłu, dla drużyny, która broni wyniku' },
   { schemat: '1-3-3-2',   ilu: 9,  opis: 'Dziewiątka ofensywna' },
   { schemat: '1-4-3-1',   ilu: 9,  opis: 'Dziewiątka zachowawcza' },
   { schemat: '1-4-3-2',   ilu: 10, opis: 'Dziesiątka z dwoma napastnikami' },
-  { schemat: '1-4-4-2',   ilu: 11, opis: 'Najbardziej znane ustawienie — dwie równe linie po czterech' },
+  { schemat: '1-4-4-2',   ilu: 11, opis: 'Najbardziej znane ustawienie, dwie równe linie po czterech' },
   { schemat: '1-4-3-3',   ilu: 11, opis: 'Skrzydłowi wysoko, pressing od przodu' },
   { schemat: '1-4-2-3-1', ilu: 11, opis: 'Dwóch kryjących, trójka pod napastnikiem' },
   { schemat: '1-3-5-2',   ilu: 11, opis: 'Środek pola na przewagę, wahadłowi na bokach' },
-  { schemat: '1-5-3-2',   ilu: 11, opis: 'Piątka z tyłu — gramy z mocniejszym rywalem' },
+  { schemat: '1-5-3-2',   ilu: 11, opis: 'Piątka z tyłu, gramy z mocniejszym rywalem' },
 ];
 
 /** Siatkówka: nie ma „ustawień", jest rotacja — sześć stałych pozycji. */
@@ -262,7 +262,7 @@ export const OPCJE_TAKTYKI: {
     klucz: 'pressing',
     pytanie: 'Gdzie odbieramy piłkę',
     opcje: [
-      { wartosc: 'wysoki', label: 'Pod ich bramką', opis: 'Naciskamy od razu po stracie — męczące, ale dusi rywala' },
+      { wartosc: 'wysoki', label: 'Pod ich bramką', opis: 'Naciskamy od razu po stracie, męczące, ale dusi rywala' },
       { wartosc: 'niski', label: 'U siebie', opis: 'Cofamy się, ustawiamy blok i gramy z kontry' },
     ],
   },

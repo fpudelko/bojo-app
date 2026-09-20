@@ -390,7 +390,7 @@ function PublishedTeamsCard({
       {unassigned.length > 0 && (
         <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
-            Nieprzypisani — {unassigned.length}
+            Nieprzypisani: {unassigned.length}
           </p>
           <div className="space-y-1">
             {unassigned.map((p) => (
@@ -931,7 +931,7 @@ export default function EventDetailClient() {
             <WifiOff className="mx-auto mb-3 h-10 w-10 text-slate-300" />
             <p className="font-semibold text-ink">Nie udało się wczytać meczu</p>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Sprawdź połączenie i spróbuj jeszcze raz — link jest w porządku.
+              Sprawdź połączenie i spróbuj jeszcze raz, link jest w porządku.
             </p>
             <Button size="lg" className="mt-4 w-full" onClick={() => { setLoading(true); load(); }}>
               Spróbuj ponownie
@@ -1120,7 +1120,7 @@ export default function EventDetailClient() {
     try {
       await joinEventMaybe(event.id, user.id, displayName(user));
       await load();
-      toast('Obserwujesz ten mecz — znajdziesz go w Twoich meczach');
+      toast('Obserwujesz ten mecz, znajdziesz go w Twoich meczach');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1151,7 +1151,7 @@ export default function EventDetailClient() {
         // decyzji. Odpuszczenie ZOSTAJE ostateczne — zmieniamy obietnicę, nie
         // zachowanie; nieodebrana w czasie oferta to osobna sprawa i tam gracz
         // wraca na koniec kolejki.
-        'Wypadasz z kolejki rezerwowej — kolejnej oferty nie będzie. Organizator nadal może dopisać Cię ręcznie.',
+        'Wypadasz z kolejki rezerwowej, kolejnej oferty nie będzie. Organizator nadal może dopisać Cię ręcznie.',
         'Jeśli po prostu nie zdążysz odpowiedzieć, zostajesz w kolejce, na jej końcu.',
       ],
       potwierdzLabel: 'Odpuszczam',
@@ -1177,7 +1177,7 @@ export default function EventDetailClient() {
     try {
       await createTeamProposal(event.id, user.id, picks);
       await reloadProposals();
-      toast('Propozycja wysłana — reszta może ją poprzeć');
+      toast('Propozycja wysłana, reszta może ją poprzeć');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1219,7 +1219,7 @@ export default function EventDetailClient() {
       // zatwierdzenie już wszystko ogłosiło, i zostawić drużynę bez składów.
       toast(event.teamsPublished
         ? 'Składy zatwierdzone i widoczne dla graczy'
-        : 'Składy zatwierdzone — opublikuj je, żeby zobaczyła je drużyna');
+        : 'Składy zatwierdzone, opublikuj je, żeby zobaczyła je drużyna');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1260,11 +1260,11 @@ export default function EventDetailClient() {
       // wychodził przekonany, że gra, a jedynym śladem był przycisk „wypisz się
       // z rezerwy" gdzieś niżej na stronie.
       if (wynik.pending) {
-        toast('Wysłano prośbę o dołączenie — czekaj na akceptację organizatora');
+        toast('Wysłano prośbę o dołączenie, czekaj na akceptację organizatora');
       } else if (wynik.isReserve) {
         toast(asGoalkeeper
-          ? 'Komplet bramkarzy — jesteś na liście rezerwowej'
-          : 'Komplet w polu — jesteś na liście rezerwowej');
+          ? 'Komplet bramkarzy, jesteś na liście rezerwowej'
+          : 'Komplet w polu, jesteś na liście rezerwowej');
       } else {
         toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do meczu!');
       }
@@ -1333,11 +1333,11 @@ export default function EventDetailClient() {
       setAccountEmailTaken(result.hasAccount);
       setShowAccountPrompt(true);
       toast(result.alreadyJoined
-        ? 'Ten zapis już istniał — nic nie dublujemy.'
+        ? 'Ten zapis już istniał, nic nie dublujemy.'
         : result.pendingApproval
-          ? 'Prośba wysłana — czeka na akceptację organizatora'
+          ? 'Prośba wysłana, czeka na akceptację organizatora'
           : result.isReserve
-            ? 'Komplet — jesteś na liście rezerwowej'
+            ? 'Komplet, jesteś na liście rezerwowej'
             : 'Dołączyłeś do meczu!');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Nie udało się zapisać';
@@ -1381,7 +1381,7 @@ export default function EventDetailClient() {
         router.push(`/wydarzenia/${event.id}`);
       } else {
         setShowAccountPrompt(false);
-        toast('Sprawdź e-mail, żeby potwierdzić konto — Twoje miejsce w składzie już czeka.');
+        toast('Sprawdź e-mail, żeby potwierdzić konto, Twoje miejsce w składzie już czeka.');
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Nie udało się założyć konta.';
@@ -1442,7 +1442,7 @@ export default function EventDetailClient() {
     try {
       await awansujZRezerwy(p.id, event.id);
       await load();
-      toast(`${p.name} — w składzie`);
+      toast(`${p.name}: w składzie`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1454,7 +1454,7 @@ export default function EventDetailClient() {
       tytul: `Przenieść ${p.name} do rezerwy?`,
       konsekwencje: [
         'Zwolni się miejsce w składzie i pierwsza osoba z rezerwy dostanie je do przyjęcia.',
-        `${p.name} nie dostanie o tym osobnego powiadomienia — uprzedź go(ją).`,
+        `${p.name} nie dostanie o tym osobnego powiadomienia, uprzedź go(ją).`,
       ],
       potwierdzLabel: 'Przenieś do rezerwy',
     }) !== 'tak') return;
@@ -1462,7 +1462,7 @@ export default function EventDetailClient() {
     try {
       await cofnijNaRezerwe(p.id, event.id);
       await load();
-      toast(`${p.name} — na liście rezerwowej`);
+      toast(`${p.name}: na liście rezerwowej`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1523,7 +1523,7 @@ export default function EventDetailClient() {
         // samo dwoma różnymi zdaniami — modal ma własny nagłówek „✓ w
         // składzie", więc toast pod spodem był czystym powtórzeniem, a przy
         // okazji zasłaniał przycisk w modalu. Zgłoszone wprost z sesji QA.
-        toast(onReserve ? 'Komplet — gość dodany na rezerwę' : 'Gość dodany');
+        toast(onReserve ? 'Komplet, gość dodany na rezerwę' : 'Gość dodany');
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
@@ -1567,7 +1567,7 @@ export default function EventDetailClient() {
       konsekwencje: [
         p.userId
           ? `${p.name} dostanie powiadomienie, że został(a) usunięty(a) z meczu.`
-          : `${p.name} nie ma konta w Bojo, więc NIE dostanie powiadomienia — daj znać osobno.`,
+          : `${p.name} nie ma konta w Bojo, więc NIE dostanie powiadomienia, daj znać osobno.`,
         'Zwolnione miejsce trafi do pierwszej osoby z listy rezerwowej.',
       ],
       potwierdzLabel: 'Usuń ze składu',
@@ -1590,7 +1590,7 @@ export default function EventDetailClient() {
       // blokuje w tym czasie WSZYSTKIE pozostałe przełączniki — więc odhaczanie
       // składu po meczu wyglądało jak zawieszona aplikacja. Akcja zbiorcza
       // („Wszyscy oddali") toasta miała od początku; ta była niespójnie cicha.
-      toast(p.hasPaid ? `${p.name} — cofnięto wpłatę` : `${p.name} — wpłata odhaczona`);
+      toast(p.hasPaid ? `${p.name}: cofnięto wpłatę` : `${p.name}: wpłata odhaczona`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1611,7 +1611,7 @@ export default function EventDetailClient() {
       }
       : {
         tytul: `Cofnąć oznaczenie wpłaty wszystkim (${regulars.length})?`,
-        konsekwencje: ['Nikt nie będzie miał odhaczonej wpłaty — zaczniesz odhaczanie od zera.'],
+        konsekwencje: ['Nikt nie będzie miał odhaczonej wpłaty, zaczniesz odhaczanie od zera.'],
         potwierdzLabel: 'Cofnij wszystkim',
         wariant: 'destrukcyjny' as const,
       }) !== 'tak') return;
@@ -1691,8 +1691,8 @@ export default function EventDetailClient() {
     if (await potwierdz({
       tytul: 'Otworzyć mecz dla okolicy?',
       konsekwencje: [
-        'Mecz trafi na publiczną listę otwartych gier — zobaczą go gracze z okolicy.',
-        'Kto ma link, i tak mógł dołączyć — to nie zmienia dostępu, tylko dokłada mecz do listy.',
+        'Mecz trafi na publiczną listę otwartych gier, zobaczą go gracze z okolicy.',
+        'Kto ma link, i tak mógł dołączyć, to nie zmienia dostępu, tylko dokłada mecz do listy.',
         'Da się cofnąć: „Kto widzi ten mecz" wraca na prywatny jednym kliknięciem.',
       ],
       potwierdzLabel: 'Otwórz dla okolicy',
@@ -1732,7 +1732,7 @@ export default function EventDetailClient() {
       await setZapisyZamkniete(event.id, !event.zapisyZamkniete);
       await load();
       toast(event.zapisyZamkniete
-        ? 'Zapisy otwarte — znowu można dołączyć'
+        ? 'Zapisy otwarte, znowu można dołączyć'
         : 'Zapisy zamknięte. Skład zostaje, mecz się odbywa');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
@@ -1787,7 +1787,7 @@ export default function EventDetailClient() {
     if (wynik === 'copied') {
       setSkopiowanyToken(p.id);
       setTimeout(() => setSkopiowanyToken(null), 2500);
-      toast('Wiadomość skopiowana — wyślij ją tej osobie');
+      toast('Wiadomość skopiowana, wyślij ją tej osobie');
     } else if (wynik === 'failed' && typeof navigator !== 'undefined' && !navigator.share) {
       toast('Nie udało się skopiować linku', 'error');
     }
@@ -1843,7 +1843,7 @@ export default function EventDetailClient() {
       // niewidoczne: Android chowa je w pasku powiadomień, a iOS pokazuje
       // arkusz dopiero po chwili. Bez tego dotknięcie wygląda na nieudane
       // i człowiek klika drugi raz.
-      toast('Plik z terminem pobrany — otwórz go, żeby dodać mecz do kalendarza');
+      toast('Plik z terminem pobrany, otwórz go, żeby dodać mecz do kalendarza');
       track('event_do_kalendarza', { eventId: event.id });
     }
   };
@@ -1861,7 +1861,7 @@ export default function EventDetailClient() {
     if (wynik === 'copied') {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      toast('Skopiowano — wklej na czacie ze znajomymi');
+      toast('Skopiowano, wklej na czacie ze znajomymi');
     }
     // 'failed' obejmuje anulowanie arkusza przez użytkownika, więc milczymy.
   };
@@ -1995,7 +1995,7 @@ export default function EventDetailClient() {
       // — czyli kanał, którego NIE dostaje ktoś, kto ma wyłącznie dzwonek.
       notatka: {
         etykieta: 'Notatka dla uczestników (opcjonalnie)',
-        placeholder: 'Np. powód odwołania albo nowy termin — trafi do wszystkich powiadomień',
+        placeholder: 'Np. powód odwołania albo nowy termin, trafi do wszystkich powiadomień',
       },
     });
     if (wybor === 'nie') return;
@@ -2010,7 +2010,7 @@ export default function EventDetailClient() {
       // informację o odwołaniu meczu, który dalej stoi w kalendarzu.
       if (wybor === 'dodatkowa') {
         const wynik = await udostepnijOdwolanie(event, notatka);
-        if (wynik === 'copied') toast('Wiadomość skopiowana — wklej ją na czat ekipy');
+        if (wynik === 'copied') toast('Wiadomość skopiowana, wklej ją na czat ekipy');
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
@@ -2039,9 +2039,9 @@ export default function EventDetailClient() {
       konsekwencje: [
         'Kto dostał powiadomienie o odwołaniu, dostanie teraz informację, że mecz jednak jest.',
         bezKonta > 0
-          ? `${withCount(bezKonta, 'osoba', 'osoby', 'osób')} w składzie nie ma konta — dostanie e-mail, jeśli podała adres. Kto nie podał, dowie się tylko od Ciebie.`
+          ? `${withCount(bezKonta, 'osoba', 'osoby', 'osób')} w składzie nie ma konta, dostanie e-mail, jeśli podała adres. Kto nie podał, dowie się tylko od Ciebie.`
           : 'Wszyscy w składzie mają konto, więc informacja dojdzie do każdego.',
-        'Skład zostaje taki, jaki był przed odwołaniem — nikt nie wypadł.',
+        'Skład zostaje taki, jaki był przed odwołaniem, nikt nie wypadł.',
       ],
       potwierdzLabel: 'Przywróć mecz',
       akcjaDodatkowaLabel: 'Przywróć i wyślij wiadomość',
@@ -2057,7 +2057,7 @@ export default function EventDetailClient() {
       // odwołaniu: nie ogłaszamy stanu, którego jeszcze nie ma.
       if (wybor === 'dodatkowa') {
         const wynik = await udostepnijPrzywrocenie(event, eventUrl(event.id, window.location.origin));
-        if (wynik === 'copied') toast('Wiadomość skopiowana — wklej ją na czat ekipy');
+        if (wynik === 'copied') toast('Wiadomość skopiowana, wklej ją na czat ekipy');
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
@@ -2069,7 +2069,7 @@ export default function EventDetailClient() {
     try {
       await publishTeams(event.id);
       await load();
-      toast('Składy opublikowane — uczestnicy mogą je teraz zobaczyć');
+      toast('Składy opublikowane, uczestnicy mogą je teraz zobaczyć');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -2340,7 +2340,7 @@ export default function EventDetailClient() {
       {!showTeams && !eventStarted && (isOwner || canManageSquad) && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-slate-800">Podział na drużyny — Niebiescy vs Czerwoni</p>
+            <p className="text-sm font-semibold text-slate-800">Podział na drużyny: Niebiescy vs Czerwoni</p>
           </div>
           <button
             onClick={handleEnableTeams}
@@ -2419,7 +2419,7 @@ export default function EventDetailClient() {
       )}
       {(isOwner || canManageSquad) && eventStarted && resultsAvailable && event.trackResults && !matchResult && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-          Mecz się odbył — wpisz wynik, żeby zapisał się w statystykach graczy.
+          Mecz się odbył, wpisz wynik, żeby zapisał się w statystykach graczy.
         </p>
       )}
       {(myParticipation || canManageSquad) && event.trackResults && resultsAvailable && (
@@ -2486,7 +2486,7 @@ export default function EventDetailClient() {
               <Button variant="outline" className="w-full" onClick={handleWszyscyOddali} disabled={busy}>
                 {regulars.some((p) => !p.hasPaid)
                   ? 'Wszyscy oddali'
-                  : <span className="text-slate-500">Cofnij — nikt nie oddał</span>}
+                  : <span className="text-slate-500">Cofnij (nikt nie oddał)</span>}
               </Button>
             </div>
           )}
@@ -2511,7 +2511,7 @@ export default function EventDetailClient() {
                       </span>
                       <span className="text-xs text-slate-400">
                         {price.discountUnspecified
-                          ? 'Zniżka z karty — ustal kwotę'
+                          ? 'Zniżka z karty, ustal kwotę'
                           : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
                         {p.paymentMethod && <> · {PAYMENT_METHOD_LABELS[p.paymentMethod]}</>}
                       </span>
@@ -2539,7 +2539,7 @@ export default function EventDetailClient() {
             <p className="mt-2 text-[11px] text-slate-400">
               Gotowa wiadomość z kwotą, listą zaległości{
                 event.acceptedPaymentMethods.includes('blik') ? ' i numerem BLIK' : ''
-              } — do wklejenia na czat.
+              }, do wklejenia na czat.
             </p>
           </div>
           {/* Delegat z can_manage_payments, ale bez can_edit, nie ma dostępu
@@ -2617,14 +2617,14 @@ export default function EventDetailClient() {
                 <span className="text-slate-500">Do zapłaty</span>
                 <span className="font-semibold text-ink">
                   {price.discountUnspecified
-                    ? 'Zniżka z karty — ustal kwotę z organizatorem'
+                    ? 'Zniżka z karty, ustal kwotę z organizatorem'
                     : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
                 </span>
               </div>
               {myConfirmed.hasSportsCard && !price.discountUnspecified && price.priceGrosze < event.costGrosze && (
                 <p className="mt-1 text-right text-xs text-slate-400">
                   <span className="line-through">{(event.costGrosze / 100).toFixed(2)} PLN</span>
-                  {' '}— zniżka z karty sportowej
+                  {' '}· zniżka z karty sportowej
                 </p>
               )}
               {myConfirmed.paymentMethod && (
@@ -2859,7 +2859,7 @@ export default function EventDetailClient() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-700">Zapisy zamknięte</p>
               <p className="text-xs text-slate-500">
-                Organizator gra w tym składzie. Mecz się odbywa — nikt nowy już nie dołączy.
+                Organizator gra w tym składzie. Mecz się odbywa, nikt nowy już nie dołączy.
               </p>
             </div>
             {canManageEvent && (
@@ -2924,7 +2924,7 @@ export default function EventDetailClient() {
                 razy. "Kopiuj link" i "Zaproś z grupy" zostają wyłącznie w tych
                 dwóch stałych miejscach, nie powtarzają się tutaj. */}
             <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-              Przypomnienie wyśle się samo — Ty wyślij tylko link.
+              Przypomnienie wyśle się samo, Ty wyślij tylko link.
             </p>
 
             {cyklicznyId && (
@@ -2932,7 +2932,7 @@ export default function EventDetailClient() {
                 href={`/cykliczne/${cyklicznyId}`}
                 className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800"
               >
-                <Repeat className="h-4 w-4" /> Ustawiłeś powtarzanie co tydzień — zarządzaj serią
+                <Repeat className="h-4 w-4" /> Ustawiłeś powtarzanie co tydzień, zarządzaj serią
               </Link>
             )}
           </div>
@@ -3420,7 +3420,7 @@ export default function EventDetailClient() {
                 // Po starcie meczu dołączenie do rezerwy jest już bez sensu
                 // (`joinBarVisible` niżej z tego samego powodu chowa cały pasek
                 // zapisu) — sam napis wtedy też nie zaprasza do rezerwy.
-                ? (amIInvolved || eventStarted ? 'Komplet' : 'Komplet — dołącz do rezerwy')
+                ? (amIInvolved || eventStarted ? 'Komplet' : 'Komplet: dołącz do rezerwy')
                 : `Zostało ${withCount(freeSpots, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}`}
             </p>
 
@@ -3509,7 +3509,7 @@ export default function EventDetailClient() {
               </button>
             )}
             {regulars.length === 0 && reserves.length === 0 && (
-              <p className="mt-5 text-center text-sm text-slate-400">Nikt jeszcze nie dołączył — bądź pierwszy!</p>
+              <p className="mt-5 text-center text-sm text-slate-400">Nikt jeszcze nie dołączył, bądź pierwszy!</p>
             )}
 
             {/* Roster — replaces avatar row when open */}
@@ -3537,7 +3537,7 @@ export default function EventDetailClient() {
                     i skład, i rezerwę — gość na rezerwie też może przejąć wpis. */}
                 {(isOrganizer || canManageSquad) && niePrzejeciGoscie.length > 0 && (
                   <p className="mb-3 rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-800">
-                    {withCount(niePrzejeciGoscie.length, 'gość', 'goście', 'gości')} bez konta w składzie —
+                    {withCount(niePrzejeciGoscie.length, 'gość', 'goście', 'gości')} bez konta w składzie:
                     kliknij „Zaproś do Bojo" przy imieniu. Po założeniu konta dołączą do ekipy
                     i dostaną powiadomienie o kolejnym meczu.
                     {' '}<span className="font-semibold">Bez konta i bez adresu e-mail nie dowiedzą się
@@ -3574,7 +3574,7 @@ export default function EventDetailClient() {
                         )}
                         {p.isGuest && (
                           <span
-                            title="Gość bez konta — dopisany ręcznie"
+                            title="Gość bez konta: dopisany ręcznie"
                             className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 shrink-0"
                           >
                             gość
@@ -3689,7 +3689,7 @@ export default function EventDetailClient() {
               {reserves.length > 0 && (
                 <div className="mt-4 border-t border-slate-100 pt-3">
                   <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                    Rezerwa — kolejka do zwolnionego miejsca
+                    Rezerwa: kolejka do zwolnionego miejsca
                   </p>
                   <ul className="divide-y divide-slate-100">
                     {reserves.map((p) => {
@@ -3699,7 +3699,7 @@ export default function EventDetailClient() {
                       <li key={p.id} className="flex items-start justify-between gap-2 py-2.5">
                         <div className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">{pozycja ?? '—'}</span>
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">{pozycja ?? '-'}</span>
                             <span className="min-w-0 truncate">{p.name}</span>
                             {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
                             {p.isGuest && <span className="shrink-0 text-xs text-slate-400">(gość)</span>}
@@ -3709,12 +3709,12 @@ export default function EventDetailClient() {
                                 rezerwy i organizator nie wiedzieli, ile czasu
                                 zostało koledze na kliknięcie „Wchodzę". */}
                             {p.claimOfferedAt && (
-                              <span title="Zaproponowano zwolnione miejsce — czeka na decyzję" className="shrink-0 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                              <span title="Zaproponowano zwolnione miejsce, czeka na decyzję" className="shrink-0 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
                                 czeka na decyzję{deadline ? ` · ${krotkiTermin(deadline)}` : ''}
                               </span>
                             )}
                             {p.claimPassed && !p.claimOfferedAt && (
-                              <span title="Odpuścił(a) miejsce — możesz awansować ręcznie" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                              <span title="Odpuścił(a) miejsce, możesz awansować ręcznie" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                                 przepuścił(a)
                               </span>
                             )}
@@ -3723,7 +3723,7 @@ export default function EventDetailClient() {
                                 w grze (migracja `135`) — inny badge, żeby to było
                                 widać, nie tylko w treści powiadomienia. */}
                             {p.ofertaWygaslaAt && !p.claimOfferedAt && !p.claimPassed && (
-                              <span title="Nie zdążył(a) odpowiedzieć w czasie — wraca na koniec kolejki, ale zostaje w grze" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                              <span title="Nie zdążył(a) odpowiedzieć w czasie, wraca na koniec kolejki, ale zostaje w grze" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                                 nie zdążył(a)
                               </span>
                             )}
@@ -3753,7 +3753,7 @@ export default function EventDetailClient() {
                               ma skąd o tym wiedzieć. */}
                           {(isOrganizer || canManageSquad) && pominietyWKolejce(p) && (
                             <span className="ml-9 mt-0.5 text-[11px] font-medium text-amber-700">
-                              Bez adresu e-mail — nie dostanie oferty miejsca. Awansuj ręcznie albo daj znać poza Bojo.
+                              Bez adresu e-mail, nie dostanie oferty miejsca. Awansuj ręcznie albo daj znać poza Bojo.
                             </span>
                           )}
                           {mozeZaprosic(p) && doPrzejecia(p) && (
@@ -3935,14 +3935,14 @@ export default function EventDetailClient() {
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-slate-800">
                     Jesteś na liście rezerwowej
-                    {myReservePosition ? ` — ${myReservePosition}. w kolejce` : ''}
+                    {myReservePosition ? `: ${myReservePosition}. w kolejce` : ''}
                     {myConfirmed?.isGoalkeeper ? ' · jako bramkarz' : ''}
                   </p>
                   <ul className="mt-2 space-y-1.5 text-xs text-slate-600">
                     <li>
                       <span className="font-semibold">Nie masz miejsca w składzie.</span>{' '}
                       {myConfirmed?.claimPassed
-                        ? 'Odpuściłeś(-aś) zaproponowane miejsce, więc kolejnej oferty nie będzie — poproś organizatora, jeśli jednak chcesz zagrać.'
+                        ? 'Odpuściłeś(-aś) zaproponowane miejsce, więc kolejnej oferty nie będzie, poproś organizatora, jeśli jednak chcesz zagrać.'
                         : 'Wejdziesz, gdy ktoś zapisany się wypisze.'}
                     </li>
                     {myReservePosition && (
@@ -3952,8 +3952,8 @@ export default function EventDetailClient() {
                           zaproponuje miejsce pierwszej osobie z kolejki
                         </span>
                         {myReservePosition > 1
-                          ? ` — przed Tobą ${myReservePosition - 1} ${myReservePosition === 2 ? 'osoba' : 'osoby'}.`
-                          : ' — czyli Tobie.'}
+                          ? `, przed Tobą ${myReservePosition - 1} ${myReservePosition === 2 ? 'osoba' : 'osoby'}.`
+                          : ', czyli Tobie.'}
                       </li>
                     )}
                     {myReservePosition && (
@@ -3961,11 +3961,11 @@ export default function EventDetailClient() {
                         Na przyjęcie miejsca masz{' '}
                         <span className="font-semibold">{czasRezerwyTekst(event.reserveClaimMinutes)}</span>; po tym
                         czasie przechodzi do kolejnej osoby, a Ty{' '}
-                        <span className="font-semibold">wracasz na koniec kolejki</span> — nie wypadasz z niej.
+                        <span className="font-semibold">wracasz na koniec kolejki</span>, nie wypadasz z niej.
                       </li>
                     )}
                     <li>
-                      Powiadomienie zobaczysz w Bojo, pod dzwonkiem — a jeśli włączysz powiadomienia,
+                      Powiadomienie zobaczysz w Bojo, pod dzwonkiem, a jeśli włączysz powiadomienia,
                       także na telefonie.
                     </li>
                   </ul>
@@ -3979,7 +3979,7 @@ export default function EventDetailClient() {
         {myClaimOffer && !eventStarted && (
           <div className="px-4">
             <div className="rounded-2xl border-2 border-green-300 bg-green-50 p-4">
-              <p className="text-sm font-bold text-green-900">Zwolniło się miejsce — jesteś następny!</p>
+              <p className="text-sm font-bold text-green-900">Zwolniło się miejsce, jesteś następny!</p>
               <p className="mt-0.5 text-xs text-green-800">
                 {claimDeadline
                   ? <>Masz czas do <span className="font-semibold">{format(claimDeadline, 'EEEE HH:mm', { locale: pl })}</span>. Później miejsce przejdzie do kolejnej osoby, a Ty wrócisz na koniec kolejki.</>
@@ -4022,7 +4022,7 @@ export default function EventDetailClient() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Obserwujesz ten mecz</p>
                   <p className="text-xs text-amber-700 dark:text-amber-400">
-                    Nie masz zajętego miejsca — dołącz, gdy będziesz pewny.
+                    Nie masz zajętego miejsca, dołącz, gdy będziesz pewny.
                   </p>
                 </div>
               </div>
@@ -4104,7 +4104,7 @@ export default function EventDetailClient() {
               <p className="min-w-0 flex-1 text-sm">
                 <span className="font-semibold text-ink">Jesteś zapisany(a)</span>
                 <span className="block text-xs text-slate-500 dark:text-slate-400">
-                  Zapis bez konta — zarządzasz nim linkiem
+                  Zapis bez konta: zarządzasz nim linkiem
                 </span>
               </p>
               <Link
@@ -4140,7 +4140,7 @@ export default function EventDetailClient() {
                   {myPendingRequest
                     ? 'Czekasz na akceptację'
                     : amIReserve
-                      ? `Rezerwa${myReservePosition ? ` — ${myReservePosition}. w kolejce` : ''}`
+                      ? `Rezerwa${myReservePosition ? `: ${myReservePosition}. w kolejce` : ''}`
                       : 'Jesteś w składzie'}
                   {!myPendingRequest && myConfirmed?.isGoalkeeper ? ' · bramkarz' : ''}
                 </span>
@@ -4205,7 +4205,7 @@ export default function EventDetailClient() {
               {!authLoading && isFull && !event.reserveEnabled ? (
                 <div className="flex gap-2">
                   <div className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-700 px-4 text-center text-[13px] font-semibold text-slate-600 dark:text-slate-300">
-                    Komplet — zapisy zamknięte
+                    Komplet: zapisy zamknięte
                   </div>
                   {!user ? (
                     <button
@@ -4244,7 +4244,7 @@ export default function EventDetailClient() {
                     {/* Przy komplecie mówimy to WPROST na przycisku, a nie
                         dopiero w oknie: „Dołącz bez konta" na pełnym meczu
                         obiecuje miejsce w składzie, którego nie ma. */}
-                    {isFull ? 'Komplet — na rezerwę' : 'Dołącz bez konta →'}
+                    {isFull ? 'Komplet: na rezerwę' : 'Dołącz bez konta →'}
                   </button>
                   <button
                     onClick={() => {
@@ -4298,7 +4298,7 @@ export default function EventDetailClient() {
                       onClick={() => { setJoinRole('player'); setJoinAsReserve(true); otworzOknoZapisu(); }}
                       className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-slate-200 dark:bg-slate-700 text-[15px] font-bold text-slate-600 dark:text-slate-300 transition active:scale-[0.99]"
                     >
-                      Komplet — na rezerwę
+                      Komplet: na rezerwę
                     </button>
                     {myMaybe ? (
                       <button
@@ -4335,8 +4335,8 @@ export default function EventDetailClient() {
               {event.status === 'cancelled'
                 ? 'Mecz został odwołany'
                 : resultsAvailable
-                  ? 'Mecz już się odbył — zapisy zamknięte'
-                  : 'Mecz już się rozpoczął — zapisy zamknięte'}
+                  ? 'Mecz już się odbył: zapisy zamknięte'
+                  : 'Mecz już się rozpoczął: zapisy zamknięte'}
             </div>
           </div>
         )}
@@ -4664,7 +4664,7 @@ export default function EventDetailClient() {
         ) : (
           <p className="py-10 text-center text-sm text-slate-400">
             Rozmowa jest widoczna wyłącznie dla uczestników meczu, organizatora
-            i — jeśli mecz należy do ekipy — jej członków.
+            i (jeśli mecz należy do ekipy) jej członków.
           </p>
         ))}
       </main>
@@ -4767,7 +4767,7 @@ export default function EventDetailClient() {
             </button>
             <h3 className="mb-1 pr-8 font-semibold text-ink">Kto widzi ten mecz</h3>
             <p className="mb-4 text-xs text-slate-500">
-              Zmiana działa od razu — także dla osób, które już mają link.
+              Zmiana działa od razu, także dla osób, które już mają link.
             </p>
 
             <div className="space-y-2">
@@ -4818,7 +4818,7 @@ export default function EventDetailClient() {
                 <span className="font-semibold">
                   {withCount(confirmed.length, 'osoba', 'osoby', 'osób')}
                 </span>
-                . Zmiana na prywatny nikogo nie wypisuje — po prostu nowi nie znajdą meczu na liście.
+                . Zmiana na prywatny nikogo nie wypisuje, po prostu nowi nie znajdą meczu na liście.
               </p>
             )}
           </div>
@@ -4844,7 +4844,7 @@ export default function EventDetailClient() {
             <h3 className="mb-1 pr-8 font-semibold text-ink">{eventLoc.primary}</h3>
             {eventLoc.secondary && <p className="text-sm text-slate-500">{eventLoc.secondary}</p>}
             <p className="mt-3 text-xs text-slate-400">
-              Miejsce wpisane ręcznie przez organizatora — nie ma go w katalogu boisk.
+              Miejsce wpisane ręcznie przez organizatora, nie ma go w katalogu boisk.
             </p>
             {event.lat && event.lng && (
               <a
@@ -4951,7 +4951,7 @@ export default function EventDetailClient() {
                 {event.reserveEnabled ? (
                   <>
                     {' '}Zapiszesz się na <span className="font-bold">listę rezerwową</span> jako{' '}
-                    <span className="font-bold">{pozycjaPoZapisieWKolejce}.</span> w kolejce — wejdziesz, gdy ktoś się wypisze.
+                    <span className="font-bold">{pozycjaPoZapisieWKolejce}.</span> w kolejce, wejdziesz, gdy ktoś się wypisze.
                   </>
                 ) : (
                   <> Ten mecz nie prowadzi listy rezerwowej, więc w tej roli zapisy są zamknięte.
@@ -4990,7 +4990,7 @@ export default function EventDetailClient() {
                 </div>
                 {joinRole === 'goalkeeper' && gkFull && !joinAsReserve && (
                   <p className="mt-2 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    Jest już {gkCount} bramkarzy — dołączysz jako rezerwa.
+                    Jest już {gkCount} bramkarzy, dołączysz jako rezerwa.
                   </p>
                 )}
               </div>
@@ -5095,7 +5095,7 @@ export default function EventDetailClient() {
                   </div>
                   {price.discountUnspecified && (
                     <p className="mt-1.5 text-xs text-amber-700">
-                      Karta sportowa daje zniżkę — o dokładną kwotę zapytaj organizatora.
+                      Karta sportowa daje zniżkę, o dokładną kwotę zapytaj organizatora.
                     </p>
                   )}
                 </div>
@@ -5187,7 +5187,7 @@ export default function EventDetailClient() {
                 {event.reserveEnabled ? (
                   <>
                     {' '}Zapiszesz się na <span className="font-bold">listę rezerwową</span> jako{' '}
-                    <span className="font-bold">{guestPozycjaWKolejce}.</span> w kolejce — wejdziesz, gdy ktoś się wypisze.
+                    <span className="font-bold">{guestPozycjaWKolejce}.</span> w kolejce, wejdziesz, gdy ktoś się wypisze.
                   </>
                 ) : (
                   <> Ten mecz nie prowadzi listy rezerwowej, więc w tej roli zapisy są zamknięte.
@@ -5228,7 +5228,7 @@ export default function EventDetailClient() {
                 </div>
                 {guestRole === 'goalkeeper' && gkFull && (
                   <p className="mt-2 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    Jest już {gkCount} bramkarzy — dołączysz jako rezerwa.
+                    Jest już {gkCount} bramkarzy, dołączysz jako rezerwa.
                   </p>
                 )}
               </div>
@@ -5323,15 +5323,15 @@ export default function EventDetailClient() {
               {newUserAlreadyJoined
                 ? 'Wcześniej dołączyłeś do tej gry.'
                 : newUserPending
-                  ? 'Prośba wysłana — czeka na akceptację.'
+                  ? 'Prośba wysłana, czeka na akceptację.'
                   : newUserIsReserve ? 'Zapisano! Jesteś na liście rezerwowej.' : 'Świetnie! Jesteś w składzie.'}
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
               {newUserHasAccount
-                ? 'Ten e-mail ma już konto w Bojo. Zaloguj się, żeby zobaczyć więcej szczegółów — przypiszemy ten zapis do Ciebie.'
+                ? 'Ten e-mail ma już konto w Bojo. Zaloguj się, żeby zobaczyć więcej szczegółów, przypiszemy ten zapis do Ciebie.'
                 : newUserAlreadyJoined
-                  ? 'Twój zapis jest już na liście. Ostatni krok — 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.'
-                  : 'Ostatni krok — 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.'}
+                  ? 'Twój zapis jest już na liście. Ostatni krok, 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.'
+                  : 'Ostatni krok, 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.'}
             </p>
 
             {/* Trzy wartości — tylko dla osób BEZ konta. Właściciela konta nie ma sensu
@@ -5379,7 +5379,7 @@ export default function EventDetailClient() {
                   z RPC to samo mówi już podlinia nagłówka, więc nie dublujemy. */}
               {accountEmailTaken && !newUserHasAccount && (
                 <p className="rounded-lg border border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-700 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300">
-                  Ten e-mail ma już konto w Bojo — podaj hasło, żeby się zalogować i przypisać ten zapis do siebie.
+                  Ten e-mail ma już konto w Bojo, podaj hasło, żeby się zalogować i przypisać ten zapis do siebie.
                 </p>
               )}
               <input
@@ -5501,7 +5501,7 @@ export default function EventDetailClient() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-ink mb-1">Powtórz mecz</h3>
             <p className="text-sm text-slate-500 mb-4">
-              Skopiuje wszystkie ustawienia do nowego wydarzenia. Wybierz nową datę i godzinę —
+              Skopiuje wszystkie ustawienia do nowego wydarzenia. Wybierz nową datę i godzinę,
               resztę, np. cenę czy widoczność, zmienisz później na nowo utworzonym wydarzeniu.
             </p>
             <div className="space-y-3 mb-5">
@@ -5613,7 +5613,7 @@ export default function EventDetailClient() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold text-ink mb-1">Kto nie przyszedł</h3>
             <p className="text-sm text-slate-500 mb-4">
-              Wpływa na wiarygodność gracza na jego profilu — nie zmienia niczego w tym widoku meczu.
+              Wpływa na wiarygodność gracza na jego profilu, nie zmienia niczego w tym widoku meczu.
             </p>
             <ul className="divide-y divide-slate-100">
               {regulars.map((p) => {
@@ -5657,7 +5657,7 @@ export default function EventDetailClient() {
             </p>
             {delegateCandidates.length === 0 ? (
               <p className="py-4 text-sm text-slate-400 text-center">
-                Brak kandydatów — dopisz kogoś do składu albo przypnij mecz do grupy.
+                Brak kandydatów, dopisz kogoś do składu albo przypnij mecz do grupy.
               </p>
             ) : (
               <ul className="divide-y divide-slate-100">

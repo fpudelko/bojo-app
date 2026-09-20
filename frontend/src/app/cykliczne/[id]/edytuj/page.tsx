@@ -166,7 +166,7 @@ export default function EditRecurringEventPage() {
         </Link>
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Ustawienia stałej gierki</h1>
         <p className="text-sm text-slate-500 mb-6">
-          Zmiany dotyczą kolejnych terminów. Już utworzone mecze zostają bez zmian — te edytujesz
+          Zmiany dotyczą kolejnych terminów. Już utworzone mecze zostają bez zmian, te edytujesz
           na samym meczu.
         </p>
 
@@ -183,7 +183,7 @@ export default function EditRecurringEventPage() {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Boisko {(field?.name ?? fieldName) && (
-                <span className="text-primary-600">— {field?.name ?? fieldName}</span>
+                <span className="text-primary-600">: {field?.name ?? fieldName}</span>
               )}
             </label>
             <p className="text-xs text-slate-500 mb-2">Kliknij pinezkę na mapie, aby zmienić boisko.</p>
@@ -291,7 +291,7 @@ export default function EditRecurringEventPage() {
                 <Globe className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                 <span>
                   <span className="block text-sm font-medium text-slate-900">Publiczne</span>
-                  <span className="block text-xs text-slate-500">Widoczne dla wszystkich — dołączy każdy chętny</span>
+                  <span className="block text-xs text-slate-500">Widoczne dla wszystkich, dołączy każdy chętny</span>
                 </span>
               </button>
               <button
@@ -304,7 +304,7 @@ export default function EditRecurringEventPage() {
                 <Lock className="w-4 h-4 mt-0.5 text-slate-600 shrink-0" />
                 <span>
                   <span className="block text-sm font-medium text-slate-900">Prywatne</span>
-                  <span className="block text-xs text-slate-500">Nie pojawia się na liście — wejdzie tylko ktoś z zaproszeniem lub linkiem</span>
+                  <span className="block text-xs text-slate-500">Nie pojawia się na liście, wejdzie tylko ktoś z zaproszeniem lub linkiem</span>
                 </span>
               </button>
             </div>

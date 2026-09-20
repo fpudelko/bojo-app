@@ -133,7 +133,7 @@ export function validatePayments(v: {
     // trybie „za cały obiekt" w polu jest koszt wynajmu, a `costPln` to już
     // wynik dzielenia. „Wpisałeś za dużo" wskazywałoby wtedy liczbę, której
     // organizator nie wpisał.
-    errs.costPln = `Koszt od osoby wychodzi ${cost.toFixed(2)} zł — to wygląda na pomyłkę. `
+    errs.costPln = `Koszt od osoby wychodzi ${cost.toFixed(2)} zł, to wygląda na pomyłkę. `
       + `Maksimum to ${MAX_KOSZT_OD_OSOBY_PLN} zł od osoby.`;
     // Bez `return` doszłaby jeszcze uwaga o zniżce liczonej od tej samej,
     // absurdalnej kwoty — dwa błędy o jednej pomyłce.
