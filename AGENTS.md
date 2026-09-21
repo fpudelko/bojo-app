@@ -296,7 +296,9 @@ Zastępuje wcześniejszy, nieużywany „BOJO Cup" (dawna flaga `SHOW_CUP`,
 `lib/tournaments.ts`, tabele `tournament_*`) — usunięty z frontu, tabele kasuje
 osobna migracja, gdy nowy moduł zastąpi go w całości.
 `SHOW_GAME_ALERTS` jest **włączona** od 2026-09-12 — alert o nowym meczu w okolicy
-zakłada się przyciskiem „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów.
+zakłada się przyciskiem „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów,
+na `/mapa`, w `/profil` oraz (od 2026-09-21) w pustym stanie „Nadchodzące mecze"
+na stronie obiektu.
 `SHOW_RECURRING` jest **wyłączona** od 2026-08-16 (produktowa decyzja o rezygnacji
 z gier cyklicznych/stałych gierek) — chowa wejścia w nawigacji i przełącznik
 „Wydarzenie cykliczne" w kreatorze; istniejące serie i ich strony zarządzania

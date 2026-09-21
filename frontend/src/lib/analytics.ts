@@ -212,3 +212,135 @@ export function konwersjaZKatalogu(
     procent: zZewnatrz > 0 ? Math.round((klikniecia / zZewnatrz) * 1000) / 10 : null,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AKTYWACJA — dwie liczby, od których zależy kolejność wszystkiego innego.
+//
+// Panel liczył dotąd WOLUMEN: „Mecze utworzone / 7 dni", „Dołączenia / 7 dni".
+// Licznik wolumenu wygląda IDENTYCZNIE w dwóch stanach, które są przeciwieństwami:
+// dziesięciu organizatorów po jednym meczu (teza biznesowa obalona) i jeden
+// organizator z dziesięcioma (teza potwierdzona). Cała strategia stoi na zdaniu
+// „organizator przyprowadza 10–14 osób" — a organizator, który zrobił jeden mecz
+// i nie wrócił, nie przyprowadził nikogo, tylko jednorazową grupę bez powodu
+// do powrotu.
+//
+// Te dwie funkcje są tym, czego `docs/rewizja-2026-08.md` („Czego nie wiem",
+// pkt 1) zażądał w sierpniu i czego od tamtej pory nikt nie policzył, mimo że
+// zdarzenia leżą w bazie od migracji `047`.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Minimum, jakiego wymagamy od zdarzenia przy liczeniu aktywacji. Celowo węższe
+ *  niż wiersz z panelu: funkcje mają dać się wołać z testu bez budowania atrapy
+ *  całego `Row`. */
+export interface ZdarzenieDoAktywacji {
+  user_id: string | null;
+  event_type: string;
+  created_at: string;
+}
+
+const DOBA_MS = 24 * 60 * 60 * 1000;
+
+/** Mediana, nie średnia: jeden organizator, który wrócił po 29 dniach, przesuwa
+ *  średnią o tydzień i każe czytać ją jako „ludzie wracają po tygodniu". */
+function mediana(liczby: number[]): number | null {
+  if (liczby.length === 0) return null;
+  const s = [...liczby].sort((a, b) => a - b);
+  const srodek = Math.floor(s.length / 2);
+  return s.length % 2 === 1 ? s[srodek] : Math.round((s[srodek - 1] + s[srodek]) / 2);
+}
+
+export interface PowtarzalnoscOrganizatora {
+  /** Ilu różnych ludzi utworzyło w oknie co najmniej jeden mecz. */
+  organizatorzy: number;
+  /** Ilu z nich utworzyło co najmniej dwa. */
+  zDrugimMeczem: number;
+  /** `null` przy zerowym mianowniku: „0%" czytałoby się jak zmierzona porażka
+   *  tam, gdzie nie ma jeszcze czego mierzyć (ta sama zasada co
+   *  `konwersjaZKatalogu()` wyżej). */
+  procent: number | null;
+  /** Mediana odstępu pierwszy → drugi mecz, w pełnych dniach. */
+  medianaDniDoDrugiego: number | null;
+}
+
+/**
+ * Odsetek organizatorów, którzy wrócili po drugi mecz. **Definicja aktywacji
+ * dla tego produktu.**
+ *
+ * OGRANICZENIE, KTÓREGO NIE DA SIĘ OBEJŚĆ PO STRONIE TEJ FUNKCJI: liczy wyłącznie
+ * to, co dostanie. Panel podaje jej okno 30 dni, więc organizator z pierwszym
+ * meczem sprzed 40 dni i drugim wczoraj policzy się jako „jeden mecz". Liczba jest
+ * przez to DOLNYM oszacowaniem i panel musi to napisać przy niej — inaczej kłamie
+ * w dół dokładnie wtedy, gdy produkt zaczyna działać.
+ */
+export function powtarzalnoscOrganizatora(
+  zdarzenia: readonly ZdarzenieDoAktywacji[],
+): PowtarzalnoscOrganizatora {
+  const wgOrganizatora = new Map<string, number[]>();
+  for (const z of zdarzenia) {
+    if (z.event_type !== 'event_created' || !z.user_id) continue;
+    const czas = new Date(z.created_at).getTime();
+    // Zdarzenie z niesparsowalną datą wyrzucamy, zamiast wpuszczać `NaN`
+    // do sortowania — tam przeszłoby po cichu i zepsuło medianę.
+    if (!Number.isFinite(czas)) continue;
+    const lista = wgOrganizatora.get(z.user_id) ?? [];
+    lista.push(czas);
+    wgOrganizatora.set(z.user_id, lista);
+  }
+
+  const odstepy: number[] = [];
+  let zDrugimMeczem = 0;
+  wgOrganizatora.forEach((czasy) => {
+    if (czasy.length < 2) return;
+    zDrugimMeczem += 1;
+    // Panel oddaje wiersze malejąco po dacie, więc sortujemy u siebie zamiast
+    // ufać kolejności wejścia: „pierwszy" ma znaczyć najwcześniejszy, nie
+    // pierwszy napotkany.
+    czasy.sort((a, b) => a - b);
+    odstepy.push(Math.round((czasy[1] - czasy[0]) / DOBA_MS));
+  });
+
+  const organizatorzy = wgOrganizatora.size;
+  return {
+    organizatorzy,
+    zDrugimMeczem,
+    procent: organizatorzy > 0
+      ? Math.round((zDrugimMeczem / organizatorzy) * 1000) / 10
+      : null,
+    medianaDniDoDrugiego: mediana(odstepy),
+  };
+}
+
+export interface KonwersjaGoscia {
+  zapisyGosci: number;
+  przejecia: number;
+  procent: number | null;
+}
+
+/**
+ * Zapis bez konta → przejęcie wpisu kontem. Rozstrzyga tezę
+ * [rewizji](../../docs/rewizja-2026-08.md) §2: czy Bojo jest NARZĘDZIEM (wzrost
+ * liniowy, organizator po organizatorze) czy SIECIĄ (każdy gość może zostać
+ * kolejnym organizatorem).
+ *
+ * LICZY ZDARZENIA, NIE LUDZI, i tego nie da się tu naprawić: `guest_joined`
+ * powstaje, gdy nikt nie jest zalogowany, więc wiersz ma `user_id = NULL` i nie
+ * ma po czym rozpoznać osoby. Jedna osoba zapisana na trzy mecze to trzy zapisy.
+ * Iloraz jest więc PROPORCJĄ ZDARZEŃ, użyteczną jako trend i rząd wielkości,
+ * a nie odsetkiem osób — panel ma to powiedzieć wprost, zamiast pokazywać
+ * procent, który czyta się jak „tylu procent gości założyło konto".
+ */
+export function konwersjaGoscia(
+  zdarzenia: readonly ZdarzenieDoAktywacji[],
+): KonwersjaGoscia {
+  let zapisyGosci = 0;
+  let przejecia = 0;
+  for (const z of zdarzenia) {
+    if (z.event_type === 'guest_joined') zapisyGosci += 1;
+    else if (z.event_type === 'guest_claimed') przejecia += 1;
+  }
+  return {
+    zapisyGosci,
+    przejecia,
+    procent: zapisyGosci > 0 ? Math.round((przejecia / zapisyGosci) * 1000) / 10 : null,
+  };
+}

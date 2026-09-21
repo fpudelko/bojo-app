@@ -9,7 +9,11 @@ import {
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { rozbicieWgZrodla, konwersjaZKatalogu, zrodloZdarzenia, type AnalyticsEvent } from '@/lib/analytics';
+import {
+  rozbicieWgZrodla, konwersjaZKatalogu, zrodloZdarzenia,
+  powtarzalnoscOrganizatora, konwersjaGoscia,
+  type AnalyticsEvent,
+} from '@/lib/analytics';
 
 interface Row {
   id: string;
@@ -140,7 +144,15 @@ export default function AnalyticsAdminPage() {
     const zorganizuj7 = countType(week, 'boisko_zorganizuj');
     const { zZewnatrz, procent } = konwersjaZKatalogu(wejscia7, zorganizuj7);
 
+    // AKTYWACJA (2026-09-21). Liczona na PEŁNYM oknie 30 dni, nie na tygodniu:
+    // przy dzisiejszym wolumenie tydzień daje mianownik jednocyfrowy, a procent
+    // z mianownika 3 jest szumem udającym pomiar.
+    const organizatorzy = powtarzalnoscOrganizatora(rows);
+    const goscie = konwersjaGoscia(rows);
+
     return {
+      organizatorzy,
+      goscie,
       wgZrodla: rozbicieWgZrodla(wejscia7),
       wejscia7: wejscia7.length,
       wejsciaZZewnatrz: zZewnatrz,
@@ -225,6 +237,53 @@ export default function AnalyticsAdminPage() {
           <StatCard icon={Users} label="Aktywni dziś" value={stats.activeToday} accent />
           <StatCard icon={Users} label="Aktywni / 7 dni" value={stats.active7} />
           <StatCard icon={Users} label="Aktywni / 30 dni" value={stats.active30} />
+        </div>
+
+        {/* AKTYWACJA — dwie liczby dołożone 2026-09-21. Stoją NAD retencją,
+            bo odpowiadają wcześniej: retencja mierzy, czy ktoś wraca na stronę,
+            aktywacja mierzy, czy wraca po to, po co Bojo istnieje. Obie niosą
+            zastrzeżenie o oknie widoczne przy liczbie, nie w stopce: procent bez
+            zastrzeżenia czyta się jak pomiar całości, a jest pomiarem 30 dni. */}
+        <div className="mb-3 rounded-2xl border border-slate-200 bg-white p-5">
+          <p className="font-semibold text-ink">Aktywacja (30 dni)</p>
+
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Organizator wrócił po drugi mecz
+              </p>
+              <p className="mt-1 text-3xl font-bold text-ink">
+                {stats.organizatorzy.procent === null ? 'brak danych' : `${stats.organizatorzy.procent}%`}
+              </p>
+              <p className="mt-0.5 text-sm text-slate-600">
+                {stats.organizatorzy.zDrugimMeczem} z {stats.organizatorzy.organizatorzy}
+                {stats.organizatorzy.medianaDniDoDrugiego !== null
+                  && `, zwykle po ${stats.organizatorzy.medianaDniDoDrugiego} dniach`}
+              </p>
+              <p className="mt-1.5 text-xs text-slate-500">
+                Miernik tezy „organizator przyprowadza 10 do 14 osób": kto zrobił jeden
+                mecz i nie wrócił, przyprowadził jednorazową grupę. Liczba jest zaniżona,
+                bo pierwszy mecz sprzed ponad 30 dni nie mieści się w oknie.
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Zapis bez konta → przejęcie wpisu
+              </p>
+              <p className="mt-1 text-3xl font-bold text-ink">
+                {stats.goscie.procent === null ? 'brak danych' : `${stats.goscie.procent}%`}
+              </p>
+              <p className="mt-0.5 text-sm text-slate-600">
+                {stats.goscie.przejecia} przejęć na {stats.goscie.zapisyGosci} zapisów gości
+              </p>
+              <p className="mt-1.5 text-xs text-slate-500">
+                Rozstrzyga, czy Bojo rośnie liniowo (narzędzie) czy składanie (sieć).
+                To proporcja ZDARZEŃ, nie osób: zapis gościa powstaje bez zalogowania,
+                więc jedna osoba na trzech meczach to trzy zapisy.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Retention highlight */}
