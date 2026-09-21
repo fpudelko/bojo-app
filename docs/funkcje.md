@@ -13,7 +13,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 | Flaga | Wartość | Co chowa | Gdzie warunkuje |
 |---|---|---|---|
 | `SHOW_TURNIEJE` | `false` | Moduł turniejowy — **wyłączona ponownie 2026-09-17, tymczasowo** (decyzja właściciela po przeglądzie na żywo: moduł działa, ale pierwsze wrażenie nie jest gotowe). Trasa `/turnieje` **odpowiada normalnie** — znikają wyłącznie wejścia w nawigacji. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | `app/moje-gry/page.tsx` (link „🏆 Turnieje”), `app/profil/page.tsx` (wiersz „Turnieje”) |
-| `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (przycisk „Powiadom mnie, gdy się pojawi" w pustym stanie listy) |
+| `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (pusty stan listy), `components/map/VenueExplorer.tsx` (`/mapa`), `components/profil/MojeAlerty.tsx` (`/profil`), `app/boisko/[id]/VenueDetailClient.tsx` (**od 2026-09-21**, pusty stan „Nadchodzące mecze") |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
 | `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
 | `SHOW_MIN_PLAYERS_THRESHOLD` | `false` | Toggle progu „gra się odbędzie" i werdykt „Gramy ✓ / Brakuje N do minimum" (wyłączona 2026-08-21, produktowa decyzja — `events.min_players` i logika zostają) | `EventCapacityFields.tsx` (kreator + edycja), `CzyGramyPanel.tsx` |
@@ -2041,6 +2041,35 @@ plus znacznik `alert=1`, a ekran po powrocie otwiera okno sam i **zdejmuje
 znacznik z adresu** — bez tego odświeżenie albo „wstecz" otwierałyby okno
 w kółko. Dotyczy obu ekranów: `/mapa` trzymało filtry w adresie od dawna, ale
 stare przekierowanie na `/logowanie?next=%2Fmapa` i tak je wyrzucało.
+
+### Czwarte wejście: strona obiektu — od 2026-09-21
+
+`/boisko/[id]`, w pustym stanie sekcji „Nadchodzące mecze". Powód jest liczbowy, nie
+estetyczny: **980 z 1000 stron zbierających wyświetlenia w Search Console to
+`/boisko/*`**, a trzy dotychczasowe wejścia stoją za wyszukiwarką w aplikacji
+(`/wydarzenia`, `/mapa`) albo za logowaniem (`/profil`) — czyli nie tam, gdzie ląduje
+ruch z Google.
+
+Stan pusty brzmiał wcześniej „Brak nadchodzących meczów na tym boisku." i był ślepym
+zaułkiem. Dziś mówi „Nikt jeszcze nie wystawił tu meczu." i daje akcję pasującą do
+intencji, z jaką ten człowiek przyszedł: pytał o **to boisko**, a nie o to, żeby wziąć
+na siebie organizację meczu.
+
+**Sporty przechodzą przez filtr `FOCUS_SPORTS`** (`domyslneZObiektu()` w `lib/alerts.ts`,
+test `src/__tests__/alertZObiektu.test.ts`). `field.sport` przychodzi z importu OSM
+i niesie też `wielofunkcyjne`, `inne` i `piłka ręczna` — wartości, których okno alertu
+nie ma na żadnym chipie. Podane jako `defaultSports` dałyby zaznaczenie niewidoczne
+i niemożliwe do odznaczenia, a zapisany alert łapałby co innego, niż człowiek widzi.
+Pusta tablica znaczy „dowolny sport" i jest tu poprawnym wynikiem.
+
+Promień startuje z 5 km, nie z domyślnych 15: człowiek na stronie konkretnego boiska
+pyta o jego okolicę, nie o swoje miasto. Podpis alertu niesie nazwę obiektu, żeby dało
+się go rozpoznać na liście w profilu.
+
+Przy okazji pod „Zorganizuj tutaj" stanęło zdanie mówiące, co ten przycisk robi
+(„zakładasz mecz i wysyłasz ekipie jeden link, gracze zapisują się bez zakładania
+konta"). Przycisk sam w sobie czytał się jak zobowiązanie do wynajęcia obiektu, a odbiorcą
+jest ktoś, kto wszedł z zapytania o nazwę boiska i nie wie, czym Bojo jest.
 
 **Ekran logowania mówi, po co ktoś tu trafił** — `?powod=alert` wybiera zdanie
 z `POWODY` w `AuthForm`. Wcześniej witał ogólnym „wejdź na swoje konto, żeby
@@ -4659,6 +4688,29 @@ procent czyta się jak zmierzona porażka, a to jest brak danych. Reguły są cz
 funkcjami w `lib/analytics.ts` (`zrodloZdarzenia`, `rozbicieWgZrodla`,
 `konwersjaZKatalogu`), testowanymi w `src/__tests__/odczytPomiaru.test.ts` — w `.tsx`
 Vitest ich nie zaimportuje.
+
+**Aktywacja (od 2026-09-21).** Dwie liczby w panelu, nad retencją, liczone na pełnym
+oknie 30 dni. Nie wymagały nowych zdarzeń — wymagały zadania pytania:
+
+| Liczba | Funkcja | Co rozstrzyga |
+|---|---|---|
+| Organizator wrócił po drugi mecz | `powtarzalnoscOrganizatora()` | tezę „organizator przyprowadza 10–14 osób". Kto zrobił jeden mecz i nie wrócił, przyprowadził jednorazową grupę |
+| Zapis bez konta → przejęcie wpisu | `konwersjaGoscia()` | czy Bojo rośnie liniowo (narzędzie) czy składanie (sieć) — teza [rewizji](./rewizja-2026-08.md) §2 |
+
+Powstały, bo licznik wolumenu („Mecze utworzone / 7 dni") pokazuje **identyczną
+wartość** w dwóch stanach, które są przeciwieństwami: dziesięciu organizatorów po
+jednym meczu i jeden z dziesięcioma. Przypina to test
+`src/__tests__/aktywacja.test.ts`, porównując oba przypadki o tym samym wolumenie.
+
+Dwa zastrzeżenia stoją **przy liczbach w panelu**, nie w stopce, bo procent bez nich
+czyta się jak pomiar całości:
+
+- **Powtarzalność jest zaniżona** — panel podaje funkcji okno 30 dni, więc organizator
+  z pierwszym meczem sprzed 40 dni i drugim wczoraj liczy się jako „jeden mecz".
+- **Konwersja gościa liczy ZDARZENIA, nie ludzi**, i nie da się tego naprawić w kodzie
+  odczytu: `guest_joined` powstaje, gdy nikt nie jest zalogowany, więc wiersz ma
+  `user_id = NULL`. Jedna osoba na trzech meczach to trzy zapisy. Iloraz jest trendem
+  i rzędem wielkości, nie odsetkiem osób.
 
 `event_type` to zwykły `TEXT` bez ograniczenia, więc nowe zdarzenie nie wymaga
 migracji — wymaga za to dopisania etykiety do `TYPE_LABELS` w

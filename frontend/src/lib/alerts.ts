@@ -4,7 +4,7 @@ import type { GameAlert } from '@/types';
 import { PROMIEN_DOMYSLNY_KM, indeksPromienia, promienZIndeksu } from './miejscowosci';
 import { etykietaKiedy } from './eventFilters';
 import { distanceKm } from './geo';
-import { sportLabel } from './sports';
+import { sportLabel, FOCUS_SPORTS } from './sports';
 
 function toAlert(row: any): GameAlert {
   return {
@@ -265,6 +265,47 @@ export function domyslneZFiltrow(filtry: {
     radiusKm: promienZIndeksu(indeksPromienia(promien)),
     lat:      filtry.pozycja?.lat,
     lng:      filtry.pozycja?.lng,
+  };
+}
+
+/**
+ * Ustawienia okna alertu wywołanego ze STRONY OBIEKTU (`/boisko/[id]`).
+ *
+ * Odpowiednik `domyslneZFiltrow()` dla drugiego wejścia, dołożonego 2026-09-21.
+ * Powód jest liczbowy: strony obiektów zbierają dziś praktycznie cały ruch
+ * z wyszukiwarki (Search Console, 7 dni do 14.09: 116 kliknięć, 980 z 1000 stron
+ * ze wyświetleniami to `/boisko/*`), a wejść do alertu było troje i żadne nie
+ * stało tam, gdzie ci ludzie lądują.
+ *
+ * SPORTY PRZECHODZĄ PRZEZ FILTR `FOCUS_SPORTS`, i to jest tu cała robota.
+ * `field.sport` przychodzi prosto z importu OSM, więc niesie też wartości,
+ * których okno alertu nie umie pokazać: „piłka ręczna" (dziedzictwo, ukryta
+ * w filtrach), „wielofunkcyjne" i „inne" (`sport=multi` albo dyscyplina
+ * nierozpoznana przez import). Podanie takiej wartości jako `defaultSports`
+ * dałoby okno z zaznaczeniem, którego nie widać na żadnym chipie: człowiek
+ * nie miałby jak go odznaczyć, a zapisany alert łapałby coś innego, niż widzi.
+ * Pusta tablica znaczy w `AlertInput` „dowolny sport" i jest tu poprawnym
+ * wynikiem: lepiej dostać za dużo, niż dostać po cichu nie to.
+ */
+export function domyslneZObiektu(field: {
+  sport: string[];
+  lat: number;
+  lng: number;
+  name: string;
+  city?: string;
+}): { sports: string[]; radiusKm: number; lat: number; lng: number; label: string } {
+  const znane = new Set<string>(FOCUS_SPORTS);
+  return {
+    sports:   field.sport.filter((s) => znane.has(s)),
+    // Mniejszy promień niż domyślny: człowiek stojący na stronie KONKRETNEGO
+    // boiska pyta o okolicę tego boiska, nie o swoje miasto. Wartość ze skali
+    // suwaka, żeby okno miało co pokazać przy edycji.
+    radiusKm: promienZIndeksu(indeksPromienia(5)),
+    lat:      field.lat,
+    lng:      field.lng,
+    // Nazwa obiektu, nie miejscowość: to jest podpis, który człowiek zobaczy
+    // na liście alertów w profilu, i ma mu przypomnieć, skąd ten alert wziął.
+    label:    field.city ? `${field.name}, ${field.city}` : field.name,
   };
 }
 

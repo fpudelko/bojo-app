@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-20 · migracja `156` · 60 tabel
+**Stan na:** 2026-09-21 · migracja `156` · 60 tabel
 
 ---
 
@@ -449,6 +449,55 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-21 — Strona boiska na bojo.pl nie kończy się ślepym zaułkiem
+
+PROBLEM: strona obiektu w katalogu Bojo (ponad 30 000 boisk) jest adresem, pod który
+trafia praktycznie cały ruch z wyszukiwarki. Kto wszedł z zapytania o nazwę boiska
+i nie zastał tam żadnego meczu, czytał zdanie „Brak nadchodzących meczów na tym
+boisku." i nie dostawał żadnego wyjścia. Jedyny przycisk na stronie, „Zorganizuj
+tutaj", prosi o najtrudniejszą rzecz w aplikacji i nie mówi, co robi: czyta się jak
+zobowiązanie do wynajęcia obiektu, a stoi przed kimś, kto nie wie jeszcze, czym Bojo
+jest. Alert o nowych meczach w okolicy istniał i miał trzy wejścia, wszystkie
+w miejscach, do których ten człowiek nie dociera.
+
+ROZWIĄZANIE BOJO: przy braku meczów strona obiektu proponuje „Powiadom mnie, gdy ktoś
+tu zagra" — alert wypełniony sportami i położeniem TEGO boiska, z promieniem 5 km.
+Pod przyciskiem „Zorganizuj tutaj" stoi zdanie mówiące, co się stanie: zakładasz mecz
+na tym boisku, wysyłasz ekipie jeden link, a gracze zapisują się bez zakładania konta.
+Alert wymaga konta, bo wisi na koncie; zamiar przeżywa logowanie i po powrocie okno
+otwiera się samo.
+
+MECHANIKA: `domyslneZObiektu()` w `lib/alerts.ts` składa ustawienia okna z wiersza
+obiektu i przepuszcza sporty przez `FOCUS_SPORTS` — `field.sport` pochodzi z importu
+OSM i niesie też wartości bez chipa w oknie (`wielofunkcyjne`, `inne`, `piłka ręczna`),
+które dałyby zaznaczenie niewidoczne i niemożliwe do odznaczenia; pusta tablica znaczy
+„dowolny sport". Okno (`AlertSetupDialog`) ładuje się dopiero na kliknięcie
+(`next/dynamic`, `ssr: false`), bo to najczęściej otwierany adres w serwisie.
+Ścieżka logowania ta sama co z listy meczów: `logowanieDlaAlertu()` i
+`zamiarAlertuZAdresu()`. Testy: `alertZObiektu.test.ts`.
+
+### 2026-09-21 — Panel Bojo mierzy aktywację, nie tylko wolumen
+
+PROBLEM: panel analityki Bojo liczył, ILE rzeczy powstało („Mecze utworzone / 7 dni").
+Ten licznik pokazuje identyczną wartość w dwóch stanach, które są przeciwieństwami:
+dziesięciu organizatorów po jednym meczu i jeden organizator z dziesięcioma. Cała
+strategia Bojo stoi na zdaniu „organizator przyprowadza 10–14 osób", a organizator,
+który zrobił jeden mecz i nie wrócił, nie przyprowadził nikogo. Drugiej liczby,
+konwersji zapisu bez konta w konto, nie liczył nikt od sierpnia, mimo że oba zdarzenia
+leżą w bazie.
+
+ROZWIĄZANIE BOJO: `/admin/analityka` pokazuje nad retencją dwie liczby z okna 30 dni:
+odsetek organizatorów, którzy wrócili po drugi mecz (z medianą odstępu), oraz stosunek
+przejęć wpisu gościa do zapisów bez konta.
+
+MECHANIKA: czyste funkcje `powtarzalnoscOrganizatora()` i `konwersjaGoscia()`
+w `lib/analytics.ts`, bez nowych zdarzeń i bez migracji. Oba zastrzeżenia stoją przy
+liczbach w panelu, nie w stopce: powtarzalność jest DOLNYM oszacowaniem, bo pierwszy
+mecz sprzed ponad 30 dni wypada z okna, a konwersja gościa liczy ZDARZENIA, nie ludzi,
+bo `guest_joined` powstaje bez zalogowania i wiersz nie niesie identyfikatora.
+Test `aktywacja.test.ts` porównuje dwa zestawy o tym samym wolumenie i przeciwnym
+wyniku.
+
 ### 2026-09-20 — Kapitan turnieju ma wreszcie gdzie skompletować skład
 
 PROBLEM: Link do drużyny turniejowej — w tym module CAŁA droga, którą powstają konta
@@ -720,53 +769,3 @@ sześć tabel `tournament_*` i tabelę `tournaments` razem z ich funkcjami — n
 uruchamiana świadomie. Nowy `lib/turniejShare.ts` (wzorem `groupShare.ts`) generuje tekst
 udostępnienia z terminem, miejscem i wpisowym. Testy: `turniejShare.test.ts`, nowa sekcja
 w `supabase/test/rls.sql`.
-
-### 2026-09-15 — Alert na bojo.pl łapie kilka sportów naraz
-
-PROBLEM: alert o nowym meczu („Powiadom mnie, gdy się pojawi") trzymał dokładnie
-JEDEN sport albo żaden. Kto gra w piłkę i w siatkówkę, miał dwie drogi i obie złe:
-wybrać „dowolny sport" i dostawać też koszykówkę oraz tenisa, których nie szuka, albo
-założyć dwa osobne alerty i mieć listę, która rośnie z powodu niebędącego powodem.
-
-ROZWIĄZANIE BOJO: w oknie alertu ikony sportów działają tak samo jak w filtrach listy
-meczów — dotknięcie dokłada sport albo go zdejmuje, można wybrać kilka. Pusty wybór
-dalej znaczy „dowolny sport". Sporty wybrane w filtrach przenoszą się do alertu
-w komplecie, nie tylko wtedy, gdy jest jeden. Nazwa alertu na liście w profilu wymienia
-dwa sporty po imieniu, a przy trzech i więcej urywa się liczbą, żeby wiersz mieścił się
-na telefonie.
-
-MECHANIKA: migracja `152` dokłada `game_alerts.sports text[]` (pusta tablica = dowolny
-sport) i przepisuje do niej dawne `sport`; stara kolumna zostaje wypełniona przy
-dokładnie jednym sporcie, bo funkcja brzegowa `notify-game-alert` wdraża się osobno od
-migracji i przez chwilę może czytać starszą kolumnę. Dopasowanie czyta obie
-reprezentacje — tak samo w funkcji brzegowej, jak w `count_alert_seekers`.
-`nazwaSportow()` i `znajdzPodobnyAlert()` w `lib/alerts.ts` porównują sporty jako ZBIÓR,
-więc „piłka, siatkówka" i „siatkówka, piłka" to ten sam alert. Przy okazji z okna alertu
-zeszły dwa akapity tłumaczące mechanikę, wiersz „Dzwonek w aplikacji" dostał kształt
-pozostałych kanałów, a pole daty przestało wystawać poza kartę na iOS
-(`appearance-none` + `min-w-0` w `WyborKiedy`). Testy: `wieleAlertow.test.ts`,
-`alertZFiltrow.test.ts`.
-
-### 2026-09-15 — Alert na bojo.pl nie ma już żadnego ograniczenia czasowego
-
-PROBLEM: zakładając alert o nowych meczach, trzeba było odpowiedzieć, jak długo ma
-powiadamiać — Dzisiaj / 3 dni / Tydzień / własny termin z kalendarza. Ten sam rząd
-przycisków stoi w filtrach listy meczów i znaczy tam co innego: „pokaż mecze w tym
-oknie". Okno alertu otwiera się wprost z filtrów, więc oba pytania były w głowie naraz
-i nie dało się ich rozróżnić bez pamiętania, na którym ekranie się stoi. Wcześniej
-z tego samego okna zniknęły z tego samego powodu dni tygodnia i pora dnia meczu.
-
-ROZWIĄZANIE BOJO: alert Bojo jest ZAWSZE bezterminowy. Okno pyta o trzy rzeczy — sport,
-miejsce z promieniem i kanał — i o nic więcej. Alert gasi się wtedy, gdy przestaje być
-potrzebny: linkiem „nie chcę więcej takich wiadomości" w każdej wiadomości (bez
-logowania) albo przełącznikiem przy wierszu w profilu. Alert założony wcześniej
-z datą końca dalej wygasa o czasie, a profil mówi, do kiedy działa.
-
-MECHANIKA: sekcja „Jak długo powiadamiać" usunięta z `AlertSetupDialog`, okno zapisuje
-`expires_at = NULL`. Kolumna i jej obsługa w funkcji brzegowej `notify-game-alert`
-zostają nietknięte, tak samo jak `days_of_week` i `godzina_od`/`godzina_do`. Cztery
-przeliczniki (`koniecDnia`, `najwczesniejszyKoniec`, `wygasaZKiedy`, `kiedyZWygasniecia`)
-usunięte z `lib/alerts.ts`; `dataWygasniecia()` zostaje, bo `opisAlertu()` musi umieć
-przeczytać stary wiersz. Edycja starego alertu zeruje jego datę świadomie — termin,
-którego nie widać i nie da się zmienić, jest gorszy niż brak terminu.
-`alertKoniec.test.ts` skanuje źródło okna i pilnuje, żeby wymiar czasu nie wrócił.

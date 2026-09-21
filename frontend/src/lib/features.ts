@@ -42,9 +42,11 @@ export const SHOW_TURNIEJE = false;
  * Zostawała wyłączona wyłącznie siłą rozpędu; BACKLOG §2 opisywał ją jako
  * „powód nieaktualny, do ponownej decyzji" — to jest ta decyzja.
  *
- * Wejście jest dziś jedno: pusta lista na `/wydarzenia`, czyli moment,
- * w którym człowiek właśnie powiedział filtrami, czego szuka, i usłyszał
- * „nie ma".
+ * Wejść jest dziś CZTERY (komentarz mówił do 2026-09-21 „jedno" i był nieaktualny
+ * od dołożenia mapy i profilu): pusta lista na `/wydarzenia`, `/mapa`, `/profil`
+ * oraz — od 2026-09-21 — pusty stan „Nadchodzące mecze" na `/boisko/[id]`.
+ * To ostatnie jest jedynym stojącym tam, gdzie ląduje ruch z wyszukiwarki:
+ * 980 z 1000 stron zbierających wyświetlenia w Search Console to `/boisko/*`.
  */
 export const SHOW_GAME_ALERTS = true;
 

@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Link from 'next/link';
-import { MapPin, Phone, Globe, ArrowLeft, Mail, Building2, Clock as ClockIcon, Calendar, Clock, Eye, EyeOff, Map as MapIcon } from 'lucide-react';
+import { MapPin, Phone, Globe, ArrowLeft, Mail, Building2, Clock as ClockIcon, Calendar, Clock, Eye, EyeOff, Map as MapIcon, Bell } from 'lucide-react';
 import { sportEmoji, sportColor } from '@/lib/sports';
 import Header from '@/components/layout/Header';
 import SiteFooter from '@/components/layout/SiteFooter';
@@ -17,6 +19,8 @@ import { track, zrodloWejscia, type ZrodloWejscia } from '@/lib/analytics';
 import { getAvailableSlots, createBooking } from '@/lib/bookings';
 import { getField } from '@/lib/api';
 import { showBookingForField } from '@/config/features';
+import { SHOW_GAME_ALERTS } from '@/lib/features';
+import { domyslneZObiektu, logowanieDlaAlertu } from '@/lib/alerts';
 import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
 import { getOutreach } from '@/lib/outreach';
@@ -26,6 +30,13 @@ import AnkietyObiektu from '@/components/venues/AnkietyObiektu';
 import VenueComments from '@/components/venue/VenueComments';
 import { odczytajPowrot } from '@/lib/powrot';
 import type { Field, TimeSlot } from '@/types';
+
+// Okno alertu jedzie osobną paczką i tylko na kliknięcie. Ta strona jest
+// najczęściej otwieranym adresem w serwisie i w ogromnej większości wejść
+// nikt tego okna nie otworzy — wliczanie go w pierwszy transfer płaciłoby
+// za każde z 17 tysięcy wejść koszt funkcji używanej przez ułamek z nich.
+// `ssr: false` tym samym wzorcem co w `app/wydarzenia/EventsListView.tsx`.
+const AlertSetupDialog = dynamic(() => import('@/components/home/AlertSetupDialog'), { ssr: false });
 
 
 interface UpcomingEvent {
@@ -251,6 +262,28 @@ export default function VenueDetailClient({
     void track('boisko_pobliskie', { fieldId, celId, pozycja });
   }, [fieldId]);
   const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // ALERT ZE STRONY OBIEKTU (2026-09-21). Czwarte wejście do `SHOW_GAME_ALERTS`
+  // i jedyne stojące tam, gdzie realnie ląduje ruch z wyszukiwarki: trzy
+  // poprzednie (`/wydarzenia`, `/mapa`, `/profil`) są za wyszukiwarką albo za
+  // logowaniem, a 980 z 1000 stron ze wyświetleniami to `/boisko/*`.
+  //
+  // Pokazujemy je przy BRAKU meczów, czyli w stanie, w którym strona kończyła
+  // się dotąd zdaniem bez wyjścia („Brak nadchodzących meczów"). Dla człowieka
+  // z Google to jedyna akcja, która pasuje do jego intencji: przyszedł po
+  // informację o tym boisku, a nie po to, żeby wziąć na siebie organizację.
+  const [oknoAlertu, setOknoAlertu] = useState(false);
+  const otworzAlert = useCallback(() => {
+    // Alert wisi na koncie, więc bez konta nie ma czego zapisać. Ta sama droga
+    // co z listy meczów: zamiar przeżywa logowanie (`zamiarAlertuZAdresu`),
+    // więc człowiek wraca tutaj z otwartym oknem, a nie na stronę główną.
+    if (!user) {
+      router.push(logowanieDlaAlertu(window.location.pathname + window.location.search));
+      return;
+    }
+    setOknoAlertu(true);
+  }, [user, router]);
   const isAdmin = useAdmin();
 
   // Where the back arrow goes. Read from sessionStorage AFTER mount, not from
@@ -873,13 +906,31 @@ export default function VenueDetailClient({
               })}
             </ul>
           ) : (
-            <p className="text-sm text-slate-400">Brak nadchodzących meczów na tym boisku.</p>
+            <div className="space-y-3">
+              <p className="text-sm text-slate-400">Nikt jeszcze nie wystawił tu meczu.</p>
+              {SHOW_GAME_ALERTS && (
+                <Button variant="outline" className="w-full" onClick={otworzAlert}>
+                  <Bell className="h-4 w-4" />
+                  Powiadom mnie, gdy ktoś tu zagra
+                </Button>
+              )}
+            </div>
           )}
 
           <div className="mt-5 space-y-2 pt-4 border-t border-slate-100">
             <Link href={`/wydarzenia/nowe?fieldId=${field.id}`} onClick={zorganizujTutaj}>
               <Button className="w-full">Zorganizuj tutaj</Button>
             </Link>
+            {/* Zdanie pod przyciskiem, nie w nagłówku: człowiek z wyszukiwarki
+                trafia tu z zapytania o NAZWĘ BOISKA i nie wie, czym jest Bojo
+                ani co się stanie po kliknięciu. „Zorganizuj tutaj" samo w sobie
+                brzmi jak zobowiązanie do wynajęcia obiektu. Obie obietnice mają
+                pokrycie w kodzie: mecz zakłada `createEvent`, a zapis bez konta
+                RPC `dolacz_do_meczu_jako_goscie()` (migracje 082-088). */}
+            <p className="text-xs text-slate-500">
+              Zakładasz mecz na tym boisku i wysyłasz ekipie jeden link. Gracze
+              zapisują się bez zakładania konta.
+            </p>
             {/* Powrót na mapę wycelowaną w TEN obiekt. Bez tego jedyną drogą
                 z opisu boiska do jego okolicy było wejście na mapę i szukanie
                 go od nowa — a mapa otwiera się na widoku całego kraju.
@@ -892,6 +943,20 @@ export default function VenueDetailClient({
             </Link>
           </div>
         </div>
+
+        {oknoAlertu && (() => {
+          const d = domyslneZObiektu(field);
+          return (
+            <AlertSetupDialog
+              defaultSports={d.sports}
+              defaultRadiusKm={d.radiusKm}
+              defaultLat={d.lat}
+              defaultLng={d.lng}
+              defaultLabel={d.label}
+              onClose={() => setOknoAlertu(false)}
+            />
+          );
+        })()}
 
         <AnkietyObiektu fieldId={field.id} />
 
