@@ -31,12 +31,23 @@ w połowie — czyli w najgorszym możliwym momencie.
 **To jest inna rola niż `SUPABASE_DB_URL_RO`** z `sql.yml`. Tamta ma wyłącznie
 `SELECT` i ma taka zostać; nie podmieniaj jej na tę.
 
-Hasło projektu znajdziesz w Supabase → Settings → Database. Jeśli zawiera `+`,
-`/` albo `=`, **zresetuj je** na wygenerowane przez `openssl rand -hex 32` —
-przy takim haśle psql nie rozpoznaje adresu jako URI i potrafi wypisać jego
-fragment w komunikacie błędu, czyli w publicznym logu. `scripts/sprawdz-adres-bazy.sh`
-odmówi uruchomienia, zanim do tego dojdzie, ale lepiej nie polegać na łapaniu
-w locie.
+Hasło projektu znajdziesz w Supabase → Settings → Database. **Wklej je tak,
+jak jest** — znaki specjalne nie są problemem: `scripts/sprawdz-adres-bazy.sh`
+zakoduje hasło procentowo przed podaniem go psql-owi. Stało tu wcześniej, żeby
+zresetować hasło na `openssl rand -hex 32`, jeśli zawiera `+`, `/` albo `=`,
+i to była zła rada: wina leżała po stronie zapisu w adresie, nie po stronie
+hasła, a wysyłanie człowieka na reset hasła bazy tylko po to, żeby zadziałał
+jeden workflow, jest niewspółmierne.
+
+Powód, dla którego kodowanie w ogóle jest potrzebne, zostaje bez zmian: przy
+`+`, `/` albo `=` psql nie rozpoznaje adresu jako URI, przechodzi na parsowanie
+„klucz=wartość" i potrafi wypisać fragment hasła w komunikacie błędu, czyli
+w publicznym logu Actions. Maskowanie sekretów tego nie łapie, bo to część
+sekretu, a nie całość. Zdarzyło się raz.
+
+Jedyne, co skrypt nadal odrzuca, to placeholder `[YOUR-PASSWORD]` zostawiony
+w skopiowanym adresie: to nie jest hasło i zakodowanie go zamieniłoby czytelny
+błąd na mylący.
 
 ### 2. Sekrety w GitHubie
 
@@ -46,6 +57,22 @@ Settings → Secrets and variables → Actions:
 |---|---|
 | `SUPABASE_DB_URL_DEV` | projekt `BojoDev` → Connect → Session pooler |
 | `SUPABASE_DB_URL_PROD` | projekt produkcyjny → Connect → Session pooler |
+
+**Session pooler, nie Direct connection — to nie jest kosmetyczny wybór.**
+Adres `db.<ref>.supabase.co` (Direct connection) ma w Supabase wyłącznie
+rekord AAAA, a runnery GitHub Actions nie mają IPv6. Połączenie nie ma wtedy
+jak dojść, a psql mówi tylko „Network is unreachable", co czyta się jak awaria
+Supabase albo źle ustawiona zapora. Session pooler idzie po IPv4:
+
+```
+postgresql://postgres.<ref>:HASŁO@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+Zwróć uwagę, że **zmienia się także nazwa użytkownika**: `postgres.<ref>`
+zamiast samego `postgres`. To jest miejsce, w którym najłatwiej skleić adres
+z dwóch zakładek i dostać błąd uwierzytelnienia zamiast sieciowego.
+`scripts/sprawdz-adres-bazy.sh` rozpoznaje adres Direct connection i mówi to
+wprost, zanim dojdzie do próby połączenia.
 
 ### 3. Bramka na produkcję
 
@@ -65,13 +92,31 @@ bazie.
 
 Dla każdej bazy osobno:
 
-1. sprawdź, która migracja poszła jako ostatnia (jeśli nie wiesz —
-   `supabase/zapytania/stan-migracji.sql` zgaduje to po obecności kolumn),
-2. Actions → Migracje → Run workflow → wybierz bazę → w polu **oznacz_do**
-   wpisz ten numer → Run.
+1. **Numeru nie musisz znać.** Odpal zwykły podgląd (Actions → Migracje → Run
+   workflow → wybierz bazę → Run, bez zaznaczania „Zapisz zmiany"). Sonda
+   przejdzie po plikach migracji, porówna tabele, które każdy z nich tworzy,
+   ze stanem bazy i wypisze gotowy numer. Na `BojoDev` wyszło:
 
-To nic nie uruchamia; zapisuje tylko, że pliki do tego numeru już były.
-Potem zwykły podgląd pokaże wyłącznie prawdziwą resztę.
+   ```
+   Ostatnia rozpoznana: 147_turniej_rozgrywka.sql
+   Pierwsza brakująca:  150_turniej_ogloszenia_blik.sql (brak tabeli turniej_ogloszenia)
+   → Uruchom raz:  Actions → Migracje → oznacz_do = 147
+   ```
+
+   To jest **dolna granica**: migracja bez własnej tabeli (sama polityka,
+   funkcja albo kolumna) jest dla sondy niewidoczna, więc sonda woli policzyć
+   ją jako niezastosowaną i puścić drugi raz. Przy idempotentnych migracjach
+   to nic nie kosztuje, a pomyłka w drugą stronę cicho zostawiłaby dziurę
+   w schemacie. `supabase/zapytania/stan-migracji.sql` zostaje jako droga
+   awaryjna, ale zna pliki tylko do `125`.
+2. Actions → Migracje → Run workflow → wybierz bazę → w polu **oznacz_do**
+   wpisz ten numer → **zaznacz „Zapisz zmiany"** → Run.
+
+Sam backfill niczego nie uruchamia, zapisuje tylko, że pliki do tego numeru już
+były. Zaznaczone „Zapisz zmiany" dokłada do tego drugi krok w tym samym
+przebiegu: od razu puszcza to, co z dziennika wyszło jako brakujące. Bez tego
+trzeba klikać Run workflow dwa razy, a podsumowanie pokazuje wtedy sam dziennik,
+czyli nie odpowiada na pytanie, które się naprawdę zadaje: czy poszło.
 
 ## Dziennik — `schema_migracje`
 
