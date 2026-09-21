@@ -92,13 +92,31 @@ bazie.
 
 Dla każdej bazy osobno:
 
-1. sprawdź, która migracja poszła jako ostatnia (jeśli nie wiesz —
-   `supabase/zapytania/stan-migracji.sql` zgaduje to po obecności kolumn),
-2. Actions → Migracje → Run workflow → wybierz bazę → w polu **oznacz_do**
-   wpisz ten numer → Run.
+1. **Numeru nie musisz znać.** Odpal zwykły podgląd (Actions → Migracje → Run
+   workflow → wybierz bazę → Run, bez zaznaczania „Zapisz zmiany"). Sonda
+   przejdzie po plikach migracji, porówna tabele, które każdy z nich tworzy,
+   ze stanem bazy i wypisze gotowy numer. Na `BojoDev` wyszło:
 
-To nic nie uruchamia; zapisuje tylko, że pliki do tego numeru już były.
-Potem zwykły podgląd pokaże wyłącznie prawdziwą resztę.
+   ```
+   Ostatnia rozpoznana: 147_turniej_rozgrywka.sql
+   Pierwsza brakująca:  150_turniej_ogloszenia_blik.sql (brak tabeli turniej_ogloszenia)
+   → Uruchom raz:  Actions → Migracje → oznacz_do = 147
+   ```
+
+   To jest **dolna granica**: migracja bez własnej tabeli (sama polityka,
+   funkcja albo kolumna) jest dla sondy niewidoczna, więc sonda woli policzyć
+   ją jako niezastosowaną i puścić drugi raz. Przy idempotentnych migracjach
+   to nic nie kosztuje, a pomyłka w drugą stronę cicho zostawiłaby dziurę
+   w schemacie. `supabase/zapytania/stan-migracji.sql` zostaje jako droga
+   awaryjna, ale zna pliki tylko do `125`.
+2. Actions → Migracje → Run workflow → wybierz bazę → w polu **oznacz_do**
+   wpisz ten numer → **zaznacz „Zapisz zmiany"** → Run.
+
+Sam backfill niczego nie uruchamia, zapisuje tylko, że pliki do tego numeru już
+były. Zaznaczone „Zapisz zmiany" dokłada do tego drugi krok w tym samym
+przebiegu: od razu puszcza to, co z dziennika wyszło jako brakujące. Bez tego
+trzeba klikać Run workflow dwa razy, a podsumowanie pokazuje wtedy sam dziennik,
+czyli nie odpowiada na pytanie, które się naprawdę zadaje: czy poszło.
 
 ## Dziennik — `schema_migracje`
 

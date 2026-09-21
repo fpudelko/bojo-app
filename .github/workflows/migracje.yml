@@ -67,7 +67,7 @@ on:
         default: false
         type: boolean
       oznacz_do:
-        description: 'Backfill: oznacz migracje do tego numeru jako już zastosowane (nic nie uruchamia)'
+        description: 'Backfill: oznacz migracje do tego numeru jako już zastosowane (z „Zapisz zmiany" od razu puszcza resztę)'
         required: false
         type: string
 
@@ -103,7 +103,15 @@ jobs:
             ARG="--podglad"
             SRODOWISKO="dev"
           elif [ -n "${{ inputs.oznacz_do }}" ]; then
+            # Backfill sam w sobie nic nie uruchamia, więc bez tego trzeba było
+            # klikać Run workflow DWA razy: raz żeby zapisać dziennik, drugi raz
+            # żeby puścić to, co z niego wynika. Z zaznaczonym „Zapisz zmiany"
+            # robimy oba kroki po kolei w jednym przebiegu — decyzja i tak
+            # należy do klikającego, zmienia się tylko liczba kliknięć.
             ARG="--oznacz-do ${{ inputs.oznacz_do }}"
+            if [ "${{ inputs.wykonaj }}" = "true" ]; then
+              POTEM="--wykonaj"
+            fi
           elif [ "${{ github.event_name }}" = "push" ]; then
             # Merge do mastera: dev dostaje migracje od razu, bo baza dev, która
             # została w tyle, jest gorsza niż jej brak — podgląd PR-a wygląda
@@ -117,8 +125,9 @@ jobs:
           fi
 
           echo "arg=$ARG"               >> "$GITHUB_OUTPUT"
+          echo "potem=${POTEM:-}"        >> "$GITHUB_OUTPUT"
           echo "srodowisko=$SRODOWISKO" >> "$GITHUB_OUTPUT"
-          echo "Tryb: $ARG · baza: $SRODOWISKO"
+          echo "Tryb: $ARG${POTEM:+, potem $POTEM} · baza: $SRODOWISKO"
 
       - name: Uruchom
         env:
@@ -140,6 +149,14 @@ jobs:
           ADRES="$(DB_URL="$SUROWY" ./scripts/sprawdz-adres-bazy.sh "$SEKRET")"
 
           DB_URL="$ADRES" ./scripts/migruj.sh ${{ steps.tryb.outputs.arg }} | tee /tmp/wynik.txt
+
+          # Drugi krok istnieje tylko dla „backfill i od razu dogoń resztę".
+          # `tee -a`, bo podsumowanie ma pokazać OBA przebiegi: sam dziennik bez
+          # tego, co z niego wyniknęło, nie odpowiada na pytanie „czy poszło".
+          if [ -n "${{ steps.tryb.outputs.potem }}" ]; then
+            echo "" | tee -a /tmp/wynik.txt
+            DB_URL="$ADRES" ./scripts/migruj.sh ${{ steps.tryb.outputs.potem }} | tee -a /tmp/wynik.txt
+          fi
 
       - name: Podsumowanie
         if: always()
