@@ -17,12 +17,13 @@ import {
 } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
-import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, etykietaZdobyczy } from '@/lib/turniejEtykiety';
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
 import { podiumTurnieju, tekstPodium, medal } from '@/lib/turniejPodium';
 import { linkDojazdu } from '@/lib/utils';
+import { useWstecz } from '@/lib/historia';
 import { sportEmoji } from '@/lib/sports';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
@@ -116,6 +117,10 @@ export default function TurniejClient() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
+  // Do listy turniejów tylko z linku (pusta historia). Na ten ekran prowadzi
+  // też karta meczu, profil gracza i link z WhatsAppa, a `router.push` na
+  // sztywnego rodzica odbijał wtedy systemowe „wstecz" z powrotem tutaj.
+  const wstecz = useWstecz('/turnieje');
 
   const [turniej, setTurniej] = useState<Turniej | null>(null);
   const [druzyny, setDruzyny] = useState<TurniejDruzyna[]>([]);
@@ -375,6 +380,7 @@ export default function TurniejClient() {
     .map((m) => ({ mvpZawodnikId: m.mvpZawodnikId }));
   const klasyfikacje = obliczKlasyfikacje(zdarzenia, mvpPoMeczach, zawodnicyDoStatystyk, druzynyPoId);
   const strzelcy = posortujKlasyfikacje(klasyfikacje, 'gole');
+  const zdobycz = etykietaZdobyczy(turniej?.sport ?? '');
   const asystenci = posortujKlasyfikacje(klasyfikacje, 'asysty');
   const mvpList = posortujKlasyfikacje(klasyfikacje, 'mvp');
   const dojazd = linkDojazdu({ lat: turniej.lat, lng: turniej.lng, adres: turniej.miejsceAdres });
@@ -455,7 +461,7 @@ export default function TurniejClient() {
       <Header />
       <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-          <button onClick={() => router.push('/turnieje')} aria-label="Wróć" className="shrink-0 text-slate-500 hover:text-ink">
+          <button onClick={wstecz} aria-label="Wróć" className="shrink-0 text-slate-500 hover:text-ink">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">{turniej.nazwa}</h1>
@@ -863,8 +869,8 @@ export default function TurniejClient() {
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej goli</h3>
-                      <Klasyfikacja wpisy={strzelcy} klucz="gole" etykietaKolumny="Gole" pusteMiejsce="Jeszcze nikt nie strzelił." />
+                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{zdobycz.naglowek}</h3>
+                      <Klasyfikacja wpisy={strzelcy} klucz="gole" etykietaKolumny={zdobycz.kolumna} pusteMiejsce={zdobycz.puste} />
                     </div>
                     <div>
                       <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej asyst</h3>

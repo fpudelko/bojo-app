@@ -371,7 +371,7 @@ DECLARE
   t uuid; gA uuid; gB uuid; a uuid[]; b uuid[]; mA uuid[]; mB uuid[];
   sf1 uuid; sf2 uuid; m3 uuid; fin uuid;
 BEGIN
-  t := pg_temp.nowy_turniej('TU1 Puchar Rataj — zakończony', 'piłka nożna', 'grupy_puchar',
+  t := pg_temp.nowy_turniej('TU1 Puchar Rataj: zakończony', 'piłka nożna', 'grupy_puchar',
        'zakonczony', 2, 2, -21,
        'SPRAWDŹ: pełny turniej od grupy do finału. Tabele grup z podświetleniem awansu, '
        'drabinka z wynikami, finał rozstrzygnięty karnymi (1:1, k. 4:3), klasyfikacja strzelców.');
@@ -432,7 +432,7 @@ END $$;
 DO $$
 DECLARE t uuid; gA uuid; gB uuid; a uuid[]; b uuid[]; mA uuid[]; mB uuid[];
 BEGIN
-  t := pg_temp.nowy_turniej('TU2 Liga Piątek — trwa faza grupowa', 'piłka nożna', 'grupy_puchar',
+  t := pg_temp.nowy_turniej('TU2 Liga Piątek: trwa faza grupowa', 'piłka nożna', 'grupy_puchar',
        'trwa', 2, 2, -1,
        'SPRAWDŹ: tabela liczona z NIEPEŁNEJ grupy — po dwóch kolejkach z trzech. '
        'Zakładka Wyniki ma tabele, ale sekcji „Drabinka" nie ma wcale (nie wygenerowano).');
@@ -463,7 +463,7 @@ END $$;
 DO $$
 DECLARE t uuid; gA uuid; gB uuid; a uuid[]; b uuid[]; mA uuid[]; mB uuid[]; sf1 uuid; sf2 uuid;
 BEGIN
-  t := pg_temp.nowy_turniej('TU3 Puchar Warty — półfinały za nami', 'piłka nożna', 'grupy_puchar',
+  t := pg_temp.nowy_turniej('TU3 Puchar Warty: półfinały za nami', 'piłka nożna', 'grupy_puchar',
        'trwa', 2, 2, 0,
        'SPRAWDŹ: drabinka z JEDNĄ rundą rozegraną. Finał i mecz o 3. miejsce mają już '
        'obsadzone drużyny — wstawił je wyzwalacz propaguj_zwyciezce (146), nie seed.');
@@ -506,7 +506,7 @@ DECLARE t uuid; d uuid[]; m uuid[]; i int;
     [4,5,3],[4,6,4],[4,2,1],
     [5,1,3],[5,4,5],[5,6,2]];
 BEGIN
-  t := pg_temp.nowy_turniej('TU4 Liga Koszykarska — 3 z 5 kolejek', 'koszykówka', 'liga',
+  t := pg_temp.nowy_turniej('TU4 Liga Koszykarska: 3 z 5 kolejek', 'koszykówka', 'liga',
        'trwa', NULL, 2, -7,
        'SPRAWDŹ: format LIGA — jedna tabela bez grup, więc BEZ podświetlenia awansu '
        '(nie ma dokąd awansować) i bez drabinki. Punkty koszykarskie, nie gole.');
@@ -531,7 +531,7 @@ END $$;
 DO $$
 DECLARE t uuid; d uuid[]; c uuid[]; sf1 uuid; sf2 uuid; fin uuid; i int;
 BEGIN
-  t := pg_temp.nowy_turniej('TU5 Puchar Jednego Dnia — zakończony', 'piłka nożna', 'puchar',
+  t := pg_temp.nowy_turniej('TU5 Puchar Jednego Dnia: zakończony', 'piłka nożna', 'puchar',
        'zakonczony', NULL, 2, -3,
        'SPRAWDŹ: drabinka bez fazy grupowej, od ćwierćfinałów. W M2 WALKOWER — wynik 0:0, '
        'a mimo to jest zwycięzca (dlatego karta czyta zwyciezca_id, nie wynik).');
@@ -564,7 +564,7 @@ END $$;
 DO $$
 DECLARE t uuid; g uuid; d uuid[]; m uuid[];
 BEGIN
-  t := pg_temp.nowy_turniej('TU6 Turniej Sobotni — mecz NA ŻYWO', 'piłka nożna', 'grupy_puchar',
+  t := pg_temp.nowy_turniej('TU6 Turniej Sobotni: mecz NA ŻYWO', 'piłka nożna', 'grupy_puchar',
        'trwa', 1, 2, 0,
        'SPRAWDŹ: plakietka „Na żywo" na karcie meczu i to, że mecz W TRAKCIE nie wchodzi '
        'jeszcze do tabeli — tabela liczy wyłącznie zakończone i walkowery.');

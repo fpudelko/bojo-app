@@ -339,3 +339,49 @@ ekranów → [turnieje-ux-ekrany.md](./turnieje-ux-ekrany.md).
   i ten dokument ich nie kwestionuje.
 - **Nie liczono kosztu wdrożenia** żadnego z ustaleń. Kolejność w §9 wynika z wpływu na
   użytkownika, nie z pracochłonności.
+
+## 12. Audyt zewnętrzny (2026-09-21) — co dołożył
+
+Moduł przeszedł audyt UX zrobiony przez model bez dostępu do tego dokumentu,
+metodą z §1 i §2 (pięć ról, sześć momentów). Warto odnotować, że **doszedł do
+tej samej osi niezależnie**: najgorzej jest u zawodnika i widza w momencie
+④ GRAMY, czyli tam, gdzie ludzi jest najwięcej. To podnosi wagę `S-16`
+i `S-19`, a nie tylko je potwierdza.
+
+Trzy ustalenia, których tu nie było:
+
+| # | Ustalenie |
+|---|---|
+| **S-30** | **Ekran meczu nie odpowiada na „co dalej".** Pokazuje wynik i zegar, po czym się kończy: bez składów, bez zdarzeń (kto strzelił), bez następnego meczu obu drużyn, bez udostępniania. To ekran z największym ruchem w dniu turnieju, a wychodzi się z niego bez odpowiedzi, więc pytanie wraca na WhatsAppa zamiast iść do Bojo. |
+| **S-31** | **Tekst z „Udostępnij wyniki" nie zawiera linku.** Do schowka trafia podium i król strzelców, bez adresu turnieju. To jedyny moment, w którym ludzie SAMI chcą coś wkleić, i właśnie wtedy dwudziestu odbiorców nie ma gdzie dotknąć. Obok stoi zdanie „Organizujesz podobny? Zrób go w Bojo", więc intencja jest, tylko nie w treści do wklejenia. |
+| **S-32** | **`/t/[kod]` nie mówi „gdzie i o której".** Zaproszenie podaje drużynę i turniej, ale nie godzinę pierwszego meczu, nie kto zaprasza i nie ilu jest już w składzie. Nie ma też drogi „najpierw popatrzę": do turnieju nie da się zajrzeć bez decyzji o koncie. To pierwsze zetknięcie z Bojo dla najliczniejszej roli. |
+
+Wszystkie trzy mówią to samo z trzech stron: **moduł nie ma czego wkleić na
+WhatsAppa**, czyli nie robi rzeczy, dla której powstał (§0).
+
+### Poprawione od razu
+
+`S-33` (koszykówka liczyła „gole"), „wstecz" na ekranie turnieju wracające do
+sztywnego rodzica zamiast poprzedniego ekranu, decyzja o zgłoszeniu jako dwie
+ikony bez podpisu, wyszarzone „Losuj grupy" i „Wygeneruj terminarz" bez podanego
+warunku, urwany pasek zakładek panelu przy 360 px, puste stany listy turniejów
+bez żadnej akcji.
+
+### Czego audyt NIE pokazał, choć tak wyglądało
+
+Dwa ustalenia miały błędnie postawioną diagnozę i warto to zapisać, żeby nie
+wracały: zegar meczu na żywo pokazujący absurdalną liczbę (`6852:43`) liczy
+poprawnie, z `rozpoczetyAt`; to był mecz seedowy zostawiony w stanie „trwa" na
+kilka dni na produkcji. Zostaje z tego prawdziwa, mniejsza sprawa: zegar nie ma
+górnej granicy, więc mecz, którego ktoś zapomni zakończyć, pokazuje bzdurę.
+Podobnie „zawodnicy bez konta" w składach: seed zakłada własną pulę 60 kont,
+więc to był artefakt starszej wersji seedu, a nie zachowanie aplikacji.
+
+### Wniosek o samym procesie
+
+Audyt chodził po **produkcji** i zostawił tam turniej testowy, a seedy `[TUR]`
+były na produkcji publicznie widoczne razem z notatkami „SPRAWDŹ:" i nazwami
+wyzwalaczy w opisie. Seed uruchomiony na produkcji nie ma jak się sam
+przedstawić jako testowy: `SHOW_TURNIEJE` chowa wejścia w nawigacji, nie trasy.
+`supabase/wyczysc-testowe.sql` dostał sekcję 3b (turnieje bez markera), bo
+wcześniej turniej zrobiony ręcznie nie pokazywał się w żadnym podglądzie.

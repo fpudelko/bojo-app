@@ -32,6 +32,26 @@ export const STATUS_TURNIEJU: Record<TurniejStatus, { label: string; ton: string
  * organizator nie odpowie, ta druga ma prawo do slotu. Odrzucona i wycofana
  * nie zajmują nic. To jest cała reguła.
  */
+/**
+ * Jak nazwać to, co zawodnik zdobywa. W koszykówce i siatkówce nie ma goli,
+ * a nagłówek „Najwięcej goli" nad tabelą koszykarskiej ligi jest tym rodzajem
+ * szczegółu, po którym ludzie zakładają, że aplikacja jest do piłki i tylko
+ * udaje inne sporty. Zgłoszone z audytu UX.
+ *
+ * Siatkówka łapie się przez prefiks, bo `FOCUS_SPORTS` ma osobno „siatkówkę"
+ * i „siatkówkę plażową", a obie liczą punkty.
+ */
+export function etykietaZdobyczy(sport: string): {
+  naglowek: string;
+  kolumna: string;
+  puste: string;
+} {
+  const punkty = sport === 'koszykówka' || sport.startsWith('siatkówka');
+  return punkty
+    ? { naglowek: 'Najwięcej punktów', kolumna: 'Punkty', puste: 'Jeszcze nikt nie zdobył punktu.' }
+    : { naglowek: 'Najwięcej goli', kolumna: 'Gole', puste: 'Jeszcze nikt nie strzelił.' };
+}
+
 export function zajmujeMiejsce(status: DruzynaStatus): boolean {
   return status === 'zgloszona' || status === 'przyjeta';
 }
