@@ -153,3 +153,5 @@ jobs:
             cat /tmp/wynik.txt 2>/dev/null || echo "(brak wyniku — przebieg padł wcześniej)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+# Przebieg sondujący dev: 2026-09-21T11:40:29Z
