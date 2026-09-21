@@ -122,3 +122,29 @@ LEFT JOIN profiles p ON p.id = e.organizer_id
 WHERE coalesce(e.description, '') NOT LIKE '[%'
 ORDER BY e.event_date DESC
 LIMIT 100;
+
+
+-- ── 3b. CO ZOSTAŁO: TURNIEJE bez markera ────────────────────────────────
+-- Sekcja 3 pytała wyłącznie o `events`, więc turniej zrobiony ręcznie przy
+-- klikaniu nie pokazywał się NIGDZIE: ani w podglądzie (sekcja 1 liczy po
+-- markerze), ani tutaj. Wyszło przy audycie UX, który zostawił na produkcji
+-- turniej „AUDYT TEST do usuniecia" wraz z drużyną, i nic go nie zgłosiło.
+--
+-- `SHOW_TURNIEJE` chowa wejścia w nawigacji, nie trasy, więc taki turniej jest
+-- publicznie dostępny pod swoim adresem tak samo jak prawdziwy.
+SELECT
+  t.nazwa,
+  t.status,
+  t.data_startu                                                       AS termin,
+  coalesce(p.display_name, '(brak profilu)')                          AS organizator,
+  (SELECT count(*) FROM turniej_druzyny d WHERE d.turniej_id = t.id)  AS druzyn,
+  '/turnieje/' || t.id                                                AS adres
+FROM turnieje t
+LEFT JOIN profiles p ON p.id = t.organizator_id
+WHERE coalesce(t.opis, '') NOT LIKE '[%'
+ORDER BY t.created_at DESC
+LIMIT 100;
+
+-- Kasowanie pojedynczego turnieju z listy wyżej (drużyny, składy, mecze,
+-- zdarzenia i ogłoszenia lecą kaskadą):
+--   DELETE FROM turnieje WHERE id = 'WKLEJ-TU-ID';

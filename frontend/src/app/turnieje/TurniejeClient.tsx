@@ -71,6 +71,14 @@ const PUSTE: Record<Karta, string> = {
   zakonczone: 'Żaden turniej jeszcze się nie zakończył.',
 };
 
+// Pusty stan jest ekranem, nie awarią: ma mówić, co zrobić dalej. Kapitan
+// przychodzi tu raz, z pytaniem „gdzie mogę zgłosić ósemkę", i do tej pory
+// wychodził bez odpowiedzi i bez śladu po sobie. Zgłoszone z audytu UX.
+const AKCJA_PUSTEGO: Partial<Record<Karta, { tekst: string; href: string }>> = {
+  zapisy: { tekst: 'Utwórz własny turniej', href: '/turnieje/nowe' },
+  trwaja: { tekst: 'Utwórz własny turniej', href: '/turnieje/nowe' },
+};
+
 export default function TurniejeClient() {
   const { user } = useAuth();
   const [publiczne, setPubliczne] = useState<Turniej[]>([]);
@@ -167,7 +175,14 @@ export default function TurniejeClient() {
             </div>
 
             {widoczne.length === 0 ? (
-              <p className="py-12 text-center text-sm text-slate-400">{PUSTE[aktywna]}</p>
+              <div className="flex flex-col items-center gap-3 py-12 text-center">
+                <p className="text-sm text-slate-400">{PUSTE[aktywna]}</p>
+                {AKCJA_PUSTEGO[aktywna] && (
+                  <Link href={AKCJA_PUSTEGO[aktywna]!.href}>
+                    <Button size="sm" variant="outline">{AKCJA_PUSTEGO[aktywna]!.tekst}</Button>
+                  </Link>
+                )}
+              </div>
             ) : (
               <div className="space-y-3">
                 {widoczne.map((t) => <KartaTurnieju key={t.id} t={t} />)}

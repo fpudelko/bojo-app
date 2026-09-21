@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   STATUS_TURNIEJU, STATUS_DRUZYNY, FORMAT_LABEL, FORMAT_OPIS, FAZA_LABEL,
   opisFormatu, odmienDruzyny, odmienZawodnikow, stanZapisowTurnieju, liczDruzynyWTurnieju, stanTurnieju,
+  etykietaZdobyczy,
 } from '@/lib/turniejEtykiety';
 import type { DruzynaStatus, MeczFaza, TurniejFormat, TurniejStatus } from '@/types';
 
@@ -162,5 +163,33 @@ describe('stanTurnieju — zapisy z terminem granicznym', () => {
       { status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: '2026-10-09T23:59:59' }, [], dzisiaj,
     );
     expect(s.label).toBe('Trwają zapisy');
+  });
+});
+
+// W koszykówce nie ma goli. Nagłówek „Najwięcej goli" nad tabelą koszykarskiej
+// ligi jest tym rodzajem szczegółu, po którym ludzie zakładają, że aplikacja
+// jest do piłki i tylko udaje inne sporty (audyt UX).
+describe('etykietaZdobyczy', () => {
+  it('piłka nożna liczy gole', () => {
+    const e = etykietaZdobyczy('piłka nożna');
+    expect(e.naglowek).toBe('Najwięcej goli');
+    expect(e.kolumna).toBe('Gole');
+  });
+
+  it('koszykówka liczy punkty, nie gole', () => {
+    const e = etykietaZdobyczy('koszykówka');
+    expect(e.naglowek).toBe('Najwięcej punktów');
+    expect(e.kolumna).toBe('Punkty');
+    expect(e.puste).not.toContain('strzelił');
+  });
+
+  it('obie siatkówki liczą punkty — plażowa łapie się przez prefiks', () => {
+    for (const sport of ['siatkówka', 'siatkówka plażowa']) {
+      expect(etykietaZdobyczy(sport).kolumna).toBe('Punkty');
+    }
+  });
+
+  it('nieznany sport nie wywraca się, tylko zostaje przy golach', () => {
+    expect(etykietaZdobyczy('').naglowek).toBe('Najwięcej goli');
   });
 });

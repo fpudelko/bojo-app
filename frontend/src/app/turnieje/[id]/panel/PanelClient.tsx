@@ -443,7 +443,14 @@ export default function PanelClient() {
           </button>
           <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">Panel: {turniej.nazwa}</h1>
         </div>
-        <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
+        {/* Cień przy prawej krawędzi. Bez niego pasek kończył się uciętym
+            „Us…" i nic nie mówiło, że da się go przesunąć, a za krawędzią
+            siedzą Ustawienia: zamknięcie zapisów i odwołanie turnieju, czyli
+            akcje pod presją czasu. `md:hidden`, bo od tabletu pasek mieści się
+            w całości i cień kłamałby o istnieniu dalszej treści. */}
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-canvas to-transparent md:hidden" />
+          <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
           {(['pulpit', 'druzyny', 'ludzie', 'terminarz', 'ustawienia'] as PanelTab[]).map((z) => (
             <button
               key={z}
@@ -456,6 +463,7 @@ export default function PanelClient() {
               {ETYKIETY_PANELU[z]}
             </button>
           ))}
+          </div>
         </div>
       </div>
 
@@ -565,9 +573,14 @@ export default function PanelClient() {
                 {czekajace.map((d) => (
                   <div key={d.id} className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/60 dark:bg-blue-950/30 p-3">
                     <span className="min-w-0 flex-1 truncate font-medium text-ink">{d.nazwa}</span>
-                    <button onClick={() => przyjmij(d, 'przyjeta')} className="rounded-lg bg-primary-600 p-1.5 text-white" aria-label="Przyjmij"><Check className="h-4 w-4" /></button>
-                    <button onClick={() => przyjmij(d, 'rezerwa')} className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-600">Rezerwa</button>
-                    <button onClick={() => przyjmij(d, 'odrzucona')} className="rounded-lg p-1.5 text-slate-400" aria-label="Odrzuć"><XIcon className="h-4 w-4" /></button>
+                    {/* Z tekstem, nie samą ikoną. To akcja, która wysyła sygnał
+                        do kapitana i wchodzi do terminarza, a „ptaszek obok
+                        krzyżyka" każe zgadywać, który jest który — organizator
+                        klika to w biegu, jedną ręką. Etykieta tylko dla czytnika
+                        ekranu nie pomaga nikomu, kto patrzy. */}
+                    <button onClick={() => przyjmij(d, 'przyjeta')} className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary-600 px-2.5 py-1.5 text-xs font-medium text-white"><Check className="h-3.5 w-3.5" /> Przyjmij</button>
+                    <button onClick={() => przyjmij(d, 'rezerwa')} className="shrink-0 rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-600">Rezerwa</button>
+                    <button onClick={() => przyjmij(d, 'odrzucona')} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500"><XIcon className="h-3.5 w-3.5" /> Odrzuć</button>
                   </div>
                 ))}
               </div>
@@ -687,7 +700,7 @@ export default function PanelClient() {
               <div className="space-y-2 border-t border-slate-100 dark:border-slate-700 pt-4">
                 <h2 className="text-sm font-semibold text-slate-500">Grupy</h2>
                 {grupy.length === 0 ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="number"
                       min={1}
@@ -697,6 +710,15 @@ export default function PanelClient() {
                       className={`${inputCls} w-20`}
                     />
                     <Button size="sm" onClick={losujGrupy} disabled={wTurnieju.length < 2}>Losuj grupy</Button>
+                    {/* Szary znaczy w tej apce „ta droga jest zamknięta, nic
+                        się nie zepsuło", ale bez podanego warunku czyta się to
+                        jako „chyba nie działa". Organizator utyka właśnie tutaj,
+                        bo to jedyny krok, którego nie zrobi w Excelu lepiej. */}
+                    {wTurnieju.length < 2 && (
+                      <p className="w-full text-xs text-slate-400">
+                        Potrzebne co najmniej 2 przyjęte drużyny (masz {wTurnieju.length}).
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -745,9 +767,19 @@ export default function PanelClient() {
                   </div>
                 </div>
               ) : (
-                <Button size="sm" onClick={rozpocznijGenerowanie} disabled={wTurnieju.length < 2}>
-                  {mecze.length > 0 ? 'Wygeneruj terminarz od nowa' : 'Wygeneruj terminarz'}
-                </Button>
+                <div className="space-y-1.5">
+                  <Button size="sm" onClick={rozpocznijGenerowanie} disabled={wTurnieju.length < 2}>
+                    {mecze.length > 0 ? 'Wygeneruj terminarz od nowa' : 'Wygeneruj terminarz'}
+                  </Button>
+                  {wTurnieju.length < 2 && (
+                    <p className="text-xs text-slate-400">
+                      Potrzebne co najmniej 2 przyjęte drużyny (masz {wTurnieju.length}).
+                    </p>
+                  )}
+                  {wTurnieju.length >= 2 && areny.length === 0 && (
+                    <p className="text-xs text-slate-400">Dodaj przynajmniej jedną arenę, inaczej nie ma na czym ułożyć meczów.</p>
+                  )}
+                </div>
               )}
 
               {mecze.length > 0 && !podglad && (
