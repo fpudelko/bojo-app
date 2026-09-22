@@ -24,6 +24,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Jak dokładnie wdrożyć moduł turniejowy — schemat, sygnatury, ekrany? | [turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md) |
 | Kto używa turnieju, kiedy i czego wtedy szuka? Co blokuje odmrożenie flagi? | [turnieje-scenariusze-ux.md](./turnieje-scenariusze-ux.md) |
 | Jak mają wyglądać ekrany turnieju dla organizatora, kapitana i gracza? | [turnieje-ux-ekrany.md](./turnieje-ux-ekrany.md) |
+| Jak wdrożyć galerię zdjęć i sponsorów turnieju — schemat, RLS, ekrany? | [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy-plan.md) |
 | Co przetestować ręką przed wpuszczeniem ludzi? Czego automat nie dosięga? | [testy-przedpremierowe.md](./testy-przedpremierowe.md) |
 | Jak zaczepić organizatora na Facebooku? Co mu wolno obiecać? | [outreach-organizatorzy.md](./outreach-organizatorzy.md) |
 | Skąd wzięło się obecne logo? Jakie warianty odrzuciliśmy i dlaczego? | [logo-warianty.md](./logo-warianty.md) |
