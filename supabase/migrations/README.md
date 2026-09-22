@@ -101,6 +101,13 @@ node scripts/ryzyko-migracji.mjs plik.sql # jeden plik, kod wyjścia 1 = ręczna
 Na dzisiejszych 155 migracjach ręcznych jest siedem (`041`, `054`, `064`, `088`, `110`,
 `121`, `151`).
 
+**Dopóki produkcja nie ma sekretu ALBO nie ma backfillu, zadanie pomija się po cichu.**
+Oba to stany konfiguracji, nie awarie, więc nie świecą czerwono na masterze: czerwony
+znaczek, który nic nie znaczy, uczy ignorować czerwone znaczki, a wtedy przestaje
+działać ten, który coś znaczy. Wiadomość idzie do podsumowania przebiegu. Ręczne
+uruchomienie na produkcji zachowuje się odwrotnie i MA zaświecić czerwono: ktoś
+świadomie kliknął i musi zobaczyć, że nic nie poszło.
+
 **Zadanie produkcyjne zatrzymuje się PRZED pierwszą ręczną, razem z całą resztą za nią.**
 Migracji nie da się przeskoczyć: gdy `158` jest bezpieczna, `159` ręczna, a `160`
 bezpieczna, puszczenie `160` bez `159` dałoby schemat nieodpowiadający żadnej wersji

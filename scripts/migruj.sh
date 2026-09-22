@@ -120,7 +120,15 @@ if [ "$LICZBA_ZASTOSOWANYCH" -eq 0 ] && [ "$NIEPUSTA" = "t" ] && [ "$TRYB" != "o
 
   Nic to nie uruchamia — tylko zapisuje, że pliki do tego numeru już były.
 BLAD
-    exit 1
+    # Kod 3, nie 1: to nie jest awaria, tylko baza jeszcze nieskonfigurowana.
+    # Automat produkcyjny przy merge'u odróżnia te dwie rzeczy i pomija się
+    # po cichu, zamiast świecić czerwono na masterze przy każdym merge'u aż
+    # do backfillu. Czerwony znaczek, który nic nie znaczy, uczy ignorować
+    # czerwone znaczki — a wtedy przestaje działać ten, który znaczy.
+    #
+    # Ręczne uruchomienie na produkcji dostaje ten sam kod i MA zaświecić
+    # czerwono: ktoś świadomie kliknął i musi zobaczyć, że nic nie poszło.
+    exit 3
   fi
 fi
 
