@@ -21,6 +21,7 @@ import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, s
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
+import { getZdjecia, getSponsorzy } from '@/lib/turniejGaleria';
 import { podiumTurnieju, tekstPodium, medal } from '@/lib/turniejPodium';
 import { linkDojazdu } from '@/lib/utils';
 import { useWstecz } from '@/lib/historia';
@@ -30,9 +31,11 @@ import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
 import Drabinka from '@/components/turnieje/Drabinka';
 import Klasyfikacja from '@/components/turnieje/Klasyfikacja';
 import Ogloszenia from '@/components/turnieje/Ogloszenia';
+import Galeria from '@/components/turnieje/Galeria';
+import Sponsorzy from '@/components/turnieje/Sponsorzy';
 import KartaDruzyny from '@/components/turnieje/KartaDruzyny';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
-import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie, TurniejOgloszenie } from '@/types';
+import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie, TurniejOgloszenie, TurniejZdjecie, TurniejSponsor } from '@/types';
 
 // Sześć zakładek zamiast czterech. „Terminarz" i „Wyniki" dzieliły wcześniej
 // ten sam zbiór meczów, a tabela i drabinka siedziały razem w „Wynikach" —
@@ -132,6 +135,8 @@ export default function TurniejClient() {
   const [ogloszenia, setOgloszenia] = useState<TurniejOgloszenie[]>([]);
   /** Ogłoszeń nie dało się wczytać — puste miejsce ma powiedzieć co innego niż „nie ma ogłoszeń". */
   const [ogloszeniaBlad, setOgloszeniaBlad] = useState(false);
+  const [zdjecia, setZdjecia] = useState<TurniejZdjecie[]>([]);
+  const [sponsorzy, setSponsorzy] = useState<TurniejSponsor[]>([]);
   const [mojaDruzyna, setMojaDruzyna] = useState<TurniejDruzyna | null>(null);
   const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
   const [ladowanie, setLadowanie] = useState(true);
@@ -201,7 +206,7 @@ export default function TurniejClient() {
         //
         // Każda sekcja dostaje więc własny wynik i własny stan pusty. Jedyne,
         // co naprawdę przesądza o „nie znaleziono", to brak samego turnieju.
-        const [d, o, m, a, g, z, og, mj] = await Promise.allSettled([
+        const [d, o, m, a, g, z, og, mj, zd, sp] = await Promise.allSettled([
           user ? getDruzynyZeSkladem(id) : getDruzyny(id),
           user ? getMojaOsobe(id, user.id) : Promise.resolve(null),
           getMecze(id),
@@ -210,6 +215,8 @@ export default function TurniejClient() {
           getZdarzeniaTurnieju(id),
           getOgloszenia(id),
           user ? getMojaDruzyne(id, user.id) : Promise.resolve(null),
+          getZdjecia(id),
+          getSponsorzy(id),
         ]);
         if (!aktualne) return;
         setDruzyny(d.status === 'fulfilled' ? d.value : []);
@@ -221,6 +228,10 @@ export default function TurniejClient() {
         setOgloszenia(og.status === 'fulfilled' ? og.value : []);
         setOgloszeniaBlad(og.status === 'rejected');
         setMojaDruzyna(mj.status === 'fulfilled' ? mj.value : null);
+        // Galeria i sponsorzy to dodatek do zakładki Info: gdy zapytanie padnie
+        // (np. baza bez migracji `159`), sekcje po prostu się nie pokazują.
+        setZdjecia(zd.status === 'fulfilled' ? zd.value : []);
+        setSponsorzy(sp.status === 'fulfilled' ? sp.value : []);
         // BLIK: tylko organizator/zarządzający i kapitanowie mają RLS-owe
         // prawo do wiersza — reszta po prostu nie dostanie nic, więc wołanie
         // „na wszelki wypadek" jest bezpieczne i nie wymaga sprawdzania roli
@@ -776,6 +787,20 @@ export default function TurniejClient() {
               </details>
             )}
           </div>
+        )}
+
+        {/* Galeria i sponsorzy pod kartą szczegółów — zakładka Info ma być
+            stroną turnieju do przewijania w dół, nie tylko listą faktów.
+            Plan → docs/turniej-galeria-sponsorzy-plan.md §7. */}
+        {aktywna === 'info' && (
+          <>
+            <Galeria
+              zdjecia={zdjecia}
+              mozeZarzadzac={uprawnienia.mozeEdytowac}
+              linkDoPanelu={`/turnieje/${id}/panel?tab=ustawienia`}
+            />
+            <Sponsorzy sponsorzy={sponsorzy} />
+          </>
         )}
 
         {aktywna === 'druzyny' && (

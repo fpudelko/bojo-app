@@ -4453,7 +4453,21 @@ ale bez miejsca w interfejsie, żeby je ustawić. Dziś organizator wgrywa
 zdjęcie w panelu (zakładka Ustawienia, `<CoverUpload>`, bucket `covers`,
 wzorem okładki ekipy) — widoczne jako miniatura karty na `/turnieje`
 (`KartaTurnieju`, zastępuje domyślne emoji sportu). Pełny plan galerii zdjęć
-i sponsorów (kolejne etapy) → [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy-plan.md).
+i sponsorów → [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy-plan.md).
+
+**Galeria zdjęć i sponsorzy (2026-09-22, migracja `159`).** Zakładka **Info** na
+`/turnieje/[id]` ma pod kartą szczegółów dwie sekcje: **Galeria** (`components/turnieje/Galeria.tsx`,
+siatka 3 kolumn, dotknięcie otwiera pełnoekranowy podgląd `Lightbox.tsx` ze strzałkami,
+Escape i dotknięciem tła) oraz **Sponsorzy** (`Sponsorzy.tsx`, logo 64×64 albo plakietka
+z samą nazwą, link z `rel="sponsored"`). Obie znikają, gdy są puste — poza galerią dla
+zarządzającego, który widzi „+ Dodaj zdjęcia" prowadzące do panelu. Zarządzanie mieszka
+w panelu, zakładka **Ustawienia** (`PanelGaleria.tsx` — kolejność strzałkami, usuwanie;
+`PanelSponsorzy.tsx` — nazwa i link zapisywane przy wyjściu z pola, logo opcjonalne),
+**nie** jako szósta zakładka panelu. Widzi je także współorganizator z `moze_edytowac`
+(reszty Ustawień nie), bo tyle wpuszcza RLS. Link sponsora przechodzi przez
+`normalizujLinkSponsora()` przy zapisie i `bezpiecznyLinkSponsora()` przy wyświetlaniu —
+tylko `http`/`https`, bo wpisuje go organizator, a widzi każdy odwiedzający. Klikalność
+podglądu i odcięcie `javascript:` pilnuje `e2e/turniej-galeria.klikalnosc.spec.ts`.
 
 ### Etap A przebudowy UX (migracja `154`) — kapitan i pierwsze wrażenie
 

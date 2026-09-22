@@ -500,12 +500,14 @@ i `/profil`, fizyczne skasowanie starego „BOJO Cup" (migracja `151`).
 - [ ] `e2e/turniej.spec.ts` (scenariusze za logowaniem, plan Etapu 2) — nie powstał.
       Konsola prowadzącego i przepływ zgłoszenia drużyny nie mają dziś testu
       klikalności na pełnym stosie Supabase, tylko manualne smoke-testy SQL
-- [ ] **Galeria zdjęć i landing page turnieju** (sponsorzy, logotypy, rozbudowane info
-      o organizatorze) — zgłoszone 2026-09-19 przy okazji przywrócenia zakładki „Info"
-      (patrz PR #403). To osobna funkcja z własnym modelem danych: zdjęcia trzeba
-      gdzieś przechowywać (storage + tabela galerii per turniej), sponsorzy to nowa
-      tabela (nazwa, logo, link). Świadomie nie zrobione na szybko przy okazji tamtego
-      PR-a — wymaga osobnego zaprojektowania schematu i RLS, nie doklejenia pola
+- [x] **Galeria zdjęć i landing page turnieju** (sponsorzy, logotypy) — zgłoszone
+      2026-09-19 (PR #403), zrobione 2026-09-22 w trzech PR-ach: okładka (#416),
+      schemat i RLS (#417, migracja `159`), ekrany (zakładka Info + panel → Ustawienia).
+      Plan i decyzje → [docs/turniej-galeria-sponsorzy-plan.md](docs/turniej-galeria-sponsorzy-plan.md).
+      Zostaje: **bucket `turniej-media` do założenia ręcznie** w Supabase Dashboard
+      (publiczny) — bez niego upload kończy się błędem. „Rozbudowane info
+      o organizatorze" świadomie BEZ nowego modelu danych (§0 planu) — wraca tylko,
+      jeśli po galerii i sponsorach nadal czegoś konkretnego brakuje
 
 ---
 

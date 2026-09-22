@@ -114,8 +114,11 @@ describe('dzienTygodniaWBierniku', () => {
 
 describe('krotkiTermin', () => {
   it('dziś — sama godzina, bez daty', () => {
-    const za2h = new Date(Date.now() + 2 * 3600_000);
-    expect(krotkiTermin(za2h)).toBe(`do ${String(za2h.getHours()).padStart(2, '0')}:${String(za2h.getMinutes()).padStart(2, '0')}`);
+    // 23:59 DZIŚ, nie „teraz + 2 h": po 22:00 tamto przeskakiwało na jutro
+    // i test padał co wieczór (CI chodzi w UTC, więc o tej porze też).
+    const dzisWieczorem = new Date();
+    dzisWieczorem.setHours(23, 59, 0, 0);
+    expect(krotkiTermin(dzisWieczorem)).toBe('do 23:59');
   });
 
   it('jutro — słowo „jutra", nie odmieniona nazwa dnia', () => {
