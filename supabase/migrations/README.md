@@ -74,11 +74,57 @@ z dwóch zakładek i dostać błąd uwierzytelnienia zamiast sieciowego.
 `scripts/sprawdz-adres-bazy.sh` rozpoznaje adres Direct connection i mówi to
 wprost, zanim dojdzie do próby połączenia.
 
+### 2b. Co idzie na produkcję samo, a co wymaga kliknięcia
+
+Merge do mastera aplikuje na produkcji **tylko migracje, które DOKŁADAJĄ** rzeczy:
+kolumnę, tabelę, politykę, funkcję, indeks. Takiej migracji nie da się zepsuć danych,
+których jeszcze nie ma, a kazanie człowiekowi klikać przy każdej z nich uczy go klikać
+bez patrzenia, czyli psuje ochronę dokładnie tam, gdzie jest potrzebna.
+
+Kliknięcia wymaga to, czego nie odwróci ponowne uruchomienie:
+
+```
+DROP TABLE   DROP SCHEMA   DROP COLUMN   DROP TYPE
+TRUNCATE     DELETE FROM   SET NOT NULL
+ALTER COLUMN … TYPE        RENAME COLUMN   RENAME TO
+```
+
+Decyduje `scripts/ryzyko-migracji.mjs`, nie deklaracja autora: migrację kasującą kolumnę
+pisze się równie beztrosko jak każdą inną, a autor, który zapomni ją oznaczyć, jest
+dokładnie tym, którego migracja jest groźna. Podejrzeć klasyfikację całego katalogu:
+
+```bash
+node scripts/ryzyko-migracji.mjs          # cały katalog
+node scripts/ryzyko-migracji.mjs plik.sql # jeden plik, kod wyjścia 1 = ręczna
+```
+
+Na dzisiejszych 155 migracjach ręcznych jest siedem (`041`, `054`, `064`, `088`, `110`,
+`121`, `151`).
+
+**Zadanie produkcyjne zatrzymuje się PRZED pierwszą ręczną, razem z całą resztą za nią.**
+Migracji nie da się przeskoczyć: gdy `158` jest bezpieczna, `159` ręczna, a `160`
+bezpieczna, puszczenie `160` bez `159` dałoby schemat nieodpowiadający żadnej wersji
+repo. Co czeka, widać w podsumowaniu przebiegu.
+
+Gdy wiesz coś, czego skaner nie zobaczy (backfill blokujący tabelę na minuty), dopisz
+w nagłówku pliku:
+
+```sql
+-- RECZNA: backfill przepisuje 400 tys. wierszy, blokuje tabelę
+```
+
+Znacznika odwrotnego nie ma i nie będzie. Byłby furtką, przez którą wyjdzie każdy `DROP`.
+
 ### 3. Bramka na produkcję
 
 Settings → **Environments** → `produkcja` → **Required reviewers** → dodaj
-siebie. Od tej pory każdy przebieg produkcyjny czeka na kliknięcie „Approve",
-a w mailu widać, co ma pójść.
+siebie. Od tej pory każde RĘCZNE uruchomienie na produkcji czeka na kliknięcie
+„Approve", a w mailu widać, co ma pójść.
+
+Automat z sekcji 2b tej bramki nie ma i mieć nie może: zadanie przypięte do środowiska
+z „Required reviewers" zatrzymałoby się na zatwierdzeniu, czyli zamieniło automat
+z powrotem w klikanie. Dlatego to osobne zadanie (`produkcja-bezpieczne`) i dlatego
+puszcza wyłącznie migracje dokładające. Bramka pilnuje `DROP`-ów, nie wszystkiego.
 
 Bez tego kroku workflow zadziała, ale produkcja nie będzie miała żadnej
 bramki poza tym, że trzeba ją wybrać z listy — czyli zabezpieczeniem przed

@@ -421,10 +421,18 @@ w **produkcyjną** bazę — wygodne, ale każde kliknięcie w niesprawdzonej ga
 użytkownikach. Rozdzielenie polega na drugim projekcie Supabase, wspólnym dla
 **pracy lokalnej i wszystkich preview**; produkcja (`bojo.pl`) zostaje na swoim.
 
-Osobna baza dla KAŻDEGO preview (tzw. branch database) nie wchodzi w grę przy ręcznych
-migracjach: nie ma migratora, który postawiłby schemat na żądanie przy deployu. Jedna
-baza dev dla wszystkich podglądów to świadomy kompromis — jej stan jest wspólny, więc
-scenariusz z jednego PR-a widać w drugim.
+Osobna baza dla KAŻDEGO preview (tzw. branch database) nadal nie jest wpięta, ale
+**powód zapisany tu wcześniej już nie obowiązuje**. Stało tu, że nie ma migratora,
+który postawiłby schemat na żądanie przy deployu; migrator powstał 2026-09-20
+(`scripts/migruj.sh` plus `.github/workflows/migracje.yml`). Dziś przeszkodą jest
+wyłącznie koszt i wpięcie integracji Supabase↔Vercel, a nie brak narzędzia. Gdyby
+ktoś do tego wracał: to jest właściwa odpowiedź na wspólny stan dev, a nie obejście.
+
+Jedna baza dev dla wszystkich podglądów zostaje świadomym kompromisem: jej stan jest
+wspólny, więc scenariusz z jednego PR-a widać w drugim. Od 2026-09-22 dochodzi do tego
+schemat: migracje idą na dev już z gałęzi, żeby podgląd PR-a widział to, co PR niesie.
+`migruj.sh` zatrzymuje się, gdy ten wspólny stan rozjedzie się z repo, a wyjściem jest
+`scripts/reset-dev.sh` (Actions → Migracje → Run workflow → `reset_dev`).
 
 ### Krok po kroku
 

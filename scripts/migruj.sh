@@ -51,6 +51,12 @@ OZNACZ_DO=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --wykonaj)   TRYB="wykonaj"; shift ;;
+    # Puszcza wyłącznie CIĄGŁY POCZĄTEK listy do zrobienia, do pierwszej
+    # migracji uznanej za ręczną. Ciągły, bo migracji nie da się przeskoczyć:
+    # gdy 158 jest bezpieczna, 159 ręczna, a 160 bezpieczna, to 160 NIE MOŻE
+    # pójść bez 159 — schemat po takim przeskoku nie odpowiada żadnej wersji
+    # repo. Reszta czeka na świadome uruchomienie i jest wypisana w logu.
+    --tylko-bezpieczne) TRYB="wykonaj"; TYLKO_BEZPIECZNE=1; shift ;;
     --podglad)   TRYB="podglad"; shift ;;
     --oznacz-do) TRYB="oznacz"; OZNACZ_DO="${2:-}"; shift 2 ;;
     *) echo "Nieznany argument: $1" >&2; exit 2 ;;
@@ -258,11 +264,63 @@ if [ "$TRYB" = "oznacz" ]; then
   exit 0
 fi
 
+# ── Tryb „tylko bezpieczne": utnij listę przed pierwszą ręczną ──────────────
+CZEKAJACE=()
+if [ "${TYLKO_BEZPIECZNE:-0}" = "1" ] && [ ${#DO_ZROBIENIA[@]} -gt 0 ]; then
+  BEZPIECZNE=()
+  ODCIETE=0
+  for nazwa in "${DO_ZROBIENIA[@]}"; do
+    if [ "$ODCIETE" = "1" ]; then
+      CZEKAJACE+=("$nazwa")
+      continue
+    fi
+    if POWOD="$(node "$KATALOG/scripts/ryzyko-migracji.mjs" "$MIGRACJE/$nazwa")"; then
+      BEZPIECZNE+=("$nazwa")
+    else
+      echo "⏸ $nazwa wymaga świadomego uruchomienia: $POWOD"
+      echo "   Zatrzymuję się przed nią. Migracje po niej czekają razem z nią."
+      echo ""
+      ODCIETE=1
+      CZEKAJACE+=("$nazwa")
+    fi
+  done
+  DO_ZROBIENIA=("${BEZPIECZNE[@]}")
+fi
+
 # ── Nic do zrobienia ────────────────────────────────────────────────────────
 if [ ${#DO_ZROBIENIA[@]} -eq 0 ]; then
+  if [ ${#CZEKAJACE[@]} -gt 0 ]; then
+    echo "Nic bezpiecznego do zrobienia, ale ${#CZEKAJACE[@]} czeka na świadome uruchomienie:"
+    for nazwa in "${CZEKAJACE[@]}"; do echo "  • $nazwa"; done
+    echo ""
+    echo "Actions → Migracje → Run workflow → produkcja → Zapisz zmiany."
+    exit 0
+  fi
   echo "✓ Baza jest aktualna — $LICZBA_ZASTOSOWANYCH migracji w dzienniku, zero do zrobienia."
   exit 0
 fi
+
+# ── Kolizja numerów: BLOKADA ────────────────────────────────────────────────
+# Dwie gałęzie dokładają `158_a.sql` i `158_b.sql`. Każda widzi tylko swój
+# plik, więc samo repo tego nie wychwyci — ale dziennik bazy widzi oba: jeden
+# jako zastosowany, drugi jako do zrobienia. Puszczenie drugiego dałoby na dev
+# schemat, którego nie odtworzy ŻADNA kolejność plików w repo, bo na masterze
+# te dwie migracje wylądują w kolejności ustalonej przez merge, nie przez
+# to, kto pierwszy pchnął gałąź.
+for nazwa in "${DO_ZROBIENIA[@]}"; do
+  numer="$(numer_z_nazwy "$nazwa")"
+  kolizja="$(psql_cicho -c "SELECT plik FROM schema_migracje WHERE numer = $numer LIMIT 1")"
+  if [ -n "$kolizja" ]; then
+    echo "✗ Kolizja numerów: $nazwa chce numer $numer, a dziennik ma już '$kolizja'." >&2
+    echo "  Najczęściej znaczy to, że druga gałąź dołożyła migrację o tym samym" >&2
+    echo "  numerze i poszła na dev pierwsza." >&2
+    echo "" >&2
+    echo "  Przenumeruj swoją migrację na wolny numer (sprawdź najwyższy" >&2
+    echo "  w supabase/migrations/ ORAZ w dzienniku), albo zresetuj dev:" >&2
+    echo "  Actions → Migracje → Run workflow → reset_dev = tak." >&2
+    exit 1
+  fi
+done
 
 # ── Ostrzeżenia, nie blokady ────────────────────────────────────────────────
 NAJWYZSZY="$(psql_cicho -c 'SELECT COALESCE(max(numer), 0) FROM schema_migracje')"
@@ -286,9 +344,33 @@ while IFS= read -r nazwa; do
   zapisana="$(psql_cicho -c "SELECT COALESCE(suma_kontrolna, '') FROM schema_migracje WHERE plik = '$nazwa'")"
   teraz="$(sha256sum "$plik" | cut -c1-16)"
   if [ -n "$zapisana" ] && [ "$zapisana" != "$teraz" ]; then
-    echo "⚠ $nazwa zmieniła się od zastosowania — baza ma STARĄ wersję (nie uruchamiam ponownie)."
+    # BŁĄD, nie ostrzeżenie — od 2026-09-22, odkąd migracje idą na dev już
+    # z gałęzi. Wcześniej ten stan był praktycznie nieosiągalny: na dev
+    # trafiała wyłącznie wersja, która przeszła przez mastera, czyli
+    # ostateczna. Teraz normalną koleją rzeczy jest „pchnąłem migrację,
+    # okazała się błędna, poprawiam plik" — a poprawiona wersja NIGDY by
+    # nie doszła, bo dziennik ma już wpis. Baza zostawałaby ze starą
+    # wersją i milczała o tym.
+    #
+    # Cisza jest tu gorsza niż zatrzymany przebieg: schemat rozjechany
+    # z repo wychodzi później jako błąd aplikacji, w miejscu, które nie
+    # ma z migracją nic wspólnego.
+    echo "✗ $nazwa zmieniła się od zastosowania na tej bazie." >&2
+    echo "  Baza ma STARĄ wersję tego pliku i sam przebieg jej nie naprawi:" >&2
+    echo "  dziennik uznaje migrację za zrobioną, więc nie uruchomi jej drugi raz." >&2
+    echo "" >&2
+    echo "  Na DEV: Actions → Migracje → Run workflow → reset_dev = tak." >&2
+    echo "  Odtworzy schemat z supabase/bundles/ i puści migracje od zera." >&2
+    echo "" >&2
+    echo "  Na PRODUKCJI to nie może się zdarzyć przypadkiem: poprawka do" >&2
+    echo "  migracji, która już poszła, idzie NOWYM plikiem, nie edycją starego." >&2
+    ROZJAZD=1
   fi
 done <<< "$ZASTOSOWANE"
+
+if [ "${ROZJAZD:-0}" = "1" ]; then
+  exit 1
+fi
 
 echo ""
 echo "Do zrobienia (${#DO_ZROBIENIA[@]}):"
@@ -326,6 +408,16 @@ trap 'rm -f "$SKRYPT"' EXIT
 if psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "$SKRYPT"; then
   echo ""
   echo "✓ Zastosowano ${#DO_ZROBIENIA[@]} migracji."
+  # Bez tej listy przebieg kończyłby się zielonym „zastosowano N" i milczał
+  # o tym, że schemat NIE jest kompletny. Zielony znaczek mówiący nieprawdę
+  # jest gorszy niż czerwony: nikt go nie czyta drugi raz.
+  if [ ${#CZEKAJACE[@]} -gt 0 ]; then
+    echo ""
+    echo "⏸ ${#CZEKAJACE[@]} migracji NIE poszło — wymagają świadomego uruchomienia:"
+    for nazwa in "${CZEKAJACE[@]}"; do echo "  • $nazwa"; done
+    echo ""
+    echo "  Actions → Migracje → Run workflow → produkcja → Zapisz zmiany."
+  fi
 else
   echo ""
   echo "✗ Przebieg przerwany. Migracje SPRZED błędu zostały zastosowane i zapisane" >&2
