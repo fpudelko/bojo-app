@@ -44,9 +44,10 @@ export function pulpitPrzedTurniejem(
 
   const pozycje: PozycjaPulpitu[] = [];
 
-  // Ta sama liczba co na kafelku listy i na stronie turnieju. Wcześniej pulpit
-  // liczył wyłącznie przyjęte i pokazywał zero, gdy jedna drużyna czekała na
-  // decyzję, a kafelek obok mówił w tej samej chwili co innego.
+  // Ta sama liczba co na kafelku listy i na stronie turnieju: PRZYJĘTE.
+  // Spójność między powierzchniami była wymagana od początku, zmieniła się
+  // tylko strona, z której ją bierzemy — patrz `zajmujeMiejsce()`. Czekające
+  // zgłoszenia mają niżej własny wiersz, więc pulpit nic nie traci.
   const wTurnieju = liczDruzynyWTurnieju(druzyny);
   pozycje.push({
     klucz: 'druzyny',

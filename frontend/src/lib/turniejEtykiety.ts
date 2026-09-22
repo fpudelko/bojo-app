@@ -52,8 +52,33 @@ export function etykietaZdobyczy(sport: string): {
     : { naglowek: 'Najwięcej goli', kolumna: 'Gole', puste: 'Jeszcze nikt nie strzelił.' };
 }
 
+/**
+ * Czy drużyna zajmuje miejsce w turnieju. WYŁĄCZNIE przyjęta.
+ *
+ * Do 2026-09-22 liczyły się także zgłoszenia czekające na decyzję, żeby
+ * publiczna karta i pulpit organizatora nie pokazywały w tej samej chwili
+ * dwóch różnych liczb. Spójność została, ale ceną było kłamstwo w drugą
+ * stronę: kapitan czytał „6 z 8" i nie miał jak odróżnić turnieju prawie
+ * pełnego od takiego, w którym przyjęta jest jedna drużyna, a pięć czeka.
+ * W skrajnym przypadku turniej wyglądał na zamknięty, choć organizator nie
+ * przyjął jeszcze nikogo. Spójność bierzemy teraz z drugiej strony: obie
+ * powierzchnie liczą przyjęte, a czekające pokazują OSOBNYM wierszem.
+ *
+ * Z tego wynika też, co znaczy `max_druzyn`: limit PRZYJĘTYCH, nie limit
+ * zgłoszeń. Bramka `przyjmujeZgloszenia()` używa tej samej liczby, bo licznik
+ * mówiący „jest miejsce" przy formularzu, który odmawia, jest gorszy niż
+ * jedno i drugie osobno.
+ */
 export function zajmujeMiejsce(status: DruzynaStatus): boolean {
-  return status === 'zgloszona' || status === 'przyjeta';
+  return status === 'przyjeta';
+}
+
+/** Zgłoszenia czekające na decyzję organizatora. Liczone osobno od tych,
+ *  które już są w turnieju — patrz `zajmujeMiejsce()`. */
+export function liczCzekajaceZgloszenia(
+  druzyny: readonly { status: DruzynaStatus }[],
+): number {
+  return druzyny.filter((d) => d.status === 'zgloszona').length;
 }
 
 export function liczDruzynyWTurnieju(

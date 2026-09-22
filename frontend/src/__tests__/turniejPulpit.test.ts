@@ -18,20 +18,24 @@ const mecz = (n: Partial<TurniejMecz> = {}): TurniejMecz => ({
 describe('pulpitPrzedTurniejem', () => {
   const turniej = { maxDruzyn: 8, wpisoweGrosze: 10000 };
 
-  it('liczy drużyny ZAJMUJĄCE MIEJSCE: przyjęte i czekające, bez odrzuconych', () => {
+  it('liczy WYŁĄCZNIE przyjęte, a czekające pokazuje osobnym wierszem', () => {
     // Reguła jest wspólna z kafelkiem listy i ze stroną turnieju
-    // (`liczDruzynyWTurnieju`). Drużyna czekająca na decyzję ma prawo do slotu,
-    // dopóki organizator nie odpowie; odrzucona nie zajmuje nic.
+    // (`liczDruzynyWTurnieju`), i od 2026-09-22 znaczy: przyjęte.
     //
-    // Wcześniej pulpit liczył wyłącznie przyjęte i pokazywał „0 z 8" w chwili,
-    // gdy kafelek obok mówił „1/8" — zgłoszone z testu na żywo.
+    // Wcześniej liczyły się także czekające, żeby pulpit i kafelek nie
+    // pokazywały dwóch różnych liczb. Spójność została, ale ceną było
+    // kłamstwo w drugą stronę: „3 z 8" nie odróżniało turnieju prawie
+    // pełnego od takiego, w którym przyjęte są dwie drużyny, a reszta
+    // czeka na decyzję. Czekające mają własny wiersz, więc pulpit nic
+    // nie traci — decyzja właściciela po audycie UX.
     const p = pulpitPrzedTurniejem(
       turniej,
       [druzyna('przyjeta'), druzyna('przyjeta'), druzyna('zgloszona'), druzyna('odrzucona')],
       [],
       false,
     );
-    expect(p.find((x) => x.klucz === 'druzyny')?.tekst).toBe('3 z 8 drużyn');
+    expect(p.find((x) => x.klucz === 'druzyny')?.tekst).toBe('2 z 8 drużyn');
+    expect(p.find((x) => x.klucz === 'zgloszenia')?.tekst).toBe('1 zgłoszenie czeka na decyzję');
   });
 
   it('wycofana i odrzucona zwalniają miejsce', () => {

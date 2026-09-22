@@ -41,6 +41,10 @@ export default function NowyTurniejPage() {
 
   const [format, setFormat] = useState<TurniejFormat>('grupy_puchar');
   const [maxDruzyn, setMaxDruzyn] = useState(8);
+  // 0 znaczy „nie podano" i tak trafia do bazy (NULL). Minimum jest
+  // informacją organizatora dla kapitanów, nie warunkiem, który Bojo
+  // egzekwuje — ta sama decyzja co przy SHOW_MIN_PLAYERS_THRESHOLD.
+  const [minDruzyn, setMinDruzyn] = useState(0);
   const [minZawodnikow, setMinZawodnikow] = useState(5);
   const [maxZawodnikow, setMaxZawodnikow] = useState(12);
 
@@ -85,6 +89,7 @@ export default function NowyTurniejPage() {
           zapisyDo: zapisyDo ? `${zapisyDo}T23:59:59` : undefined,
           godzinaStartu,
           maxDruzyn,
+          minDruzyn: minDruzyn || undefined,
           minZawodnikow,
           maxZawodnikow,
           wymagaAkceptacji,
@@ -325,16 +330,34 @@ export default function NowyTurniejPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className={labelCls}>Ile drużyn</label>
-              <input
-                type="number" min={2} max={64} value={maxDruzyn || ''}
-                onChange={(e) => setMaxDruzyn(e.target.value === '' ? 0 : Number(e.target.value))}
-                onBlur={() => setMaxDruzyn((v) => Math.min(64, Math.max(2, v || 2)))}
-                className={inputCls}
-              />
+          <div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Ile drużyn najwyżej</label>
+                <input
+                  type="number" min={2} max={64} value={maxDruzyn || ''}
+                  onChange={(e) => setMaxDruzyn(e.target.value === '' ? 0 : Number(e.target.value))}
+                  onBlur={() => setMaxDruzyn((v) => Math.min(64, Math.max(2, v || 2)))}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Minimum (opcjonalnie)</label>
+                <input
+                  type="number" min={2} max={maxDruzyn || 64} placeholder="nie podaję" value={minDruzyn || ''}
+                  onChange={(e) => setMinDruzyn(e.target.value === '' ? 0 : Number(e.target.value))}
+                  onBlur={() => setMinDruzyn((v) => (v ? Math.min(maxDruzyn || 64, Math.max(2, v)) : 0))}
+                  className={inputCls}
+                />
+              </div>
             </div>
+            <p className="mt-1.5 text-xs text-slate-400">
+              Minimum zobaczą kapitanowie przy zapisach. Bojo go nie pilnuje: decyzję,
+              czy gracie w takim składzie, podejmujesz sam.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Min. skład</label>
               <input

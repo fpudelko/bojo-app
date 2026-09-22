@@ -29,6 +29,7 @@ export function toTurniej(row: any): Turniej {
     godzinaStartu: row.godzina_startu,
     zapisyDo: row.zapisy_do ?? undefined,
     maxDruzyn: row.max_druzyn,
+    minDruzyn: row.min_druzyn ?? undefined,
     minZawodnikow: row.min_zawodnikow,
     maxZawodnikow: row.max_zawodnikow,
     graczyWPolu: row.graczy_w_polu ?? undefined,
@@ -167,6 +168,10 @@ function toRow(dane: Partial<TurniejCreate>): Record<string, any> {
   if (dane.godzinaStartu !== undefined) row.godzina_startu = dane.godzinaStartu;
   if (dane.zapisyDo !== undefined) row.zapisy_do = dane.zapisyDo || null;
   if (dane.maxDruzyn !== undefined) row.max_druzyn = dane.maxDruzyn;
+  // `null`, nie pominięcie: organizator kasujący minimum w edycji musi móc
+  // wrócić do stanu „nie podałem". Bez tego raz wpisana liczba zostawała
+  // w bazie na zawsze.
+  if (dane.minDruzyn !== undefined) row.min_druzyn = dane.minDruzyn || null;
   if (dane.minZawodnikow !== undefined) row.min_zawodnikow = dane.minZawodnikow;
   if (dane.maxZawodnikow !== undefined) row.max_zawodnikow = dane.maxZawodnikow;
   if (dane.graczyWPolu !== undefined) row.graczy_w_polu = dane.graczyWPolu ?? null;

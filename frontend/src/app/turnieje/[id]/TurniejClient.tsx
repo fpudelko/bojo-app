@@ -17,7 +17,7 @@ import {
 } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
-import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, etykietaZdobyczy } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy } from '@/lib/turniejEtykiety';
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
@@ -331,6 +331,7 @@ export default function TurniejClient() {
   const tabelaMaTresc = tabeleGrup.length > 0 || meczeDrabinki.length > 0;
   const stan = stanTurnieju(turniej, mecze);
   const liczbaWTurnieju = liczDruzynyWTurnieju(druzyny);
+  const czekajace = liczCzekajaceZgloszenia(druzyny);
   const zapisy = stanZapisowTurnieju(turniej, liczbaWTurnieju);
   const meczeNaZywo = mecze.filter((m) => m.status === 'trwa');
   // Tabela LIGI (nie grupy) jako podstawa podium — patrz `turniejPodium.ts`.
@@ -621,6 +622,23 @@ export default function TurniejClient() {
                   <span className="text-slate-500 dark:text-slate-400">⏳ {zapisy.terminLabel}</span>
                 )}
               </div>
+              {/* Licznik wyżej mówi o PRZYJĘTYCH. Bez tego wiersza kapitan nie
+                  odróżniłby turnieju, w którym zostały dwa miejsca, od takiego,
+                  w którym o te dwa miejsca bije się pięć czekających drużyn. */}
+              {czekajace > 0 && (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {czekajace === 1
+                    ? 'Dodatkowo 1 zgłoszenie czeka na decyzję organizatora.'
+                    : `Dodatkowo ${czekajace} zgłoszenia czekają na decyzję organizatora.`}
+                </p>
+              )}
+              {/* Informacja, nie werdykt: Bojo nie rozstrzyga, czy turniej się
+                  odbędzie. Organizator podał liczbę, my ją pokazujemy. */}
+              {turniej.minDruzyn !== undefined && liczbaWTurnieju < turniej.minDruzyn && (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Organizator planuje turniej od {turniej.minDruzyn} drużyn.
+                </p>
+              )}
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300">
               {turniej.wpisoweGrosze > 0
