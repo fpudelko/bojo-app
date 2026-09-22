@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 110 migracji: 041_join_code.sql → 152_alert_wiele_sportow.sql
+-- Zawiera 115 migracji: 041_join_code.sql → 157_turniej_minimum_druzyn.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -14167,3 +14167,623 @@ RETURNS int LANGUAGE sql STABLE SECURITY DEFINER AS $$
     AND (days_of_week = '{}' OR p_dow = ANY(days_of_week))
     AND haversine_km(lat, lng, p_lat, p_lng) <= radius_km
 $$;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 153_skupiska_licza_obiekty.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 153_skupiska_licza_obiekty.sql
+--
+-- DLACZEGO POWSTAŁA (zgłoszone wprost: „filtry na mapie się nie zgadzają").
+-- Trzy błędy w jednej funkcji, wszystkie widoczne na licznikach nad mapą:
+--
+--  1. `count(*)` po `CROSS JOIN LATERAL unnest(f.sport)` liczył WIERSZ NA
+--     SPORT, nie obiekt. Boisko opisane jako „piłka nożna + koszykówka"
+--     wchodziło do liczby dwa razy. Stąd 38 314 (suma par obiekt-sport)
+--     w miejscu, gdzie publicznych obiektów jest 35 952 — i stąd liczba
+--     w kółku skupiska nie zgadzała się z liczbą pinezek po przybliżeniu.
+--     Ta sama zawyżona liczba krążyła w repo jako „katalog ma 38 314
+--     obiektów"; to była suma par, nie obiektów.
+--
+--  2. Brak bramki na sporty, które mapa w ogóle pokazuje. Zapytanie
+--     o pinezki zawsze zawężało do siedmiu sportów mapy, a skupiska liczyły
+--     wszystko — również tenis, baseball i hokej (151 wierszy), których
+--     pinezki nigdy nie przyjdą. Bramka nie jest wpisana w SQL, tylko
+--     PRZYCHODZI w `p_sporty`: jedna lista w `lib/sports.ts`
+--     (`SPORTY_NA_MAPIE`) zamiast drugiej, zaszytej w treści funkcji.
+--
+--  3. Brak filtra nawierzchni — jedyny z filtrów obiektu, który przy
+--     oddalonej mapie nie robił NIC: kółka i licznik zostawały niezmienione,
+--     więc filtr wyglądał na zepsuty dokładnie tam, gdzie zaczyna się
+--     korzystanie z mapy.
+--
+-- `p_typy` odchodzi razem z filtrem „Typ obiektu", zdjętym z mapy w tym samym
+-- PR-ze: `venue_type` ma dane w 539 z 35 952 publicznych wierszy (1,5%), więc
+-- każdy wybór typu wycinał niemal cały katalog, a trzy jego opcje
+-- („Siatkówka", „Siatkówka plażowa", „Koszykówka") dublowały filtr Sport.
+--
+-- ŚRODEK KÓŁKA (`avg`) jest nadal liczony po wierszach z rozbitym sportem,
+-- czyli obiekt wielosportowy przyciąga go mocniej. Zostawione świadomie:
+-- poprawienie tego wymaga drugiego przebiegu po całym kadrze (1,2 s przy
+-- widoku kraju wobec 0,25 s teraz, przy limicie 3 s dla roli `anon`), a mówimy
+-- o kilkuset metrach przesunięcia dekoracyjnego kółka. Liczba w kółku — ta,
+-- którą ktoś czyta — jest już policzona po obiektach.
+--
+-- DA SIĘ PUŚCIĆ DRUGI RAZ. Stara wersja musi odejść jawnie: typy argumentów
+-- są te same, a zmienia się NAZWA ostatniego (`p_typy` → `p_nawierzchnie`),
+-- czego samo `CREATE OR REPLACE` nie zrobi („cannot change name of input
+-- parameter"). Gdyby zmienił się też typ, powstałoby PRZECIĄŻENIE — a wtedy
+-- PostgREST nie umie wybrać kandydata i każde RPC kończy się błędem.
+
+DROP FUNCTION IF EXISTS mapa_skupiska(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION,
+                                      DOUBLE PRECISION, DOUBLE PRECISION, TEXT[], TEXT[]);
+
+CREATE OR REPLACE FUNCTION mapa_skupiska(
+  p_lat_min       DOUBLE PRECISION,
+  p_lat_max       DOUBLE PRECISION,
+  p_lng_min       DOUBLE PRECISION,
+  p_lng_max       DOUBLE PRECISION,
+  p_krok          DOUBLE PRECISION,
+  p_sporty        TEXT[] DEFAULT NULL,
+  p_nawierzchnie  TEXT[] DEFAULT NULL
+)
+RETURNS TABLE (
+  lat    DOUBLE PRECISION,
+  lng    DOUBLE PRECISION,
+  ile    BIGINT,
+  sporty TEXT[]
+)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT avg(f.lat)::DOUBLE PRECISION,
+         avg(f.lng)::DOUBLE PRECISION,
+         -- OBIEKTY, nie pary obiekt-sport (patrz nagłówek, punkt 1).
+         count(DISTINCT f.id),
+         -- Sporty w komórce — kolor kółka bierze się z tego, co w niej jest.
+         -- Ograniczone do pięciu, bo ikona i tak pokazuje najwyżej kilka.
+         (array_agg(DISTINCT s))[1:5]
+    FROM fields f
+    CROSS JOIN LATERAL unnest(f.sport) AS s
+   WHERE f.map_visibility = 'public'
+     AND f.lat IS NOT NULL AND f.lng IS NOT NULL
+     AND f.lat BETWEEN p_lat_min AND p_lat_max
+     AND f.lng BETWEEN p_lng_min AND p_lng_max
+     -- Warunek na POJEDYNCZYM sporcie, nie na całej tablicy (`&&`): tak jedna
+     -- linia robi dwie rzeczy naraz — odsiewa obiekty bez pasującego sportu
+     -- i pilnuje, żeby kolor kółka nie brał się ze sportu, którego użytkownik
+     -- właśnie odfiltrował.
+     AND (p_sporty IS NULL OR s = ANY(p_sporty))
+     AND (p_nawierzchnie IS NULL OR f.surface = ANY(p_nawierzchnie))
+   GROUP BY floor(f.lat / p_krok), floor(f.lng / p_krok)
+$$;
+
+COMMENT ON FUNCTION mapa_skupiska IS
+  'Liczby obiektów w komórkach siatki dla oddalonych widoków mapy — zamiast tysięcy wierszy.';
+
+REVOKE ALL ON FUNCTION mapa_skupiska(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION,
+                                     DOUBLE PRECISION, DOUBLE PRECISION, TEXT[], TEXT[]) FROM public;
+GRANT EXECUTE ON FUNCTION mapa_skupiska(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION,
+                                        DOUBLE PRECISION, DOUBLE PRECISION, TEXT[], TEXT[])
+  TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 154_turniej_zaproszenia.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 154_turniej_zaproszenia.sql — kapitan zaprasza imiennie, drugą drogą
+-- obok linku `/t/[kod]`.
+-- ----------------------------------------------------------------------------
+-- DLACZEGO. Link do drużyny działa dla kolegów spoza Bojo i na WhatsAppie,
+-- ale dla kogoś, kto konto JUŻ MA, jest najsłabszą możliwą drogą: turniej ginie
+-- w wklejonym odnośniku zamiast pojawić się w aplikacji. Imienne zaproszenie
+-- robi dokładnie to samo, co `event_player_invites` przy meczu (migracja `060`)
+-- i powtarza jego trzy zasady:
+--
+--   1. zaproszenie NIE zajmuje miejsca w składzie i niczego nie przesądza —
+--      jest wyłącznie sposobem, żeby rzecz pojawiła się u zapraszanego,
+--   2. duplikaty pomija baza (`UNIQUE (druzyna_id, user_id)`), więc powtórne
+--      „zaproś ekipę" nie wskrzesza zaproszenia, które ktoś świadomie odrzucił,
+--   3. odrzucone zostaje w tabeli (`dismissed_at`), żeby nie wróciło.
+--
+-- KTO ZAPRASZA: wyłącznie KAPITAN drużyny. Nie organizator — decyzja właściciela
+-- z 2026-09-20: organizator nie widzi i nie tyka zaproszeń w cudzych drużynach.
+-- Dlatego polityki NIE używają `czy_kapitan_druzyny()` (145), która celowo
+-- przepuszcza też zarządzających turniejem, tylko nowej, ściślejszej
+-- `czy_sam_kapitan_druzyny()`. Dwie funkcje o podobnych nazwach to koszt, który
+-- płacimy świadomie — alternatywą jest polityka udająca, że organizator jest
+-- kapitanem każdej drużyny.
+--
+-- KOGO MOŻNA ZAPROSIĆ: interfejs bierze kandydatów wyłącznie z EKIP kapitana
+-- (`getMyGroups` → `getGroupMembers`, jak `InviteFromGroupDialog.tsx` przy
+-- meczu). Baza tego nie wymusza i nie ma po czym — ale wyszukiwarka po całym
+-- Bojo wymagałaby udostępnienia listy wszystkich kont, więc jej nie ma.
+--
+-- `turniej_id` STOI W TABELI, choć wynika z `druzyna_id`. Ten sam wybór co
+-- w `turniej_zawodnicy` (145): powiadomienia niosą `notifications.turniej_id`,
+-- a zapytania kapitana i zaproszonego filtrują po turnieju — join w każdej
+-- polityce kosztowałby więcej niż jedna kolumna pilnowana wyzwalaczem.
+--
+-- SPRZĄTANIE PO SOBIE: gdy zaproszony realnie wejdzie do drużyny, zaproszenie
+-- gaśnie samo (wyzwalacz na `turniej_zawodnicy`). Bez tego karta „Marek
+-- zaprasza Cię do drużyny Dziki" wisiałaby na stronie głównej człowiekowi,
+-- który już w tej drużynie gra.
+--
+-- Migracja jest idempotentna — patrz AGENTS.md, „migracja ma dać się puścić
+-- drugi raz".
+-- ============================================================================
+
+-- ── 1. Tabela ───────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS turniej_zaproszenia (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  turniej_id   uuid NOT NULL REFERENCES turnieje        ON DELETE CASCADE,
+  druzyna_id   uuid NOT NULL REFERENCES turniej_druzyny ON DELETE CASCADE,
+  user_id      uuid NOT NULL REFERENCES auth.users      ON DELETE CASCADE,
+  zaprosil_id  uuid          REFERENCES auth.users      ON DELETE SET NULL,
+  -- Z której ekipy wyszło zaproszenie — pozwala napisać „z ekipy Czwartkowa
+  -- gierka", tak samo jak `event_player_invites.group_id` (060).
+  group_id     uuid          REFERENCES groups          ON DELETE SET NULL,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  dismissed_at timestamptz,
+
+  UNIQUE (druzyna_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_turniej_zaproszenia_user
+  ON turniej_zaproszenia (user_id) WHERE dismissed_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_turniej_zaproszenia_druzyna
+  ON turniej_zaproszenia (druzyna_id);
+
+-- ── 2. Kapitan i tylko kapitan ──────────────────────────────────────────────
+
+-- Świadomie WĘŻSZA od `czy_kapitan_druzyny()` (145), która przepuszcza także
+-- zarządzających turniejem. Tu chodzi o samego kapitana — patrz nagłówek.
+CREATE OR REPLACE FUNCTION czy_sam_kapitan_druzyny(p_druzyna uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM turniej_druzyny d
+    WHERE d.id = p_druzyna AND d.kapitan_id = auth.uid()
+  )
+$$;
+
+GRANT EXECUTE ON FUNCTION czy_sam_kapitan_druzyny(uuid) TO anon, authenticated;
+
+-- ── 3. Spójność `turniej_id` z drużyną ──────────────────────────────────────
+
+-- Kolumna jest zdenormalizowana (patrz nagłówek), więc ktoś musi jej pilnować.
+-- Wyzwalacz, nie CHECK: CHECK nie może sięgnąć do innej tabeli.
+CREATE OR REPLACE FUNCTION turniej_zaproszenia_dopelnij()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  SELECT d.turniej_id INTO NEW.turniej_id
+    FROM turniej_druzyny d WHERE d.id = NEW.druzyna_id;
+  IF NEW.turniej_id IS NULL THEN
+    RAISE EXCEPTION 'Drużyna % nie istnieje', NEW.druzyna_id;
+  END IF;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS trg_turniej_zaproszenia_dopelnij ON turniej_zaproszenia;
+CREATE TRIGGER trg_turniej_zaproszenia_dopelnij
+  BEFORE INSERT ON turniej_zaproszenia
+  FOR EACH ROW EXECUTE FUNCTION turniej_zaproszenia_dopelnij();
+
+-- ── 4. Powiadomienie do zaproszonego ────────────────────────────────────────
+
+-- Neutralne, nie niebieskie: niebieski jest w AGENTS.md zarezerwowany dla
+-- „wymaga akceptacji uczestnictwa", czyli dla decyzji, której ktoś OD CIEBIE
+-- oczekuje i która kogoś blokuje. Zaproszenie niczego nie blokuje — dokładnie
+-- jak `zaproszenie_na_mecz`, którego wzorzec powtarzamy.
+CREATE OR REPLACE FUNCTION powiadom_o_zaproszeniu_do_druzyny()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_druzyna text;
+  v_turniej text;
+BEGIN
+  SELECT d.nazwa, t.nazwa INTO v_druzyna, v_turniej
+    FROM turniej_druzyny d JOIN turnieje t ON t.id = d.turniej_id
+   WHERE d.id = NEW.druzyna_id;
+
+  INSERT INTO notifications (user_id, type, title, body, turniej_id)
+  VALUES (NEW.user_id, 'turniej_zaproszenie_do_druzyny',
+          'Zaproszenie do drużyny',
+          v_druzyna || ' gra w: ' || v_turniej || '. Dołącz do składu.',
+          NEW.turniej_id);
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS trg_turniej_zaproszenie ON turniej_zaproszenia;
+CREATE TRIGGER trg_turniej_zaproszenie AFTER INSERT ON turniej_zaproszenia
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_zaproszeniu_do_druzyny();
+
+-- ── 5. Zaproszenie gaśnie, gdy człowiek wejdzie do drużyny ──────────────────
+
+CREATE OR REPLACE FUNCTION zgas_zaproszenie_po_dolaczeniu()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NEW.user_id IS NOT NULL THEN
+    UPDATE turniej_zaproszenia
+       SET dismissed_at = now()
+     WHERE druzyna_id = NEW.druzyna_id
+       AND user_id    = NEW.user_id
+       AND dismissed_at IS NULL;
+  END IF;
+  RETURN NEW;
+END $$;
+
+-- INSERT i UPDATE: do drużyny wchodzi się dopisaniem nowego wiersza ALBO
+-- przejęciem wpisu dopisanego wcześniej z ręki („to ja"), czyli `UPDATE …
+-- SET user_id`. Wyzwalacz tylko na INSERT przegapiłby drugą drogę.
+DROP TRIGGER IF EXISTS trg_zgas_zaproszenie ON turniej_zawodnicy;
+CREATE TRIGGER trg_zgas_zaproszenie AFTER INSERT OR UPDATE OF user_id ON turniej_zawodnicy
+  FOR EACH ROW EXECUTE FUNCTION zgas_zaproszenie_po_dolaczeniu();
+
+-- ── 6. RLS ──────────────────────────────────────────────────────────────────
+
+ALTER TABLE turniej_zaproszenia ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON turniej_zaproszenia TO authenticated;
+
+-- Widzi: zaproszony i kapitan drużyny. NIE organizator turnieju — patrz
+-- nagłówek. Administrator jak wszędzie w module.
+DROP POLICY IF EXISTS "Zaproszenie czyta zaproszony i kapitan" ON turniej_zaproszenia;
+CREATE POLICY "Zaproszenie czyta zaproszony i kapitan" ON turniej_zaproszenia FOR SELECT
+  USING (
+    user_id = auth.uid()
+    OR czy_sam_kapitan_druzyny(druzyna_id)
+    OR EXISTS (SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.is_admin = true)
+  );
+
+-- Zaprasza wyłącznie kapitan tej drużyny.
+DROP POLICY IF EXISTS "Zaprasza kapitan druzyny" ON turniej_zaproszenia;
+CREATE POLICY "Zaprasza kapitan druzyny" ON turniej_zaproszenia FOR INSERT
+  WITH CHECK (czy_sam_kapitan_druzyny(druzyna_id));
+
+-- Odrzuca/chowa wyłącznie zaproszony.
+DROP POLICY IF EXISTS "Zaproszony chowa swoje zaproszenie" ON turniej_zaproszenia;
+CREATE POLICY "Zaproszony chowa swoje zaproszenie" ON turniej_zaproszenia FOR UPDATE
+  USING      (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+-- Wycofuje kapitan albo sam zaproszony.
+DROP POLICY IF EXISTS "Zaproszenie wycofuje kapitan lub zaproszony" ON turniej_zaproszenia;
+CREATE POLICY "Zaproszenie wycofuje kapitan lub zaproszony" ON turniej_zaproszenia FOR DELETE
+  USING (user_id = auth.uid() OR czy_sam_kapitan_druzyny(druzyna_id));
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 155_turniej_nastepny_mecz.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 155_turniej_nastepny_mecz.sql — „Wasz mecz jest następny" oraz walkower
+-- wpisywany przez prowadzącego.
+-- ----------------------------------------------------------------------------
+-- POWIADOMIENIE. Plan modułu (docs/turnieje-plan-duze-klocki.md §12) nazwał ten
+-- typ najlepszym w całym module i jako jedyny z dziewięciu nie powstał. Rzecz
+-- polega na tym, że NIE POTRZEBUJE ANI CRONA, ANI ZEGARA: moment, w którym
+-- wiadomo, że jakaś drużyna gra za chwilę, to moment zakończenia poprzedniego
+-- meczu na tej samej arenie. Czyli zwykły wyzwalacz.
+--
+-- Trzy warunki, bez których to powiadomienie szkodzi zamiast pomagać:
+--   1. tylko gdy turniej NAPRAWDĘ trwa (`turnieje.status = 'trwa'`) — inaczej
+--      poprawka wyniku wpisana tydzień później budzi pół listy kontaktów,
+--   2. tylko gdy następny mecz jest DZIŚ — turniej weekendowy nie ma budzić
+--      w sobotę wieczorem drużyny grającej w niedzielę rano,
+--   3. tylko do zawodników Z KONTEM w obu drużynach tego meczu; gdy któraś
+--      drużyna jest jeszcze nieznana (slot drabinki czeka na zwycięzcę),
+--      powiadamiamy tę, która jest znana — „gracie następni" jest prawdziwe
+--      także wtedy, gdy nie wiadomo jeszcze z kim.
+--
+-- Dlaczego AFTER UPDATE na `turniej_mecze`, a nie w `zakoncz_mecz()`: mecz
+-- kończy się TAKŻE walkowerem (poniżej) i ręczną poprawką organizatora
+-- w panelu. Wyzwalacz łapie wszystkie trzy drogi, funkcja RPC złapałaby jedną.
+--
+-- WALKOWER. `turniej_mecze.status = 'walkower'` istnieje od migracji `146`
+-- i jest poprawnie liczony przez tabelę, ale wpisywał go wyłącznie generator
+-- terminarza przy wolnych losach. Prowadzący na boisku, któremu drużyna nie
+-- dojechała — przypadek z KAŻDEGO turnieju amatorskiego — nie miał jak go
+-- zapisać. RPC domyka tę drogę tym samym sprawdzeniem uprawnień co
+-- `zakoncz_mecz()` i tą samą propagacją zwycięzcy w drabince.
+--
+-- Migracja jest idempotentna.
+-- ============================================================================
+
+-- ── 1. Walkower z konsoli prowadzącego ──────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION walkower_meczu(p_mecz uuid, p_zwyciezca uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_mecz turniej_mecze%ROWTYPE;
+BEGIN
+  IF NOT czy_prowadzi_mecz(p_mecz) THEN
+    RAISE EXCEPTION 'Brak uprawnień do tego meczu.';
+  END IF;
+
+  SELECT * INTO v_mecz FROM turniej_mecze WHERE id = p_mecz;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Nie znaleziono meczu.';
+  END IF;
+  IF v_mecz.status NOT IN ('zaplanowany','trwa') THEN
+    RAISE EXCEPTION 'Ten mecz jest już rozstrzygnięty.';
+  END IF;
+  IF p_zwyciezca IS NULL
+     OR p_zwyciezca NOT IN (COALESCE(v_mecz.druzyna_a_id, '00000000-0000-0000-0000-000000000000'::uuid),
+                            COALESCE(v_mecz.druzyna_b_id, '00000000-0000-0000-0000-000000000000'::uuid)) THEN
+    RAISE EXCEPTION 'Walkower musi wskazywać jedną z drużyn tego meczu.';
+  END IF;
+
+  -- Wynik zostaje 0:0, a zwycięzcę niesie `zwyciezca_id` — dokładnie tak, jak
+  -- robi to generator przy wolnym losie, i tak samo czyta to `obliczTabele()`
+  -- (`lib/turniejTabela.ts`: walkower to wygrana bez bramek).
+  UPDATE turniej_mecze SET
+    status        = 'walkower',
+    walkower_dla  = p_zwyciezca,
+    zwyciezca_id  = p_zwyciezca,
+    zakonczony_at = now()
+   WHERE id = p_mecz;
+END $$;
+
+GRANT EXECUTE ON FUNCTION walkower_meczu(uuid, uuid) TO authenticated;
+
+-- ── 2. „Wasz mecz jest następny" ────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION powiadom_o_nastepnym_meczu()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_turniej  turnieje%ROWTYPE;
+  v_nastepny turniej_mecze%ROWTYPE;
+  v_arena    text;
+  v_kiedy    text;
+  v_rywal_a  text;
+  v_rywal_b  text;
+BEGIN
+  -- Tylko realne przejście do stanu rozstrzygniętego. Powtórny zapis tego
+  -- samego statusu (poprawka wyniku, dopisanie MVP) nie budzi nikogo.
+  IF NEW.status NOT IN ('zakonczony','walkower') OR OLD.status = NEW.status THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.arena_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT * INTO v_turniej FROM turnieje WHERE id = NEW.turniej_id;
+  IF v_turniej.status <> 'trwa' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Następny w kolejce NA TEJ ARENIE. Kolejność jak na terminarzu: najpierw
+  -- godzina, a gdy jej nie ma (mecz drabinki bez przypisanego slotu) — numer.
+  SELECT * INTO v_nastepny
+    FROM turniej_mecze m
+   WHERE m.arena_id = NEW.arena_id
+     AND m.id <> NEW.id
+     AND m.status = 'zaplanowany'
+   ORDER BY m.zaplanowany_at NULLS LAST, m.numer
+   LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NEW;
+  END IF;
+
+  -- Turniej weekendowy: nie budzimy w sobotę drużyny grającej w niedzielę.
+  IF v_nastepny.zaplanowany_at IS NOT NULL
+     AND v_nastepny.zaplanowany_at::date <> CURRENT_DATE THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT nazwa INTO v_arena FROM turniej_areny WHERE id = NEW.arena_id;
+  v_kiedy := CASE
+    WHEN v_nastepny.zaplanowany_at IS NULL THEN 'zaraz'
+    ELSE 'ok. ' || to_char(v_nastepny.zaplanowany_at, 'HH24:MI')
+  END;
+
+  SELECT nazwa INTO v_rywal_a FROM turniej_druzyny WHERE id = v_nastepny.druzyna_a_id;
+  SELECT nazwa INTO v_rywal_b FROM turniej_druzyny WHERE id = v_nastepny.druzyna_b_id;
+
+  -- Każdy zawodnik z kontem w którejkolwiek z dwóch drużyn. `DISTINCT`, bo
+  -- teoretycznie ta sama osoba mogłaby mieć dwa wpisy — indeks tego pilnuje,
+  -- ale powiadomienie nie jest miejscem, w którym warto na to liczyć.
+  INSERT INTO notifications (user_id, type, title, body, turniej_id)
+  SELECT DISTINCT z.user_id,
+         'turniej_nastepny_mecz',
+         'Wasz mecz jest następny',
+         COALESCE(v_arena, 'Boisko') || ', ' || v_kiedy
+           || CASE
+                WHEN z.druzyna_id = v_nastepny.druzyna_a_id AND v_rywal_b IS NOT NULL
+                  THEN ', z ' || v_rywal_b
+                WHEN z.druzyna_id = v_nastepny.druzyna_b_id AND v_rywal_a IS NOT NULL
+                  THEN ', z ' || v_rywal_a
+                ELSE ''
+              END,
+         NEW.turniej_id
+    FROM turniej_zawodnicy z
+   WHERE z.user_id IS NOT NULL
+     AND z.druzyna_id IN (v_nastepny.druzyna_a_id, v_nastepny.druzyna_b_id);
+
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS trg_nastepny_mecz ON turniej_mecze;
+CREATE TRIGGER trg_nastepny_mecz AFTER UPDATE OF status ON turniej_mecze
+  FOR EACH ROW EXECUTE FUNCTION powiadom_o_nastepnym_meczu();
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 156_statystyki_turniejowe_gracza.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 156_statystyki_turniejowe_gracza.sql — sekcja „Turnieje" na profilu gracza.
+-- ----------------------------------------------------------------------------
+-- DLACZEGO OSOBNA FUNKCJA, A NIE DOPISANIE DO `get_player_stats()`.
+--
+-- `get_player_stats()` (`043`, naprawiana w `045`/`055`/`074`) liczy
+-- `matches_played`, `goals_total` i `no_shows` z MECZÓW. Te liczby mają dziś
+-- konsekwencje widoczne dla ludzi: `matchesPlayed` i `noShows` sterują odznaką
+-- rzetelnego gracza i paskiem frekwencji na `/gracz/[id]`. Wrzucenie do nich
+-- turniejów po cichu zmieniłoby znaczenie liczb, które ktoś już widział —
+-- frekwencja spadłaby każdemu, kto zagrał w turnieju, bo turniej nie ma
+-- zapisów, rezerwy ani nieobecności.
+--
+-- Mecz turniejowy jest też po prostu INNĄ RZECZĄ niż gierka: nie zgłaszasz
+-- się na niego, tylko jesteś w składzie drużyny, a rozegrałeś go wtedy, gdy
+-- rozegrała go drużyna.
+--
+-- ŚCIANA LOGOWANIA EGZEKWUJE SIĘ SAMA. Funkcja jest `SECURITY INVOKER`, więc
+-- czyta `turniej_zawodnicy` i `turniej_zdarzenia` prawami wołającego — a te
+-- tabele od migracji `145` wymagają `auth.uid() IS NOT NULL`. Niezalogowany
+-- dostanie zera, czyli dokładnie to, co dostaje wszędzie indziej w module.
+-- `SECURITY DEFINER` obszedłby tu politykę, którą cały moduł stoi.
+--
+-- MIEJSCE W TURNIEJU LICZYMY, NIE ZAPISUJEMY. Kusi kolumna
+-- `turniej_druzyny.miejsce` — i byłaby drugą prawdą o tym, kto wygrał, która
+-- rozjedzie się z tabelą przy pierwszej korekcie wyniku (`wynik_recznie`
+-- istnieje właśnie dlatego). Zwracamy wyłącznie `wygrany` — „ta drużyna jest
+-- zwycięzcą finału tego turnieju" — czyli JEDEN fakt z jednego wiersza,
+-- ten sam, którym `podiumTurnieju()` (`lib/turniejPodium.ts`) wyznacza
+-- pierwsze miejsce. Drugiego i trzeciego miejsca celowo tu nie ma: ich reguła
+-- (mecz o 3. miejsce, a gdy go nie było — brak trzeciego) żyje w jednym
+-- miejscu, w przeglądarce.
+--
+-- Migracja jest idempotentna.
+-- ============================================================================
+
+DROP FUNCTION IF EXISTS get_player_turniej_stats(uuid);
+
+CREATE FUNCTION get_player_turniej_stats(p_user_id uuid)
+RETURNS TABLE (
+  turniejow     int,
+  meczow        int,
+  goli          int,
+  asyst         int,
+  mvp           int
+)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  WITH moje AS (
+    SELECT z.id, z.turniej_id, z.druzyna_id
+      FROM turniej_zawodnicy z
+     WHERE z.user_id = p_user_id
+  )
+  SELECT
+    (SELECT count(DISTINCT turniej_id)::int FROM moje),
+
+    -- Rozegrane: mecze MOJEJ drużyny, które się odbyły. Walkower też się
+    -- odbył — z punktu widzenia tabeli i klasyfikacji jest meczem.
+    (SELECT count(*)::int
+       FROM turniej_mecze m
+      WHERE m.status IN ('zakonczony','walkower')
+        AND EXISTS (SELECT 1 FROM moje
+                     WHERE moje.druzyna_id IN (m.druzyna_a_id, m.druzyna_b_id))),
+
+    -- Gole: `wartosc`, nie liczba wierszy — koszykarska trójka to trzy punkty
+    -- (ta sama reguła co `przelicz_wynik_meczu()` w `147`). Samobójczy NIE
+    -- liczy się strzelcowi jako gol.
+    (SELECT COALESCE(sum(zd.wartosc), 0)::int
+       FROM turniej_zdarzenia zd
+      WHERE zd.typ IN ('gol','punkty')
+        AND zd.zawodnik_id IN (SELECT id FROM moje)),
+
+    (SELECT count(*)::int
+       FROM turniej_zdarzenia zd
+      WHERE zd.asysta_zawodnik_id IN (SELECT id FROM moje)),
+
+    (SELECT count(*)::int
+       FROM turniej_mecze m
+      WHERE m.mvp_zawodnik_id IN (SELECT id FROM moje))
+$$;
+
+GRANT EXECUTE ON FUNCTION get_player_turniej_stats(uuid) TO anon, authenticated;
+
+-- ── Lista turniejów gracza — do sekcji „Turnieje" na profilu ────────────────
+
+DROP FUNCTION IF EXISTS get_player_turnieje(uuid, int);
+
+CREATE FUNCTION get_player_turnieje(p_user_id uuid, p_limit int DEFAULT 5)
+RETURNS TABLE (
+  turniej_id   uuid,
+  nazwa        text,
+  sport        text,
+  data_startu  date,
+  druzyna      text,
+  wygrany      boolean,
+  meczow       int,
+  goli         int
+)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  WITH moje AS (
+    SELECT z.id AS zawodnik_id, z.turniej_id, z.druzyna_id
+      FROM turniej_zawodnicy z
+     WHERE z.user_id = p_user_id
+  )
+  SELECT
+    t.id,
+    t.nazwa,
+    t.sport,
+    t.data_startu,
+    d.nazwa,
+    -- Jeden fakt z jednego wiersza: czy moja drużyna wygrała finał tego
+    -- turnieju. Reszta podium liczy się w przeglądarce — patrz nagłówek.
+    EXISTS (
+      SELECT 1 FROM turniej_mecze f
+       WHERE f.turniej_id = t.id
+         AND f.faza = 'final'
+         AND f.status IN ('zakonczony','walkower')
+         AND f.zwyciezca_id = m.druzyna_id
+    ),
+    (SELECT count(*)::int FROM turniej_mecze mm
+      WHERE mm.status IN ('zakonczony','walkower')
+        AND m.druzyna_id IN (mm.druzyna_a_id, mm.druzyna_b_id)),
+    (SELECT COALESCE(sum(zd.wartosc), 0)::int FROM turniej_zdarzenia zd
+      WHERE zd.typ IN ('gol','punkty') AND zd.zawodnik_id = m.zawodnik_id)
+    FROM moje m
+    JOIN turnieje t        ON t.id = m.turniej_id
+    JOIN turniej_druzyny d ON d.id = m.druzyna_id
+   WHERE t.status <> 'odwolany'
+   ORDER BY t.data_startu DESC
+   LIMIT GREATEST(1, COALESCE(p_limit, 5))
+$$;
+
+GRANT EXECUTE ON FUNCTION get_player_turnieje(uuid, int) TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 157_turniej_minimum_druzyn.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 157: opcjonalne MINIMUM drużyn w turnieju.
+--
+-- DLACZEGO OPCJONALNE, A NIE Z WARTOŚCIĄ DOMYŚLNĄ: minimum jest informacją
+-- organizatora dla kapitanów („poniżej czterech drużyn nie ma po co grać"),
+-- a nie warunkiem, który aplikacja ma egzekwować. Wartość domyślna zrobiłaby
+-- z tego regułę, której nikt nie ustawił, i postawiła Bojo w roli arbitra
+-- decydującego, czy turniej się odbędzie. Tę samą decyzję podjęliśmy już raz
+-- dla meczów, wyłączając `SHOW_MIN_PLAYERS_THRESHOLD` (2026-08-21): werdykt
+-- „gra się odbędzie / brakuje N" mówił organizatorowi, co ma myśleć, zamiast
+-- podać mu liczbę. NULL znaczy tu „organizator nie podał", i to jest inny
+-- stan niż „podał zero".
+--
+-- Górna granica pilnowana względem `max_druzyn`, nie liczbą wprost: minimum
+-- większe od maksimum jest turniejem, do którego nie da się zapisać.
+ALTER TABLE turnieje
+  ADD COLUMN IF NOT EXISTS min_druzyn int;
+
+-- Osobno od ADD COLUMN, żeby migracja dała się puścić drugi raz także wtedy,
+-- gdy kolumna powstała, a ograniczenie nie (patrz AGENTS.md: „migracja
+-- przerwana w połowie zostaje w połowie").
+ALTER TABLE turnieje DROP CONSTRAINT IF EXISTS turnieje_minimum_sensowne;
+ALTER TABLE turnieje
+  ADD CONSTRAINT turnieje_minimum_sensowne
+  CHECK (min_druzyn IS NULL OR (min_druzyn BETWEEN 2 AND 64 AND min_druzyn <= max_druzyn));
+
+COMMENT ON COLUMN turnieje.min_druzyn IS
+  'Opcjonalne minimum drużyn podane przez organizatora. NULL = nie podał. '
+  'Informacja dla kapitanów, nie warunek egzekwowany przez aplikację.';

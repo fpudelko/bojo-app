@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-21 · migracja `156` · 60 tabel
+**Stan na:** 2026-09-22 · migracja `157` · 60 tabel
 
 ---
 
@@ -449,6 +449,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-22 — Licznik drużyn w turnieju mówi, ile jest PRZYJĘTYCH
+
+PROBLEM: publiczny licznik na stronie turnieju wliczał zgłoszenia czekające na decyzję
+organizatora, więc kapitan czytał „6 z 8 drużyn" i nie miał jak odróżnić turnieju prawie
+pełnego od takiego, w którym przyjęta jest jedna drużyna, a pięć czeka. W skrajnym
+przypadku turniej wyglądał na zamknięty, choć organizator nie przyjął jeszcze nikogo,
+i kapitan rezygnował ze zgłoszenia. Osobno: organizator nie miał gdzie podać, od ilu
+drużyn w ogóle warto grać.
+
+ROZWIĄZANIE BOJO: licznik i pasek zapełnienia liczą wyłącznie drużyny przyjęte, a
+zgłoszenia czekające dostały własny wiersz pod paskiem („Dodatkowo 3 zgłoszenia czekają
+na decyzję organizatora"). `max_druzyn` znaczy teraz jednoznacznie limit PRZYJĘTYCH,
+więc bramka zgłoszeń liczy tak samo: licznik nigdy nie obieca miejsca, którego formularz
+odmówi. Kreator turnieju dostał opcjonalne pole „Minimum", pokazywane kapitanom jako
+informacja („Organizator planuje turniej od 4 drużyn"), bez werdyktu, czy turniej się
+odbędzie: tę decyzję podejmuje organizator, nie Bojo.
+
+MECHANIKA: `zajmujeMiejsce()` i `liczCzekajaceZgloszenia()` w `lib/turniejEtykiety.ts`,
+wspólne dla strony turnieju, kafelka listy i pulpitu organizatora (`lib/turniejPulpit.ts`).
+Kolumna `turnieje.min_druzyn` (migracja `157`) jest NULLowalna: NULL znaczy „organizator
+nie podał" i jest innym stanem niż zero.
+
 ### 2026-09-21 — Strona boiska na bojo.pl nie kończy się ślepym zaułkiem
 
 PROBLEM: strona obiektu w katalogu Bojo (ponad 30 000 boisk) jest adresem, pod który
@@ -739,33 +761,3 @@ oraz `components/turnieje/TabelaGrupy.tsx`. Dane do oglądania tych stanów bez
 kilkudziesięciu kliknięć: `supabase/seed_turnieje.sql` — sześć turniejów zatrzymanych na
 różnych etapach. Testy: `turniejWynik.test.ts`.
 
-### 2026-09-16 — Moduł turniejowy odmrożony: ogłoszenia, BLIK, „zamień drużynę w ekipę"
-
-PROBLEM: moduł turniejowy powstawał etapami od migracji `145`, cały czas za flagą
-`SHOW_TURNIEJE = false` — nikt poza deweloperem nie miał jak na te trasy wejść. Ostatniej
-warstwy brakowało do kompletu: organizator nie miał jak napisać czegoś do wszystkich
-drużyn naraz, wpisowe (`wpisowe_grosz` z migracji `145`) nie miało numeru, na jaki
-kapitan miałby zapłacić, a turniej kończył się pustką — drużyna, która przez dzień grała
-razem, nie miała jak umówić się na kolejny mecz bez zakładania grupy ręcznie.
-
-ROZWIĄZANIE BOJO: `SHOW_TURNIEJE` jest dziś WŁĄCZONA — moduł jest realną, publiczną
-funkcją, wejście przez `/moje-gry` i `/profil` oraz udostępniony link. Organizator
-publikuje ogłoszenie widoczne dla każdego (jak terminarz), rejestrowani zawodnicy dostają
-o nim powiadomienie. W panelu organizator wpisuje numer BLIK do wpisowego (widzi go on
-sam i kapitanowie zgłoszonych drużyn) i odznacza wpisowe jako opłacone drużyna po
-drużynie. Kapitan drużyny jednym przyciskiem „Zamień drużynę w ekipę" zakłada z niej
-trwałą grupę Bojo — cały zapisany skład z kontem dołącza od razu. Stary moduł „BOJO Cup"
-(`SHOW_CUP`, martwy od 2026-09-13) został fizycznie skasowany z bazy.
-
-MECHANIKA: migracja `150` dokłada `turniej_ogloszenia` (SELECT publiczny, INSERT/DELETE
-dla `czy_zarzadza_turniejem()`, trigger powiadamia każdego zawodnika z kontem
-w przyjętej drużynie — typ `turniej_ogloszenie`, jedyny różowy w tym module, bo to
-wiadomość), `turniej_blik` (jeden wiersz na turniej, ten sam powód co `event_blik`
-z migracji `120`: RLS jest wierszowe, a `turnieje` czyta każdy) i RPC
-`zamien_druzyne_w_ekipe()` — SECURITY DEFINER, sprawdza wprost, że wywołujący jest
-kapitanem, zakłada `groups` (twórca wchodzi triggerem `add_group_creator_as_member`
-z `044`) i dopisuje resztę składu z `user_id` do `group_members`. Migracja `151` kasuje
-sześć tabel `tournament_*` i tabelę `tournaments` razem z ich funkcjami — nieodwracalnie,
-uruchamiana świadomie. Nowy `lib/turniejShare.ts` (wzorem `groupShare.ts`) generuje tekst
-udostępnienia z terminem, miejscem i wpisowym. Testy: `turniejShare.test.ts`, nowa sekcja
-w `supabase/test/rls.sql`.

@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   STATUS_TURNIEJU, STATUS_DRUZYNY, FORMAT_LABEL, FORMAT_OPIS, FAZA_LABEL,
   opisFormatu, odmienDruzyny, odmienZawodnikow, stanZapisowTurnieju, liczDruzynyWTurnieju, stanTurnieju,
-  etykietaZdobyczy,
+  etykietaZdobyczy, liczCzekajaceZgloszenia,
 } from '@/lib/turniejEtykiety';
+import { przyjmujeZgloszenia } from '@/lib/turnieje';
 import type { DruzynaStatus, MeczFaza, TurniejFormat, TurniejStatus } from '@/types';
 
 // Sanity: mapy etykiet mają wpis dla KAŻDEJ wartości typu — literówka w kluczu
@@ -126,11 +127,37 @@ describe('stanZapisowTurnieju — plakat zapisów', () => {
 });
 
 describe('liczDruzynyWTurnieju — jedna definicja dla trzech ekranów', () => {
-  it('liczy przyjęte i czekające, pomija odrzucone i wycofane', () => {
+  it('liczy WYŁĄCZNIE przyjęte: czekające, odrzucone i wycofane nie zajmują miejsca', () => {
+    // Do 2026-09-22 liczyły się także czekające na decyzję. Zmienione po
+    // audycie UX: „6 z 8" nie odróżniało turnieju prawie pełnego od takiego,
+    // w którym przyjęta jest jedna drużyna, a pięć czeka — w skrajnym
+    // przypadku turniej wyglądał na zamknięty, choć organizator nie przyjął
+    // jeszcze nikogo.
     expect(liczDruzynyWTurnieju([
       { status: 'przyjeta' }, { status: 'zgloszona' },
       { status: 'odrzucona' }, { status: 'wycofana' },
+    ])).toBe(1);
+  });
+
+  it('czekające zgłoszenia liczy osobna funkcja, żeby informacja nie zniknęła', () => {
+    expect(liczCzekajaceZgloszenia([
+      { status: 'zgloszona' }, { status: 'zgloszona' },
+      { status: 'przyjeta' }, { status: 'odrzucona' },
     ])).toBe(2);
+  });
+
+  it('max_druzyn to limit PRZYJĘTYCH, więc bramka zgłoszeń liczy tak samo', () => {
+    // Licznik mówiący „jest miejsce" przy formularzu, który odmawia, byłby
+    // gorszy niż jedno i drugie osobno. Ta asercja pilnuje, żeby obie liczby
+    // nigdy się nie rozjechały.
+    const druzyny = [
+      { status: 'przyjeta' as const }, { status: 'zgloszona' as const },
+      { status: 'zgloszona' as const },
+    ];
+    expect(przyjmujeZgloszenia(
+      { status: 'zapisy', maxDruzyn: 2, zapisyDo: undefined },
+      liczDruzynyWTurnieju(druzyny),
+    )).toBe(true);
   });
 
   it('rezerwa nie zajmuje miejsca w turnieju', () => {

@@ -149,6 +149,7 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `event_team_slots` | `103` | Przypisanie gracza do pozycji w ustawieniu |
 | `event_team_messages` | `103` | Czat drużyny — czyta wyłącznie ta drużyna (+ organizator/delegat) |
 | `turnieje` | `145` | Nowy moduł turniejowy (Etap 0) — turniej zakłada każdy organizator, dowolnie wiele naraz. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) |
+| `turnieje.min_druzyn` | `157` | Opcjonalne minimum drużyn, **NULLowalne z rozmysłem**: NULL znaczy „organizator nie podał" i jest innym stanem niż zero. To informacja dla kapitanów, nie warunek egzekwowany przez aplikację, czyli ta sama decyzja co przy wyłączeniu `SHOW_MIN_PLAYERS_THRESHOLD` dla meczów. `CHECK` wiąże je z `max_druzyn`, bo minimum większe od maksimum daje turniej, do którego nie da się zapisać |
 | `turniej_osoby` | `145` | Współorganizatorzy i prowadzący — trzy niezależne przełączniki (`moze_edytowac`/`moze_prowadzic`/`moze_zarzadzac_druzynami`), wzorem `event_delegates` |
 | `turniej_druzyny` | `145` | Zgłoszenia drużyn. Kontakt kapitana (`kontakt_telefon`/`kontakt_email`) ma uprawnienia KOLUMNOWE jak `event_participants` od `127` — nowa kolumna wymaga jawnego `GRANT SELECT` |
 | `turniej_zawodnicy` | `145` | Skład — **ściana logowania**: `SELECT` wyłącznie dla `auth.uid() IS NOT NULL`. Indeks unikalny `(turniej_id, user_id)` pilnuje, że jedna osoba gra w jednej drużynie turnieju |

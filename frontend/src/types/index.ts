@@ -685,6 +685,9 @@ export interface Turniej {
   godzinaStartu: string; // 'HH:MM'
   zapisyDo?: string; // ISO
   maxDruzyn: number;
+  /** Opcjonalne minimum podane przez organizatora. `undefined` = nie podał,
+   *  co jest innym stanem niż zero. Informacja, nie warunek (migracja 157). */
+  minDruzyn?: number;
   minZawodnikow: number;
   maxZawodnikow: number;
   graczyWPolu?: number;
@@ -725,6 +728,7 @@ export interface TurniejCreate {
   godzinaStartu?: string;
   zapisyDo?: string;
   maxDruzyn?: number;
+  minDruzyn?: number;
   minZawodnikow?: number;
   maxZawodnikow?: number;
   graczyWPolu?: number;
