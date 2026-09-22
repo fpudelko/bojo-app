@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-22 · migracja `157` · 60 tabel
+**Stan na:** 2026-09-22 · migracja `158` · 60 tabel
 
 ---
 
@@ -449,6 +449,32 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-22 — Boisko potwierdzone przez graczy trafia do wyszukiwarki
+
+PROBLEM: katalog Bojo ma ponad 30 000 boisk, ale część z nich ma w bazie tylko tyle,
+ile było w OpenStreetMap, i te strony są celowo poza indeksem Google (`noindex`) — nie
+mają nic do powiedzenia ponad źródło. Bojo umie jednak dołożyć do obiektu fakt, którego
+nie ma nigdzie indziej: potwierdzenie od graczy, którzy tam byli („jest oświetlenie",
+„nawierzchnia to trawa"). Do tej pory takie potwierdzenie nie zmieniało nic dla
+widoczności: obiekt z dwoma potwierdzonymi faktami zostawał poza wyszukiwarką, bo
+mechanizm awansu znał tylko rozegrany mecz i komentarz.
+
+ROZWIĄZANIE BOJO: gdy dowolny fakt o boisku zbierze zgodne potwierdzenia od dwóch osób,
+strona tego boiska wchodzi do wyszukiwarki. Boisko, o którym gracze coś wiedzą, staje
+się znajdowalne; boisko, o którym Bojo nie ma nic własnego do powiedzenia, zostaje
+pinezką na mapie w aplikacji. Awans jest w jedną stronę: wycofanie głosu nie usuwa
+strony z wyszukiwarki.
+
+MECHANIKA: migracja `158` dokłada trzeci wyzwalacz promocji `seo_tier` obok tych
+z migracji `112` (mecz, komentarz). Warunek liczy się per para (fakt, wartość), więc
+„tak" od jednej osoby i „nie" od drugiej to spór, a nie potwierdzenie, i nie awansuje
+niczego. Próg to `QUORUM_POTWIERDZEN` z `lib/potwierdzeniaObiektu.ts`, ten sam, przy
+którym fakt pokazuje się człowiekowi na stronie i wchodzi do JSON-LD, żeby robot nigdy
+nie wyprzedzał tego, co widać. Wyzwalacz łapie `INSERT OR UPDATE`, bo zapis głosu to
+upsert. Migracja niesie backfill dla głosów zebranych od `123`. Progu indeksacji ani
+`oblicz_seo_tier()` nie rusza: indeks przez to wyłącznie rośnie. Test:
+`kworumPotwierdzen.test.ts`.
+
 ### 2026-09-22 — Licznik drużyn w turnieju mówi, ile jest PRZYJĘTYCH
 
 PROBLEM: publiczny licznik na stronie turnieju wliczał zgłoszenia czekające na decyzję
@@ -735,29 +761,3 @@ i nierozegrane, sekcje drużyn po grupach, lista widocznych zakładek),
 z której awansują wszyscy. `components/turnieje/KartaDruzyny.tsx`
 i `SciankaLogowania.tsx` wyszły z klienta do wspólnych komponentów. Testy:
 `kartaDruzyny.test.tsx`, `turniejTabela.test.ts`.
-
-### 2026-09-16 — Turniej: widać, kto wygrał mecz i kto wychodzi z grupy
-
-PROBLEM: zakładka „Wyniki" turnieju pokazywała komplet danych, a mimo to nie odpowiadała
-na dwa pytania, z którymi się w nią wchodzi. W drabince karta meczu podawała sam wynik
-(„1:1"), więc kto przeszedł dalej, trzeba było wywnioskować z następnej rundy — a przy
-walkowerze (0:0) i przy karnych (1:1) porównanie liczb daje po prostu złą odpowiedź.
-Rzuty karne nie były na karcie widoczne wcale, choć rozstrzygały mecz. W tabeli grupy
-wiersze drużyn awansujących miały blade tło i nic nie mówiło, czym ten kolor jest —
-czytający widział, że dwa wiersze są inne, bez informacji, dlaczego.
-
-ROZWIĄZANIE BOJO: na karcie meczu zwycięzca jest pogrubiony, przegrany wyszarzony, a pod
-wynikiem stoi druga linijka „k. 4:3", gdy mecz rozstrzygnęły karne. Tabela grupy dokłada
-do podświetlenia pionowy pasek przy pozycji i podpis pod tabelą — „Pierwsze 2 miejsca
-awansują do fazy pucharowej". Podpis pojawia się tylko wtedy, gdy ktoś realnie odpada:
-w lidze (jedna tabela, nie ma dokąd awansować) i w grupie, z której wychodzą wszyscy,
-znacznika nie ma, bo nie niósłby żadnej informacji.
-
-MECHANIKA: `stronaZwyciezcy()` w `lib/turniejWynik.ts` czyta `turniej_mecze.zwyciezca_id`
-— kolumnę ustawianą przez `zakoncz_mecz()` (migracja `147`) — a NIE porównuje wyniku;
-to jedyna odpowiedź poprawna dla walkowera, karnych i siatkówki (gdzie `wynik_a` to
-wygrane sety). Prezentacja w `components/turnieje/KartaMeczu.tsx` (drabinka i terminarz)
-oraz `components/turnieje/TabelaGrupy.tsx`. Dane do oglądania tych stanów bez
-kilkudziesięciu kliknięć: `supabase/seed_turnieje.sql` — sześć turniejów zatrzymanych na
-różnych etapach. Testy: `turniejWynik.test.ts`.
-
