@@ -106,6 +106,25 @@ CREATE TABLE IF NOT EXISTS storage.objects (
 CREATE OR REPLACE FUNCTION storage.foldername(name text) RETURNS text[]
   LANGUAGE sql IMMUTABLE AS $$ SELECT string_to_array(name, '/') $$;
 
+-- Supabase włącza RLS na `storage.objects` i daje `anon`/`authenticated`
+-- bazowe uprawnienia do schematu i tabeli z automatu, poza migracjami, przy
+-- zakładaniu projektu — polityki (z migracji `006`, `046` i dalszych)
+-- decydują dopiero POTEM, co wolno. Bez tych linii polityka na
+-- `storage.objects` nigdy nie zostanie tu sprawdzona: albo RLS jest
+-- wyłączone (każda rola widzi i zmienia wszystko, polityka nieistotna), albo
+-- brakuje GRANTu/USAGE (każde zapytanie kończy się „permission denied"
+-- niezależnie od polityki) — obie wersje pokazują ten sam fałszywy spokój,
+-- przed którym ostrzega uwaga o `ALTER DEFAULT PRIVILEGES` niżej, tylko
+-- jeden schemat wcześniej. `GRANT USAGE ON SCHEMA` naprawdę trzeba dopisać
+-- osobno — sam `GRANT ... ON storage.objects` bez niego dalej kończy się
+-- „permission denied for schema storage", zanim polityka w ogóle wejdzie
+-- w grę, a `_oczekuj_odmowe` łapie ten błąd tak samo jak odbicie przez RLS,
+-- więc test „obcy nie wgra pliku" przechodził tu z niewłaściwego powodu.
+GRANT USAGE ON SCHEMA storage TO anon, authenticated;
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON storage.objects TO anon, authenticated;
+GRANT SELECT ON storage.buckets TO anon, authenticated;
+
 -- Publikacja realtime. Migracje dopisują do niej tabele
 -- (`ALTER PUBLICATION supabase_realtime ADD TABLE …`), a bez niej padają.
 DO $$

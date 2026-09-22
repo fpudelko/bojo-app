@@ -865,6 +865,30 @@ export interface TurniejOgloszenie {
   createdAt: string;
 }
 
+/** Zdjęcie w galerii turnieju (`turniej_zdjecia`, migracja `159`). Baza trzyma
+ *  ścieżkę w Storage, `url` liczy `lib/turniejGaleria.ts` przy odczycie —
+ *  patrz docs/turniej-galeria-sponsorzy-plan.md §3. */
+export interface TurniejZdjecie {
+  id: string;
+  turniejId: string;
+  url: string;
+  kolejnosc: number;
+  dodanePrzez?: string;
+  createdAt: string;
+}
+
+/** Sponsor turnieju (`turniej_sponsorzy`, migracja `159`). Logo opcjonalne —
+ *  bez niego wyświetla się jako plakietka z samą nazwą. */
+export interface TurniejSponsor {
+  id: string;
+  turniejId: string;
+  nazwa: string;
+  logoUrl?: string;
+  link?: string;
+  kolejnosc: number;
+  createdAt: string;
+}
+
 /** Imienne zaproszenie kapitana do drużyny (`turniej_zaproszenia`, migracja
  *  `154`). Bliźniak `PlayerInvite` z `lib/playerInvites.ts`: nie zajmuje
  *  miejsca w składzie i niczego nie przesądza — jest wyłącznie sposobem, żeby

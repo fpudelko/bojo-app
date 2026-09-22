@@ -15,6 +15,19 @@
 > boisko do indeksu"); migracja galerii/sponsorów startuje od kolejnego
 > wolnego numeru w chwili wdrożenia (`ls supabase/migrations/ | tail -1`),
 > nie od `158`. `SHOW_TURNIEJE` nadal `false`.
+>
+> **Aktualizacja 2026-09-22 (druga) — Etapy 1–5 zrobione (patrz §9).**
+> Migracja poszła jako `159` (schemat + RLS + Storage), potwierdzona
+> przebiegiem `scripts/baza-testowa.sh` od zera. Klasyfikator
+> `scripts/ryzyko-migracji.mjs` uznaje ją za BEZPIECZNĄ (same `CREATE`) —
+> na produkcję pójdzie automatycznie przy merge'u do mastera, zgodnie
+> z zasadą z `AGENTS.md` „Migracje SQL uruchamia WORKFLOW". Bucket
+> `turniej-media` trzeba mimo to założyć RĘCZNIE w Supabase Dashboard →
+> Storage jako publiczny — tego żaden workflow nie robi. Test RLS na
+> `storage.objects` ujawnił brakujący `GRANT USAGE ON SCHEMA storage`
+> w atrapie testowej (`supabase/test/shim.sql`) — naprawione tam, nie
+> w tej migracji, bo to stan atrapy, nie produkcji. Etapy 6–8 (komponenty,
+> podpięcie w UI) zostają do kolejnego PR-a.
 
 ## 0. Czego NIE budujemy teraz
 
@@ -339,14 +352,19 @@ Dane: turniej „T" (organizator O), obcy X, drugi turniej „T2" (inny organiza
 
 ## 9. Kolejność prac (jak w każdym etapie modułu)
 
-1. Bucket `turniej-media` ręcznie w Supabase Dashboard (publiczny).
-2. Migracja `158` — `baza-testowa.sh` (bucket nie istnieje lokalnie, więc
-   testy Storage w `rls.sql` operują na samych POLITYKACH `storage.objects`,
-   nie na realnym uploadzie pliku — `shim.sql` już ma tabelę `storage.objects`
-   dla atrap, sprawdź czy ma też `storage.foldername()`; jeśli nie, dopisz).
-3. Asercje RLS — od razu, nie na końcu.
-4. Typy w `types/index.ts`.
-5. `lib/storageUpload.ts`, `lib/turniejGaleria.ts` + testy.
+1. Bucket `turniej-media` ręcznie w Supabase Dashboard (publiczny). **Do zrobienia
+   ręcznie przy wdrożeniu** — nikt jeszcze go nie założył, migracja `159` (punkt 2)
+   nie wymaga tego do zaaplikowania się, tylko realne uploady go potrzebują.
+2. Migracja `159` (nie `158` — zajęty w międzyczasie, patrz nagłówek pliku) —
+   **zrobione 2026-09-22**, potwierdzone `baza-testowa.sh` od zera. Bucket nie
+   istnieje lokalnie, więc testy Storage w `rls.sql` operują na samych
+   POLITYKACH `storage.objects`, nie na realnym uploadzie pliku — `shim.sql`
+   miał tabelę `storage.objects` i `storage.foldername()`, ale BRAKOWAŁO
+   `ENABLE ROW LEVEL SECURITY` i `GRANT USAGE ON SCHEMA storage` (dopisane
+   przy okazji, patrz `docs/domena.md#turniej-galeria-zdjęć-i-sponsorzy-159`).
+3. Asercje RLS — **zrobione 2026-09-22**, od razu razem z migracją, nie na końcu.
+4. Typy w `types/index.ts` — **zrobione 2026-09-22**.
+5. `lib/storageUpload.ts`, `lib/turniejGaleria.ts` + testy — **zrobione 2026-09-22**.
 6. **Etap 0** (okładka): `<CoverUpload>` w panelu — najmniejszy, samodzielny
    kawałek, dobry pierwszy commit/PR. **Zrobione 2026-09-22** — panel
    (zakładka Ustawienia) wgrywa okładkę, `KartaTurnieju` na `/turnieje` już
