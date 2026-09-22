@@ -1489,6 +1489,138 @@ SELECT _oczekuj('kapitan i zawodnik z kontem są członkami nowej ekipy (kapitan
                   WHERE group_id = :'nowa_grupa'::uuid
                     AND user_id IN (:T_KAPITAN1::uuid, :T_CZLONEK::uuid)), 2);
 
+SELECT _sekcja('Turniej: galeria zdjęć i sponsorzy (migracja 159)');
+
+-- Drugi turniej, INNY organizator — bez tego „obcy nie zarządza" i „organizator
+-- T nie zarządza T2" to ten sam test. `czy_zarzadza_turniejem()` musi odróżnić
+-- „nie jest nikim w tym turnieju" od „jest organizatorem, ale innego turnieju".
+\set T_ORGANIZATOR2 '''eeeeeeee-0000-4000-8000-000000000007'''
+\set TURNIEJ2        '''ffffffff-0000-4000-8000-000000000024'''
+
+INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data)
+VALUES (:T_ORGANIZATOR2::uuid, 'rls-turniej-organizator2@example.com', now(), '{"display_name":"Oskar Ober"}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:TURNIEJ2::uuid, :T_ORGANIZATOR2::uuid, 'Drugi turniej do testów RLS', 'piłka nożna', 'zapisy', CURRENT_DATE + 10);
+
+-- Bucket zakładany ręcznie w Dashboardzie na produkcji — tu wystarczy wiersz
+-- w atrapie `storage.buckets`, żeby klucz obcy z `storage.objects` miał do
+-- czego się odwołać.
+INSERT INTO storage.buckets (id, name, public) VALUES ('turniej-media', 'turniej-media', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- ── Zdjęcia ──────────────────────────────────────────────────────────────────
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+INSERT INTO turniej_zdjecia (turniej_id, sciezka) VALUES (:TURNIEJ::uuid, 'turnieje/t1/galeria/a.png');
+RESET ROLE;
+SELECT id AS t_zdjecie FROM turniej_zdjecia
+ WHERE turniej_id = :TURNIEJ::uuid AND sciezka = 'turnieje/t1/galeria/a.png' \gset
+
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('niezalogowany czyta zdjęcia turnieju',
+                (SELECT count(*) FROM turniej_zdjecia WHERE turniej_id = :TURNIEJ::uuid), 1);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('obcy nie dopisze zdjęcia do cudzego turnieju', format(
+  'INSERT INTO turniej_zdjecia (turniej_id, sciezka) VALUES (%L, %L)', :TURNIEJ, 'turnieje/t1/galeria/x.png'));
+DELETE FROM turniej_zdjecia WHERE id = :'t_zdjecie'::uuid;
+RESET ROLE;
+SELECT _oczekuj('obcy nie skasował zdjęcia T — USING filtruje do zera wierszy',
+                (SELECT count(*) FROM turniej_zdjecia WHERE id = :'t_zdjecie'::uuid), 1);
+
+-- Realny organizator, ale INNEGO turnieju — `czy_zarzadza_turniejem()` musi
+-- odróżnić „zarządza CZYMŚ" od „zarządza TYM konkretnym turniejem", inaczej
+-- każdy organizator turnieju w Bojo dokładałby zdjęcia komukolwiek.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR2, false);
+SELECT _oczekuj_odmowe('organizator INNEGO turnieju (T2) nie dopisze zdjęcia do T', format(
+  'INSERT INTO turniej_zdjecia (turniej_id, sciezka) VALUES (%L, %L)', :TURNIEJ, 'turnieje/t1/galeria/y.png'));
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+DELETE FROM turniej_zdjecia WHERE id = :'t_zdjecie'::uuid;
+RESET ROLE;
+SELECT _oczekuj('organizator T kasuje własne zdjęcie', (SELECT count(*) FROM turniej_zdjecia WHERE id = :'t_zdjecie'::uuid), 0);
+
+-- ── Sponsorzy ────────────────────────────────────────────────────────────────
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+INSERT INTO turniej_sponsorzy (turniej_id, nazwa) VALUES (:TURNIEJ::uuid, 'Sponsor Testowy');
+RESET ROLE;
+SELECT id AS t_sponsor FROM turniej_sponsorzy
+ WHERE turniej_id = :TURNIEJ::uuid AND nazwa = 'Sponsor Testowy' \gset
+
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('niezalogowany czyta sponsorów turnieju',
+                (SELECT count(*) FROM turniej_sponsorzy WHERE turniej_id = :TURNIEJ::uuid), 1);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('obcy nie dopisze sponsora do cudzego turnieju', format(
+  'INSERT INTO turniej_sponsorzy (turniej_id, nazwa) VALUES (%L, %L)', :TURNIEJ, 'Sponsor Obcego'));
+UPDATE turniej_sponsorzy SET nazwa = 'Podmieniony' WHERE id = :'t_sponsor'::uuid;
+DELETE FROM turniej_sponsorzy WHERE id = :'t_sponsor'::uuid;
+RESET ROLE;
+SELECT _oczekuj('obcy nie zmienił ani nie skasował sponsora T — USING filtruje do zera wierszy',
+                (SELECT count(*) FROM turniej_sponsorzy WHERE id = :'t_sponsor'::uuid AND nazwa = 'Sponsor Testowy'), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+DELETE FROM turniej_sponsorzy WHERE id = :'t_sponsor'::uuid;
+RESET ROLE;
+SELECT _oczekuj('organizator T kasuje własnego sponsora', (SELECT count(*) FROM turniej_sponsorzy WHERE id = :'t_sponsor'::uuid), 0);
+
+-- ── Storage: bucket 'turniej-media' ──────────────────────────────────────────
+-- Jedyne miejsce w całym module, które testuje politykę NA STORAGE, nie na
+-- zwykłej tabeli — pierwszy taki test w repo. Ścieżka naśladuje prawdziwy
+-- upload: drugi segment (`storage.foldername(name)[2]`) jest UUID-em turnieju,
+-- dokładnie to, co czyta polityka z migracji 159. Budujemy ją SQL-em
+-- (konkatenacja), nie kolejnym `\set` — `:TURNIEJ` jest już gotowym literałem
+-- (z cudzysłowami w środku), sklejenie go tekstowo w `\set` dałoby podwójne
+-- cudzysłowy zamiast prawidłowej ścieżki.
+SELECT ('turnieje/' || :TURNIEJ || '/galeria/rls-test.png') AS t_sciezka \gset
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('obcy nie wgra pliku pod cudzy turniej', format(
+  'INSERT INTO storage.objects (bucket_id, name) VALUES (%L, %L)', 'turniej-media', :'t_sciezka'));
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+INSERT INTO storage.objects (bucket_id, name) VALUES ('turniej-media', :'t_sciezka');
+RESET ROLE;
+
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('niezalogowany czyta obiekt z publicznego bucketu turniej-media',
+                (SELECT count(*) FROM storage.objects WHERE bucket_id = 'turniej-media' AND name = :'t_sciezka'), 1);
+RESET ROLE;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+DELETE FROM storage.objects WHERE bucket_id = 'turniej-media' AND name = :'t_sciezka';
+RESET ROLE;
+SELECT _oczekuj('obcy nie skasował cudzego pliku w Storage — USING filtruje do zera wierszy',
+                (SELECT count(*) FROM storage.objects WHERE bucket_id = 'turniej-media' AND name = :'t_sciezka'), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+DELETE FROM storage.objects WHERE bucket_id = 'turniej-media' AND name = :'t_sciezka';
+RESET ROLE;
+SELECT _oczekuj('organizator T kasuje własny plik w Storage',
+                (SELECT count(*) FROM storage.objects WHERE bucket_id = 'turniej-media' AND name = :'t_sciezka'), 0);
+
 -- ── ALERT: wyłącznik z maila (migracja 149) ──────────────────────────────────
 -- Nowa ścieżka dostępu dla `anon`: funkcja `wylacz_alert_tokenem()`. Jest
 -- SECURITY DEFINER, czyli omija RLS z definicji — więc jedyne, co stoi między

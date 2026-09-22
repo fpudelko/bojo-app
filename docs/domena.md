@@ -1088,3 +1088,38 @@ zniknął już w Etapie 0 (2026-09-13), ale tabele zostały świadomie, dopóki 
 zastąpił go w całości. `SHOW_TURNIEJE` odmraża się w TYM SAMYM PR-ze co ta migracja: nie
 ma okresu przejściowego, w którym oba moduły turniejowe byłyby jednocześnie „prawie
 gotowe".
+
+## Turniej: galeria zdjęć i sponsorzy (159)
+
+Pełny plan → [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy-plan.md). Ta
+migracja to Etapy 1–5 tego planu (schemat, RLS, typy, `lib/`) — okładka (Etap 0) już
+zrobiona osobno, wcześniej; komponenty ekranowe (Etapy 6–8) idą osobnym PR-em.
+
+**Nowy bucket `turniej-media`, świadomie NIE `covers`.** `covers` (migracja `046`) ma
+politykę `storage.objects` wyłącznie po `bucket_id` — każdy zalogowany użytkownik może
+dziś nadpisać albo skasować CUDZE zdjęcie w tym buckecie, bo nic w polityce nie sprawdza,
+czyj to obiekt. To znany, nie naprawiony przy okazji dziurawy stan (zbyt duże ryzyko na
+poszerzenie tego PR-a). Zamiast go dziedziczyć, `turniej-media` dostaje politykę PO
+ŚCIEŻCE: obiekt leży pod `turnieje/<turniej_id>/{galeria|sponsorzy}/<uuid>.<ext>`, a
+polityka czyta drugi segment (`storage.foldername(name)[2]`) jako `turniej_id` i woła nim
+`czy_zarzadza_turniejem()` — tę samą funkcję, co polityki na zwykłych tabelach turnieju.
+Nie da się wgrać pliku pod cudzy turniej, nawet znając jego UUID.
+
+**Baza trzyma ścieżkę, nie URL.** `turniej_zdjecia.sciezka`/`turniej_sponsorzy.sciezka_logo`
+trzymają klucz obiektu w Storage; `lib/turniejGaleria.ts` liczy publiczny adres przy
+KAŻDYM odczycie (`getPublicUrl()`), zamiast trzymać gotowy URL w kolumnie. Powód: każdy
+upload dostaje nową ścieżkę (UUID w nazwie pliku, nie nadpisanie w miejscu jak
+`CoverUpload`), więc nie ma tu problemu cache'owania, który `CoverUpload` rozwiązuje
+dopiskiem `?t=<timestamp>` — a liczenie adresu przy odczycie eliminuje drugie źródło
+prawdy (ścieżka + URL, które mogłyby się rozjechać, gdyby ktoś kiedyś zmienił nazwę
+bucketu).
+
+**Pierwszy w repo test RLS na poziomie Storage** (`supabase/test/rls.sql`) ujawnił, że
+atrapa Supabase (`supabase/test/shim.sql`) nie miała `ENABLE ROW LEVEL SECURITY` ani
+GRANT-ów (łącznie z `GRANT USAGE ON SCHEMA storage`) na `storage.objects` — dokładnie ta
+sama pułapka „fałszywego spokoju", przed którą ostrzega uwaga o `ALTER DEFAULT PRIVILEGES`
+w `AGENTS.md`, tylko jeden schemat wcześniej. Bez USAGE na schemacie każde zapytanie
+kończyło się „permission denied for schema storage" NIEZALEŻNIE od polityki, a
+`_oczekuj_odmowe()` łapie ten błąd tak samo jak odbicie przez RLS — czyli test „obcy nie
+wgra pliku" przechodził od razu, ale z niewłaściwego powodu. Naprawione w shimie, nie
+w migracji: to stan atrapy testowej, nie produkcji (Supabase daje to z automatu).

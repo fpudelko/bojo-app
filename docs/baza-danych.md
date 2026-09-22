@@ -160,6 +160,8 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `turniej_ogloszenia` | `150` | Ogłoszenia organizatora — **publiczne** (`SELECT USING (true)`, jak terminarz), inaczej niż skład. Pisze wyłącznie `czy_zarzadza_turniejem()`. Wyzwalacz notyfikuje każdego zawodnika z kontem w przyjętej drużynie (typ `turniej_ogloszenie`) |
 | `turniej_blik` | `150` | Numer BLIK organizatora do wpisowego — osobna tabela z tego samego powodu co `event_blik` (`120`): RLS wierszowe, `turnieje` czyta każdy. Widzi zarządzający i kapitan KAŻDEJ drużyny (także rezerwowej) |
 | `turniej_zaproszenia` | `154` | Imienne zaproszenia kapitana do drużyny — bliźniak `event_player_invites` (`060`). Widzi je i wystawia WYŁĄCZNIE kapitan (`czy_sam_kapitan_druzyny()`, świadomie węższa niż `czy_kapitan_druzyny()` z `145`, która przepuszcza też zarządzających turniejem) oraz zaproszony. Wyzwalacze: dopełnienie `turniej_id` z drużyny, powiadomienie do zaproszonego, wygaszenie zaproszenia po realnym wejściu do składu |
+| `turniej_zdjecia` | `159` | Galeria — **publiczna** (`SELECT USING (true)`, jak ogłoszenia), pisze wyłącznie `czy_zarzadza_turniejem()`. Trzyma `sciezka` w Storage, nie URL — `lib/turniejGaleria.ts` liczy adres przy odczycie z `getPublicUrl()`, żeby nie trzymać dwóch źródeł prawdy. Bucket **`turniej-media`**, osobny od `covers` (`046`) świadomie: `covers` pilnuje polityką wyłącznie `bucket_id` (każdy zalogowany nadpisze cudze zdjęcie), tu ścieżka `turnieje/<turniej_id>/galeria/<uuid>.<ext>` niesie `turniej_id` jako drugi segment i polityka na `storage.objects` woła nim `czy_zarzadza_turniejem()`. Plan → [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy-plan.md) |
+| `turniej_sponsorzy` | `159` | Sponsorzy — ta sama widoczność i ten sam bucket `turniej-media` co zdjęcia (ścieżka `turnieje/<turniej_id>/sponsorzy/<uuid>.<ext>`). Logo (`sciezka_logo`) opcjonalne — sponsor bez niego wyświetla się jako plakietka z samą nazwą |
 
 **Tabela `games` (`001`) jest martwa** — powstała w pierwszym schemacie i została
 zastąpiona przez `events` (`002`). Żaden kod jej nie używa.
@@ -500,9 +502,10 @@ wypisuje migracje, których w bazie brakuje (brakujące na górze). Pusta lista 
 schemat zgodny z repo. To jedyny wiarygodny test — „Run" bez czerwonego komunikatu
 znaczy tylko tyle, że ostatnia instrukcja przeszła.
 
-**4. Buckety w Storage.** Utwórz ręcznie `covers` i `avatars`, oba **publiczne**.
-Polityki dostępu przychodzą z migracji (`006` i dalej), ale samych bucketów nie tworzy
-ani migracja, ani kod — bez nich upload okładki meczu i awatara kończy się błędem.
+**4. Buckety w Storage.** Utwórz ręcznie `covers`, `avatars` i `turniej-media`, wszystkie
+**publiczne**. Polityki dostępu przychodzą z migracji (`006`, `046`, `159` i dalej), ale
+samych bucketów nie tworzy ani migracja, ani kod — bez nich upload okładki meczu, awatara
+i galerii/sponsorów turnieju kończy się błędem.
 
 **5. Dane.** Paczka `04-seedy.sql` wnosi już boiska (`seed-orliki.sql`), konta testowe
 (`test1..test10@example.com`, hasło `test1234`), konta organizatorów zakładane hasłem
