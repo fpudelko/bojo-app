@@ -28,3 +28,27 @@ describe('jedno źródło obrazka OG', () => {
     expect(existsSync(join(ROOT, 'public/poznan-satellite.jpg'))).toBe(false);
   });
 });
+
+// Obrazek podglądu linku biegnie na runtime edge i pyta PostgREST wprost, bez
+// warstwy `lib/`, więc reguły „co zajmuje miejsce w turnieju" nie da się tam
+// zaimportować z `turniejEtykiety.ts`. To jest dokładnie ten rodzaj duplikatu,
+// który cicho gnije: gdy `zajmujeMiejsce()` przestało liczyć zgłoszenia
+// czekające na decyzję (2026-09-22), obrazek został ze starą regułą i podgląd
+// na WhatsAppie mówił inną liczbę niż strona, do której prowadzi.
+//
+// Test czyta źródło jako tekst, tak jak reszta tego pliku.
+describe('podgląd linku turnieju liczy drużyny tak samo jak strona', () => {
+  const og = readFileSync(join(ROOT, 'src/app/turnieje/[id]/opengraph-image.tsx'), 'utf8');
+  const etykiety = readFileSync(join(ROOT, 'src/lib/turniejEtykiety.ts'), 'utf8');
+
+  it('obrazek pyta wyłącznie o drużyny przyjęte', () => {
+    expect(og).toMatch(/\.eq\('status',\s*'przyjeta'\)/);
+    expect(og).not.toMatch(/\.in\('status',\s*\[[^\]]*'zgloszona'/);
+  });
+
+  it('a reguła w lib/ nadal mówi to samo', () => {
+    // Gdy ktoś świadomie zmieni regułę z powrotem, ta asercja spada razem
+    // z tamtą i obie trzeba zmienić naraz. O to chodzi.
+    expect(etykiety).toMatch(/zajmujeMiejsce[\s\S]{0,200}status === 'przyjeta'/);
+  });
+});

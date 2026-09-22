@@ -39,7 +39,17 @@ export default async function Image({ params }: { params: { id: string } }) {
     .from('turniej_druzyny')
     .select('*', { count: 'exact', head: true })
     .eq('turniej_id', params.id)
-    .in('status', ['zgloszona', 'przyjeta']);
+    // WYŁĄCZNIE przyjęte, ta sama reguła co `zajmujeMiejsce()` w
+    // `lib/turniejEtykiety.ts`. Tamto zmieniło się 2026-09-22, to zostało ze
+    // starą regułą, więc podgląd linku na WhatsAppie mówił inną liczbę niż
+    // strona, do której prowadzi. Akurat tutaj rozjazd boli najbardziej:
+    // obrazek podglądu jest pierwszą i często jedyną rzeczą, jaką widzi
+    // dwudziestu odbiorców, a rozbieżność czyta się jako „ta apka nie wie,
+    // co pokazuje".
+    //
+    // Reguły nie da się tu zaimportować: ten plik biegnie na runtime edge
+    // i pyta PostgREST wprost, bez warstwy `lib/`. Zostaje komentarz i test.
+    .eq('status', 'przyjeta');
   const druzynTekst = `${count ?? 0}/${t.max_druzyn} drużyn`;
 
   const miejsce = t.miejsce_nazwa || t.miasto || '';
