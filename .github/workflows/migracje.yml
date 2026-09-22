@@ -5,16 +5,50 @@ name: Migracje
 # ─────────────────────────────────────────────────────────────────────────────
 # CO SIĘ DZIEJE SAMO, A CO WYMAGA KLIKNIĘCIA
 #
-#   merge do mastera, który dotyka supabase/migrations/**  →  DEV, automatycznie
-#   push na gałąź claude/migracje/**                       →  DEV, tylko PODGLĄD
-#   ręczne uruchomienie (Actions → Run workflow)           →  dev albo PRODUKCJA
+#   push na DOWOLNĄ gałąź, który dotyka supabase/migrations/**  →  DEV, wszystko
+#   merge do mastera                                            →  DEV, wszystko
+#                                                               →  PRODUKCJA, tylko BEZPIECZNE
+#   ręczne uruchomienie (Actions → Run workflow)                →  dev albo PRODUKCJA, wszystko
 #
-# PRODUKCJA NIGDY NIE DZIEJE SIĘ SAMA. Zadanie produkcyjne jest przypięte do
-# środowiska `produkcja`, więc wystarczy ustawić mu w GitHubie „Required
-# reviewers", żeby każdy przebieg czekał na czyjeś zatwierdzenie. To jest
-# dokładnie ten „odpowiedni moment", o który chodzi: merge do mastera wdraża
-# KOD na Vercelu, a schemat bazy zmienia się osobno, wtedy, gdy ktoś świadomie
-# kliknie — bo deploy da się cofnąć, a `DROP COLUMN` nie.
+# DLACZEGO JUŻ Z GAŁĘZI, A NIE DOPIERO PO MERGE'U: Vercel stawia podgląd dla
+# każdego PR-a i celuje nim w bazę dev. Dopóki migracja czekała na merge,
+# podgląd PR-a z migracją pokazywał aplikację, której baza nie zna — czyli
+# dokładnie to, czego podgląd ma nie robić.
+#
+# CENĄ jest jedna baza dev zbierająca zmiany z wielu gałęzi. `migruj.sh`
+# ZATRZYMUJE się na trzech stanach, które z tego wynikają (poprawiona
+# migracja, która już poszła; kolizja numerów między gałęziami; schemat
+# z porzuconego PR-a), a wyjściem z każdego z nich jest reset_dev niżej.
+# Dev nie jest cenny — cenna jest jego zgodność z repo.
+#
+# PRODUKCJA: PODZIAŁ PRZEBIEGA PO RYZYKU, NIE PO ŚRODOWISKU
+#
+# Do 2026-09-22 stało tu, że produkcja nigdy nie dzieje się sama. Było to zbyt
+# grube cięcie: 148 ze 155 migracji w tym repo tylko DOKŁADA rzeczy (kolumna,
+# tabela, polityka, funkcja, indeks), czyli nie umie zepsuć danych, których
+# jeszcze nie ma. Kazanie człowiekowi klikać przy każdej z nich uczy go klikać
+# bez patrzenia, a wtedy ochrona przestaje działać dokładnie wtedy, gdy jest
+# potrzebna. Do tego produkcja zostawała w tyle za kodem, który już poszedł na
+# Vercela, i aplikacja rzucała błędem o nieznanej kolumnie.
+#
+# Dziś `scripts/ryzyko-migracji.mjs` czyta każdy plik i dzieli:
+#
+#   DOKŁADA (kolumna, tabela, polityka, funkcja, indeks)  →  automat
+#   KASUJE albo PRZEPISUJE W MIEJSCU                      →  klik
+#     DROP TABLE/SCHEMA/COLUMN/TYPE, TRUNCATE, DELETE FROM,
+#     ALTER COLUMN … TYPE, RENAME COLUMN/TO, SET NOT NULL
+#
+# Autor może DOŁOŻYĆ `-- RECZNA: powód` w nagłówku pliku, gdy wie coś, czego
+# skaner nie zobaczy (długi backfill blokujący tabelę). Znacznika odwrotnego
+# nie ma i nie będzie: byłby furtką, przez którą wyjdzie każdy DROP.
+#
+# Zadanie produkcyjne przy merge'u woła `--tylko-bezpieczne` i ZATRZYMUJE SIĘ
+# przed pierwszą ręczną, razem z całą resztą za nią — bo migracji nie da się
+# przeskoczyć. Co czeka, wypisuje w logu i w podsumowaniu.
+#
+# Ręczne uruchomienie (Actions → Run workflow → produkcja) puszcza WSZYSTKO
+# i jest przypięte do środowiska `produkcja`, czyli może mieć „Required
+# reviewers". To jest ten moment, w którym ktoś patrzy na `DROP COLUMN`.
 #
 # KOLEJNOŚĆ, KTÓREJ WARTO SIĘ TRZYMAĆ: dev po merge'u (dzieje się sam) →
 # sprawdzenie, że podgląd działa → produkcja jednym kliknięciem.
@@ -46,7 +80,7 @@ on:
   # filtr `paths` nie ma czego dopasować i workflow nie rusza. Żeby wywołać
   # podgląd, gałąź musi dostać własny commit dotykający jednej z tych ścieżek.
   push:
-    branches: [master, 'claude/migracje/**']
+    branches: ['**']
     paths:
       - 'supabase/migrations/**'
       - 'scripts/migruj.sh'
@@ -70,6 +104,11 @@ on:
         description: 'Backfill: oznacz migracje do tego numeru jako już zastosowane (z „Zapisz zmiany" od razu puszcza resztę)'
         required: false
         type: string
+      reset_dev:
+        description: 'RESET DEV: skasuj schemat public i postaw go od 001 (tylko dev, NIGDY produkcja)'
+        required: false
+        default: false
+        type: boolean
 
 # Dwa przebiegi na tej samej bazie nie mają się ścigać. Skrypt trzyma jeszcze
 # blokadę doradczą w samej bazie, ale lepiej nie doprowadzać do sytuacji,
@@ -97,10 +136,23 @@ jobs:
           set -euo pipefail
           SRODOWISKO="${{ inputs.srodowisko || 'dev' }}"
 
-          # Push na gałąź roboczą to zawsze i wyłącznie podgląd — niezależnie
-          # od tego, co ktoś wpisał gdzie indziej.
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" != "master" ]; then
-            ARG="--podglad"
+          # Reset rozstrzyga się przed wszystkim innym i NIGDY nie dotyczy
+          # produkcji. Odmowa jest twarda, a nie ciche zignorowanie pola:
+          # człowiek, który zaznaczył reset przy wybranej produkcji, chciał
+          # czegoś, czego nie zrobimy, i ma się o tym dowiedzieć.
+          if [ "${{ inputs.reset_dev }}" = "true" ]; then
+            if [ "$SRODOWISKO" = "produkcja" ]; then
+              echo "::error::reset_dev NIE działa na produkcji. Odznacz jedno albo drugie."
+              exit 1
+            fi
+            ARG="--reset"
+            SRODOWISKO="dev"
+          # Push na gałąź roboczą APLIKUJE na dev — od 2026-09-22. Wcześniej
+          # był to sam podgląd, przez co PR z migracją miał podgląd Vercela
+          # uderzający w bazę bez jego schematu. Podgląd bez zapisu został
+          # jako ręczne uruchomienie bez „Zapisz zmiany".
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" != "master" ]; then
+            ARG="--wykonaj"
             SRODOWISKO="dev"
           elif [ -n "${{ inputs.oznacz_do }}" ]; then
             # Backfill sam w sobie nic nie uruchamia, więc bez tego trzeba było
@@ -148,7 +200,17 @@ jobs:
           # rozjazd znaczy „hasło w publicznym logu".
           ADRES="$(DB_URL="$SUROWY" ./scripts/sprawdz-adres-bazy.sh "$SEKRET")"
 
-          DB_URL="$ADRES" ./scripts/migruj.sh ${{ steps.tryb.outputs.arg }} | tee /tmp/wynik.txt
+          if [ "${{ steps.tryb.outputs.arg }}" = "--reset" ]; then
+            # `DB_URL_PROD` jedzie obok celowo: reset-dev.sh porównuje z nim
+            # adres, żeby nie dało się zresetować produkcji przez pomyłkę
+            # w sekrecie. Porównanie, nie dopasowanie nazwy — adres poolera
+            # niesie losowy identyfikator projektu, więc szukanie w nim słowa
+            # „prod" niczego nie chroni.
+            POTWIERDZAM_RESET=tak DB_URL="$ADRES" DB_URL_PROD="$DB_URL_PROD" \
+              ./scripts/reset-dev.sh | tee /tmp/wynik.txt
+          else
+            DB_URL="$ADRES" ./scripts/migruj.sh ${{ steps.tryb.outputs.arg }} | tee /tmp/wynik.txt
+          fi
 
           # Drugi krok istnieje tylko dla „backfill i od razu dogoń resztę".
           # `tee -a`, bo podsumowanie ma pokazać OBA przebiegi: sam dziennik bez
@@ -169,4 +231,66 @@ jobs:
             echo '```'
             cat /tmp/wynik.txt 2>/dev/null || echo "(brak wyniku — przebieg padł wcześniej)"
             echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Produkcja przy merge'u: tylko to, co się nie cofa źle ──────────────────
+  # OSOBNE ZADANIE, a nie gałąź w tamtym, z jednego powodu: tamto jest przypięte
+  # do środowiska `produkcja`, gdy ktoś wybierze produkcję z listy. Środowisko
+  # z „Required reviewers" ZATRZYMAŁOBY ten automat na zatwierdzeniu, czyli
+  # zamieniło go z powrotem w klikanie. To zadanie środowiska nie ma, bo puszcza
+  # wyłącznie migracje, które dokładają rzeczy.
+  #
+  # `if` pilnuje, żeby nie ruszyło przy ręcznym uruchomieniu: tamto jedzie
+  # własną ścieżką i puszcza wszystko.
+  produkcja-bezpieczne:
+    name: produkcja (bezpieczne)
+    if: github.event_name == 'push' && github.ref_name == 'master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Uruchom bezpieczne migracje
+        env:
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -euo pipefail
+
+          # Brak sekretu NIE jest błędem: produkcja bywa jeszcze nieskonfigurowana,
+          # a czerwony znaczek na masterze z tego powodu nauczyłby wszystkich
+          # ignorować czerwone znaczki na masterze.
+          if [ -z "${DB_URL_PROD:-}" ]; then
+            echo "SUPABASE_DB_URL_PROD nie jest ustawiony — pomijam produkcję."
+            echo "Instrukcja: supabase/migrations/README.md" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          ADRES="$(DB_URL="$DB_URL_PROD" ./scripts/sprawdz-adres-bazy.sh SUPABASE_DB_URL_PROD)"
+
+          # Kod 3 znaczy „dziennik migracji pusty, potrzebny jednorazowy
+          # backfill". To stan konfiguracji, nie awaria, więc traktujemy go
+          # tak samo jak brak sekretu: wiadomość w podsumowaniu, zielony
+          # przebieg. Inaczej master świeciłby czerwono przy KAŻDYM merge'u
+          # aż do backfillu, czyli uczyłby ignorować czerwone znaczki.
+          set +e
+          DB_URL="$ADRES" ./scripts/migruj.sh --tylko-bezpieczne 2>&1 | tee /tmp/wynik.txt
+          KOD=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$KOD" = "3" ]; then
+            echo "Produkcja czeka na jednorazowy backfill dziennika — patrz podsumowanie."
+            exit 0
+          fi
+          exit "$KOD"
+
+      - name: Podsumowanie
+        if: always()
+        run: |
+          {
+            echo "### Migracje — produkcja (tylko bezpieczne)"
+            echo ""
+            cat /tmp/wynik.txt 2>/dev/null | sed 's/^/    /' || echo "    (brak wyniku)"
           } >> "$GITHUB_STEP_SUMMARY"

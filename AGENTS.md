@@ -312,13 +312,43 @@ Flagi ukrywają **wejścia w nawigacji**, nie trasy. Pełna tabela z miejscami u
 
 ## Pułapki, które już nas ugryzły
 
-**Migracje SQL uruchamia WORKFLOW — ale produkcję dopiero po kliknięciu.**
+**Migracje SQL uruchamia WORKFLOW, a podział przebiega po RYZYKU, nie po środowisku.**
 Do 2026-09-20 stało tu, że wkleja się je ręcznie do SQL Editora; dziś robi to
 `.github/workflows/migracje.yml` przez `scripts/migruj.sh`, a które pliki już poszły,
-wie dziennik `schema_migracje` w bazie. Merge do mastera aplikuje brakujące migracje na
-`BojoDev` SAM; **produkcja wymaga świadomego uruchomienia** (Actions → Migracje → Run
-workflow), bo deploy da się cofnąć, a `DROP COLUMN` nie. Setup, backfill i co robić przy
-błędzie → [supabase/migrations/README.md](./supabase/migrations/README.md).
+wie dziennik `schema_migracje` w bazie.
+
+| Co się dzieje | Gdzie idzie |
+|---|---|
+| push na DOWOLNĄ gałąź, dotykający `supabase/migrations/**` | dev, wszystko |
+| merge do mastera | dev (wszystko) **oraz produkcja (tylko bezpieczne)** |
+| Actions → Migracje → Run workflow | dev albo produkcja, wszystko |
+
+**Migracje z gałęzi idą na dev od 2026-09-22**, bo Vercel stawia podgląd dla każdego
+PR-a i celuje nim w dev: dopóki migracja czekała na merge, podgląd PR-a pokazywał
+aplikację, której baza nie zna. Ceną jest jedna baza dev zbierająca zmiany z wielu
+gałęzi, więc `migruj.sh` **zatrzymuje się** na trzech stanach, które z tego wynikają
+(poprawiona migracja, która już poszła; kolizja numerów między gałęziami; schemat
+z porzuconego PR-a). Wyjściem z każdego jest reset: Actions → Migracje → Run workflow →
+`reset_dev`. Dev nie jest cenny, cenna jest jego zgodność z repo.
+
+**Na produkcję przy merge'u idzie tylko to, co DOKŁADA.** `scripts/ryzyko-migracji.mjs`
+czyta każdy plik i dzieli: kolumna, tabela, polityka, funkcja, indeks jadą automatem;
+`DROP TABLE/SCHEMA/COLUMN/TYPE`, `TRUNCATE`, `DELETE FROM`, `ALTER COLUMN … TYPE`,
+`RENAME COLUMN/TO` i `SET NOT NULL` wymagają kliknięcia. Na dzisiejszych 155 migracjach
+ręcznych jest **7**. Zadanie produkcyjne zatrzymuje się przed pierwszą ręczną razem
+z całą resztą za nią (migracji nie da się przeskoczyć) i wypisuje w podsumowaniu, co
+czeka.
+
+Skaner pomija komentarze i **ciała funkcji** (`$$ … $$`): `DELETE FROM` w ciele funkcji
+niczego przy migracji nie kasuje, tylko definiuje zachowanie na później. Bez tego
+z siedmiu ręcznych robiło się czternaście, w tym zwykły generator terminarza.
+
+Autor może DOŁOŻYĆ `-- RECZNA: powód` w nagłówku pliku, gdy wie coś, czego skaner nie
+zobaczy (długi backfill blokujący tabelę). **Znacznika odwrotnego nie ma i nie będzie** —
+byłby furtką, przez którą wyjdzie każdy `DROP`.
+
+Setup, backfill i co robić przy błędzie →
+[supabase/migrations/README.md](./supabase/migrations/README.md).
 
 Z tego wynika niezmieniona zasada: dodanie kolumny w migracji ≠ kolumna istnieje
 w produkcyjnej bazie. Jeśli apka rzuca błędem o nieznanej kolumnie, najpewniej migracja
