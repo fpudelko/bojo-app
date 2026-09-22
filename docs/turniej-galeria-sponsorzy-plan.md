@@ -9,6 +9,12 @@
 > (moduł nadal wyłączony po przeglądzie z 2026-09-17, dostępny pod bezpośrednim
 > linkiem). Sprawdź to na nowo przed wdrożeniem — moduł zmienia się szybko
 > (Franek aktywnie nad nim pracuje, patrz `git log --oneline -- 'frontend/src/**/turniej*'`).
+>
+> **Aktualizacja 2026-09-22 — Etap 0 zrobiony (patrz §9).** Numer `158` z §4
+> zajęła w międzyczasie inna migracja („Potwierdzenia graczy wpuszczają
+> boisko do indeksu"); migracja galerii/sponsorów startuje od kolejnego
+> wolnego numeru w chwili wdrożenia (`ls supabase/migrations/ | tail -1`),
+> nie od `158`. `SHOW_TURNIEJE` nadal `false`.
 
 ## 0. Czego NIE budujemy teraz
 
@@ -342,7 +348,9 @@ Dane: turniej „T" (organizator O), obcy X, drugi turniej „T2" (inny organiza
 4. Typy w `types/index.ts`.
 5. `lib/storageUpload.ts`, `lib/turniejGaleria.ts` + testy.
 6. **Etap 0** (okładka): `<CoverUpload>` w panelu — najmniejszy, samodzielny
-   kawałek, dobry pierwszy commit/PR.
+   kawałek, dobry pierwszy commit/PR. **Zrobione 2026-09-22** — panel
+   (zakładka Ustawienia) wgrywa okładkę, `KartaTurnieju` na `/turnieje` już
+   ją pokazywała. Zero migracji, zgodnie z decyzją #4 w §1.
 7. Komponenty: `Lightbox.tsx` → `Galeria.tsx` → `Sponsorzy.tsx` → `PanelGaleria.tsx` → `PanelSponsorzy.tsx`.
 8. Podpięcie w `TurniejClient.tsx` (zakładka Info) i `PanelClient.tsx` (zakładka Ustawienia).
 9. Bramki: `tsc` → `lint` → `test` → `build` → `check:docs`.
