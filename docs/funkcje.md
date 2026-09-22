@@ -4447,6 +4447,14 @@ schowka) i obraz OG per turniej (`/turnieje/[id]/opengraph-image.tsx`, wzorem
 `/wydarzenia/[id]`). Stary moduł „BOJO Cup" (`tournaments` i sześć tabel
 `tournament_*`) skasowany migracją `151` — front zniknął już w Etapie 0.
 
+**Okładka turnieju (2026-09-22) — Etap 0 planu galerii i sponsorów.** Kolumna
+`turnieje.okladka_url` i `setOkladkaTurnieju()` istniały od Etapu 0 modułu,
+ale bez miejsca w interfejsie, żeby je ustawić. Dziś organizator wgrywa
+zdjęcie w panelu (zakładka Ustawienia, `<CoverUpload>`, bucket `covers`,
+wzorem okładki ekipy) — widoczne jako miniatura karty na `/turnieje`
+(`KartaTurnieju`, zastępuje domyślne emoji sportu). Pełny plan galerii zdjęć
+i sponsorów (kolejne etapy) → [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy-plan.md).
+
 ### Etap A przebudowy UX (migracja `154`) — kapitan i pierwsze wrażenie
 
 Projekt → [turnieje-ux-ekrany.md](./turnieje-ux-ekrany.md), diagnoza →

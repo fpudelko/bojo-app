@@ -7,6 +7,7 @@ import { ArrowLeft, Copy, Download, Plus, Check, X as XIcon, Trash2, Ban, Chevro
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import ToggleRow from '@/components/ui/ToggleRow';
+import CoverUpload from '@/components/ui/CoverUpload';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
@@ -15,7 +16,7 @@ import { blikPhoneDigits, formatBlikPhone } from '@/lib/payments';
 import {
   getTurniej, uprawnieniaTurnieju, getOsobyTurnieju, setUprawnieniaOsoby,
   usunOsobeZTurnieju, updateTurniej, setStatusTurnieju, deleteTurniej,
-  getBlikTurnieju, ustawBlikTurnieju,
+  getBlikTurnieju, ustawBlikTurnieju, setOkladkaTurnieju,
 } from '@/lib/turnieje';
 import {
   getDruzynyZeSkladem, setStatusDruzyny, dodajDruzyneRecznie, getKontakty, usunDruzyne,
@@ -822,6 +823,32 @@ export default function PanelClient() {
 
         {zakladka === 'ustawienia' && uprawnienia?.jestOrganizatorem && (
           <div className="space-y-5">
+            {/* Okładka pojawia się dziś jedynie jako miniatura na liście
+                turniejów (`t.okladkaUrl` w `KartaTurnieju`) — pole i
+                `setOkladkaTurnieju()` istniały od Etapu 0 modułu, ale bez
+                miejsca w interfejsie, żeby je ustawić. */}
+            <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+              <h2 className="mb-3 text-sm font-semibold text-ink">Okładka</h2>
+              <div className="relative h-28 overflow-hidden rounded-xl bg-gradient-to-br from-primary-700 to-primary-900">
+                {turniej.okladkaUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={turniej.okladkaUrl} alt="" className="h-full w-full object-cover" />
+                )}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <CoverUpload
+                    currentUrl={turniej.okladkaUrl}
+                    path={`turnieje/${id}/cover`}
+                    onSaved={async (url) => {
+                      try {
+                        await setOkladkaTurnieju(id, url ?? null);
+                        setTurniej((t) => (t ? { ...t, okladkaUrl: url ?? undefined } : t));
+                      } catch { toast('Nie udało się zapisać okładki', 'error'); }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nazwa turnieju</label>
               <input
