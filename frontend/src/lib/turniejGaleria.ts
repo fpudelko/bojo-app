@@ -43,6 +43,38 @@ function toSponsor(row: any): TurniejSponsor {
   };
 }
 
+/** CZYSTA. Normalizuje link sponsora: puste → `null`, brak schematu →
+ *  dopisuje `https://`. Rzuca, gdy schemat nie jest http/https — link wpisuje
+ *  organizator, a wyświetla się KAŻDEMU, więc `javascript:` byłby wstrzyknięciem
+ *  skryptu na publicznej stronie turnieju. */
+export function normalizujLinkSponsora(link: string): string | null {
+  const surowy = link.trim();
+  if (!surowy) return null;
+  const zeSchematem = /^[a-z][a-z0-9+.-]*:/i.test(surowy) ? surowy : `https://${surowy}`;
+  let url: URL;
+  try {
+    url = new URL(zeSchematem);
+  } catch {
+    throw new Error('To nie wygląda na adres strony.');
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('Link musi prowadzić do strony (http:// albo https://).');
+  }
+  return url.toString();
+}
+
+/** CZYSTA. To samo co wyżej, ale na wyświetlanie: zły link znika zamiast
+ *  wywracać stronę. Druga linia obrony — wiersz mógł trafić do bazy z
+ *  pominięciem aplikacji (RLS wpuszcza organizatora, nie sprawdza treści). */
+export function bezpiecznyLinkSponsora(link?: string): string | undefined {
+  if (!link) return undefined;
+  try {
+    return normalizujLinkSponsora(link) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** CZYSTA. Kolejność do wyświetlenia — po `kolejnosc`, potem po `createdAt`
  *  jako tie-break (nowo dodane bez ustawionej kolejności trafiają na koniec
  *  w kolejności dodania, nie losowo). */
@@ -144,7 +176,7 @@ export async function dodajSponsora(turniejId: string, dane: { nazwa: string; li
   if (!nazwa) throw new Error('Nazwa sponsora nie może być pusta.');
   const { data, error } = await supabase
     .from('turniej_sponsorzy')
-    .insert({ turniej_id: turniejId, nazwa, link: dane.link?.trim() || null })
+    .insert({ turniej_id: turniejId, nazwa, link: normalizujLinkSponsora(dane.link ?? '') })
     .select('id')
     .single();
   if (error) throw new Error(error.message);
@@ -177,8 +209,12 @@ export async function ustawLogoSponsora(sponsorId: string, plik: File | null): P
 
 export async function aktualizujSponsora(id: string, dane: { nazwa?: string; link?: string }): Promise<void> {
   const zmiany: Record<string, unknown> = {};
-  if (dane.nazwa !== undefined) zmiany.nazwa = dane.nazwa.trim();
-  if (dane.link !== undefined) zmiany.link = dane.link.trim() || null;
+  if (dane.nazwa !== undefined) {
+    const nazwa = dane.nazwa.trim();
+    if (!nazwa) throw new Error('Nazwa sponsora nie może być pusta.');
+    zmiany.nazwa = nazwa;
+  }
+  if (dane.link !== undefined) zmiany.link = normalizujLinkSponsora(dane.link);
   if (Object.keys(zmiany).length === 0) return;
   await zaktualizujJedenWiersz('turniej_sponsorzy', id, zmiany, 'Nie udało się zapisać zmian sponsora');
 }

@@ -8,6 +8,8 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import ToggleRow from '@/components/ui/ToggleRow';
 import CoverUpload from '@/components/ui/CoverUpload';
+import PanelGaleria from '@/components/turnieje/PanelGaleria';
+import PanelSponsorzy from '@/components/turnieje/PanelSponsorzy';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
@@ -175,6 +177,16 @@ export default function PanelClient() {
       </div>
     );
   }
+
+  // Galeria i sponsorzy (migracja `159`) — w Ustawieniach, NIE jako szósta
+  // zakładka panelu: sześć nie mieści się w szerokości telefonu (lekcja
+  // z 2026-09-17 na stronie turnieju).
+  const sekcjeMediow = (
+    <>
+      <PanelGaleria turniejId={id} userId={user.id} potwierdz={potwierdz} />
+      <PanelSponsorzy turniejId={id} potwierdz={potwierdz} />
+    </>
+  );
 
   const kopiuj = async (tekst: string, etykieta = 'Link') => {
     try { await navigator.clipboard.writeText(tekst); toast(`${etykieta} skopiowany`); }
@@ -892,6 +904,8 @@ export default function PanelClient() {
               </div>
             )}
 
+            {sekcjeMediow}
+
             <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
               {/* Termin graniczny obok ręcznego zamknięcia, nie zamiast niego:
                   data pilnuje zapisów, gdy organizator o nich zapomni, a
@@ -927,6 +941,15 @@ export default function PanelClient() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Współorganizator z `moze_edytowac` nie widzi reszty Ustawień
+            (te zostają przy organizatorze), ale galerią i sponsorami
+            zarządzać może — pozwala mu na to RLS z migracji `159`
+            (`czy_zarzadza_turniejem()`), więc interfejs nie może być
+            węższy niż baza. */}
+        {zakladka === 'ustawienia' && !uprawnienia?.jestOrganizatorem && uprawnienia?.mozeEdytowac && (
+          <div className="space-y-5">{sekcjeMediow}</div>
         )}
       </main>
       {oknoPotwierdzenia}
