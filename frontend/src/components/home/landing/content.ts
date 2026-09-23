@@ -43,7 +43,7 @@ export const LANDING_HERO = {
   h1: ['Zorganizuj mecz', 'w dwie minuty'],
   lead:
     'Stwórz grę i wyślij ekipie jeden link. Brakuje ludzi do składu? ' +
-    'Otwórz mecz publicznie: zobaczą go gracze z okolicy.',
+    'Otwórz mecz publicznie: trafi na listę otwartych gier w Bojo.',
   trust: ['Za darmo', 'Google lub e-mail', 'Bez instalacji'],
 } as const;
 

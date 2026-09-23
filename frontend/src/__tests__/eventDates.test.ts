@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isUpcoming, isEventJoinable, timeUntil, matchWhenLabel, minutesUntilStart, dzienTygodniaWBierniku, krotkiTermin } from '@/lib/eventDates';
+import { isUpcoming, isEventJoinable, timeUntil, matchWhenLabel, minutesUntilStart, dzienTygodniaWBierniku, krotkiTermin, dzisLokalnie, jutroLokalnie } from '@/lib/eventDates';
 import type { EventItem } from '@/types';
 
 function fakeEvent(overrides: Partial<EventItem> = {}): EventItem {
@@ -138,5 +138,39 @@ describe('krotkiTermin', () => {
 
   it('termin, który już minął', () => {
     expect(krotkiTermin(new Date(Date.now() - 60_000))).toBe('czas minął');
+  });
+});
+
+// F-8 (docs/faza1-organizator-plan.md): `toISOString().slice(0, 10)` liczy
+// w UTC, więc między północą a 1–2 w nocy czasu polskiego cofa się o dzień.
+describe('dzisLokalnie / jutroLokalnie', () => {
+  it('formatuje datę lokalną jako YYYY-MM-DD, dopełnioną zerami', () => {
+    expect(dzisLokalnie(new Date(2026, 0, 5, 12, 0))).toBe('2026-01-05');
+  });
+
+  it('00:30 czasu lokalnego to wciąż DZISIEJSZA data, nie wczorajsza', () => {
+    // Bez `dzisLokalnie()` (przez `toISOString()`) ta godzina cofnęłaby się
+    // do poprzedniego dnia w każdej strefie na wschód od UTC.
+    expect(dzisLokalnie(new Date(2026, 8, 25, 0, 30))).toBe('2026-09-25');
+  });
+
+  it('23:30 czasu lokalnego to wciąż DZIŚ, nie jutro', () => {
+    expect(dzisLokalnie(new Date(2026, 8, 25, 23, 30))).toBe('2026-09-25');
+  });
+
+  it('jutroLokalnie to dzisLokalnie + jeden dzień', () => {
+    expect(jutroLokalnie(new Date(2026, 8, 25, 12, 0))).toBe('2026-09-26');
+  });
+
+  it('jutroLokalnie przechodzi poprawnie przez koniec miesiąca', () => {
+    expect(jutroLokalnie(new Date(2026, 8, 30, 12, 0))).toBe('2026-10-01');
+  });
+
+  it('jutroLokalnie przechodzi poprawnie przez koniec roku', () => {
+    expect(jutroLokalnie(new Date(2026, 11, 31, 12, 0))).toBe('2027-01-01');
+  });
+
+  it('00:30 lokalnie: jutroLokalnie liczy od dzisiejszej daty, nie wczorajszej', () => {
+    expect(jutroLokalnie(new Date(2026, 8, 25, 0, 30))).toBe('2026-09-26');
   });
 });

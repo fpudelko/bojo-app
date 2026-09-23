@@ -3,6 +3,7 @@ import { validateName } from './validation';
 import { getEventsByGroup, toEvent } from './events';
 import { track } from './analytics';
 import { zaktualizujJedenWiersz } from './zapytania';
+import { dzisLokalnie } from './eventDates';
 import type { Group, GroupMember, GroupPermissions, GroupWithNext, EventItem } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,7 +156,9 @@ export async function getMyGroupsZTerminem(userId: string): Promise<GroupWithNex
   const groups = await getMyGroups(userId);
   if (groups.length === 0) return [];
 
-  const dzis = new Date().toISOString().slice(0, 10);
+  // F-8 (docs/faza1-organizator-plan.md): `dzisLokalnie()`, nie
+  // `toISOString()` — to drugie liczy w UTC i cofa się o dzień w nocy.
+  const dzis = dzisLokalnie();
   const { data: eventRows, error } = await supabase
     .from('events')
     // event_participants — bez tego karta ekipy na `/grupy` nie ma jak
@@ -436,7 +439,9 @@ export async function getGroupEventsForNew(
   groupIds: string[],
 ): Promise<{ id: string; groupId: string; createdAt: string }[]> {
   if (groupIds.length === 0) return [];
-  const dzis = new Date().toISOString().slice(0, 10);
+  // F-8 (docs/faza1-organizator-plan.md): `dzisLokalnie()`, nie
+  // `toISOString()` — to drugie liczy w UTC i cofa się o dzień w nocy.
+  const dzis = dzisLokalnie();
   const { data, error } = await supabase
     .from('events')
     .select('id, group_id, created_at')

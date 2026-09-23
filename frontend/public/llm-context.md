@@ -449,6 +449,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-23 — Okno gościa tłumaczy, po co e-mail, a Bojo nie obiecuje podaży, której nie ma
+
+PROBLEM: formularz „Dołącz do meczu bez logowania" wymagał e-maila bez wyjaśnienia —
+pole wyglądało jak rejestracja i newsletter, dokładnie ten mur, który organizator
+próbuje ominąć linkiem „bez konta". Osobno: trzy miejsca w aplikacji (potwierdzenie
+otwarcia meczu dla okolicy, ekran po zapisie gościa, zaproszenie do konta dzień po
+meczu) obiecywały graczowi, że publiczny mecz „zobaczą gracze z okolicy" — nieprawda
+w mieście, gdzie w danym momencie nikt akurat nie szuka gry: obietnica bez pokrycia,
+którą Bojo składało samo sobie. Do tego pole daty w kreatorze i edycji liczyło „dziś"
+w UTC, więc między północą a 1–2 w nocy czasu polskiego cofało się o dzień i odmawiało
+wybrania dzisiejszej daty.
+
+ROZWIĄZANIE BOJO: pole e-mail w formularzu gościa ma dziś jedno zdanie pod spodem —
+do czego adres służy i czego nie wymaga (bez hasła, bez konta). Trzy miejsca z obietnicą
+„gracze z okolicy" stracił tę frazę na rzecz faktu bez daty: mecz trafia na publiczną
+listę otwartych gier, a graczy szukających meczu dopiero przybywa. Lista korzyści
+z konta (ekran po zapisie gościa i zaproszenie dzień po meczu) to dziś jedno źródło
+zamiast dwóch rozjeżdżających się kopii. Pola dat liczą „dziś"/„jutro" po czasie
+lokalnym, nie przez `toISOString()`.
+
+MECHANIKA: helper pod polem e-mail w formularzu gościa (`EventDetailClient.tsx`).
+`content/kontoGoscia.ts` (`KORZYSCI_KONTA`) renderowane przez `.map()` w oknie po
+zapisie gościa i w `/gracz/przejmij/[token]`; mail `zaloz_konto`
+(`supabase/functions/powiadom-goscia/tresc.ts`) trzyma tę samą listę ręcznie, pilnowane
+testem czytającym plik. `dzisLokalnie()`/`jutroLokalnie()` w `lib/eventDates.ts` (budowane
+z lokalnych metod `Date`, nie przez UTC), użyte w polu daty kreatora i edycji, oknach
+„Zmień termin"/„Powtórz mecz" i w `lib/groups.ts`. Testy: `kontoGoscia.test.ts`,
+`zakazaneFrazyWTsx.test.ts`, `eventDates.test.ts`. Bez migracji.
+
 ### 2026-09-23 — Organizator wie, co Bojo zrobi za niego, i wysyła skład jednym kliknięciem
 
 PROBLEM: organizator nie widział żadnego z trzech zegarów Bojo (przypomnienie dzień
@@ -725,30 +754,3 @@ PostgREST), `rozwinSporty()`/`pasujeSport()`/`SPORTY_NA_MAPIE` w `lib/sports.ts`
 lista sportów mapy zamiast trzech kopii), migracja `153_skupiska_licza_obiekty`
 (`count(DISTINCT f.id)`, `p_typy` → `p_nawierzchnie`). `venue_type` zostaje w bazie i na
 karcie obiektu jako informacja. Testy: `filtryMapy.test.ts`.
-
-### 2026-09-16 — Opis strony boiska w wynikach wyszukiwania mówi o nawierzchni, nie o meczach
-
-PROBLEM: Po zaindeksowaniu katalogu (17 473 stron od 5 września) strony boisk Bojo zaczęły
-pojawiać się w Google na zapytania o konkretne obiekty — i to wysoko: dziesiątki zapytań
-w pierwszej piątce wyników, część w pierwszej trójce. Mimo to prawie nikt nie klikał:
-58 zapytań stojących w TOP5 nie dostało ani jednego kliknięcia, co dało 20% wszystkich
-wyświetleń zmarnowanych na pozycji, o którą inni walczą miesiącami. Przyczyną było to,
-co widać w wyniku: opis powtarzał nazwę i adres stojące w tytule tuż nad nim, a potem
-obiecywał „Zobacz nadchodzące mecze" — a mecz rozegrano na około 40 obiektach z ponad
-36 tysięcy, więc dla niemal każdego boiska ta obietnica była pusta.
-
-ROZWIĄZANIE BOJO: Opis strony boiska w wynikach wyszukiwania niesie dziś wyłącznie fakty,
-których nie ma w tytule: nawierzchnię, oświetlenie oraz to, czy obiekt jest kryty czy
-otwarty — czyli rzeczy, po których człowiek wybiera boisko. Gdy starcza miejsca, dochodzi
-adres z ulicą, bo po niej rozstrzyga się między boiskami w tej samej miejscowości. Zdanie
-o nadchodzących meczach zniknęło: Bojo nie obiecuje w wyszukiwarce czegoś, czego na danym
-obiekcie może nie być. Sport i miejscowość też wypadły — niesie je tytuł wyniku, a forma
-„w «miejscowość»" wymagałaby odmiany, której nie da się poprawnie wyprowadzić dla
-dziesiątek tysięcy nazw z katalogu.
-
-MECHANIKA: `metaOpisObiektu()` w `frontend/src/content/opisObiektu.ts`, używana przez
-`generateMetadata()` w `app/boisko/[id]/page.tsx`. Fakty budowane z pól `surface`
-(przez `surfaceLabel()`), `isIndoor` i `lit`; adres dokładany tylko wtedy, gdy całość
-mieści się w 160 znakach, powyżej których wyszukiwarka ucina opis. Test:
-`src/__tests__/opisObiektu.test.ts`. Bez migracji. Dane źródłowe: eksport Search Console
-z 2026-09-16, opisany w `docs/seo-geo-strategia.md`, sekcja 7a.2.

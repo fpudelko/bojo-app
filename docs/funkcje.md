@@ -1250,6 +1250,17 @@ tygodnia i odległość w czasie** („sobota, 30 sierpnia · za 3 dni", `opisDa
 w `lib/eventDates.ts`). Natywne `<input type="date">` nie mówi, jaki to dzień, a
 organizator rezerwuje boisko „na czwartek", nie „na 13.08".
 
+**`min={...}` tych pól liczy „dziś" i „jutro" LOKALNIE, nie w UTC (F-8).**
+`new Date().toISOString().slice(0, 10)` liczy datę w UTC — między północą a 1–2 w nocy
+czasu polskiego cofa się o dzień, więc pole potrafiło odmówić wybrania dzisiejszej daty
+tuż po północy. `lib/eventDates.ts` ma dziś `dzisLokalnie()` / `jutroLokalnie()`, budowane
+z lokalnych metod `Date` (`getFullYear`/`getMonth`/`getDate`), nigdy przez `toISOString()`.
+Używają ich: `min` w `EventDateTimeField.tsx`, domyślna data kreatora (`tomorrowStr()`
+w `app/wydarzenia/nowe/page.tsx`), `min` w oknach „Zmień termin" i „Powtórz mecz"
+(`EventDetailClient.tsx`) oraz `dzis` w `lib/groups.ts`. Nowy kod liczący dzisiejszą albo
+jutrzejszą datę do porównania z inputem `type="date"` ma sięgać po te dwie funkcje, nie
+po własny `toISOString()`.
+
 ---
 
 ## Serie wydarzeń cyklicznych
@@ -2884,7 +2895,10 @@ się nie liczą — wysyłający już je widział w momencie wysyłania) / **Sk�
 kod/link co w `ZaprosDoGrupySheet`, tylko bez otwierania arkusza; widoczna z tych samych
 warunków co dawny przycisk „Zaproś" w belce, `member && can_invite` — **powyżej niej,
 wyłącznie dla założyciela i wyłącznie gdy `memberCount > 30`, informacja „Nie musisz
-dodawać do ekipy jak najwięcej osób — publiczny mecz i tak widzą gracze z okolicy"**:
+dodawać do ekipy jak najwięcej osób. Jeśli zrobisz mecz publicznym, trafi na listę
+otwartych gier w Bojo, poza samą ekipą."** (do 2026-09-23 tekst obiecywał, że publiczny
+mecz „widzą gracze z okolicy" — nieprawda: trafienie na listę nie gwarantuje, że ktoś
+w danej okolicy akurat szuka gry, patrz F-7 niżej):
 duża prywatna ekipa zwykle znaczy, że organizator rozrasta grupę zamiast po prostu
 otworzyć mecz publicznie (patrz „Otwórz dla okolicy" niżej) — potem rząd awatarów
 + lista, plakietka „Założyciel"/„Współorganizator", zębatka „Uprawnienia" rozwijająca
@@ -4134,6 +4148,24 @@ nie zgadzał, funkcja brzegowa odpowiedziałaby `401`, baza by tego nie zobaczy�
 zostałby oznaczony jako wysłany i **nigdy nieponowiony**. Dlatego sekret sprawdza się
 wywołaniem BEZPOŚREDNIM (nie dotyka dziennika), a wpis do konfiguracji robi się dopiero
 po `200`.
+
+### Po co pole e-mail przy zapisie jako gość (F-6)
+
+Pole było i jest WYMAGANE (od migracji `133`, patrz wyżej — bez adresu gość nie dostaje
+żadnego z sześciu maili), ale samo w sobie, bez wyjaśnienia, wygląda jak rejestracja
+i newsletter: dokładnie ten mur, który organizator próbuje ominąć linkiem „dołącz bez
+logowania". Okno „Dołącz do meczu bez logowania" (`EventDetailClient.tsx`, formularz gościa)
+ma dziś pod polem e-mail jedno zdanie: „Tylko do wiadomości o tym meczu: zmiana, odwołanie,
+zwolnione miejsce. Bez hasła i bez zakładania konta." Nic w wymaganiu pola się nie zmieniło,
+zmienia się wyłącznie to, co gość widzi, zanim je wypełni.
+
+Ekran „Świetnie! Jesteś w składzie" (ten sam plik, po zapisie) i `/gracz/przejmij/[token]`
+(zaproszenie do założenia konta wysyłane dzień po meczu) miały dotąd DWIE różne listy
+korzyści z konta — obie z obietnicami bez pokrycia („dołączysz do ekipy”, „przejrzysz
+otwarte gry w okolicy”, patrz F-7 niżej). Dziś jest jedna, `KORZYSCI_KONTA`
+(`content/kontoGoscia.ts`), renderowana w obu miejscach przez `.map()`. Treść mailowa
+`zaloz_konto` (`supabase/functions/powiadom-goscia/tresc.ts`) trzyma tę samą listę ręcznie —
+pilnuje zgodności `kontoGoscia.test.ts`, czytając `tresc.ts` jako tekst.
 
 Od 2026-09-08 wszystkie funkcje wysyłają z **domeny kanonicznej** przez `BOJO_NADAWCA`
 (domyślnie `Bojo <noreply@bojo.pl>`); `send-invites` i `notify-game-alert` używały wcześniej

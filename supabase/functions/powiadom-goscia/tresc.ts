@@ -349,10 +349,17 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
         kartaMeczu(d),
         { typ: 'akapit', tekst: 'Zapisałeś się bez konta, więc za każdym razem podajesz imię i mail od nowa, a organizator nie ma jak Cię dopisać na kolejny termin jednym kliknięciem.' },
         { typ: 'akapit', tekst: 'Konto w Bojo zajmuje chwilę i daje trzy rzeczy:' },
+        // Ta sama lista, dosłownie, co `KORZYSCI_KONTA` w
+        // `frontend/src/content/kontoGoscia.ts` (F-6,
+        // docs/faza1-organizator-plan.md) — dwa okna na stronie meczu i ten
+        // mail dotąd obiecywały trzy różne rzeczy. Funkcja brzegowa (Deno)
+        // nie importuje z frontendu, więc to jest RĘCZNA kopia; pilnuje jej
+        // `frontend/src/__tests__/kontoGoscia.test.ts`, czytający ten plik
+        // jako tekst. Dopisując/zmieniając pozycję tutaj, zmień ją też tam.
         { typ: 'lista', punkty: [
-          'zapisujesz się jednym kliknięciem, bez wpisywania danych',
-          'widzisz wszystkie swoje mecze w jednym miejscu',
-          'dostajesz powiadomienie, gdy coś się zmieni albo zwolni się miejsce',
+          'Na kolejny mecz zapisujesz się jednym kliknięciem, bez wpisywania danych',
+          'Organizator zaprosi Cię na następny termin, a Ty dostaniesz powiadomienie',
+          'Widzisz wszystkie swoje mecze w jednym miejscu',
         ] },
         { typ: 'przycisk', etykieta: 'Załóż konto',
           opis: 'Zakładasz je tutaj, a Twój wczorajszy zapis przypisze się do niego:', url: wpis(d, cfg) },

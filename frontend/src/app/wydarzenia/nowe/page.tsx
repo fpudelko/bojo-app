@@ -18,6 +18,7 @@ import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, FOCUS_SPORT_BY_SLUG, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
 import { validateStep1, validateStep2, validateStep, validatePayments, isPast, KROK_KREATORA, czyMeczPlatny } from '@/lib/eventWizard';
+import { jutroLokalnie } from '@/lib/eventDates';
 import { SHOW_RECURRING } from '@/lib/features';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { WARSTWA } from '@/lib/warstwy';
@@ -80,11 +81,12 @@ function stepForErrors(errs: Record<string, string>): number {
   return Math.min(3, ...Object.keys(errs).map((k) => STEP_OF_FIELD[k] ?? 3));
 }
 
-/** Tomorrow as YYYY-MM-DD — the default match date; "today" usually means a rush. */
+/** Tomorrow as YYYY-MM-DD — the default match date; "today" usually means a rush.
+ *  `jutroLokalnie()` (F-8, docs/faza1-organizator-plan.md), nie ręczne
+ *  `toISOString().slice(0, 10)`: to drugie liczy w UTC, więc między północą
+ *  a 1–2 w nocy czasu polskiego cofa się o dzień i pokazuje dzisiejszą datę. */
 function tomorrowStr(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  return jutroLokalnie();
 }
 
 const SPORTS = FOCUS_SPORTS;
@@ -480,7 +482,7 @@ function NewEventForm() {
           <ul className="mt-5 grid gap-2 text-sm text-slate-700">
             <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Lista zapisów aktualizuje się na żywo</li>
             <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Skład, rezerwa i podział kosztów liczą się same</li>
-            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Otwórz mecz publicznie, a zobaczą go gracze z okolicy</li>
+            <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Mecz publiczny trafia na listę otwartych gier w Bojo</li>
           </ul>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">

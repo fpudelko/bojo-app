@@ -41,6 +41,7 @@ import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
 import { eventUrl, shareEvent, udostepnijOdwolanie, udostepnijPrzywrocenie, udostepnijSklad } from '@/lib/eventShare';
+import { KORZYSCI_KONTA } from '@/content/kontoGoscia';
 import { pobierzIcs } from '@/lib/kalendarz';
 import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce, terminOferty } from '@/lib/kolejkaRezerwy';
@@ -72,7 +73,7 @@ import { tekstRozliczenia } from '@/lib/settlementShare';
 import { track } from '@/lib/analytics';
 import { domyslnyTerminPowtorki } from '@/lib/recurring';
 import { eventDisplayTitle } from '@/lib/eventTitle';
-import { minutesUntilStart, timeUntil, krotkiTermin } from '@/lib/eventDates';
+import { minutesUntilStart, timeUntil, krotkiTermin, dzisLokalnie } from '@/lib/eventDates';
 import {
   getTeamProposals, createTeamProposal, deleteTeamProposal,
   voteTeamProposal, unvoteTeamProposal, acceptTeamProposal,
@@ -1714,7 +1715,11 @@ export default function EventDetailClient() {
     if (await potwierdz({
       tytul: 'Otworzyć mecz dla okolicy?',
       konsekwencje: [
-        'Mecz trafi na publiczną listę otwartych gier, zobaczą go gracze z okolicy.',
+        // F-7 (docs/faza1-organizator-plan.md): „zobaczą go gracze z okolicy"
+        // obiecywało podaż, której dziś za mało — landing mówi to samo wprost
+        // w sekcji „Gdzie jesteśmy dziś" (`content.ts`, `LANDING_MISJA.uczciwie`).
+        'Mecz trafi na publiczną listę otwartych gier w Bojo. Graczy szukających '
+          + 'meczu dopiero przybywa: najpewniej uzupełnisz skład linkiem do znajomych.',
         'Kto ma link, i tak mógł dołączyć, to nie zmienia dostępu, tylko dokłada mecz do listy.',
         'Da się cofnąć: „Kto widzi ten mecz" wraca na prywatny jednym kliknięciem.',
       ],
@@ -4842,7 +4847,7 @@ export default function EventDetailClient() {
             <input
               type="date"
               value={whenDate}
-              min={new Date().toISOString().slice(0, 10)}
+              min={dzisLokalnie()}
               onChange={(e) => { setWhenDate(e.target.value); setWhenConfirm(false); }}
               className="mb-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
@@ -5324,6 +5329,16 @@ export default function EventDetailClient() {
                   className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-ink focus:ring-2 focus:ring-primary-500 outline-none"
                   disabled={guestBusy}
                 />
+                {/* F-6 (docs/faza1-organizator-plan.md): pole samo w sobie
+                    wygląda jak rejestracja i newsletter, dokładnie ten sam
+                    mur, który organizator próbuje przebić linkiem „bez konta".
+                    E-mail zostaje WYMAGANY — bez niego gość nie dowie się
+                    o odwołaniu meczu (`O-36`/`P-3`), zmienia się wyłącznie to,
+                    co widać. */}
+                <p className="mt-1.5 text-[11px] text-slate-400">
+                  Tylko do wiadomości o tym meczu: zmiana, odwołanie, zwolnione miejsce.
+                  Bez hasła i bez zakładania konta.
+                </p>
               </div>
             </div>
 
@@ -5485,21 +5500,19 @@ export default function EventDetailClient() {
             </p>
 
             {/* Trzy wartości — tylko dla osób BEZ konta. Właściciela konta nie ma sensu
-                przekonywać do czegoś, co już ma; jemu skracamy ekran do logowania. */}
+                przekonywać do czegoś, co już ma; jemu skracamy ekran do logowania.
+                Lista jest dziś jedno źródło z `/gracz/przejmij/[token]`
+                (`content/kontoGoscia.ts`, F-6) — dwa ekrany, poprzednio dwie różne
+                treści, w tym dwie nieprawdziwe obietnice ("dołączysz do ekipy",
+                "przejrzysz otwarte gry w okolicy"). */}
             {!newUserHasAccount && (
               <ul className="mt-4 space-y-2.5 border-t border-slate-100 dark:border-slate-700 pt-4 text-xs text-slate-700 dark:text-slate-300">
-                <li className="flex gap-2">
-                  <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-                  <span>Dołączysz do ekipy i dostaniesz powiadomienia o kolejnych meczach</span>
-                </li>
-                <li className="flex gap-2">
-                  <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-                  <span>Założysz własny mecz i zbierzesz skład jednym linkiem</span>
-                </li>
-                <li className="flex gap-2">
-                  <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-                  <span>Przejrzysz otwarte gry w okolicy</span>
-                </li>
+                {KORZYSCI_KONTA.map((korzysc) => (
+                  <li key={korzysc} className="flex gap-2">
+                    <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+                    <span>{korzysc}</span>
+                  </li>
+                ))}
               </ul>
             )}
 
@@ -5661,7 +5674,7 @@ export default function EventDetailClient() {
                   type="date"
                   value={repeatDate}
                   onChange={(e) => setRepeatDate(e.target.value)}
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={dzisLokalnie()}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>

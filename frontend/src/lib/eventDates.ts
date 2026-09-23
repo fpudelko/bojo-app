@@ -23,6 +23,24 @@ export function dzienTygodniaWBierniku(date: Date): string {
   return DZIEN_W_BIERNIKU[mianownik] ?? mianownik;
 }
 
+/** „YYYY-MM-DD" dzisiaj w CZASIE LOKALNYM przeglądarki — nie
+ *  `new Date().toISOString().slice(0, 10)` (F-8, docs/faza1-organizator-plan.md).
+ *  `toISOString()` liczy w UTC: między północą a 1–2 w nocy czasu polskiego
+ *  (do momentu, w którym UTC dogoni Warszawę) taka data cofa się o dzień —
+ *  domyślne „jutro" w kreatorze wychodziło wtedy „dziś", a `min` pola daty
+ *  dopuszczał wczoraj. Składane z `getFullYear/getMonth/getDate`, żeby nie
+ *  przechodzić przez ISO (czyli przez UTC) wcale. */
+export function dzisLokalnie(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** `dzisLokalnie()` + jeden dzień — domyślny termin nowego meczu w kreatorze. */
+export function jutroLokalnie(d: Date = new Date()): string {
+  const jutro = new Date(d);
+  jutro.setDate(jutro.getDate() + 1);
+  return dzisLokalnie(jutro);
+}
+
 export function isUpcoming(event: EventItem): boolean {
   try {
     const [y, m, d] = event.date.split('-').map(Number);
