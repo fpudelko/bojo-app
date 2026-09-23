@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff,
+  Calendar, CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff, ListOrdered,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -17,6 +17,8 @@ import ZaprosZnajomychPanel from '@/components/events/ZaprosZnajomychPanel';
 import OznaczenieKapitana from '@/components/events/OznaczenieKapitana';
 import TeamProposals from '@/components/events/TeamProposals';
 import PoMeczuCard from '@/components/events/PoMeczuCard';
+import HarmonogramMeczu from '@/components/events/HarmonogramMeczu';
+import { harmonogramMeczu, godzinaPolska } from '@/lib/harmonogramMeczu';
 import DopiszGoscia from '@/components/events/DopiszGoscia';
 import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
 import { getComments, nieprzeczytaneKomentarze, kluczRozmowyWidziano } from '@/lib/comments';
@@ -38,7 +40,7 @@ import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/Zachet
 import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
-import { eventUrl, shareEvent, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
+import { eventUrl, shareEvent, udostepnijOdwolanie, udostepnijPrzywrocenie, udostepnijSklad } from '@/lib/eventShare';
 import { pobierzIcs } from '@/lib/kalendarz';
 import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce, terminOferty } from '@/lib/kolejkaRezerwy';
@@ -52,6 +54,7 @@ import {
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
   awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu, czasRezerwyTekst,
 } from '@/lib/events';
+import { invitePlayers, odbiorcyPowtorki } from '@/lib/playerInvites';
 import {
   updateParticipantTeam, updateParticipantPayment, ustawPlatnoscWszystkim,
   assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
@@ -606,6 +609,13 @@ export default function EventDetailClient() {
   const [repeatBusy, setRepeatBusy] = useState(false);
   const [repeatJoin, setRepeatJoin] = useState(true);
   const [repeatRole, setRepeatRole] = useState<'player' | 'goalkeeper'>('player');
+  // F-5 (docs/faza1-organizator-plan.md): „Powtórz mecz” dotąd kończyło się
+  // pustym meczem — organizator znowu wklejał link i czekał, aż każdy wejdzie
+  // sam. Domyślnie WŁĄCZONE (decyzja właściciela, 2026-09-23): cotygodniowa
+  // ekipa jest przypadkiem głównym, nie wyjątkiem. Bez znaczenia (i bez
+  // kontrolki), gdy mecz jest przypięty do grupy — tam powiadamia już
+  // wyzwalacz `072` przy `INSERT` nowego meczu.
+  const [zapraszajZeSkladu, setZapraszajZeSkladu] = useState(true);
   // Domyślnie rozwinięte — to teraz cała treść osobnej zakładki Ustawienia,
   // nie jedna z wielu kart na długiej stronie, więc zwijanie na wejściu
   // nie ma już sensu (dawniej `false` chroniło przed zajmowaniem miejsca).
@@ -631,6 +641,9 @@ export default function EventDetailClient() {
   // Id szablonu cyklicznego, gdy kreator go właśnie utworzył razem z tym
   // meczem (?cykliczne=<id>) — patrz `wydarzenia/nowe/page.tsx`.
   const [cyklicznyId, setCyklicznyId] = useState<string | null>(null);
+  // Ile osób „Powtórz mecz” zaprosiło z poprzedniego składu (?zaproszono=N,
+  // F-5) — panel „Mecz gotowy” dokłada o tym jedną linię.
+  const [zaproszonoLiczba, setZaproszonoLiczba] = useState(0);
   // Wylogowany kliknął „Zaloguj się, aby dołączyć" (?dolacz=1) — po powrocie
   // z logowania otwieramy okno zapisu automatycznie zamiast zostawiać go na
   // widoku identycznym z tym sprzed logowania.
@@ -818,6 +831,8 @@ export default function EventDetailClient() {
     const p = new URLSearchParams(window.location.search);
     const cid = p.get('cykliczne');
     if (cid) setCyklicznyId(cid);
+    const zap = Number(p.get('zaproszono') ?? '0');
+    if (zap > 0) setZaproszonoLiczba(zap);
     // Wylogowany klika „Zaloguj się, aby dołączyć" i wraca na tę samą stronę
     // po zalogowaniu — dotąd lądował na widoku identycznym z tym sprzed
     // logowania i musiał od nowa znaleźć przycisk „Dołącz". `?dolacz=1` niesie
@@ -829,6 +844,7 @@ export default function EventDetailClient() {
     p.delete('utworzono');
     p.delete('cykliczne');
     p.delete('dolacz');
+    p.delete('zaproszono');
     const q = p.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
   }, []);
@@ -1876,6 +1892,21 @@ export default function EventDetailClient() {
     // 'failed' obejmuje anulowanie arkusza przez użytkownika, więc milczymy.
   };
 
+  /** „Wyślij skład na czat" (F-4, docs/faza1-organizator-plan.md) — ponumerowana
+   *  lista, którą organizator dziś przepisuje ręcznie na WhatsApp. `rezerwa`
+   *  bierze WSZYSTKIE wpisy z rezerwy, nie tylko `reserves` (ten filtr
+   *  wyklucza `rsvp === 'maybe'`, co jest tu bez znaczenia — `kolejkaRezerwy()`
+   *  w `tekstSkladu()` i tak odsiewa obserwujących swoim własnym warunkiem). */
+  const handleWyslijSklad = async () => {
+    track('squad_shared', { eventId: event.id });
+    const wynik = await udostepnijSklad(
+      event, regulars, participants.filter((p) => p.isReserve),
+      eventUrl(event.id, window.location.origin),
+      { wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete },
+    );
+    if (wynik === 'copied') toast('Skopiowano, wklej na czacie ze znajomymi');
+  };
+
   const openEditWhen = () => {
     setWhenDate(event.date);
     setWhenTime((event.time ?? '18:00').slice(0, 5));
@@ -1901,6 +1932,16 @@ export default function EventDetailClient() {
    *  skład dla zakończonego meczu jest domyślnie zwinięty do samych awatarów
    *  (`rosterOpen` startuje jako `false`) — scroll trafiał więc w puste
    *  miejsce, bez listy gości do zaproszenia. */
+  /** „Pokaż kogo" w karcie „Co Bojo zrobi za Ciebie" (`HarmonogramMeczu.tsx`) —
+   *  ten sam wzorzec co `handleZaprosGosciaPoMeczu` niżej, ale bez `goToTab`:
+   *  karta żyje wyłącznie na zakładce Skład, więc przełączanie jej nie dotyczy. */
+  const handlePokazGoscBezWiadomosci = () => {
+    setRosterOpen(true);
+    requestAnimationFrame(() => {
+      document.getElementById('sklad')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const handleZaprosGosciaPoMeczu = () => {
     // Karta "Po meczu" jest uniwersalna (widoczna na każdej zakładce), a lista
     // do zaproszenia gości mieszka na zakładce Skład — bez przełączenia scroll
@@ -2107,12 +2148,31 @@ export default function EventDetailClient() {
       );
       setRepeatOpen(false);
       toast('Wydarzenie skopiowane!');
+
+      // F-5: zaproszenia przy powtórce — POZA meczem ekipy (`072` powiadamia
+      // wtedy całą grupę o nowym meczu; zaproszenie dołożyłoby drugie
+      // powiadomienie o tym samym). Błąd zaproszeń NIE cofa meczu — kopia
+      // powstała i jest w pełni użyteczna, organizator wyśle link ręcznie.
+      let zaproszono = 0;
+      if (zapraszajZeSkladu && !event.groupId) {
+        try {
+          const odbiorcy = odbiorcyPowtorki(regulars, event.organizerId);
+          zaproszono = await invitePlayers(newId, odbiorcy, { invitedBy: user.id });
+          track('repeat_invited', { eventId: newId, ile: zaproszono });
+        } catch {
+          toast('Mecz utworzony, zaproszeń nie udało się wysłać. Wyślij link.');
+        }
+      }
+
       // `?utworzono=1` — ten sam panel „Mecz gotowy — wyślij link" co po
-      // kreatorze i po „Powtórz" z `/moje-gry → Historia`. Brakowało go tu
+      // kreatorze i po „Powtórz" z `/moje-gry → Historia”. Brakowało go tu
       // (audyt 2026-09-12, ustalenie `S-6`): organizator powtarzający mecz
       // z jego własnej strony ląduje w dokładnie tym samym momencie —
       // nowy mecz bez wysłanego linku — co po utworzeniu od zera.
-      router.push(`/wydarzenia/${newId}?utworzono=1`);
+      // `&zaproszono=N` — panel dokłada linię „Zaproszono N osób z
+      // poprzedniego składu”; zdejmowane z adresu tym samym kodem co
+      // `utworzono`, więc nie trafi do linku wysyłanego dalej.
+      router.push(`/wydarzenia/${newId}?utworzono=1${zaproszono > 0 ? `&zaproszono=${zaproszono}` : ''}`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setRepeatBusy(false); }
@@ -2960,10 +3020,32 @@ export default function EventDetailClient() {
                 — zgłoszone wprost: ta karta, "Zaproś z grupy" przy liczniku
                 miejsc i sekcja „Zaproś" niżej mówiły to samo trzy
                 razy. "Kopiuj link" i "Zaproś z grupy" zostają wyłącznie w tych
-                dwóch stałych miejscach, nie powtarzają się tutaj. */}
+                dwóch stałych miejscach, nie powtarzają się tutaj.
+
+                Zdanie było STAŁE i obiecywało coś, co bywa nieprawdą (F-3,
+                docs/faza1-organizator-plan.md): `wyslij_przypomnienia()` łapie
+                wyłącznie mecze na JUTRO, więc mecz założony po 18:00 dzień
+                przed terminem albo w dniu meczu nie dostaje ŻADNEGO automatu.
+                Liczone tą samą funkcją co karta „Co Bojo zrobi za Ciebie". */}
             <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-              Przypomnienie wyśle się samo, Ty wyślij tylko link.
+              {(() => {
+                const pozycja = harmonogramMeczu(event, participants)
+                  .find((p) => p.klucz === 'przypomnienie' || p.klucz === 'przypomnienie_za_pozno');
+                return pozycja?.klucz === 'przypomnienie'
+                  ? `Przypomnienie pójdzie do składu automatycznie, ok. ${godzinaPolska(pozycja.kiedy)}. Ty wyślij tylko link.`
+                  : 'Mecz jest za wcześnie na automatyczne przypomnienie: wyślij link teraz.';
+              })()}
             </p>
+
+            {/* F-5: „Powtórz mecz” zaprosiło poprzedni skład — organizator ma
+                widzieć, że to się stało, dokładnie w tej samej chwili, w której
+                widzi panel „Mecz gotowy”. */}
+            {zaproszonoLiczba > 0 && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+                <UserPlus className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+                Zaproszono {withCount(zaproszonoLiczba, 'osobę', 'osoby', 'osób')} z poprzedniego składu.
+              </p>
+            )}
 
             {cyklicznyId && (
               <Link
@@ -3208,6 +3290,21 @@ export default function EventDetailClient() {
             )}
           </div>
         </div>
+
+        {/* ── CO BOJO ZROBI ZA CIEBIE (F-3) ── tylko dla organizatora/delegata
+            z pełną edycją, tylko przed startem meczu i tylko na meczu, który
+            nie został odwołany (harmonogramMeczu() i tak zwraca pustą listę
+            dla `status === 'cancelled'`, ale strona nie pokazuje wtedy nawet
+            pustej karty). Pod kartą „Kiedy i gdzie" — to jest jej naturalna
+            kontynuacja: „wiesz kiedy i gdzie, a oto co się stanie samo". */}
+        {(isOwner || canManageEvent) && !eventStarted && !isCancelled && (
+          <HarmonogramMeczu
+            event={event}
+            sklad={participants}
+            onWyslijLinkTeraz={handleShare}
+            onPokazGoscBezWiadomosci={handlePokazGoscBezWiadomosci}
+          />
+        )}
 
         {/* ── CECHY MECZU (pigułki) ── cena, widoczność, ekipa, akceptacja.
             STOJĄ PONIŻEJ KARTY „Kiedy i gdzie", nie nad nią (2026-09-13,
@@ -3553,20 +3650,35 @@ export default function EventDetailClient() {
             {/* Roster — replaces avatar row when open */}
             {(regulars.length > 0 || reserves.length > 0 || isOwner || canManageSquad) && rosterRozwiniety && (
               <div className="mt-4 border-t border-slate-100 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="min-w-0 shrink-0 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     {withCount(regulars.length, 'gracz', 'gracze', 'graczy')}
                     {reserves.length > 0 && ` · ${reserves.length} na rezerwie`}
                   </span>
-                  {!(isOwner && !eventStarted) && (
-                    <button
-                      type="button"
-                      onClick={() => setRosterOpen(false)}
-                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      <ChevronDown className="h-3.5 w-3.5 rotate-180" /> Zwiń
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {/* „Wyślij skład na czat" (F-4) — zamiennik listy, którą
+                        organizator dziś przepisuje ręcznie na WhatsApp. Tylko
+                        do startu meczu: potem skład się już nie zmienia w sposób,
+                        o którym trzeba kogokolwiek informować. */}
+                    {(isOwner || canManageSquad) && !isCancelled && !eventStarted && (
+                      <button
+                        type="button"
+                        onClick={handleWyslijSklad}
+                        className="flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800"
+                      >
+                        <ListOrdered className="h-3.5 w-3.5" strokeWidth={2.25} /> Wyślij skład
+                      </button>
+                    )}
+                    {!(isOwner && !eventStarted) && (
+                      <button
+                        type="button"
+                        onClick={() => setRosterOpen(false)}
+                        className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5 rotate-180" /> Zwiń
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {/* Sygnał do organizatora: skoro przycisk „Zaproś do Bojo" żyje
                     przy pojedynczym wierszu gościa, łatwo go nie zauważyć,
@@ -5591,6 +5703,43 @@ export default function EventDetailClient() {
                   <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', repeatJoin ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
                 </button>
               </div>
+              {/* F-5 (docs/faza1-organizator-plan.md): bez tego „Powtórz mecz”
+                  kończyło się pustym meczem — organizator znowu wklejał link
+                  i czekał, aż każdy wejdzie sam. Mecz przypięty do grupy nie
+                  ma tej kontrolki: tam powiadamia już wyzwalacz przy
+                  utworzeniu nowego meczu w grupie — drugie zaproszenie
+                  dublowałoby to samo powiadomienie. */}
+              {event.groupId ? (
+                <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-400">
+                  Członkowie ekipy dostaną powiadomienie o nowym meczu.
+                </p>
+              ) : (
+                <div className="flex items-center justify-between pt-1">
+                  <div className="min-w-0 pr-3">
+                    <p className="text-sm font-medium text-slate-900">Zaproś skład z tego meczu</p>
+                    <p className="text-xs text-slate-500">
+                      {(() => {
+                        const odbiorcy = odbiorcyPowtorki(regulars, event.organizerId);
+                        const bezKonta = regulars.filter((p) => p.isGuest).length;
+                        if (odbiorcy.length === 0 && bezKonta === 0) return 'Nikogo nie ma jeszcze w składzie.';
+                        const zKontem = `${withCount(odbiorcy.length, 'osoba z kontem dostanie zaproszenie', 'osoby z kontem dostaną zaproszenie', 'osób z kontem dostanie zaproszenie')}.`;
+                        return bezKonta > 0
+                          ? `${zKontem} ${withCount(bezKonta, 'osoba', 'osoby', 'osób')} bez konta: wyślesz link po utworzeniu.`
+                          : zKontem;
+                      })()}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setZapraszajZeSkladu((v) => !v)}
+                    className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', zapraszajZeSkladu ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
+                    role="switch"
+                    aria-checked={zapraszajZeSkladu}
+                  >
+                    <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', zapraszajZeSkladu ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+                  </button>
+                </div>
+              )}
               {gkEnabled && repeatJoin && (
                 <div>
                   <p className="text-xs font-medium text-slate-600 mb-1">Twoja rola</p>

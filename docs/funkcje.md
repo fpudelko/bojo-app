@@ -1113,6 +1113,15 @@ Gdy kreator utworzył razem z meczem szablon cykliczny (kafelek na kroku 1), dos
 wtedy dodatkowy link „Ustawiłeś powtarzanie co tydzień — zarządzaj serią" do
 `/cykliczne/{id}`.
 
+**Zdanie o przypomnieniu jest dziś policzone, nie stałe (F-3, docs/faza1-organizator-plan.md).**
+Do 2026-09-23 panel mówił zawsze „Przypomnienie wyśle się samo, Ty wyślij tylko link" —
+nieprawda dla meczu założonego po 18:00 dzień przed terminem albo w dniu meczu, bo
+`wyslij_przypomnienia()` łapie wyłącznie `event_date = jutro`. Zdanie liczy dziś
+`harmonogramMeczu()` (`lib/harmonogramMeczu.ts`, patrz sekcja „Co Bojo zrobi za Ciebie"
+niżej) i pokazuje jeden z dwóch wariantów: godzinę realnego przypomnienia albo „Mecz jest
+za wcześnie na automatyczne przypomnienie: wyślij link teraz." Ta sama funkcja liczy
+identyczne zdanie w podsumowaniu przed publikacją (`PodsumowanieMeczu.tsx`, kreator).
+
 **Jeden link i jeden tekst dla całej aplikacji** — `lib/eventShare.ts`. `eventUrl()` zwraca
 adres kanoniczny `/wydarzenia/{id}`, a nie krótki `/d/{kod}`: `robots.ts` trzyma `/d/` poza
 indeksowaniem, więc crawlery Facebooka i WhatsAppa nie pobiorą Open Graph i taki link leci
@@ -1136,6 +1145,69 @@ ręką) zachowanie jest identyczne jak dotąd — bezpiecznik wsteczny. Wołają
 
 Trasa `/d/[code]` zostaje żywa dla linków już rozesłanych; zniknęła tylko jako drugi,
 konkurencyjny przycisk „Udostępnij" na tej samej stronie.
+
+---
+
+## Co Bojo zrobi za Ciebie
+
+**Problem (F-3, docs/faza1-organizator-plan.md).** Bojo ma trzy zegary — przypomnienie
+dzień przed meczem, zegar kolejki rezerwowej, domknięcie „po meczu" — a organizator nie
+widział żadnego z nich. Zdanie w panelu „Mecz gotowy" obiecywało coś, co bywało
+nieprawdą (patrz wyżej); poza tym organizator nie wiedział, że goście dopisani ręcznie
+bez adresu e-mail nie dostaną ŻADNEJ wiadomości, ile czasu ma rezerwowy na decyzję, ani
+że Bojo przypomni mu samo o rozliczeniu.
+
+**Rozwiązanie.** Karta `components/events/HarmonogramMeczu.tsx`, na zakładce Skład, pod
+kartą „Kiedy i gdzie", widoczna dla `isOwner || canManageEvent`, tylko przed startem
+meczu i tylko gdy mecz nie jest odwołany. Czysta funkcja `harmonogramMeczu()`
+(`lib/harmonogramMeczu.ts`) zwraca listę 2–4 pozycji, zero zapytań do bazy:
+
+| Pozycja | Kiedy się pokazuje |
+|---|---|
+| Przypomnienie dzień przed meczem, z godziną | zawsze, chyba że już za późno |
+| „Za późno na automatyczne przypomnienie" + „Wyślij link teraz" | mecz na dziś/jutro po 16:00 UTC |
+| Ile czasu ma rezerwowy na decyzję | `event.reserveEnabled` |
+| N osób bez żadnej wiadomości (gość bez konta i bez e-maila) + „Pokaż kogo" | `N > 0` |
+| „Dzień po meczu przypomnimy o wyniku i rozliczeniu" | `costGrosze > 0 \|\| trackResults` |
+
+**Godzina jest LUSTREM crona, nie liczbą wpisaną na sztywno.** `PRZYPOMNIENIA_UTC`
+(`{ godzina: 16, minuta: 0 }`) musi się zgadzać z `cron.schedule('bojo-przypomnienia', '0
+16 * * *')` z migracji `129` — `harmonogramMeczu.test.ts` czyta OSTATNIĄ definicję zadania
+i ostatnie ciało `wyslij_przypomnienia()` ze wszystkich plików migracji i porównuje
+z tą stałą; zmiana godziny w SQL bez zmiany w TS wywraca Vitest. Wzorzec:
+`typyPowiadomien.test.ts`. Moment przypomnienia liczy się jako `Date.UTC(rok, miesiąc,
+dzień - 1, 16, 0)` — ten sam instant co cron; wyświetlana godzina polska (`godzinaPolska()`,
+`Intl.DateTimeFormat` z `timeZone: 'Europe/Warsaw'`) sama przesuwa się między 17:00 zimą
+a 18:00 latem.
+
+**Wiersz „Za późno" prowadzi do `handleShare` (istniejący przycisk „Wyślij link
+znajomym"), wiersz „bez wiadomości" przewija do składu** (`setRosterOpen(true)` +
+`scrollIntoView('#sklad')`, ten sam wzorzec co `handleZaprosGosciaPoMeczu`).
+
+**Rozważane i odrzucone:** poranne przypomnienie „dziś grasz" dla meczów, które ominęły
+wieczorny przebieg crona — wymagałoby nowego typu powiadomienia (trzy listy do
+zsynchronizowania), nowego zadania `pg_cron` i nowego szablonu maila. F-3 usuwa
+nieprawdę; brakującą funkcję organizator obsłuży jednym kliknięciem „Wyślij link teraz".
+
+## „Wyślij skład na czat"
+
+**Problem (F-4, docs/faza1-organizator-plan.md).** Najczęstszy post organizatora na
+WhatsAppie to nie zaproszenie, tylko LISTA: „1. Marek 2. Kuba … 12. ___ 13. ___ —
+brakuje dwóch". Bojo prowadzi tę listę lepiej (twardy limit, rezerwa, kolejność), ale
+nie umiało jej wysłać.
+
+**Rozwiązanie.** `tekstSkladu()` w `lib/eventShare.ts` — ponumerowany skład, wolne
+miejsca jako zakres („11–14: wolne"), 🧤 przy bramkarzach, linia „Rezerwa: …" (kolejność
+z `kolejkaRezerwy()` — przy `goalkeepersEnabled` dwie kolejki, pole przed bramkarzami —
+pomija odpuszczone oferty i obserwujących), a na końcu **te same dwie linie co
+`eventShareText()`**: opis miejsc i cena (`liniaMiejscICeny()`), „Zapisujesz się bez
+zakładania konta." (`zdanieBezKonta()`) — obie funkcje wydzielone z `eventShareText()`,
+żeby dwa teksty pokazujące ten sam stan meczu nie mogły podać dwóch różnych liczb.
+Przycisk „Wyślij skład" (ikona `ListOrdered`) w nagłówku rozwiniętego składu na zakładce
+Skład, dla `isOwner || canManageSquad`, do startu meczu. `navigator.share` idzie z `url`
+(adres w tekście dopiero na ścieżce schowka, przez `textDoKopiowania`-podobny wzorzec) —
+podgląd linku ma działać tak samo jak przy „Wyślij link znajomym". Zdarzenie analityczne
+`squad_shared` mierzy, czy organizatorzy tego w ogóle używają.
 
 ---
 
@@ -1563,6 +1635,25 @@ w ciele `repeatEvent()` — pominięcie nowo dodanej kolumny przestaje się komp
 zamiast po cichu zostawiać domyślną wartość. Wszystkie trzy wejścia trafiają też do
 `?utworzono=1` (panel „Mecz gotowy — wyślij link"), niezależnie skąd organizator go
 powtórzył (ustalenie `S-6`).
+
+**„Powtórz mecz" zaprasza poprzedni skład (F-5, migracja żadna).** Do 2026-09-23 kopia
+powstawała pusta — organizator znowu wklejał link i czekał, aż każdy wejdzie sam, mimo
+że imienne zaproszenie (`event_player_invites`, migracja `060`) już istnieje. Okno
+w `EventDetailClient.tsx` (obie wejścia współdzielące ten modal: pełne i skrócone
+z karty „Po meczu") ma dziś przełącznik „Zaproś skład z tego meczu", **domyślnie
+włączony** (decyzja właściciela 2026-09-23) — z podpisem liczącym na żywo, ile osób
+z kontem dostanie zaproszenie i ile bez konta trzeba będzie zaprosić linkiem.
+`odbiorcyPowtorki()` w `lib/playerInvites.ts` filtruje `regulars`: osoby z kontem, bez
+organizatora (dostaje mecz automatycznie), bez rezerwy/obserwujących/oczekujących na
+akceptację i bez gości bez konta (nie mają jak dostać zaproszenia w aplikacji). Mecz
+przypięty do grupy (`event.groupId`) **nie ma tej kontrolki** — pod oknem stoi zamiast
+niej zdanie „Członkowie ekipy dostaną powiadomienie o nowym meczu", bo wyzwalacz `072`
+już powiadamia całą grupę przy `INSERT` nowego meczu; drugie zaproszenie dublowałoby to
+samo powiadomienie. Błąd wysyłki zaproszeń **nie cofa** utworzonego meczu — kopia jest
+w pełni użyteczna, organizator dostaje toast i wysyła link ręcznie. Panel „Mecz gotowy"
+dokłada linię „Zaproszono N osób z poprzedniego składu" (`?zaproszono=N`, zdejmowane
+z adresu tym samym kodem co `?utworzono=1`). `NajblizszyMeczGrupy.tsx` (trzecie wejście,
+zawsze w kontekście grupy) świadomie pominięte — tam zaproszenie i tak byłoby dublem.
 
 ---
 

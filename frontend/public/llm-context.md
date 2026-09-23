@@ -449,6 +449,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-23 — Organizator wie, co Bojo zrobi za niego, i wysyła skład jednym kliknięciem
+
+PROBLEM: organizator nie widział żadnego z trzech zegarów Bojo (przypomnienie dzień
+przed meczem, kolejka rezerwowa, domknięcie po meczu), a panel „Mecz gotowy" obiecywał
+zawsze „Przypomnienie wyśle się samo" — nieprawda dla meczu założonego po 18:00 dzień
+przed terminem albo w dniu meczu, bo automat łapie wyłącznie mecze na jutro. Brakowało
+też dwóch rzeczy, które organizator robi co tydzień na WhatsAppie: wysłania listy
+składu i zaproszenia tych samych ludzi na kolejny termin.
+
+ROZWIĄZANIE BOJO: karta „Co Bojo zrobi za Ciebie" na stronie meczu pokazuje dokładny
+czas przypomnienia (albo że jest już za późno, z przyciskiem „Wyślij link teraz"), ile
+czasu ma rezerwowy na decyzję, kto nie dostanie żadnej wiadomości, i kiedy przypomnimy
+o rozliczeniu. Przycisk „Wyślij skład" wysyła ponumerowaną listę składu z wolnymi
+miejscami i rezerwą — zamiennik posta, który organizator dziś przepisuje ręcznie.
+„Powtórz mecz" domyślnie zaprasza poprzedni skład (osoby z kontem), więc kopia meczu
+nie startuje już pusta.
+
+MECHANIKA: `lib/harmonogramMeczu.ts` (czysta funkcja, `PRZYPOMNIENIA_UTC` jest lustrem
+`cron.schedule('bojo-przypomnienia', …)` z migracji `129`, pilnowane testem czytającym
+pliki migracji), `components/events/HarmonogramMeczu.tsx`. `tekstSkladu()`
+w `lib/eventShare.ts`, wspólne z `eventShareText()` przez `liniaMiejscICeny()`
+i `zdanieBezKonta()`. `odbiorcyPowtorki()` w `lib/playerInvites.ts` filtruje skład do
+osób z kontem, bez organizatora i bez rezerwy; mecz przypięty do grupy pomija
+zaproszenia (wyzwalacz `072` już powiadamia całą grupę). Bez migracji.
+
 ### 2026-09-23 — Organizator nie jest dłużnikiem samego siebie w rozliczeniu
 
 PROBLEM: organizator grający we własnym meczu miał w bazie taki sam wiersz jak każdy
@@ -727,33 +752,3 @@ MECHANIKA: `metaOpisObiektu()` w `frontend/src/content/opisObiektu.ts`, używana
 mieści się w 160 znakach, powyżej których wyszukiwarka ucina opis. Test:
 `src/__tests__/opisObiektu.test.ts`. Bez migracji. Dane źródłowe: eksport Search Console
 z 2026-09-16, opisany w `docs/seo-geo-strategia.md`, sekcja 7a.2.
-
-### 2026-09-17 — Turniej schowany przed userami, a w środku posprzątany
-
-PROBLEM: przegląd modułu na żywo (telefon, użytkownik bez konta) pokazał, że turniej działa,
-ale pierwsze wrażenie jest złe. Pasek sześciu zakładek nie mieścił się w szerokości ekranu,
-więc „Drabinka" była ucięta i istniała tylko dla kogoś, kto pomyślał, żeby przewinąć w bok.
-Info było niemal puste: data, boisko, „8/16 drużyn · 50 zł wpisowe" — bez odpowiedzi, czy
-50 zł to od drużyny czy od gracza, ile trwa mecz i kto to organizuje. Ten sam dzień
-pokazywał się w trzech zapisach naraz, a godzina startu szła na ekran z sekundami
-(„10:00:00"). Cztery turnieje miały identyczną plakietkę „Trwa" — w tym jeden sprzed
-tygodnia i jeden, w którym został sam finał. Na liście nie było ani jednego przycisku,
-bo kreator wisiał za logowaniem.
-
-ROZWIĄZANIE BOJO: wejścia do turniejów zniknęły z `/moje-gry` i `/profil` — moduł jest
-tymczasowo niewidoczny dla użytkownika, a `bojo.pl/turnieje` nadal odpowiada każdemu, kto
-wejdzie świadomie albo z udostępnionego linku. Sama strona turnieju ma dziś trzy zakładki
-(Mecze z przełącznikiem Najbliższe/Rozegrane, Tabela i drabinka, Drużyny), Info jako
-nagłówek nad nimi ze stałym szablonem Kiedy · Gdzie · Format · Zasady · Koszt od drużyny ·
-Organizator, oraz pasek „Twoja drużyna: … · następny mecz" dla tego, kto gra. Termin ma
-jeden zapis w całej aplikacji („Dziś, 18:00", „niedz. 20 września, 10:00"), a stan turnieju
-liczy się z terminarza: „Na żywo", „Ostatnie mecze", „Zakończony", z drugim wierszem
-„Finał dziś, 19:00".
-
-MECHANIKA: `SHOW_TURNIEJE = false` (`lib/features.ts`) chowa wejścia w nawigacji, nie trasy —
-`/turnieje` wróciło przy tym do `DISALLOW` w `robots.ts` i zeszło z `llms.txt`, czego pilnuje
-`npm run check:docs`. `etykietaTerminu()` i `stanTurnieju()` w `lib/turniejEtykiety.ts` to
-czyste funkcje z wstrzykiwanym „dzisiaj". Stare adresy zakładek (`?tab=terminarz`,
-`?tab=wyniki`, `?tab=drabinka`) prowadzą tam, gdzie ich treść dziś mieszka. Testy:
-`turniejTermin.test.ts`.
-

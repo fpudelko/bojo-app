@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { AlertTriangle, Check, Pencil } from 'lucide-react';
 import type { WierszPodsumowania } from '@/lib/eventSummary';
+import { harmonogramMeczu, godzinaPolska } from '@/lib/harmonogramMeczu';
 
 /**
  * Karta „Tak zobaczą to gracze" na ostatnim kroku kreatora.
@@ -16,6 +17,9 @@ import type { WierszPodsumowania } from '@/lib/eventSummary';
  */
 interface Props {
   wiersze: WierszPodsumowania[];
+  /** Data z kroku 1 (`YYYY-MM-DD`) — do policzenia, czy automatyczne
+   *  przypomnienie zdąży złapać ten mecz (F-3, docs/faza1-organizator-plan.md). */
+  date: string;
   /** Skok na wskazany krok — przekazywany `attemptGoToStep` z kreatora.
    *  Cofanie nigdy nie waliduje, więc jest bezpieczne z każdego wiersza. */
   naKrok: (krok: number) => void;
@@ -28,7 +32,7 @@ interface Props {
 }
 
 export default function PodsumowanieMeczu({
-  wiersze, naKrok, nazwaOrganizatora, brakujeNazwy, onZmienNazwe,
+  wiersze, date, naKrok, nazwaOrganizatora, brakujeNazwy, onZmienNazwe,
 }: Props) {
   const [edytujeNazwe, setEdytujeNazwe] = useState(brakujeNazwy);
   const [nazwa, setNazwa] = useState(nazwaOrganizatora);
@@ -156,10 +160,26 @@ export default function PodsumowanieMeczu({
           zakładaniu meczu. To jest jednocześnie jedyna rzecz z całej listy,
           której post na grupie nie umie w ogóle — i dopóki organizator o niej
           nie wie, przypomina ręcznie na WhatsAppie, a razem z przypomnieniem
-          zostaje tam cała reszta rozmowy o meczu. */}
+          zostaje tam cała reszta rozmowy o meczu.
+
+          Zdanie było STAŁE i obiecywało „dzień przed meczem" niezależnie od
+          tego, kiedy mecz się odbywa — nieprawda dla meczu na DZIŚ albo na
+          JUTRO po 18:00, którego `wyslij_przypomnienia()` (bierze wyłącznie
+          `event_date = jutro`) w ogóle nie złapie (F-3,
+          docs/faza1-organizator-plan.md). Skład i wiersz mieszkają w kroku
+          publikacji, którego kreator jeszcze nie stworzył — liczymy więc na
+          pustym składzie: interesuje nas wyłącznie „przypomnienie" kontra
+          „przypomnienie_za_pozno", a te nie zależą od uczestników. */}
       <p className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
-        Po publikacji Bojo przypomni składowi dzień przed meczem i powiadomi wszystkich,
-        jeśli zmienisz termin, miejsce albo odwołasz grę.
+        {(() => {
+          const pozycja = harmonogramMeczu({ date, costGrosze: 0, trackResults: false, reserveEnabled: false, reserveClaimMinutes: 60, status: 'active' }, [])
+            .find((p) => p.klucz === 'przypomnienie' || p.klucz === 'przypomnienie_za_pozno');
+          return pozycja?.klucz === 'przypomnienie'
+            ? `Po publikacji Bojo przypomni składowi automatycznie, ok. ${godzinaPolska(pozycja.kiedy)} `
+              + 'dzień wcześniej, i powiadomi wszystkich, jeśli zmienisz termin, miejsce albo odwołasz grę.'
+            : 'Ten termin jest za blisko na automatyczne przypomnienie dzień wcześniej: wyślij link sam. '
+              + 'Bojo i tak powiadomi wszystkich, jeśli zmienisz termin, miejsce albo odwołasz grę.';
+        })()}
       </p>
     </section>
   );

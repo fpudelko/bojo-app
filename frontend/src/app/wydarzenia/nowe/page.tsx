@@ -1475,6 +1475,7 @@ function NewEventForm() {
 
                 <div className="mt-4">
                   <PodsumowanieMeczu
+                    date={date}
                     wiersze={zbudujPodsumowanie({
                       sport,
                       title,

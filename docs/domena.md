@@ -691,6 +691,15 @@ PRZEZ Bojo, nie listą ludzi na boisku — mogą grać osoby, których nikt nie 
 do żadnego meczu, więc liczba wierszy w bazie nie mówi, ile osób realnie
 przyszło. Pełne uzasadnienie → [faza1-organizator-plan.md](./faza1-organizator-plan.md#f-2-koszt-obiektu-dzielony-przez-faktyczny-skład--odrzucone).
 
+**Kto dostaje zaproszenie, gdy organizator „Powtórzy mecz" (F-5, migracja żadna).**
+`odbiorcyPowtorki()` w `lib/playerInvites.ts` — osoby z kontem z poprzedniego składu,
+bez organizatora (dostaje kopię automatycznie), bez rezerwy/obserwujących/oczekujących
+na akceptację, bez gości bez konta (nie mają jak dostać zaproszenia w aplikacji). Mecz
+przypięty do grupy jest **wyjątkiem rozłącznym** z tą regułą: tam zaproszeń nie ma
+wcale, bo wyzwalacz `072` już powiadamia całą grupę przy `INSERT` nowego meczu —
+zaproszenie dublowałoby to samo powiadomienie. Pełny opis interfejsu →
+[funkcje.md](./funkcje.md#po-publikacji-mecz-gotowy--wyślij-link).
+
 ---
 
 ## Grupy
