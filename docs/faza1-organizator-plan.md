@@ -1,9 +1,17 @@
 # Faza 1 — organizator bez wątpliwości: plan wdrożenia
 
-> **Status: PLAN DO DECYZJI WŁAŚCICIELA. Nic z tego nie jest jeszcze wdrożone.**
+> **Status: PLAN ZATWIERDZONY 2026-09-23, we wdrożeniu.**
 > Siódma runda przejścia ścieżki organizatora (poprzednie: `O`/`E`/`P`/`R`/`S`
 > w [przeplyw-organizatora.md](./przeplyw-organizatora.md)). Ustalenia mają numery
 > `F-n`. Stan repo: `ee233ac` (2026-09-22), 159 migracji.
+>
+> **F-2 ODRZUCONE decyzją właściciela (2026-09-23).** Zarzut: liczba wierszy
+> w `event_participants` nie jest liczbą ludzi na boisku — mogą grać osoby spoza
+> Bojo, nigdy nie dopisane ani przez siebie, ani przez organizatora. „10/14 w bazie”
+> nie znaczy „przyszło 10 osób”, więc sugerowanie organizatorowi „podziel na 10”
+> byłoby fałszywą pewnością gorszą niż dzisiejszy brak przeliczenia. Sekcja F-2
+> zostaje w dokumencie jako zapis odrzuconego pomysłu i uzasadnienia — PR-A
+> zawiera wyłącznie F-1.
 >
 > Kryterium doboru (z [strategia.md §0](./strategia.md) i skilla fazy 1): organizator
 > ma **wiedzieć, jak działa i co się kiedy stanie**, ustawiać wszystko **szybko**,
@@ -35,7 +43,7 @@ statystyka):
 |---|---|---|
 | Płatne mecze rozegrane | 57 | |
 | …w tym **bez ani jednej odhaczonej wpłaty** | **46 (81%)** | rozliczenie, główna obietnica dla organizatora, praktycznie nie jest używane |
-| …w tym **z niepełnym składem** (mniej osób niż miejsc) | **44 (77%)** | cena od osoby = koszt obiektu / liczba MIEJSC, więc przy niepełnym składzie organizator dopłaca różnicę z własnej kieszeni (patrz `F-2`) |
+| …w tym **niepełny skład wg `event_participants`** | 44 (77%) | **nie jest już przesłanką żadnego ustalenia** — liczba wierszy w bazie nie jest liczbą ludzi na boisku (F-2 odrzucone z tego właśnie powodu); wiersz zostaje w tabeli jako ślad odrzuconego rozumowania |
 | Mecze z włączonym wynikiem, rozegrane | 88 | |
 | …z wpisanym wynikiem | 9 | bez zmian od audytu z sierpnia (6/122); nie ruszamy tu wyniku, patrz §6 |
 | Wpisy gości bez konta, przejęte przez konto | **0** | konwersja gość → konto nie działa w ogóle (`F-5`, `F-6`) |
@@ -53,7 +61,7 @@ organizator porównuje Bojo z postem na grupie i ankietą na WhatsAppie.
 | # | Ustalenie | Wartość dla organizatora | Koszt | Migracja |
 |---|---|---|---|---|
 | **F-1** | Organizator jest **własnym dłużnikiem** w każdym widoku rozliczenia i w przypomnieniu po meczu | Rozliczenie przestaje kłamać przy pierwszym użyciu | mały | tak (`160`, tylko `CREATE OR REPLACE`) |
-| **F-2** | Koszt obiektu **nie przelicza się** na faktyczny skład; organizator dopłaca różnicę | „Hala 250 zł, przyszło 10, po 25 zł” jednym kliknięciem — rzecz, którą dziś liczy w głowie | średni | tak (`160`, jedna kolumna) |
+| **F-2** | ~~Koszt obiektu nie przelicza się na faktyczny skład~~ | **ODRZUCONE** — patrz notatka na górze dokumentu | — | — |
 | **F-3** | Organizator **nie wie, co i kiedy Bojo zrobi za niego**; „przypomnienie wyśle się samo” bywa nieprawdą | Pewność zamiast zgadywania: kiedy przypomnienie, co z rezerwą, kto nic nie dostanie | mały | nie |
 | **F-4** | Brak **„Wyślij skład na grupę”** — najczęstszego posta organizatora na WhatsAppie | Bojo robi to, co ankieta WhatsApp, i przy okazji znowu wkleja link do meczu | mały | nie |
 | **F-5** | „Powtórz mecz” **nie zaprasza** poprzedniego składu | Cotygodniowa ekipa (przesłanka strategiczna) dostaje zaproszenie bez pisania do nikogo; obietnica z maila „organizator dopisze Cię jednym kliknięciem” zaczyna być prawdą | mały | nie |
@@ -62,7 +70,7 @@ organizator porównuje Bojo z postem na grupie i ankietą na WhatsAppie.
 | **F-8** | „Jutro” w kreatorze i `min` pól daty liczone **w UTC** | Domyślna data nie jest „dziś” po północy | mały | nie |
 | **F-9** | `BACKLOG.md §2` twierdzi, że `SHOW_TURNIEJE` jest włączona; w kodzie jest `false` | Dokumentacja przestaje wprowadzać w błąd | 1 linia | nie |
 
-**Kolejność wdrożenia = kolejność PR-ów:** `PR-A` (F-1, F-2 — rozliczenie, jedyna
+**Kolejność wdrożenia = kolejność PR-ów:** `PR-A` (F-1 — rozliczenie, jedyna
 migracja), `PR-B` (F-3, F-4, F-5 — pewność i ekipa), `PR-C` (F-6, F-7, F-8, F-9 —
 copy i drobne). Każdy PR jest samodzielny i da się go wycofać bez ruszania
 pozostałych. Uzasadnienie kolejności: rozliczenie to jedyna obietnica z landingu
@@ -71,7 +79,8 @@ a F-1 psuje ją przy pierwszym kontakcie.
 
 **Zgodność z moratorium z [analiza-gtm-2026-09.md](./analiza-gtm-2026-09.md) (A.1):**
 żadna pozycja nie dokłada flagi funkcji ani nowej encji domenowej. Jedyna zmiana
-schematu to nullable kolumna w `events` i podmiana ciała istniejącej funkcji.
+schematu to podmiana ciała istniejącej funkcji (`160`) — bez nowej kolumny, bo
+F-2 odrzucone.
 
 ---
 
@@ -161,160 +170,38 @@ w jednym helperze i w jednym warunku SQL.
   `po_meczu_do_domkniecia`; z organizatorem i jednym nieopłaconym graczem →
   treść „1 osoba jeszcze nie oddała”.
 
-### F-2. Koszt obiektu dzielony przez faktyczny skład
+### F-2. Koszt obiektu dzielony przez faktyczny skład — ODRZUCONE
 
-**Problem.** Kreator pyta domyślnie o **„Koszt wynajmu obiektu”** i sam dzieli go
-przez liczbę **miejsc** (`kosztZaObiekt = true`, `app/wydarzenia/nowe/page.tsx`).
-Do bazy trafia wyłącznie wynik dzielenia (`cost_grosz` od osoby); kwota za obiekt
-znika. Skutek:
+**Pomysł (odrzucony 2026-09-23).** Kreator pyta domyślnie o „Koszt wynajmu
+obiektu” i dzieli go przez liczbę **miejsc**; do bazy trafia wyłącznie wynik
+dzielenia. Plan proponował zapamiętanie kwoty za obiekt i przycisk „Podziel na
+N osób”, liczący N z `regulars.length` (wierszy w `event_participants` bez
+rezerwy/oczekujących/obserwujących).
 
-- hala 250 zł, 14 miejsc → 17,86 zł od osoby; przyszło 10 osób → Bojo zbiera
-  178,60 zł, a organizator zapłacił 250 zł. **71,40 zł dopłaca z własnej kieszeni
-  i nigdzie w Bojo tego nie widać** — „Zebrano 178,60 z 178,60 PLN” wygląda jak
-  sukces,
-- na produkcji 77% rozegranych płatnych meczów ma niepełny skład, czyli ten
-  scenariusz jest regułą, nie wyjątkiem,
-- to jest dokładnie to, co organizator robi dziś na WhatsAppie w jednej linijce
-  („250 / 10 = 25 zł, BLIK na numer…”). Jeśli Bojo liczy gorzej niż kalkulator
-  w głowie, rozliczenie w Bojo nie ma sensu — a 81% płatnych meczów bez ani jednej
-  odhaczonej wpłaty mówi, że organizatorzy już to zauważyli.
+**Dlaczego to jest błędne rozumowanie, nie tylko szczegół do poprawienia.**
+`event_participants` to lista ludzi **zapisanych przez Bojo**, nie lista ludzi
+**na boisku**. Na realnym meczu grają też osoby, których nikt nie dopisał do
+aplikacji: kolega przyprowadzony w ostatniej chwili, ktoś, kogo organizator
+wpuścił bez zapisu, bo brakowało do kompletu. `10/14` w bazie mówi wyłącznie
+„10 osób przeszło przez Bojo”, nie „przyszło 10 osób”. Przycisk sugerujący
+„podziel na 10” byłby **fałszywą pewnością** — coś, czego ten plan wprost
+zabrania sobie robić (patrz nagłówek dokumentu, kryterium „nie obiecywać tego,
+czego nie ma”). To jest gorsze niż dzisiejszy brak przeliczenia, bo dzisiejszy
+brak przynajmniej nie kłamie liczbą.
 
-**Rozwiązanie.** Bojo **pamięta koszt obiektu** i proponuje podział na tych,
-którzy faktycznie grali — jednym kliknięciem, z uczciwym pokazaniem skutków.
+Liczba „77% rozegranych płatnych meczów ma niepełny skład wg bazy” (§0) zostaje
+w dokumencie jako fakt o danych, ale przestaje być przesłanką jakiejkolwiek
+zmiany — właśnie dlatego, że nie wiadomo, ile z tych 44 meczów miało realnie
+niepełny skład, a ile tylko niepełny **zapis**.
 
-**Migracja `160_koszt_obiektu_i_rozliczenie_bez_organizatora.sql`:**
+**Co z tego zostaje w produkcie: nic nowego.** Organizator, który chce policzyć
+inaczej niż „koszt / liczba miejsc”, robi to dziś poza Bojo (w głowie albo
+w kalkulatorze) — dokładnie tak, jak przy mniej pewnych danych robi to teraz.
+Gdyby Bojo miało kiedyś prowadzić realną listę obecności (osobny, wcześniej
+odrzucony pomysł — `track_attendance`, patrz [przeplyw-organizatora.md, Faza
+7](./przeplyw-organizatora.md)), przeliczenie kosztu miałoby sens na nowo; bez
+tego jedyną wiarygodną podstawą jest to, co organizator wpisał sam.
 
-```sql
--- 160: Rozliczenie, które się zgadza (plan F-1, F-2 w docs/faza1-organizator-plan.md).
---
--- A. Kreator pyta o koszt wynajmu obiektu i dzieli go przez liczbę MIEJSC, ale do
---    bazy trafiał wyłącznie wynik. Przy niepełnym składzie (77% rozegranych
---    płatnych meczów) organizator dopłacał różnicę i Bojo nie miało jak mu tego
---    pokazać. Kolumna pamięta kwotę za obiekt; NULL = mecz sprzed tej migracji
---    albo cena wpisana od osoby. Niczego nie przelicza sama.
-ALTER TABLE events
-  ADD COLUMN IF NOT EXISTS koszt_obiektu_grosz integer;
-
-DO $$ BEGIN
-  ALTER TABLE events ADD CONSTRAINT events_koszt_obiektu_nieujemny
-    CHECK (koszt_obiektu_grosz IS NULL OR koszt_obiektu_grosz >= 0);
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- B. Organizator płaci za obiekt i zbiera od reszty — jego własny wiersz nie jest
---    zaległością. Ciało skopiowane z 144; zmienione WYŁĄCZNIE trzy warunki
---    w bloku C (`AND x.user_id IS DISTINCT FROM e.organizer_id`).
-CREATE OR REPLACE FUNCTION wyslij_przypomnienia() … ;
-```
-
-- Odporna na drugie uruchomienie (`IF NOT EXISTS`, `duplicate_object`,
-  `CREATE OR REPLACE`) — wzorzec `118`.
-- `scripts/ryzyko-migracji.mjs`: `ADD COLUMN` + `ADD CONSTRAINT CHECK` + funkcja →
-  **bezpieczna**, jedzie na produkcję automatem przy merge'u. Sprawdzić lokalnie
-  `node scripts/ryzyko-migracji.mjs` przed PR-em; jeśli skaner uzna `CHECK` za
-  ryzykowny, zostawić wynik skanera (znacznika odwrotnego nie ma i nie będzie).
-- `events` nie ma grantów kolumnowych (są tylko na `event_participants`, `127`),
-  więc nowa kolumna jest od razu czytelna przez `getEvent()` — **mimo to**
-  dopisać asercję do `supabase/test/rls.sql`, że rola `anon` czyta
-  `events.koszt_obiektu_grosz` (lekcja z `135`/`138`).
-- `node scripts/build-db-bundles.mjs` po dodaniu migracji; wynik do commita.
-
-**Frontend.**
-
-1. `types/index.ts`: `EventItem.kosztObiektuGrosze: number | null`,
-   `EventCreate.kosztObiektuGrosze?: number | null`.
-2. `lib/events.ts`: mapper (`row.koszt_obiektu_grosz ?? null`), `createEvent()`
-   i `updateEvent()` zapisują pole. `ZrodloPowtorki` wymusi jego obsługę
-   w `repeatEvent()` przy kompilacji (tak działa `S-2`) — **kopiujemy** je do
-   powtórki.
-3. `app/wydarzenia/nowe/page.tsx`, `handleSubmit`:
-   `kosztObiektuGrosze: hasCost && kosztZaObiekt ? Math.round(parseFloat(kosztObiektuPln || '0') * 100) : null`.
-   Gdy organizator przełączył na „wpisz od osoby” — `null` (nie wiemy, ile kosztuje
-   obiekt, i nie zgadujemy).
-4. Strona edycji meczu: to samo pole w tej samej postaci co w kreatorze
-   (`EventPaymentFields` nie zmienia się; przełącznik „za obiekt / od osoby” jest
-   w kreatorze inline — w edycji dołożyć go tym samym kodem; zapis `null` przy
-   trybie „od osoby”).
-5. `lib/payments.ts` — czysta funkcja, cała logika w jednym miejscu, pod testem:
-
-   ```ts
-   export interface PodzialNaSklad {
-     kosztObiektuGrosze: number;
-     liczbaOsob: number;          // cały skład RAZEM z organizatorem
-     nowaCenaGrosze: number;      // Math.ceil(koszt / liczbaOsob) — w górę do grosza
-     obecnaCenaGrosze: number;
-     roznicaNaOsobeGrosze: number;
-     nadwyzkaGrosze: number;      // nowaCena*liczbaOsob - koszt (0–liczbaOsob-1 gr)
-   }
-   /** null, gdy nie ma czego przeliczać: brak kosztu obiektu, pusty skład
-    *  albo cena już się zgadza. */
-   export function podzialNaSklad(kosztObiektu: number | null, liczbaOsob: number, obecnaCena: number): PodzialNaSklad | null
-   ```
-
-   **Zaokrąglenie w górę do grosza (`Math.ceil`)**: organizator nigdy nie jest
-   na minusie, nadwyżka to najwyżej kilka groszy — pokazywana wprost.
-   **Organizator liczy się do osób** — płaci swoją część tak jak reszta, tylko nie
-   przelewa jej sam sobie (F-1).
-6. Panel „Podział kosztów” (`platnosciSection`), tylko `isOwner || canManageEvent`
-   (delegat od samych płatności nie ma prawa `UPDATE` na `events` — dla niego
-   blok się nie renderuje):
-   - Nowy wiersz na górze, gdy `kosztObiektuGrosze != null`:
-     „Obiekt: **250,00 zł** · w składzie **10** z 14”.
-   - Gdy `podzialNaSklad(...)` zwraca wynik — ramka (neutralna, `slate`, bez
-     zarezerwowanych kolorów z AGENTS.md):
-     „Przy 10 osobach wychodzi **25,00 zł** od osoby (teraz 17,86 zł).
-     Bez zmiany dopłacasz **71,40 zł**.” + przycisk **„Podziel na 10 osób”**.
-   - Kliknięcie → `potwierdz()` (to samo okno co reszta strony, `O-38`) z
-     konsekwencjami policzonymi, nie opisanymi ogólnie:
-     - „Cena od osoby: 17,86 zł → 25,00 zł.”
-     - jeśli `event_date >= dziś`: „N osób z kontem dostanie powiadomienie o nowej
-       kwocie.” (to robi już wyzwalacz `114` — liczbę bierzemy z `komuDojdzie()`
-       w `lib/zmianyMeczu.ts`, żeby okno było lustrem wyzwalacza jak w `R-5`),
-       w przeciwnym razie: „Po meczu nikt nie dostaje powiadomienia — wyślij
-       rozliczenie na czat.”
-     - jeśli ktoś ma już odhaczoną wpłatę po starej kwocie:
-       „K osób ma odhaczoną wpłatę po 17,86 zł. Odhaczenie zostaje, przy ich
-       imieniu zobaczysz dopłatę 7,14 zł.”
-   - Zapis: **wąski** `zaktualizujJedenWiersz('events', id, { cost_grosz })`
-     w nowej funkcji `ustawCeneOdOsoby(eventId, grosze)` w `lib/events.ts` — nie
-     `updateEvent()`, który przepisuje cały wiersz i ma własną walidację formularza.
-     `zaktualizujJedenWiersz` zamienia „0 wierszy” (RLS) w wyjątek.
-7. **Dopłaty** — bez nowej kolumny. `paid_amount` zapisują już oba ścieżki
-   odhaczania (`updateParticipantPayment`, `ustawPlatnoscWszystkim`):
-   - helper `doplataGrosze(p, cenaGrosze): number` w `lib/payments.ts`:
-     `p.hasPaid && p.paidAmount > 0 && p.paidAmount < cena ? cena - p.paidAmount : 0`
-     (`paidAmount = 0` przy `hasPaid` = stare odhaczenie bez kwoty → traktujemy
-     jako pełne, nie wymyślamy długu),
-   - w liście panelu: pod kwotą „dopłata 7,14 zł” (amber, ten sam odcień co
-     ostrzeżenia na stronie),
-   - „Zebrano X z Y” liczy `paidAmount` (a przy `0` — kwotę należną), więc
-     dopłaty nie znikają z sumy,
-   - `tekstRozliczenia()`: osobna sekcja „Dopłaty (N osób):” pod „Zaległości”,
-   - karta uczestnika „Twoja płatność”: „Dopłać 7,14 zł” zamiast „opłacone”, gdy
-     dopłata > 0 (nadal zależne od `showPaymentStatus`, jak dziś),
-   - „Wszyscy oddali” dotyczy też osób z dopłatą (ustawia `paid_amount` na nową
-     kwotę).
-
-**Czego F-2 świadomie NIE robi:** nie przelicza ceny automatycznie (zmiana kwoty,
-którą ludzie już widzieli, musi być decyzją organizatora); nie rozróżnia
-„nieobecny płaci / nie płaci” — nieobecni oznaczeni w „Kto nie przyszedł” zostają
-w składzie i w podziale, bo tak robi zdecydowana większość ekip (miejsce było
-zarezerwowane); organizator, który chce inaczej, wypisuje nieobecnego ze składu
-przed podziałem. To zdanie trafia do okna potwierdzenia jako jedna linia, gdy
-`nieobecni.length > 0`.
-
-**Testy.** `payments.test.ts`: `podzialNaSklad` (250 zł / 10 → 25,00; 250 / 14
-→ 17,86 i nadwyżka 4 gr; skład pusty → `null`; cena już równa → `null`;
-`kosztObiektu = null` → `null`), `doplataGrosze` (trzy przypadki). `events.test.ts`:
-`repeatEvent` kopiuje `kosztObiektuGrosze`. Scenariusz Playwright
-(`scenariusze.spec.ts`, **z `zeSprzataniem()`**): organizator płatnego meczu
-z niepełnym składem klika „Podziel na N osób” → cena na stronie i w „Twoja
-płatność” uczestnika się zmienia.
-
-**Dokumentacja PR-A:** `docs/domena.md` (sekcja płatności: koszt obiektu, reguła
-organizatora, dopłaty), `docs/baza-danych.md` (`160`, nowa kolumna),
-`docs/funkcje.md` (panel „Podział kosztów”), `docs/llm-context.md` + `npm run
-sync:llm-context` (wpis w „Ostatnie zmiany”: PROBLEM / ROZWIĄZANIE BOJO /
-MECHANIKA; usunąć najstarszy, limit 10), znacznik **Stan na:**.
 
 ---
 
@@ -609,8 +496,7 @@ Poprawić wiersz na stan faktyczny z datą wyłączenia (2026-09-17 wg analizy G
 - **Mobile-first**: style bazowe dla 320–360 px, rozszerzenia wyłącznie `sm:`/`md:`;
   zero `max-*:` i `@media (max-width…)` (sekcja 10 `check:docs`).
 - **Kolory**: nic z tego nie jest wiadomością (różowy), prośbą o decyzję ani
-  kompletem (niebieski), ani „nowością” (pomarańczowy). Ramka podziału kosztu —
-  `slate`; dopłata — `amber` (tak jak dziś ostrzeżenia na stronie meczu).
+  kompletem (niebieski), ani „nowością” (pomarańczowy).
 - **Bez długiego myślnika** w treści dla użytkownika.
 - **Hot spot kreatora** (`blokujEnter`, osobne `key`, `step !== 3`) — PR-A dotyka
   wyłącznie `handleSubmit` (jedno pole więcej w obiekcie `createEvent`), niczego
@@ -633,7 +519,7 @@ Poprawić wiersz na stan faktyczny z datą wyłączenia (2026-09-17 wg analizy G
 |---|---|
 | Powiadomienie organizatora o **każdym** zapisie | `079` świadomie powiadamia tylko o zmianie kompletu; kilkanaście wpisów pod dzwonkiem na jeden mecz zagłusza te dwa istotne. F-4 daje organizatorowi stan składu na żądanie |
 | E-mail gościa **opcjonalny** | bez adresu gość nie dowie się o odwołaniu, a organizator o tym nie wie — dokładnie to, co naprawiały `O-36` i `P-3`. F-6 obniża barierę wyjaśnieniem, nie zdjęciem pola |
-| Automatyczne przeliczanie ceny przy każdej zmianie składu | cena, którą gracz zobaczył przy zapisie, nie może się zmieniać bez decyzji organizatora (F-2 robi to jednym kliknięciem, z pokazanymi skutkami) |
+| Przeliczanie kosztu na faktyczny skład (dawne F-2) | **odrzucone jako pomysł**, nie tylko odłożone — `event_participants` nie jest listą obecności, patrz notatka na górze dokumentu i sekcja F-2 |
 | Przypomnienie „dziś grasz” rano | nowy typ + cron + szablon maila; F-3 usuwa nieprawdę, funkcja do rozważenia po pomiarze |
 | Monit o wpisanie wyniku (9/88) | wynik nie jest obietnicą fazy 1 dla organizatora; przypomnienie po meczu już o nim mówi. Wracamy, gdy rozliczenie zacznie być używane — to ważniejszy sygnał |
 | Odroczenie logowania przed kreatorem | decyzja właściciela z 2026-08-08, bez zmian |
@@ -641,57 +527,45 @@ Poprawić wiersz na stan faktyczny z datą wyłączenia (2026-09-17 wg analizy G
 
 ---
 
-## 7. Co zostaje do decyzji właściciela przed startem implementacji
+## 7. Decyzje właściciela (2026-09-23)
 
-Plan jest napisany tak, żeby wdrożenie nie wymagało decyzji produktowych w trakcie.
-Zostają trzy potwierdzenia, każde z rekomendacją:
-
-1. **F-2, zaokrąglenie ceny**: w górę do grosza (rekomendacja; organizator nigdy
-   na minusie, nadwyżka ≤ kilka groszy pokazana wprost) czy w górę do pełnej
-   złotówki (czytelniejsze kwoty, nadwyżka do ~1 zł na osobę)?
-2. **F-2, nieobecni**: zostają w podziale (rekomendacja — „miejsce było
-   zarezerwowane”, organizator może ich wypisać przed podziałem) czy wypadają
-   z podziału automatycznie?
-3. **F-5, domyślny stan przełącznika** „Zaproś skład z tego meczu”: włączony
-   (rekomendacja — cotygodniowa ekipa to przypadek główny) czy wyłączony?
+1. **F-2 odrzucone w całości** — patrz notatka na górze dokumentu. Pytania
+   o zaokrąglenie i o nieobecnych, które plan stawiał przy F-2, odpadają razem
+   z nim.
+2. **F-5, domyślny stan przełącznika** „Zaproś skład z tego meczu”: **włączony**.
+3. **PR-B i PR-C: zatwierdzone bez zmian.**
 
 ---
 
 ## 8. Szkic opisu PR-ów (po polsku)
 
-### PR-A: Rozliczenie, które się zgadza: organizator nie jest swoim dłużnikiem, koszt obiektu dzieli się na faktyczny skład
+### PR-A: Rozliczenie, które się zgadza: organizator nie jest swoim dłużnikiem
 
 **Po co.** Rozliczenie jest jedyną obietnicą z landingu, którą dane z produkcji
 pokazują jako nieużywaną: 81% rozegranych płatnych meczów nie ma ani jednej
-odhaczonej wpłaty. Dwa powody, oba w kodzie:
+odhaczonej wpłaty. Jeden z powodów, w kodzie: organizator, który gra, był
+liczony jako dłużnik samego siebie — w panelu „Podział kosztów”, w wiadomości
+„Wyślij rozliczenie ekipie” (z jego własnym imieniem w „Zaległościach”),
+na `/moje-gry` i w przypomnieniu po meczu.
 
-1. Organizator, który gra, był liczony jako dłużnik samego siebie: w panelu,
-   w wiadomości „Wyślij rozliczenie ekipie” (z jego imieniem w „Zaległościach”),
-   na `/moje-gry` i w przypomnieniu po meczu.
-2. Kreator pyta o koszt wynajmu obiektu, ale zapisuje tylko cenę od osoby
-   liczoną przez liczbę miejsc. Przy niepełnym składzie (77% płatnych meczów)
-   organizator dopłacał różnicę i Bojo pokazywało „Zebrano 100%”.
+(Rozważano też automatyczne przeliczanie ceny na faktyczny skład — odrzucone:
+`event_participants` nie jest listą obecności, więc liczba wierszy w bazie nie
+mówi, ile osób realnie grało. Szczegóły w `docs/faza1-organizator-plan.md`,
+sekcja F-2.)
 
 **Co się zmienia.**
 - `winienWplate()` w `lib/payments.ts` — jedna reguła „kto jest winien wpłatę”;
   panel, tekst rozliczenia, karta „Po meczu” i `/moje-gry` liczą przez nią.
   Organizator widzi siebie jako „Ty · płacisz za obiekt”.
-- Migracja `160`: kolumna `events.koszt_obiektu_grosz` (nullable) oraz
-  `wyslij_przypomnienia()` bez organizatora w zaległościach (reszta funkcji bez
-  zmian względem `144`).
-- Panel „Podział kosztów”: „Obiekt 250 zł · w składzie 10 z 14” i przycisk
-  „Podziel na 10 osób” z oknem skutków (nowa cena, kto dostanie powiadomienie,
-  kto dopłaca). Dopłaty liczone z istniejącego `paid_amount`.
+- Migracja `160`: `wyslij_przypomnienia()` bez organizatora w zaległościach
+  (reszta funkcji bez zmian względem `144`).
 
-**Migracja.** `160_koszt_obiektu_i_rozliczenie_bez_organizatora.sql` — dokłada
-kolumnę i podmienia ciało funkcji; skaner ryzyka klasyfikuje ją jako bezpieczną,
-więc przy merge'u pojedzie na produkcję automatem (workflow „Migracje”). Kod
-czyta nową kolumnę przez `?? null`, więc strona działa także w chwili między
-deployem a migracją.
+**Migracja.** `160_rozliczenie_bez_organizatora.sql` — podmienia wyłącznie
+ciało jednej funkcji; skaner ryzyka klasyfikuje ją jako bezpieczną, więc przy
+merge'u pojedzie na produkcję automatem (workflow „Migracje”).
 
 **Jak sprawdzone.** `tsc`, ESLint, Vitest, build, `check:docs`,
-`baza-testowa.sh` (nowe asercje w `przypomnienia.sql` i `rls.sql`), scenariusz
-„Podziel na N osób” w CI.
+`baza-testowa.sh` (nowa asercja w `przypomnienia.sql`).
 
 ### PR-B: Organizator wie, co Bojo zrobi za niego; skład na czat i zaproszenia przy powtórce
 
