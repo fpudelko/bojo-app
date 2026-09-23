@@ -516,8 +516,15 @@ export default function TurniejClient() {
         <div className="flex items-center gap-2.5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-sm">
           <span className="shrink-0 text-xl">{sportEmoji(turniej.sport)}</span>
           <div className="min-w-0 flex-1 truncate text-sm text-slate-600 dark:text-slate-300">
+            {/* `liczbaWTurnieju`, nie `druzyny.length`. Surowa długość tablicy
+                liczyła także zgłoszenia czekające na decyzję, więc ten wiersz
+                mówił „1/8 drużyn" w tej samej chwili, gdy pulpit organizatora
+                mówił „0 z 8". Reguła zmieniła się w #411, ale to miejsce
+                zostało pominięte, bo renderuje liczbę wprost, zamiast wołać
+                `liczDruzynyWTurnieju()`. Kapitan i organizator patrzyli na
+                dwie różne liczby o tym samym. */}
             <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
-            {etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)} · {druzyny.length}/{turniej.maxDruzyn} drużyn
+            {etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)} · {liczbaWTurnieju} z {turniej.maxDruzyn} drużyn
           </div>
           <button onClick={udostepnij} aria-label="Udostępnij" className="shrink-0 text-primary-600">
             <Share2 className="h-4 w-4" />
@@ -741,11 +748,26 @@ export default function TurniejClient() {
               </div>
             )}
 
+            {/* Brak miejsca to nie jest powód, żeby o miejscu nie mówić.
+                Wiersz po prostu znikał, a kapitan, który ma zapłacić wpisowe,
+                szuka właśnie lokalizacji: cisza w tym miejscu czyta się jak
+                turniej wymyślony na próbę, nie jak „organizator jeszcze
+                rezerwuje". Szary, bo to dokładnie znaczenie zarezerwowane dla
+                „ta droga jest na razie zamknięta, nic się nie zepsuło". */}
+            {!turniej.miejsceNazwa && !turniej.miejsceAdres && (
+              <div className="flex items-start gap-2 text-sm">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+                <div className="min-w-0 flex-1 text-slate-500 dark:text-slate-400">
+                  Miejsce jeszcze nieustalone. Organizator dopisze je przed startem.
+                </div>
+              </div>
+            )}
+
             <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
               <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <div className="min-w-0">
                 <div className="font-medium text-ink">{FORMAT_LABEL[turniej.format]}</div>
-                <div className="text-xs text-slate-400">{opisFormatu(turniej, druzyny.length)}</div>
+                <div className="text-xs text-slate-400">{opisFormatu(turniej, liczbaWTurnieju)}</div>
               </div>
             </div>
 

@@ -27,7 +27,7 @@ const druzyna = (zawodnicy: TurniejZawodnik[]): TurniejDruzyna => ({
 
 function pokazSklad(d: TurniejDruzyna) {
   render(<KartaDruzyny d={d} zalogowany czyMoja={false} onZamienWEkipe={() => {}} />);
-  fireEvent.click(screen.getByRole('button', { name: /Dragon Team/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Pokaż skład/ }));
 }
 
 describe('KartaDruzyny — skład', () => {
@@ -66,7 +66,7 @@ describe('KartaDruzyny — skład', () => {
   it('kapitan widzi to samo wejście pod nazwą „Zarządzaj drużyną"', () => {
     const d = druzyna([zawodnik({ userId: 'u-1', imie: 'Jakub Kowalski' })]);
     render(<KartaDruzyny d={d} zalogowany czyMoja onZamienWEkipe={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /Dragon Team/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Pokaż skład/ }));
     expect(screen.getByRole('link', { name: /Zarządzaj drużyną/ }))
       .toHaveAttribute('href', '/turnieje/t1/druzyna/d1');
   });
@@ -74,7 +74,7 @@ describe('KartaDruzyny — skład', () => {
   it('niezalogowany widzi ścianę logowania zamiast nazwisk', () => {
     const d = druzyna([zawodnik({ userId: 'u-1', imie: 'Jakub Kowalski' })]);
     render(<KartaDruzyny d={d} zalogowany={false} czyMoja={false} onZamienWEkipe={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /Dragon Team/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Pokaż skład/ }));
     expect(screen.queryByText('Jakub Kowalski')).toBeNull();
     expect(screen.getByRole('link', { name: /Zaloguj się/ })).toBeDefined();
   });
@@ -82,7 +82,26 @@ describe('KartaDruzyny — skład', () => {
   it('karta jest zwinięta, dopóki ktoś jej nie otworzy', () => {
     const d = druzyna([zawodnik({ userId: 'u-1' })]);
     render(<KartaDruzyny d={d} zalogowany czyMoja={false} onZamienWEkipe={() => {}} />);
-    expect(screen.getByRole('button', { name: /Dragon Team/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: /Pokaż skład/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Jakub Kowalski')).toBeNull();
+  });
+
+  // Karta była JEDNYM przyciskiem rozwijającym, więc nazwa drużyny nie
+  // prowadziła nigdzie: do ekranu drużyny trzeba było najpierw rozwinąć
+  // kartę, a potem kliknąć odnośnik w środku. Kapitan nie miał drogi do
+  // własnej drużyny inaczej niż przez zachowany link (audyt wiarygodności
+  // 2026-09-23). Teraz nazwa jest odnośnikiem, a skład rozwija osobny cel.
+  it('nazwa drużyny jest odnośnikiem, bez rozwijania karty', () => {
+    const d = druzyna([zawodnik({ userId: 'u-1' })]);
+    render(<KartaDruzyny d={d} zalogowany czyMoja={false} onZamienWEkipe={() => {}} />);
+    expect(screen.getByRole('link', { name: /Dragon Team/ }))
+      .toHaveAttribute('href', '/turnieje/t1/druzyna/d1');
+  });
+
+  it('rozwijanie składu to OSOBNY cel, więc kliknięcie nazwy nie rozwija', () => {
+    const d = druzyna([zawodnik({ userId: 'u-1', imie: 'Jakub Kowalski' })]);
+    render(<KartaDruzyny d={d} zalogowany czyMoja={false} onZamienWEkipe={() => {}} />);
+    fireEvent.click(screen.getByRole('link', { name: /Dragon Team/ }));
     expect(screen.queryByText('Jakub Kowalski')).toBeNull();
   });
 });

@@ -133,11 +133,30 @@ export function jestKoszykowka(sport: string): boolean {
  * czas od pierwszego gwizdka, wraz z przerwą, i to jest w opisie pod nim
  * napisane wprost.
  */
-export function czasGry(rozpoczetyAt: string | undefined, teraz: Date = new Date()): string | null {
+export function czasGry(
+  rozpoczetyAt: string | undefined,
+  teraz: Date = new Date(),
+  regulaminoweMin?: number,
+): string | null {
   if (!rozpoczetyAt) return null;
   const start = new Date(rozpoczetyAt).getTime();
   if (Number.isNaN(start)) return null;
   const sekundy = Math.max(0, Math.floor((teraz.getTime() - start) / 1000));
+
+  // GÓRNA GRANICA. Mecz, którego nikt nie zakończył, liczy dalej w
+  // nieskończoność: na produkcji seedowy mecz „na żywo" pokazywał 9472:41,
+  // czyli szósty dzień gry. Czterocyfrowa minuta jest najbardziej widocznym
+  // dowodem, że danych nikt nie pilnuje, a to ekran, który ludzie odświeżają
+  // w trakcie turnieju.
+  //
+  // Próg to DWUKROTNOŚĆ regulaminowego czasu, nie sam regulaminowy: doliczony
+  // czas, przerwa i karne mieszczą się poniżej, więc prowadzący nadal widzi
+  // prawdziwy zegar wtedy, kiedy go potrzebuje. Powyżej progu zegar nie kłamie
+  // dokładniej, tylko głośniej, więc znika.
+  if (regulaminoweMin && regulaminoweMin > 0 && sekundy > regulaminoweMin * 60 * 2) {
+    return null;
+  }
+
   const m = Math.floor(sekundy / 60);
   const s = sekundy % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
