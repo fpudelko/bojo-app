@@ -35,13 +35,13 @@
 > `turniej-media` (punkt 1 w §9).
 >
 > **Aktualizacja 2026-09-23 — magazyn plików zmieniony na Cloudflare R2
-> (migracja `160`).** Właściciel zdecydował się na R2 zamiast Supabase
+> (migracja `161`).** Właściciel zdecydował się na R2 zamiast Supabase
 > Storage dzień po zamknięciu planu — bucket `turniej-media` w Supabase
 > i tak nigdy realnie nie powstał. **§2, §4 i §5 tego dokumentu opisują
 > WERSJĘ HISTORYCZNĄ (Supabase Storage) — kod jej już nie odzwierciedla.**
 > Aktualny opis architektury (endpoint `/api/turniej-media/*`, dlaczego to
 > DRUGI w repo wyjątek od „braku backendu", jak działa autoryzacja bez RLS)
-> → [docs/domena.md](./domena.md#turniej-media-zdjęcia-logotypy-sponsorów-na-cloudflare-r2-160).
+> → [docs/domena.md](./domena.md#turniej-media-zdjęcia-logotypy-sponsorów-na-cloudflare-r2-161).
 > Decyzje o KSZTAŁCIE danych (dwie tabele, ścieżka jako granica dostępu,
 > logo sponsora opcjonalne, baza trzyma ścieżkę nie URL) zostają aktualne —
 > zmienił się wyłącznie dostawca Storage pod spodem.
@@ -371,7 +371,7 @@ Dane: turniej „T" (organizator O), obcy X, drugi turniej „T2" (inny organiza
 
 1. ~~Bucket `turniej-media` ręcznie w Supabase Dashboard (publiczny).~~
    **NIEAKTUALNE od 2026-09-23** — magazyn to teraz Cloudflare R2, migracja
-   `160` skasowała polityki `storage.objects` z punktu 2. Bucket R2, jego
+   `161` skasowała polityki `storage.objects` z punktu 2. Bucket R2, jego
    publiczny adres i CORS założone ręcznie w Cloudflare Dashboard (poza tym
    repo) — szczegóły → docs/domena.md, sekcja R2.
 2. Migracja `159` (nie `158` — zajęty w międzyczasie, patrz nagłówek pliku) —

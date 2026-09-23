@@ -160,7 +160,7 @@ lista tego, co zostało do domknięcia, jest wykonywalna, a nie pamiętana.
 | `turniej_ogloszenia` | `150` | Ogłoszenia organizatora — **publiczne** (`SELECT USING (true)`, jak terminarz), inaczej niż skład. Pisze wyłącznie `czy_zarzadza_turniejem()`. Wyzwalacz notyfikuje każdego zawodnika z kontem w przyjętej drużynie (typ `turniej_ogloszenie`) |
 | `turniej_blik` | `150` | Numer BLIK organizatora do wpisowego — osobna tabela z tego samego powodu co `event_blik` (`120`): RLS wierszowe, `turnieje` czyta każdy. Widzi zarządzający i kapitan KAŻDEJ drużyny (także rezerwowej) |
 | `turniej_zaproszenia` | `154` | Imienne zaproszenia kapitana do drużyny — bliźniak `event_player_invites` (`060`). Widzi je i wystawia WYŁĄCZNIE kapitan (`czy_sam_kapitan_druzyny()`, świadomie węższa niż `czy_kapitan_druzyny()` z `145`, która przepuszcza też zarządzających turniejem) oraz zaproszony. Wyzwalacze: dopełnienie `turniej_id` z drużyny, powiadomienie do zaproszonego, wygaszenie zaproszenia po realnym wejściu do składu |
-| `turniej_zdjecia` | `159` | Galeria — **publiczna** (`SELECT USING (true)`, jak ogłoszenia), pisze wyłącznie `czy_zarzadza_turniejem()`. `sciezka` to klucz obiektu w **Cloudflare R2** (od migracji `160` — wcześniej Supabase Storage, przeniesione zanim bucket zdążył realnie powstać, patrz `docs/domena.md`), nie URL — `lib/turniejGaleria.ts` liczy adres przy odczycie z `NEXT_PUBLIC_R2_PUBLIC_URL`, żeby nie trzymać dwóch źródeł prawdy. Autoryzację zapisu na R2 pilnuje serwerowy endpoint `/api/turniej-media/*`, nie RLS — woła tę samą `czy_zarzadza_turniejem()`. Plan → [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy-plan.md) |
+| `turniej_zdjecia` | `159` | Galeria — **publiczna** (`SELECT USING (true)`, jak ogłoszenia), pisze wyłącznie `czy_zarzadza_turniejem()`. `sciezka` to klucz obiektu w **Cloudflare R2** (od migracji `161` — wcześniej Supabase Storage, przeniesione zanim bucket zdążył realnie powstać, patrz `docs/domena.md`), nie URL — `lib/turniejGaleria.ts` liczy adres przy odczycie z `NEXT_PUBLIC_R2_PUBLIC_URL`, żeby nie trzymać dwóch źródeł prawdy. Autoryzację zapisu na R2 pilnuje serwerowy endpoint `/api/turniej-media/*`, nie RLS — woła tę samą `czy_zarzadza_turniejem()`. Plan → [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy-plan.md) |
 | `turniej_sponsorzy` | `159` | Sponsorzy — ta sama widoczność i to samo R2 co zdjęcia (ścieżka `turnieje/<turniej_id>/sponsorzy/<uuid>.<ext>`). Logo (`sciezka_logo`) opcjonalne — sponsor bez niego wyświetla się jako plakietka z samą nazwą |
 
 **Tabela `games` (`001`) jest martwa** — powstała w pierwszym schemacie i została
@@ -505,7 +505,7 @@ znaczy tylko tyle, że ostatnia instrukcja przeszła.
 **4. Buckety w Storage.** Utwórz ręcznie `covers` i `avatars`, oba **publiczne**.
 Polityki dostępu przychodzą z migracji (`006` i `046`), ale samych bucketów nie tworzy
 ani migracja, ani kod — bez nich upload okładki meczu i awatara kończy się błędem.
-Galeria i sponsorzy turnieju (migracja `159`/`160`) **nie** są w tym schemacie — mieszkają
+Galeria i sponsorzy turnieju (migracja `159`/`161`) **nie** są w tym schemacie — mieszkają
 na Cloudflare R2, konfiguracja jest poza Supabase, patrz `.env.example` (`R2_*`,
 `NEXT_PUBLIC_R2_PUBLIC_URL`) i `docs/domena.md`.
 

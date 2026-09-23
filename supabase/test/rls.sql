@@ -1574,10 +1574,10 @@ DELETE FROM turniej_sponsorzy WHERE id = :'t_sponsor'::uuid;
 RESET ROLE;
 SELECT _oczekuj('organizator T kasuje własnego sponsora', (SELECT count(*) FROM turniej_sponsorzy WHERE id = :'t_sponsor'::uuid), 0);
 
--- ── Storage: media turnieju na Cloudflare R2 (migracja 160) ─────────────────
--- Do 160 tu stały testy polityk `storage.objects` dla bucketu 'turniej-media'
+-- ── Storage: media turnieju na Cloudflare R2 (migracja 161) ─────────────────
+-- Do 161 tu stały testy polityk `storage.objects` dla bucketu 'turniej-media'
 -- (pierwszy w repo test RLS na poziomie Storage). Bucket nigdy realnie nie
--- powstał w Dashboardzie, a 160 skasowała te polityki na dobre: zdjęcia
+-- powstał w Dashboardzie, a 161 skasowała te polityki na dobre: zdjęcia
 -- i logotypy sponsorów lądują dziś na R2, nie w Supabase Storage. Uprawnienia
 -- pilnuje serwerowy endpoint `/api/turniej-media/*` (Next.js), nie RLS —
 -- test na czystej funkcji `turniejIdZeSciezki()` siedzi w

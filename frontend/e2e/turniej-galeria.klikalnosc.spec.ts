@@ -71,7 +71,7 @@ const PNG = Buffer.from(
 
 async function atrapaTurnieju(page: Page) {
   // Odczyt zdjęć/logotypów idzie wprost pod NEXT_PUBLIC_R2_PUBLIC_URL
-  // (Cloudflare R2, migracja `160`) — build testowy ustawia tam
+  // (Cloudflare R2, migracja `161`) — build testowy ustawia tam
   // `placeholder.r2.dev`, patrz playwright.config.ts.
   await page.route('**/placeholder.r2.dev/**', (route) =>
     route.fulfill({ status: 200, contentType: 'image/png', body: PNG }));

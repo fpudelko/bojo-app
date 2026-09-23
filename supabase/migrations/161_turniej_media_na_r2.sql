@@ -1,4 +1,4 @@
--- 160_turniej_media_na_r2.sql — galeria i sponsorzy turnieju przenoszą się
+-- 161_turniej_media_na_r2.sql — galeria i sponsorzy turnieju przenoszą się
 -- z bucketu Supabase Storage `turniej-media` (założony w migracji `159`,
 -- ale NIGDY realnie nie utworzony w Dashboardzie) na Cloudflare R2.
 -- ============================================================================

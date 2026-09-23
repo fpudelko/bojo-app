@@ -1126,11 +1126,11 @@ w migracji: to stan atrapy testowej, nie produkcji (Supabase daje to z automatu)
 
 **Ten bucket i te polityki żyły dwa dni — patrz sekcja niżej.** `turniej-media` w
 Supabase Storage nigdy nie został realnie założony w Dashboardzie, zanim właściciel
-zdecydował się na Cloudflare R2 zamiast niego (migracja `160`). Powyższy opis zostaje
+zdecydował się na Cloudflare R2 zamiast niego (migracja `161`). Powyższy opis zostaje
 jako zapis DECYZJI (dlaczego ścieżka-jako-granica-dostępu, nie sam `bucket_id`) — ten
 sam wzorzec wrócił w polityce autoryzacji na R2, tylko wykonywanej w Node, nie w RLS.
 
-## Turniej: media (zdjęcia, logotypy sponsorów) na Cloudflare R2 (160)
+## Turniej: media (zdjęcia, logotypy sponsorów) na Cloudflare R2 (161)
 
 **Zamiast Supabase Storage — R2.** Decyzja właściciela 2026-09-23, dwa dni po migracji
 `159`: koszt transferu i osobny limit magazynu od reszty Supabase Storage. Dotyczy
@@ -1160,7 +1160,7 @@ w tym repo.
 z drugiego segmentu ścieżki (`turnieje/<turniej_id>/{galeria|sponsorzy}/<uuid>.<ext>`)
 i dopiero ten UUID idzie do `czy_zarzadza_turniejem()` — funkcja zwraca `null` (czyli
 „odmowa"), gdy kształt się nie zgadza, zamiast zgadywać. To ta sama ścieżka i ten sam
-wzorzec, co miała polityka `storage.objects` z migracji `159`, zanim ją skasowała `160`.
+wzorzec, co miała polityka `storage.objects` z migracji `159`, zanim ją skasowała `161`.
 
 **Sam plik leci z przeglądarki PROSTO do R2, nie przez Vercel.** Endpoint wystawia
 WYŁĄCZNIE podpisany URL (`PutObjectCommand` + `getSignedUrl`, ważny 5 minut) —
