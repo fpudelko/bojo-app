@@ -20,6 +20,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Co wyszło z rewizji przed startem? | [rewizja-2026-08.md](./rewizja-2026-08.md) |
 | Co działa, czego brakuje i co robić poza kodem na etapie GTM? | [analiza-gtm-2026-09.md](./analiza-gtm-2026-09.md) |
 | Gdzie organizator się zacina przy tworzeniu meczu? Co zostaje bez zmian i dlaczego? | [przeplyw-organizatora.md](./przeplyw-organizatora.md) |
+| Co dokładnie poprawić w fazie 1 (organizator), w jakiej kolejności i jak? | [faza1-organizator-plan.md](./faza1-organizator-plan.md) |
 | Co planujemy w module turniejowym i dlaczego? | [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) |
 | Jak dokładnie wdrożyć moduł turniejowy — schemat, sygnatury, ekrany? | [turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md) |
 | Kto używa turnieju, kiedy i czego wtedy szuka? Co blokuje odmrożenie flagi? | [turnieje-scenariusze-ux.md](./turnieje-scenariusze-ux.md) |
