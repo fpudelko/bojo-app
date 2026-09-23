@@ -163,7 +163,7 @@ export default function MeczClient() {
   // `tik` jest tu po to, żeby zegar przerysował się co sekundę — wartość
   // nieużywana wprost, liczy się sam fakt zmiany stanu.
   void tik;
-  const czas = czasGry(mecz.rozpoczetyAt);
+  const czas = czasGry(mecz.rozpoczetyAt, new Date(), turniej?.czasMeczuMin);
   const minalCzas = poCzasie(mecz.rozpoczetyAt, turniej?.czasMeczuMin ?? 0);
 
   const przeliczLokalnie = (lista: TurniejZdarzenie[]) => {
@@ -393,6 +393,14 @@ export default function MeczClient() {
               minucie nie zaczyna odliczania od zera. Ceną jest brak pauzy —
               napisany wprost pod zegarem, bo zegar, który po odświeżeniu
               kłamie, byłby gorszy niż zegar bez pauzy. */}
+          {/* Bez zegara, gdy przekroczył dwukrotność regulaminowego czasu:
+              zamiast liczby, która wygląda na błąd, zdanie, które mówi prawdę
+              o stanie meczu. */}
+          {trwajacy && !czas && (
+            <p className="text-center text-sm font-medium text-slate-500">
+              Mecz w toku. Wynik aktualizuje prowadzący.
+            </p>
+          )}
           {trwajacy && czas && (
             <div className="text-center">
               <p className={`inline-flex items-center gap-1.5 font-mono text-2xl font-bold ${

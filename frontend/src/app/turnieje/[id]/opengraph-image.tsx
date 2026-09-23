@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { createClient } from '@supabase/supabase-js';
 import { sportEmoji } from '@/lib/sports';
+import { withCount } from '@/lib/plural';
 
 // Ten sam wzorzec co `wydarzenia/[id]/opengraph-image.tsx`: podgląd linku na
 // WhatsAppie/Messengerze wygenerowany per turniej — sport, termin, miejsce,
@@ -37,7 +38,7 @@ export default async function Image({ params }: { params: { id: string } }) {
 
   const { count } = await supabasePublic
     .from('turniej_druzyny')
-    .select('*', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .eq('turniej_id', params.id)
     // WYŁĄCZNIE przyjęte, ta sama reguła co `zajmujeMiejsce()` w
     // `lib/turniejEtykiety.ts`. Tamto zmieniło się 2026-09-22, to zostało ze
@@ -50,7 +51,19 @@ export default async function Image({ params }: { params: { id: string } }) {
     // Reguły nie da się tu zaimportować: ten plik biegnie na runtime edge
     // i pyta PostgREST wprost, bez warstwy `lib/`. Zostaje komentarz i test.
     .eq('status', 'przyjeta');
-  const druzynTekst = `${count ?? 0}/${t.max_druzyn} drużyn`;
+
+  // `select('id')`, NIE `select('*')`. `turniej_druzyny` ma grant KOLUMNOWY:
+  // `anon` dostał trzynaście nazwanych kolumn, bez telefonu i maila kapitana
+  // (RODO, migracja 145). `SELECT *` rozwija się do wszystkich, więc jako anon
+  // kończy się „permission denied" — a `count ?? 0` zamieniało ten błąd
+  // w ciche ZERO. Na produkcji podgląd linku pokazywał `0/16 drużyn` przy
+  // turnieju, w którym były cztery. Strona obok liczyła dobrze, bo
+  // `getDruzyny()` wybiera jawną listę kolumn.
+  //
+  // To jest ta klasa błędu, która nie zostawia po sobie śladu: nikt nie
+  // zobaczy wyjątku, tylko liczbę, która wygląda na prawdziwą.
+  const ileDruzyn = count ?? 0;
+  const druzynTekst = `${withCount(ileDruzyn, 'drużyna', 'drużyny', 'drużyn')} z ${t.max_druzyn}`;
 
   const miejsce = t.miejsce_nazwa || t.miasto || '';
   const wpisoweTekst = t.wpisowe_grosz > 0 ? `${(t.wpisowe_grosz / 100).toFixed(0)} zł wpisowe` : 'bez wpisowego';
@@ -124,14 +137,20 @@ export default async function Image({ params }: { params: { id: string } }) {
         </div>
 
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+          {/* ZIELONA, nie pomarańczowa. Pomarańcz jest w tej aplikacji
+              zarezerwowany dla „nowość, o której jeszcze nie wiesz" (AGENTS.md),
+              a liczba drużyn to policzalny stan, czyli zieleń — ta sama zasada
+              co licznik meczów w dolnej nawigacji. Obrazek podglądu widzi
+              więcej ludzi niż którykolwiek ekran, więc to akurat tutaj uczy
+              znaczenia koloru albo je psuje. */}
           <div
             style={{
-              background: '#F5A623',
+              background: '#DCF3E6',
               borderRadius: '100px',
               padding: '14px 32px',
               fontSize: '24px',
               fontWeight: 700,
-              color: '#1A1D21',
+              color: '#15663E',
             }}
           >
             {druzynTekst}

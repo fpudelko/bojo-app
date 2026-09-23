@@ -22,27 +22,44 @@ export default function KartaDruzyny({
   const status = STATUS_DRUZYNY[d.status];
   return (
     <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
-      <button
-        onClick={() => setRozwinieta((v) => !v)}
-        aria-expanded={rozwinieta}
-        className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40"
-      >
-        {d.rozstawienie !== undefined && (
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-300">
-            {d.rozstawienie}
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <span className="block truncate font-medium text-ink">{d.nazwa}</span>
-          {zalogowany && d.liczbaZawodnikow !== undefined && (
-            <span className="text-xs text-slate-400">{odmienZawodnikow(d.liczbaZawodnikow)}</span>
+      {/* DWA CELE, NIE JEDEN. Cała karta była przyciskiem rozwijającym, więc
+          nazwa drużyny nie prowadziła nigdzie, a do ekranu drużyny trzeba było
+          najpierw rozwinąć kartę i dopiero kliknąć odnośnik w środku. Kapitan
+          nie miał drogi do własnej drużyny inaczej niż przez zachowany link.
+          Do tego nazwa niebędąca odnośnikiem nie daje się ani skopiować, ani
+          otworzyć w nowej karcie.
+
+          Teraz nazwa jest odnośnikiem, a skład rozwija osobny przycisk ze
+          strzałką. Oba cele mają pełną wysokość wiersza, więc na telefonie
+          trafia się w nie kciukiem. Odnośnik w środku zostaje, bo dla własnej
+          drużyny mówi co innego („Zarządzaj drużyną"). */}
+      <div className="flex items-stretch">
+        <Link
+          href={`/turnieje/${d.turniejId}/druzyna/${d.id}`}
+          className="flex min-w-0 flex-1 items-center gap-3 p-3.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40"
+        >
+          {d.rozstawienie !== undefined && (
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-300">
+              {d.rozstawienie}
+            </span>
           )}
-        </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
-        {/* Strzałka, bo bez niej nic na karcie nie mówi, że da się ją otworzyć —
-            a pod spodem jest skład, czyli powód, dla którego ktoś tu wchodzi. */}
-        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${rozwinieta ? 'rotate-180' : ''}`} />
-      </button>
+          <div className="min-w-0 flex-1">
+            <span className="block truncate font-medium text-ink">{d.nazwa}</span>
+            {zalogowany && d.liczbaZawodnikow !== undefined && (
+              <span className="text-xs text-slate-400">{odmienZawodnikow(d.liczbaZawodnikow)}</span>
+            )}
+          </div>
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
+        </Link>
+        <button
+          onClick={() => setRozwinieta((v) => !v)}
+          aria-expanded={rozwinieta}
+          aria-label={rozwinieta ? 'Ukryj skład' : 'Pokaż skład'}
+          className="flex shrink-0 items-center px-3 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/40"
+        >
+          <ChevronDown className={`h-4 w-4 transition-transform ${rozwinieta ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
       {rozwinieta && (
         <div className="border-t border-slate-100 dark:border-slate-700 p-3.5 space-y-3">
           {!zalogowany ? (

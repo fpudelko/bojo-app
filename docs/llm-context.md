@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-22 · migracja `159` · 62 tabel
+**Stan na:** 2026-09-23 · migracja `159` · 62 tabel
 
 ---
 
@@ -475,6 +475,33 @@ upsert. Migracja niesie backfill dla głosów zebranych od `123`. Progu indeksac
 `oblicz_seo_tier()` nie rusza: indeks przez to wyłącznie rośnie. Test:
 `kworumPotwierdzen.test.ts`.
 
+### 2026-09-23 — Podgląd linku turnieju pokazuje turniej, nie notatkę z zaplecza
+
+PROBLEM: organizator nie pokazuje ludziom aplikacji, tylko wysyła LINK, a podgląd tego
+linku w komunikatorze był w trzech miejscach nieprawdziwy. Opis brał pole `turnieje.opis`
+wprost, więc dla turniejów seedowych na WhatsAppie wyświetlała się wewnętrzna notatka
+„[TUR] SPRAWDŹ: plakietka Na żywo na karcie meczu…". Licznik drużyn na obrazku pokazywał
+zero przy turnieju, w którym były cztery drużyny. Znaczników Twittera nie było wcale, więc
+część komunikatorów pokazywała globalny opis marki zamiast turnieju. Osobno: nagłówek
+strony turnieju liczył wszystkie zgłoszenia, a pulpit organizatora tylko przyjęte, czyli
+kapitan i organizator widzieli dwie różne liczby o tym samym.
+
+ROZWIĄZANIE BOJO: opis linku powstaje z DANYCH turnieju (sport, liczba drużyn, wpisowe,
+start, miejsce), a pole „Opis" dochodzi jako drugie zdanie i tylko wtedy, gdy nie jest
+notatką techniczną. Licznik na obrazku liczy to samo co strona i jest zielony, bo
+policzalny stan ma w Bojo zarezerwowaną zieleń. Znaczniki Twittera powielają
+OpenGraph. Turniej bez podanego miejsca mówi o tym wprost szarym wierszem zamiast
+pomijać temat. Zegar meczu, którego nikt nie zakończył, przestaje pokazywać liczbę po
+przekroczeniu dwukrotności regulaminowego czasu. Nazwa drużyny na liście jest
+odnośnikiem do ekranu drużyny, a skład rozwija osobny przycisk.
+
+MECHANIKA: `lib/turniejOpis.ts` (`opisTurnieju()`, `opisNadajeSie()`), metadane
+w `app/turnieje/[id]/turniejMeta.ts`, obrazek w `app/turnieje/[id]/opengraph-image.tsx`.
+Przyczyną zera na obrazku był `select('*')` na `turniej_druzyny`: tabela ma grant
+KOLUMNOWY (migracja `145` nie wypuszcza anonowi telefonu i maila kapitana), więc gwiazdka
+kończyła się odmową dostępu, a `count ?? 0` zamieniało błąd w ciche zero. Zegar:
+`czasGry()` w `lib/turniejWynik.ts`.
+
 ### 2026-09-22 — Licznik drużyn w turnieju mówi, ile jest PRZYJĘTYCH
 
 PROBLEM: publiczny licznik na stronie turnieju wliczał zgłoszenia czekające na decyzję
@@ -734,30 +761,3 @@ czyste funkcje z wstrzykiwanym „dzisiaj". Stare adresy zakładek (`?tab=termin
 `?tab=wyniki`, `?tab=drabinka`) prowadzą tam, gdzie ich treść dziś mieszka. Testy:
 `turniejTermin.test.ts`.
 
-### 2026-09-16 — Turniej: jedna zakładka na jedno pytanie, lista jako karty
-
-PROBLEM: strona turnieju miała cztery zakładki, a odpowiadała na sześć pytań.
-„Terminarz" i „Wyniki" pokazywały TEN SAM komplet meczów, więc żeby sprawdzić, co
-jeszcze przed nami, trzeba było przewijać przez mecze już rozegrane. Tabela grup
-i drabinka siedziały razem w „Wynikach", jedna pod drugą. Drużyny szły jedną listą
-ośmiu kart, bez śladu podziału na grupy, a nazwisko w składzie nie prowadziło nigdzie,
-mimo że Bojo ma profil gracza. Lista `/turnieje` układała sekcje jedna pod drugą, więc
-turniej, w którym się gra, bywał na trzecim ekranie w dół.
-
-ROZWIĄZANIE BOJO: sześć zakładek, każda na jedno pytanie — Info, Drużyny, Terminarz
-(wyłącznie mecze nierozegrane, trwający na górze), Wyniki (wyłącznie rozegrane, od
-najnowszego, plus klasyfikacje), Tabela, Drabinka. Zakładka bez treści nie pokazuje się
-wcale. Drużyny stoją pod nagłówkami swoich grup. Pod każdą tabelą grupy da się rozwinąć
-wyniki właśnie tej grupy, a podpis „Pierwsze 2 miejsca w grupie awansują do fazy
-pucharowej" stoi RAZ pod kompletem tabel. Zawodnik z kontem w składzie prowadzi do
-swojego profilu. Lista turniejów to karty: Biorę udział → Zapisy → Trwają → Zakończone,
-otwiera się pierwsza niepusta.
-
-MECHANIKA: `app/turnieje/[id]/TurniejClient.tsx` (podział meczów na rozegrane
-i nierozegrane, sekcje drużyn po grupach, lista widocznych zakładek),
-`app/turnieje/TurniejeClient.tsx` (karty; wybór w stanie komponentu, nie w adresie —
-`useSearchParams()` wywróciłby build produkcyjny). `opisAwansu()` w
-`lib/turniejTabela.ts` zwraca `null`, gdy podpis nic nie wnosi: w lidze i w grupie,
-z której awansują wszyscy. `components/turnieje/KartaDruzyny.tsx`
-i `SciankaLogowania.tsx` wyszły z klienta do wspólnych komponentów. Testy:
-`kartaDruzyny.test.tsx`, `turniejTabela.test.ts`.
