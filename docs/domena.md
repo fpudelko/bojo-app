@@ -1123,3 +1123,58 @@ kończyło się „permission denied for schema storage" NIEZALEŻNIE od polityk
 `_oczekuj_odmowe()` łapie ten błąd tak samo jak odbicie przez RLS — czyli test „obcy nie
 wgra pliku" przechodził od razu, ale z niewłaściwego powodu. Naprawione w shimie, nie
 w migracji: to stan atrapy testowej, nie produkcji (Supabase daje to z automatu).
+
+**Ten bucket i te polityki żyły dwa dni — patrz sekcja niżej.** `turniej-media` w
+Supabase Storage nigdy nie został realnie założony w Dashboardzie, zanim właściciel
+zdecydował się na Cloudflare R2 zamiast niego (migracja `161`). Powyższy opis zostaje
+jako zapis DECYZJI (dlaczego ścieżka-jako-granica-dostępu, nie sam `bucket_id`) — ten
+sam wzorzec wrócił w polityce autoryzacji na R2, tylko wykonywanej w Node, nie w RLS.
+
+## Turniej: media (zdjęcia, logotypy sponsorów) na Cloudflare R2 (161)
+
+**Zamiast Supabase Storage — R2.** Decyzja właściciela 2026-09-23, dwa dni po migracji
+`159`: koszt transferu i osobny limit magazynu od reszty Supabase Storage. Dotyczy
+WYŁĄCZNIE galerii i logotypów sponsorów turnieju — `covers` (okładki meczów/grup/
+turniejów) i `avatars` zostają na Supabase Storage bez zmian, to jest decyzja o jednym
+buckecie, nie o całej architekturze przechowywania plików.
+
+**To DRUGI w repo endpoint, który naprawdę sprawdza tożsamość po stronie serwera** —
+`AGENTS.md` opisuje architekturę jako „brak własnego backendu" z jednym wyjątkiem,
+`/api/geocode` (proxy do Nominatim, nikogo nie autoryzuje, tylko dokłada nagłówek,
+którego przeglądarka nie może ustawić). `/api/turniej-media/upload-url` i
+`/api/turniej-media/delete` są inne z natury: R2 nie ma pojęcia o Supabase, nie ma RLS
+ani `auth.uid()` — ktoś musi sprawdzić uprawnienia, ZANIM wyda podpisany URL do zapisu,
+bo inaczej każdy z kontem Bojo mógłby wgrywać pliki pod dowolny turniej.
+
+**Jedno źródło prawdy o uprawnieniach, nie druga implementacja.** Endpoint nie
+odtwarza reguły „kto zarządza turniejem" w Node — zamiast tego tworzy klienta
+Supabase z `Authorization` ustawionym na token UŻYTKOWNIKA (nie `service_role`) i woła
+`czy_zarzadza_turniejem()` przez RPC, dokładnie tak, jak zrobiłby to PostgREST wywołany
+z przeglądarki. Gdyby reguła kiedyś się zmieniła w bazie, endpoint zmienia się z nią
+automatycznie — nie trzeba pamiętać o dwóch miejscach, tak jak ostrzega wzorzec
+`kworumPotwierdzen.test.ts`/`ogImageJednoZrodlo.test.ts` dla innych duplikatów logiki
+w tym repo.
+
+**Ścieżka jako granica dostępu, teraz w Node zamiast w polityce SQL.**
+`turniejIdZeSciezki()` (`app/api/turniej-media/_wspolne.ts`) wyciąga UUID turnieju
+z drugiego segmentu ścieżki (`turnieje/<turniej_id>/{galeria|sponsorzy}/<uuid>.<ext>`)
+i dopiero ten UUID idzie do `czy_zarzadza_turniejem()` — funkcja zwraca `null` (czyli
+„odmowa"), gdy kształt się nie zgadza, zamiast zgadywać. To ta sama ścieżka i ten sam
+wzorzec, co miała polityka `storage.objects` z migracji `159`, zanim ją skasowała `161`.
+
+**Sam plik leci z przeglądarki PROSTO do R2, nie przez Vercel.** Endpoint wystawia
+WYŁĄCZNIE podpisany URL (`PutObjectCommand` + `getSignedUrl`, ważny 5 minut) —
+przeglądarka robi `PUT` bezpośrednio na `*.r2.cloudflarestorage.com`. Powód: request do
+funkcji serwerowej na Vercelu ma limit rozmiaru i czasu wykonania, a przepuszczanie
+przez nią zdjęć byłoby dodatkowym kosztem bez żadnej korzyści — jedyne, co Node musi
+zrobić, to autoryzować i podpisać, nie widzieć bajtów pliku.
+
+**Odczyt jest publiczny i idzie POZA bazą i POZA endpointem**, wprost pod
+`NEXT_PUBLIC_R2_PUBLIC_URL` (Public Development URL bucketu w R2) — ten sam model co
+publiczny bucket w Supabase Storage (`covers`), tylko inny dostawca. CORS na buckecie
+pozwala każdemu originowi (`AllowedOrigins: ["*"]`), bo Vercel generuje inny adres
+podglądu dla każdego PR-a i nie da się ich wymienić z ręki — realne bezpieczeństwo
+zapisu trzyma podpisany URL (krótki czas życia, wystawiony po autoryzacji), nie CORS.
+Odczyt (`GET`) nie jest w ogóle podpisywany ani ograniczony CORS-em z poziomu
+przeglądarki (`<img src>` nie podlega CORS) — bucket jest publiczny do czytania z
+założenia, jak `covers`.

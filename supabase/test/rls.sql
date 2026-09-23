@@ -1504,12 +1504,6 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
 VALUES (:TURNIEJ2::uuid, :T_ORGANIZATOR2::uuid, 'Drugi turniej do testów RLS', 'piłka nożna', 'zapisy', CURRENT_DATE + 10);
 
--- Bucket zakładany ręcznie w Dashboardzie na produkcji — tu wystarczy wiersz
--- w atrapie `storage.buckets`, żeby klucz obcy z `storage.objects` miał do
--- czego się odwołać.
-INSERT INTO storage.buckets (id, name, public) VALUES ('turniej-media', 'turniej-media', true)
-ON CONFLICT (id) DO NOTHING;
-
 -- ── Zdjęcia ──────────────────────────────────────────────────────────────────
 
 SET ROLE authenticated;
@@ -1580,46 +1574,16 @@ DELETE FROM turniej_sponsorzy WHERE id = :'t_sponsor'::uuid;
 RESET ROLE;
 SELECT _oczekuj('organizator T kasuje własnego sponsora', (SELECT count(*) FROM turniej_sponsorzy WHERE id = :'t_sponsor'::uuid), 0);
 
--- ── Storage: bucket 'turniej-media' ──────────────────────────────────────────
--- Jedyne miejsce w całym module, które testuje politykę NA STORAGE, nie na
--- zwykłej tabeli — pierwszy taki test w repo. Ścieżka naśladuje prawdziwy
--- upload: drugi segment (`storage.foldername(name)[2]`) jest UUID-em turnieju,
--- dokładnie to, co czyta polityka z migracji 159. Budujemy ją SQL-em
--- (konkatenacja), nie kolejnym `\set` — `:TURNIEJ` jest już gotowym literałem
--- (z cudzysłowami w środku), sklejenie go tekstowo w `\set` dałoby podwójne
--- cudzysłowy zamiast prawidłowej ścieżki.
-SELECT ('turnieje/' || :TURNIEJ || '/galeria/rls-test.png') AS t_sciezka \gset
-
-SET ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', :OBCY, false);
-SELECT _oczekuj_odmowe('obcy nie wgra pliku pod cudzy turniej', format(
-  'INSERT INTO storage.objects (bucket_id, name) VALUES (%L, %L)', 'turniej-media', :'t_sciezka'));
-RESET ROLE;
-
-SET ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
-INSERT INTO storage.objects (bucket_id, name) VALUES ('turniej-media', :'t_sciezka');
-RESET ROLE;
-
-SET ROLE anon;
-SELECT set_config('request.jwt.claim.sub', '', false);
-SELECT _oczekuj('niezalogowany czyta obiekt z publicznego bucketu turniej-media',
-                (SELECT count(*) FROM storage.objects WHERE bucket_id = 'turniej-media' AND name = :'t_sciezka'), 1);
-RESET ROLE;
-
-SET ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', :OBCY, false);
-DELETE FROM storage.objects WHERE bucket_id = 'turniej-media' AND name = :'t_sciezka';
-RESET ROLE;
-SELECT _oczekuj('obcy nie skasował cudzego pliku w Storage — USING filtruje do zera wierszy',
-                (SELECT count(*) FROM storage.objects WHERE bucket_id = 'turniej-media' AND name = :'t_sciezka'), 1);
-
-SET ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
-DELETE FROM storage.objects WHERE bucket_id = 'turniej-media' AND name = :'t_sciezka';
-RESET ROLE;
-SELECT _oczekuj('organizator T kasuje własny plik w Storage',
-                (SELECT count(*) FROM storage.objects WHERE bucket_id = 'turniej-media' AND name = :'t_sciezka'), 0);
+-- ── Storage: media turnieju na Cloudflare R2 (migracja 161) ─────────────────
+-- Do 161 tu stały testy polityk `storage.objects` dla bucketu 'turniej-media'
+-- (pierwszy w repo test RLS na poziomie Storage). Bucket nigdy realnie nie
+-- powstał w Dashboardzie, a 161 skasowała te polityki na dobre: zdjęcia
+-- i logotypy sponsorów lądują dziś na R2, nie w Supabase Storage. Uprawnienia
+-- pilnuje serwerowy endpoint `/api/turniej-media/*` (Next.js), nie RLS —
+-- test na czystej funkcji `turniejIdZeSciezki()` siedzi w
+-- `frontend/src/__tests__/turniejMediaWspolne.test.ts`, a sama autoryzacja
+-- woła TĘ SAMĄ `czy_zarzadza_turniejem()` co polityki dwóch tabel wyżej.
+-- Patrz docs/domena.md#turniej-media-cloudflare-r2.
 
 -- ── ALERT: wyłącznik z maila (migracja 149) ──────────────────────────────────
 -- Nowa ścieżka dostępu dla `anon`: funkcja `wylacz_alert_tokenem()`. Jest

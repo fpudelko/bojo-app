@@ -63,6 +63,7 @@ jobs:
           # Atrapy — build nie łączy się z bazą, sprawdza kompilację i prerender.
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NEXT_PUBLIC_R2_PUBLIC_URL: https://placeholder.r2.dev
         run: npm run build
 
       - name: Spójność dokumentacji
@@ -84,6 +85,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NEXT_PUBLIC_R2_PUBLIC_URL: https://placeholder.r2.dev
         run: |
           npm start --prefix frontend &
           for i in $(seq 1 60); do curl -sf http://localhost:3000/faq >/dev/null && break; sleep 1; done
@@ -117,6 +119,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NEXT_PUBLIC_R2_PUBLIC_URL: https://placeholder.r2.dev
         run: npm run build
 
       - name: Testy klikalności

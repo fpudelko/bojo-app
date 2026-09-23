@@ -1,16 +1,20 @@
-// Galeria zdjęć i sponsorzy turnieju (migracja `159`). Publiczne — czyta
-// każdy, dokłada wyłącznie zarządzający turniejem (jak `turniejMecze.ts`
-// i ogłoszenia w `turnieje.ts`). Baza trzyma ścieżkę w Storage, `url` liczy
-// się tu przy odczycie — patrz docs/turniej-galeria-sponsorzy-plan.md §3.
+// Galeria zdjęć i sponsorzy turnieju (migracja `159`, storage: Cloudflare R2
+// od 2026-09-23 — patrz docs/domena.md#turniej-media-cloudflare-r2).
+// Publiczne — czyta każdy, dokłada wyłącznie zarządzający turniejem (jak
+// `turniejMecze.ts` i ogłoszenia w `turnieje.ts`). Baza trzyma ścieżkę,
+// `url` liczy się tu przy odczycie.
 import { supabase } from './supabase';
 import { zaktualizujJedenWiersz } from './zapytania';
 import { uploadObrazek, usunObrazek } from './storageUpload';
 import type { TurniejZdjecie, TurniejSponsor } from '@/types';
 
-const BUCKET = 'turniej-media';
-
 function publicUrl(sciezka: string): string {
-  return supabase.storage.from(BUCKET).getPublicUrl(sciezka).data.publicUrl;
+  const baza = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+  if (!baza) {
+    console.warn('[turniejGaleria] NEXT_PUBLIC_R2_PUBLIC_URL nie jest ustawione.');
+    return sciezka;
+  }
+  return `${baza.replace(/\/$/, '')}/${sciezka}`;
 }
 
 function rozszerzenie(plik: File): string {
@@ -104,7 +108,7 @@ export async function dodajZdjecie(turniejId: string, plik: File, userId: string
   const kolejnosc = (ostatnie?.kolejnosc ?? -1) + 1;
 
   const sciezka = `turnieje/${turniejId}/galeria/${crypto.randomUUID()}.${rozszerzenie(plik)}`;
-  await uploadObrazek(BUCKET, sciezka, plik);
+  await uploadObrazek(sciezka, plik);
 
   const { data, error } = await supabase
     .from('turniej_zdjecia')
@@ -127,7 +131,7 @@ export async function usunZdjecie(zdjecie: Pick<TurniejZdjecie, 'id'>): Promise<
     .single();
   if (eSciezka) throw new Error(eSciezka.message);
 
-  await usunObrazek(BUCKET, data.sciezka);
+  await usunObrazek(data.sciezka);
 
   const { error } = await supabase.from('turniej_zdjecia').delete().eq('id', zdjecie.id);
   if (error) throw new Error(error.message);
@@ -197,14 +201,14 @@ export async function ustawLogoSponsora(sponsorId: string, plik: File | null): P
 
   if (!plik) {
     await zaktualizujJedenWiersz('turniej_sponsorzy', sponsorId, { sciezka_logo: null }, 'Nie udało się usunąć logo sponsora');
-    if (staraSciezka) await usunObrazek(BUCKET, staraSciezka).catch(() => {});
+    if (staraSciezka) await usunObrazek(staraSciezka).catch(() => {});
     return;
   }
 
   const nowaSciezka = `turnieje/${data.turniej_id}/sponsorzy/${crypto.randomUUID()}.${rozszerzenie(plik)}`;
-  await uploadObrazek(BUCKET, nowaSciezka, plik);
+  await uploadObrazek(nowaSciezka, plik);
   await zaktualizujJedenWiersz('turniej_sponsorzy', sponsorId, { sciezka_logo: nowaSciezka }, 'Nie udało się zapisać logo sponsora');
-  if (staraSciezka) await usunObrazek(BUCKET, staraSciezka).catch(() => {});
+  if (staraSciezka) await usunObrazek(staraSciezka).catch(() => {});
 }
 
 export async function aktualizujSponsora(id: string, dane: { nazwa?: string; link?: string }): Promise<void> {
@@ -227,7 +231,7 @@ export async function usunSponsora(sponsor: Pick<TurniejSponsor, 'id' | 'logoUrl
       .eq('id', sponsor.id)
       .single();
     if (eSciezka) throw new Error(eSciezka.message);
-    if (data.sciezka_logo) await usunObrazek(BUCKET, data.sciezka_logo);
+    if (data.sciezka_logo) await usunObrazek(data.sciezka_logo);
   }
 
   const { error } = await supabase.from('turniej_sponsorzy').delete().eq('id', sponsor.id);
