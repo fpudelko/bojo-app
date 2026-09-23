@@ -44,8 +44,16 @@ export function opisTurnieju(t: {
 }): string {
   const czesci: string[] = [];
 
-  const skala = withCount(t.max_druzyn, 'drużyna', 'drużyny', 'drużyn');
-  czesci.push(`${t.sport}, ${skala}`);
+  // WIELKA LITERA na starcie: „piłka nożna, 16 drużyn…" czytało się jak
+  // urwany automat. Sport przychodzi z bazy małą literą i tak ma zostać
+  // w środku zdania, więc podnosimy tylko pierwszy znak.
+  const sport = t.sport.charAt(0).toUpperCase() + t.sport.slice(1);
+
+  // „do {max} drużyn", nie samo „{max} drużyn". Sama liczba czytała się jak
+  // liczba drużyn JUŻ ZAPISANYCH i przeczyła obrazkowi obok, który mówi
+  // „4 drużyny z 16". Opis linku nie zna aktualnego licznika (metadane
+  // liczą się per turniej, nie per odświeżenie), więc mówi o limicie wprost.
+  czesci.push(`${sport}, do ${withCount(t.max_druzyn, 'drużyny', 'drużyn', 'drużyn')}`);
 
   czesci.push(
     t.wpisowe_grosz && t.wpisowe_grosz > 0
@@ -60,8 +68,9 @@ export function opisTurnieju(t: {
   const godzina = t.godzina_startu ? String(t.godzina_startu).slice(0, 5) : '';
   czesci.push(`start ${kiedy}${godzina ? ` o ${godzina}` : ''}`);
 
-  const miejsce = t.miejsce_nazwa || t.miasto;
-  if (miejsce) czesci.push(miejsce);
+  // Brak miejsca mówi o sobie, zamiast milczeć: to pierwsze, czego szuka
+  // kapitan, a cisza czyta się jak turniej wymyślony na próbę.
+  czesci.push(t.miejsce_nazwa || t.miasto || 'miejsce jeszcze nieustalone');
 
   const zDanych = `${czesci.join('. ')}.`;
   // Pierwsze zdanie musi obronić się samo, bo niektóre komunikatory ucinają
