@@ -4469,6 +4469,14 @@ w panelu, zakładka **Ustawienia** (`PanelGaleria.tsx` — kolejność strzałka
 tylko `http`/`https`, bo wpisuje go organizator, a widzi każdy odwiedzający. Klikalność
 podglądu i odcięcie `javascript:` pilnuje `e2e/turniej-galeria.klikalnosc.spec.ts`.
 
+**Magazyn plików: Cloudflare R2, nie Supabase Storage (2026-09-23, migracja `160`).**
+Dwa dni po `159` właściciel zdecydował się na R2 zamiast bucketu Supabase Storage,
+który i tak nigdy nie zdążył realnie powstać. `frontend/src/app/api/turniej-media/`
+(`upload-url`, `delete`) to drugi w repo endpoint, który sam autoryzuje żądanie —
+weryfikuje token Supabase i woła `czy_zarzadza_turniejem()`, zanim wyda podpisany URL
+do zapisu. Odczyt jest publiczny wprost pod `NEXT_PUBLIC_R2_PUBLIC_URL`. Szczegóły
+i uzasadnienie → [docs/domena.md](./domena.md#turniej-media-zdjęcia-logotypy-sponsorów-na-cloudflare-r2-160).
+
 ### Etap A przebudowy UX (migracja `154`) — kapitan i pierwsze wrażenie
 
 Projekt → [turnieje-ux-ekrany.md](./turnieje-ux-ekrany.md), diagnoza →

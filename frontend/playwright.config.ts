@@ -99,6 +99,8 @@ export default defineConfig({
         process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY:
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-anon-key',
+      NEXT_PUBLIC_R2_PUBLIC_URL:
+        process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? 'https://placeholder.r2.dev',
     },
   },
 });
