@@ -24,7 +24,10 @@ export async function generateTurniejMetadata(id: string): Promise<Metadata> {
 
     if (!data) return { title: 'Turniej: Bojo' };
 
-    const title = `${data.nazwa}: turniej w Bojo`;
+    // Kropka rozdzielająca, nie dwukropek. Nazwy turniejów często SAME
+    // zawierają dwukropek („TU6 Turniej Sobotni: mecz NA ŻYWO"), więc tytuł
+    // wychodził z dwoma i czytał się jak sklejka.
+    const title = `${data.nazwa} · turniej w Bojo`;
     const description = opisTurnieju(data);
 
     return {

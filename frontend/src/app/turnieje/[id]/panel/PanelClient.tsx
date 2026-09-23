@@ -337,6 +337,19 @@ export default function PanelClient() {
 
   const generujPodglad = () => {
     if (wTurnieju.length < 2) { toast('Potrzeba co najmniej 2 przyjętych drużyn', 'error'); return; }
+    try {
+      zbudujPodglad();
+    } catch (e) {
+      // CISZA JEST TU NAJGORSZĄ ODPOWIEDZIĄ. Generator rzucał wyjątek wewnątrz
+      // obsługi kliknięcia (nieprawidłowa godzina startu dawała `RangeError:
+      // Invalid time value`), więc organizator klikał główny przycisk panelu
+      // i nie działo się NIC: ani terminarz, ani komunikat. To jest moment,
+      // w którym wraca do Excela.
+      toast(e instanceof Error ? e.message : 'Nie udało się ułożyć terminarza.', 'error');
+    }
+  };
+
+  const zbudujPodglad = () => {
     let nowe: NowyMecz[];
     if (turniej.format === 'liga') {
       nowe = meczeKazdyZKazdym(wTurnieju.map((d) => d.id), { startNumer: 1 });

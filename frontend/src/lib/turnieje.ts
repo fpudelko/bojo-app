@@ -26,7 +26,16 @@ export function toTurniej(row: any): Turniej {
     miasto: row.miasto ?? undefined,
     dataStartu: row.data_startu,
     dataKonca: row.data_konca ?? undefined,
-    godzinaStartu: row.godzina_startu,
+    // HH:MM, nie HH:MM:SS. Postgres oddaje kolumnę `time` z sekundami, a cała
+    // reszta aplikacji zakłada format z TimeSelect, czyli bez nich. Rozjazd
+    // wywracał układanie terminarza: `${dataStartu}T${godzinaStartu}:00` dawało
+    // `2026-10-24T10:00:00:00`, czyli nieprawidłową datę, a `toISOString()`
+    // rzucało RangeError wewnątrz obsługi kliknięcia. Przycisk „Wygeneruj
+    // terminarz" nie robił NIC i nie mówił dlaczego.
+    //
+    // Normalizacja siedzi tutaj, na granicy z bazą, bo to jedyne miejsce,
+    // przez które ta wartość wchodzi do aplikacji.
+    godzinaStartu: String(row.godzina_startu ?? '').slice(0, 5),
     zapisyDo: row.zapisy_do ?? undefined,
     maxDruzyn: row.max_druzyn,
     minDruzyn: row.min_druzyn ?? undefined,

@@ -475,6 +475,28 @@ upsert. Migracja niesie backfill dla głosów zebranych od `123`. Progu indeksac
 `oblicz_seo_tier()` nie rusza: indeks przez to wyłącznie rośnie. Test:
 `kworumPotwierdzen.test.ts`.
 
+### 2026-09-23 (2) — Organizator może wreszcie ułożyć terminarz turnieju
+
+PROBLEM: przycisk „Wygeneruj terminarz" w panelu organizatora nie robił NIC i nie mówił
+dlaczego. Godzina startu wraca z Postgresa jako `10:00:00`, bo kolumna ma typ `time`,
+a panel sklejał `${dataStartu}T${godzinaStartu}:00`, czyli `2026-10-24T10:00:00:00`.
+To nieprawidłowa data: `toISOString()` rzucał wyjątek wewnątrz obsługi kliknięcia,
+a organizator widział ciszę. Turnieje seedowe mają mecze, bo wstawia je SQL, więc nic
+tego nie zgłaszało. Układanie terminarza to główna funkcja modułu turniejowego.
+
+ROZWIĄZANIE BOJO: godzina normalizuje się do `HH:MM` na granicy z bazą, generator
+odrzuca nieprawidłową datę czytelnym komunikatem, a panel pokazuje ten komunikat
+zamiast milczeć. Przy okazji jedna reguła liczenia drużyn objęła ostatnie trzy miejsca,
+które jej nie używały (wiersz w Info, etykieta zakładki, karta na liście), licznik
+w nagłówku przestał ginąć za wielokropkiem przy 360 px, opis linku zaczyna się wielką
+literą i mówi „do 16 drużyn" zamiast „16 drużyn", skład drużyny pokazuje „7 osób
+(od 5 do 12)" zamiast „7 z 5", a cały wiersz przełącznika reaguje na dotknięcie
+i ma nazwę dla czytnika ekranu.
+
+MECHANIKA: `toTurniej()` w `lib/turnieje.ts` (normalizacja godziny), `ulozHarmonogram()`
+w `lib/turniejFormat.ts` (osłona), `generujPodglad()` w panelu turnieju,
+`components/ui/ToggleRow.tsx`. Testy: `turniejTerminarzGodzina.test.ts`.
+
 ### 2026-09-23 — Podgląd linku turnieju pokazuje turniej, nie notatkę z zaplecza
 
 PROBLEM: organizator nie pokazuje ludziom aplikacji, tylko wysyła LINK, a podgląd tego
@@ -731,33 +753,4 @@ MECHANIKA: `metaOpisObiektu()` w `frontend/src/content/opisObiektu.ts`, używana
 mieści się w 160 znakach, powyżej których wyszukiwarka ucina opis. Test:
 `src/__tests__/opisObiektu.test.ts`. Bez migracji. Dane źródłowe: eksport Search Console
 z 2026-09-16, opisany w `docs/seo-geo-strategia.md`, sekcja 7a.2.
-
-### 2026-09-17 — Turniej schowany przed userami, a w środku posprzątany
-
-PROBLEM: przegląd modułu na żywo (telefon, użytkownik bez konta) pokazał, że turniej działa,
-ale pierwsze wrażenie jest złe. Pasek sześciu zakładek nie mieścił się w szerokości ekranu,
-więc „Drabinka" była ucięta i istniała tylko dla kogoś, kto pomyślał, żeby przewinąć w bok.
-Info było niemal puste: data, boisko, „8/16 drużyn · 50 zł wpisowe" — bez odpowiedzi, czy
-50 zł to od drużyny czy od gracza, ile trwa mecz i kto to organizuje. Ten sam dzień
-pokazywał się w trzech zapisach naraz, a godzina startu szła na ekran z sekundami
-(„10:00:00"). Cztery turnieje miały identyczną plakietkę „Trwa" — w tym jeden sprzed
-tygodnia i jeden, w którym został sam finał. Na liście nie było ani jednego przycisku,
-bo kreator wisiał za logowaniem.
-
-ROZWIĄZANIE BOJO: wejścia do turniejów zniknęły z `/moje-gry` i `/profil` — moduł jest
-tymczasowo niewidoczny dla użytkownika, a `bojo.pl/turnieje` nadal odpowiada każdemu, kto
-wejdzie świadomie albo z udostępnionego linku. Sama strona turnieju ma dziś trzy zakładki
-(Mecze z przełącznikiem Najbliższe/Rozegrane, Tabela i drabinka, Drużyny), Info jako
-nagłówek nad nimi ze stałym szablonem Kiedy · Gdzie · Format · Zasady · Koszt od drużyny ·
-Organizator, oraz pasek „Twoja drużyna: … · następny mecz" dla tego, kto gra. Termin ma
-jeden zapis w całej aplikacji („Dziś, 18:00", „niedz. 20 września, 10:00"), a stan turnieju
-liczy się z terminarza: „Na żywo", „Ostatnie mecze", „Zakończony", z drugim wierszem
-„Finał dziś, 19:00".
-
-MECHANIKA: `SHOW_TURNIEJE = false` (`lib/features.ts`) chowa wejścia w nawigacji, nie trasy —
-`/turnieje` wróciło przy tym do `DISALLOW` w `robots.ts` i zeszło z `llms.txt`, czego pilnuje
-`npm run check:docs`. `etykietaTerminu()` i `stanTurnieju()` w `lib/turniejEtykiety.ts` to
-czyste funkcje z wstrzykiwanym „dzisiaj". Stare adresy zakładek (`?tab=terminarz`,
-`?tab=wyniki`, `?tab=drabinka`) prowadzą tam, gdzie ich treść dziś mieszka. Testy:
-`turniejTermin.test.ts`.
 

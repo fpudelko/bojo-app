@@ -24,6 +24,7 @@ import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
 import { getZdjecia, getSponsorzy } from '@/lib/turniejGaleria';
 import { podiumTurnieju, tekstPodium, medal } from '@/lib/turniejPodium';
 import { linkDojazdu } from '@/lib/utils';
+import { withCount } from '@/lib/plural';
 import { useWstecz } from '@/lib/historia';
 import { sportEmoji } from '@/lib/sports';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
@@ -493,7 +494,7 @@ export default function TurniejClient() {
                 aktywna === z ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800',
               ].join(' ')}
             >
-              {z === 'druzyny' ? `Drużyny (${druzyny.length})` : ETYKIETY_ZAKLADEK[z]}
+              {z === 'druzyny' ? `Drużyny (${liczbaWTurnieju})` : ETYKIETY_ZAKLADEK[z]}
             </button>
           ))}
         </div>
@@ -515,7 +516,7 @@ export default function TurniejClient() {
             zakładki, tabelę i drabinkę szczególnie. */}
         <div className="flex items-center gap-2.5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-sm">
           <span className="shrink-0 text-xl">{sportEmoji(turniej.sport)}</span>
-          <div className="min-w-0 flex-1 truncate text-sm text-slate-600 dark:text-slate-300">
+          <div className="min-w-0 flex-1 text-sm text-slate-600 dark:text-slate-300">
             {/* `liczbaWTurnieju`, nie `druzyny.length`. Surowa długość tablicy
                 liczyła także zgłoszenia czekające na decyzję, więc ten wiersz
                 mówił „1/8 drużyn" w tej samej chwili, gdy pulpit organizatora
@@ -524,7 +525,15 @@ export default function TurniejClient() {
                 `liczDruzynyWTurnieju()`. Kapitan i organizator patrzyli na
                 dwie różne liczby o tym samym. */}
             <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
-            {etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)} · {liczbaWTurnieju} z {turniej.maxDruzyn} drużyn
+            {/* Licznik w DRUGIEJ linii, nie sklejony z datą. Przy 360 px cały
+                wiersz szedł przez `truncate`, więc data słowna („sob. 24
+                października") zjadała miejsce i „· 1 z 8 drużyn" znikało za
+                wielokropkiem — a to pierwsza liczba, jakiej szuka kapitan.
+                Data zostaje w jednej linii, licznik dostaje własną. */}
+            <span className="block truncate">{etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}</span>
+            <span className="block text-xs text-slate-500 dark:text-slate-400">
+              {withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn}
+            </span>
           </div>
           <button onClick={udostepnij} aria-label="Udostępnij" className="shrink-0 text-primary-600">
             <Share2 className="h-4 w-4" />
@@ -774,7 +783,7 @@ export default function TurniejClient() {
             <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <div className="min-w-0">
-                <div>{druzyny.length}/{turniej.maxDruzyn} drużyn · skład {turniej.minZawodnikow}–{turniej.maxZawodnikow} osób</div>
+                <div>{withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn} · skład {turniej.minZawodnikow}–{turniej.maxZawodnikow} osób</div>
                 <div className="text-xs text-slate-400">
                   Mecz {turniej.czasMeczuMin} min
                   {turniej.przerwaMin > 0 && `, przerwa ${turniej.przerwaMin} min`}
@@ -828,7 +837,7 @@ export default function TurniejClient() {
         {aktywna === 'druzyny' && (
           <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-500">{druzyny.length}/{turniej.maxDruzyn} drużyn</span>
+              <span className="text-sm text-slate-500">{withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn}</span>
               {przyjmujeZgloszenia(turniej, liczbaWTurnieju) && (
                 <Link href={`/turnieje/${id}/zglos`} className="text-sm font-medium text-primary-600">+ Zgłoś drużynę</Link>
               )}

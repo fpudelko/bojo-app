@@ -33,6 +33,7 @@ import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { useWstecz } from '@/lib/historia';
+import { withCount } from '@/lib/plural';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { getTurniej, getBlikTurnieju } from '@/lib/turnieje';
 import {
@@ -298,7 +299,12 @@ export default function DruzynaClient() {
           <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4 space-y-3">
             <div>
               <p className="text-sm font-semibold text-ink">
-                Skład: {zawodnicy.length} z {turniej.minZawodnikow}
+                {/* „7 osób (od 5 do 12)", nie „7 z 5". Poprzedni zapis pokazywał
+                    liczbę wobec MINIMUM, więc skład kompletny wyglądał na
+                    przepełniony albo na zepsuty licznik: „Skład: 7 z 5"
+                    czyta się jak przekroczenie limitu, a nie jak spełniony
+                    warunek (audyt 4). */}
+                Skład: {withCount(zawodnicy.length, 'osoba', 'osoby', 'osób')} (od {turniej.minZawodnikow} do {turniej.maxZawodnikow})
               </p>
               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800">
                 <div className="h-full rounded-full bg-primary-600 transition-all" style={{ width: `${procent}%` }} />
