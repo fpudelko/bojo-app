@@ -75,7 +75,7 @@ import {
   voteTeamProposal, unvoteTeamProposal, acceptTeamProposal,
   type TeamProposal,
 } from '@/lib/teamProposals';
-import { PAYMENT_METHOD_LABELS, PAYMENT_METHODS, sportsCardLabel, priceForParticipant, canSeeBlikPhone } from '@/lib/payments';
+import { PAYMENT_METHOD_LABELS, PAYMENT_METHODS, sportsCardLabel, priceForParticipant, canSeeBlikPhone, winienWplate } from '@/lib/payments';
 import {
   getMyDelegatePermissions, getDelegateCandidates, getEventDelegates, setEventDelegate, setPaymentSettings,
   type MyDelegatePermissions, type DelegateCandidate, type EventDelegate,
@@ -998,6 +998,13 @@ export default function EventDetailClient() {
   // żeby nie zajmował miejsca w składzie, a nie deklaracja gry. Bez tego filtru
   // wpadał do kolejki rezerwowej i człowiek, który kliknął „Obserwuj",
   // widział siebie jako rezerwowego.
+  // Kto jest winien wpłatę organizatorowi — czyli `regulars` BEZ samego
+  // organizatora. Płaci za obiekt i zbiera od reszty, jego własny wiersz
+  // w składzie nigdy nie jest „zaległością", choć w bazie wygląda tak samo
+  // jak każdy inny nieopłacony wpis (`has_paid = false`). Cała księgowość
+  // rozliczenia (panel „Podział kosztów", „Wyślij rozliczenie ekipie", karta
+  // „Po meczu") liczy z `placacy`, nigdy z `regulars` wprost.
+  const placacy = regulars.filter((p) => winienWplate(p, event.organizerId));
   // Sortowane po `momentZapisu`, nie po kolejności z zapytania (to ostatnie
   // idzie po `created_at`, patrz `lib/events.ts:getEvent`): dla kogoś, kto
   // najpierw obserwował i potem dołączył, kolejka ma liczyć się od momentu
@@ -1601,8 +1608,8 @@ export default function EventDetailClient() {
    *  sportowej różni kwoty w obrębie tego samego meczu. */
   const handleWszyscyOddali = async () => {
     if (!isOrganizer && !canManagePayments) return;
-    const oplacone = regulars.some((p) => !p.hasPaid);
-    const cel = oplacone ? regulars.filter((p) => !p.hasPaid) : regulars;
+    const oplacone = placacy.some((p) => !p.hasPaid);
+    const cel = oplacone ? placacy.filter((p) => !p.hasPaid) : placacy;
     if (await potwierdz(oplacone
       ? {
         tytul: `Oznaczyć ${withCount(cel.length, 'osobę', 'osoby', 'osób')} jako opłacone?`,
@@ -1610,7 +1617,7 @@ export default function EventDetailClient() {
         potwierdzLabel: 'Wszyscy oddali',
       }
       : {
-        tytul: `Cofnąć oznaczenie wpłaty wszystkim (${regulars.length})?`,
+        tytul: `Cofnąć oznaczenie wpłaty wszystkim (${placacy.length})?`,
         konsekwencje: ['Nikt nie będzie miał odhaczonej wpłaty, zaczniesz odhaczanie od zera.'],
         potwierdzLabel: 'Cofnij wszystkim',
         wariant: 'destrukcyjny' as const,
@@ -1800,7 +1807,10 @@ export default function EventDetailClient() {
    *  a przy gościach bez konta link i tak nie pokazałby im nic nowego. */
   const handleWyslijRozliczenie = async () => {
     const nieobecniSwiezy = await zapewnijNieobecnychWczytanych();
-    const text = tekstRozliczenia(event, regulars, new Set(nieobecniSwiezy.map((n) => n.reportedParticipantId)));
+    const text = tekstRozliczenia(
+      event, regulars, event.organizerId,
+      new Set(nieobecniSwiezy.map((n) => n.reportedParticipantId)),
+    );
     track('settlement_shared', { eventId: event.id });
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
@@ -2456,15 +2466,15 @@ export default function EventDetailClient() {
           <div className="flex items-center justify-between text-sm mb-3">
             <span className="text-slate-500">Opłaconych</span>
             <span className="font-semibold text-green-700">
-              {regulars.filter((p) => p.hasPaid).length} / {regulars.length}
+              {placacy.filter((p) => p.hasPaid).length} / {placacy.length}
             </span>
           </div>
           {(() => {
             // Sports-card discounts mean not everyone owes the same amount.
             const owed = (p: EventParticipant) =>
               priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze;
-            const collected = regulars.filter((p) => p.hasPaid).reduce((sum, p) => sum + owed(p), 0);
-            const expected = regulars.reduce((sum, p) => sum + owed(p), 0);
+            const collected = placacy.filter((p) => p.hasPaid).reduce((sum, p) => sum + owed(p), 0);
+            const expected = placacy.reduce((sum, p) => sum + owed(p), 0);
             return (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-500">Zebrano</span>
@@ -2481,20 +2491,48 @@ export default function EventDetailClient() {
               nie ma czekać za przewijaniem całego składu. Dwa stany jednego
               przycisku, sterowane tym, czy ktoś jeszcze nie oddał; nie
               renderuje się, gdy skład jest pusty. */}
-          {regulars.length > 0 && (
+          {placacy.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-100">
               <Button variant="outline" className="w-full" onClick={handleWszyscyOddali} disabled={busy}>
-                {regulars.some((p) => !p.hasPaid)
+                {placacy.some((p) => !p.hasPaid)
                   ? 'Wszyscy oddali'
                   : <span className="text-slate-500">Cofnij (nikt nie oddał)</span>}
               </Button>
             </div>
           )}
+          {/* Organizator płaci za obiekt i zbiera od reszty — jego wiersz nie ma
+              przełącznika wpłaty (dotyczy samego siebie), ale musi być widoczny:
+              bez niego organizator szukałby siebie na liście i wnioskowałby,
+              że coś zniknęło (F-1, docs/faza1-organizator-plan.md). */}
+          {(() => {
+            const organizator = regulars.find((p) => p.userId === event.organizerId);
+            if (!organizator) return null;
+            const price = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, organizator.hasSportsCard);
+            return (
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-2.5 py-1">
+                  {organizator.avatarUrl
+                    ? <img src={organizator.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                    : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{organizator.name.charAt(0).toUpperCase()}</span>
+                  }
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-ink truncate">
+                      {user?.id === organizator.userId ? 'Ty' : organizator.name}
+                      <span className="text-slate-400 font-normal"> · płaci za obiekt</span>
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-400">
+                    {price.discountUnspecified ? '' : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
           {/* Per-participant toggle — a real switch, not a colored pill, so
               it's unmistakable that clicking it changes something. */}
           <div className="mt-4 pt-4 border-t border-slate-100">
             <ul className="divide-y divide-slate-100">
-              {regulars.map((p) => {
+              {placacy.map((p) => {
                 const price = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard);
                 return (
                   <li key={p.id} className="flex items-center gap-2.5 py-2.5">
@@ -2878,8 +2916,8 @@ export default function EventDetailClient() {
         {tab === 'sklad' && (isOwner || canManageSquad || canManagePayments) && resultsAvailable && !isCancelled && (
           <PoMeczuCard
             maPlatnosc={event.costGrosze > 0}
-            liczbaNieoplaconych={regulars.filter((p) => !p.hasPaid).length}
-            liczbaWSkladzie={regulars.length}
+            liczbaNieoplaconych={placacy.filter((p) => !p.hasPaid).length}
+            liczbaWSkladzie={placacy.length}
             onWyslijRozliczenie={handleWyslijRozliczenie}
             onWszyscyOddali={handleWszyscyOddali}
             busy={busy}
@@ -3248,7 +3286,7 @@ export default function EventDetailClient() {
               )
             ) : event.costGrosze > 0 ? (
               (isOwner || canManagePayments) ? (() => {
-                const unpaid = regulars.filter((p) => !p.hasPaid).length;
+                const unpaid = placacy.filter((p) => !p.hasPaid).length;
                 return unpaid === 0 ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
                     <Check className="h-3.5 w-3.5" strokeWidth={2.25} /> Rozliczono

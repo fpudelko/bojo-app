@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-22 · migracja `159` · 62 tabel
+**Stan na:** 2026-09-23 · migracja `160` · 62 tabel
 
 ---
 
@@ -449,6 +449,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-23 — Organizator nie jest dłużnikiem samego siebie w rozliczeniu
+
+PROBLEM: organizator grający we własnym meczu miał w bazie taki sam wiersz jak każdy
+inny uczestnik (`has_paid = false`, dopóki nikt go nie odhaczył). Panel „Podział
+kosztów", wiadomość „Wyślij rozliczenie ekipie" i przypomnienie dzień po meczu liczyły
+go razem z resztą: organizator widział własne imię w „Zaległościach" na czacie całej
+ekipy i dostawał przypomnienie „odhacz wpłaty" o samym sobie.
+
+ROZWIĄZANIE BOJO: organizator płaci za obiekt i zbiera od reszty, więc jego wiersz
+w składzie nigdy nie jest zaległością. Panel kosztów pokazuje go osobno, bez
+przełącznika wpłaty („Ty · płacisz za obiekt"), a rozliczenie na czacie i przypomnienie
+po meczu pomijają go w liczeniu.
+
+MECHANIKA: `winienWplate()` w `lib/payments.ts`, jedna reguła używana przez panel
+kosztów i kartę „Po meczu" w `EventDetailClient.tsx`, przez `tekstRozliczenia()`
+w `lib/settlementShare.ts` (parametr `organizerId`, wymagany) i przez `toEvent()`
+w `lib/events.ts` (`unpaidCount` na `/moje-gry`). Migracja `160` jest lustrem tej
+reguły w `wyslij_przypomnienia()` (blok C). Rozważane i odrzucone przy tej okazji:
+przeliczanie kosztu obiektu na faktyczny skład — `event_participants` to lista ludzi
+zapisanych przez Bojo, nie lista ludzi na boisku, więc liczba wierszy w bazie nie mówi,
+ile osób realnie grało. Testy: `payments.test.ts`, `settlementShare.test.ts`,
+`events.test.ts`, `supabase/test/przypomnienia.sql`.
+
 ### 2026-09-22 — Boisko potwierdzone przez graczy trafia do wyszukiwarki
 
 PROBLEM: katalog Bojo ma ponad 30 000 boisk, ale część z nich ma w bazie tylko tyle,
@@ -734,30 +757,3 @@ czyste funkcje z wstrzykiwanym „dzisiaj". Stare adresy zakładek (`?tab=termin
 `?tab=wyniki`, `?tab=drabinka`) prowadzą tam, gdzie ich treść dziś mieszka. Testy:
 `turniejTermin.test.ts`.
 
-### 2026-09-16 — Turniej: jedna zakładka na jedno pytanie, lista jako karty
-
-PROBLEM: strona turnieju miała cztery zakładki, a odpowiadała na sześć pytań.
-„Terminarz" i „Wyniki" pokazywały TEN SAM komplet meczów, więc żeby sprawdzić, co
-jeszcze przed nami, trzeba było przewijać przez mecze już rozegrane. Tabela grup
-i drabinka siedziały razem w „Wynikach", jedna pod drugą. Drużyny szły jedną listą
-ośmiu kart, bez śladu podziału na grupy, a nazwisko w składzie nie prowadziło nigdzie,
-mimo że Bojo ma profil gracza. Lista `/turnieje` układała sekcje jedna pod drugą, więc
-turniej, w którym się gra, bywał na trzecim ekranie w dół.
-
-ROZWIĄZANIE BOJO: sześć zakładek, każda na jedno pytanie — Info, Drużyny, Terminarz
-(wyłącznie mecze nierozegrane, trwający na górze), Wyniki (wyłącznie rozegrane, od
-najnowszego, plus klasyfikacje), Tabela, Drabinka. Zakładka bez treści nie pokazuje się
-wcale. Drużyny stoją pod nagłówkami swoich grup. Pod każdą tabelą grupy da się rozwinąć
-wyniki właśnie tej grupy, a podpis „Pierwsze 2 miejsca w grupie awansują do fazy
-pucharowej" stoi RAZ pod kompletem tabel. Zawodnik z kontem w składzie prowadzi do
-swojego profilu. Lista turniejów to karty: Biorę udział → Zapisy → Trwają → Zakończone,
-otwiera się pierwsza niepusta.
-
-MECHANIKA: `app/turnieje/[id]/TurniejClient.tsx` (podział meczów na rozegrane
-i nierozegrane, sekcje drużyn po grupach, lista widocznych zakładek),
-`app/turnieje/TurniejeClient.tsx` (karty; wybór w stanie komponentu, nie w adresie —
-`useSearchParams()` wywróciłby build produkcyjny). `opisAwansu()` w
-`lib/turniejTabela.ts` zwraca `null`, gdy podpis nic nie wnosi: w lidze i w grupie,
-z której awansują wszyscy. `components/turnieje/KartaDruzyny.tsx`
-i `SciankaLogowania.tsx` wyszły z klienta do wspólnych komponentów. Testy:
-`kartaDruzyny.test.tsx`, `turniejTabela.test.ts`.

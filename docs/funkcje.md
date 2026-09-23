@@ -62,6 +62,15 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 | Przejęcie wpisu gościa | `claim_token` (wydawany funkcją `token_wpisu_goscia()`, nie czytany z wiersza — migracja `127`) | Osoba dopisana ręcznie wiąże wpis z kontem przez `/gracz/przejmij/[token]`; zaproszenie „Zaproś do Bojo" niesie argument (`tekstZaproszeniaGoscia`), nie sam link, i działa też po starcie meczu. Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`), nie tylko organizator — `mozeZaprosic()` w `EventDetailClient.tsx`. Przycisk jest identyczny w składzie i na rezerwie — gość-rezerwowy też ma `claim_token`. Zaraz po dodaniu gościa (`handleAddGuest()`) otwiera się modal `GuestInviteNudge.tsx` z tą samą argumentacją, proaktywnie — raz na wydarzenie (`localStorage`, klucz `bojo:goscie-cta-widziano:<eventId>`), żeby organizator dopisujący kilkanaście osób pod rząd nie dostał tylu samo modali. Toast „Gość dodany"/„Komplet — gość dodany na rezerwę" pokazuje się tylko wtedy, gdy modal NIE wyskakuje (już widziany dla tego meczu) — inaczej dwa komunikaty niosące tę samą informację pokazywały się naraz. Gdy modal wyskakuje, informację o rezerwie przejmuje jego podtytuł (`naRezerwie`), a przycisk „Dodaj kolejnego" wraca do formularza bez dodatkowego resetowania (pole jest już czyszczone po udanym dodaniu) |
 | Potwierdzenie SMS | `require_sms_confirmation`, `confirmation_deadline_h` | **ukryte — `SHOW_SMS_FEATURES`** |
 
+**Organizator nie jest swoim dłużnikiem (migracja `160`).** Gdy organizator gra we
+własnym meczu, jego wiersz w składzie ma `has_paid = false` jak każdy inny, dopóki
+nikt go nie odhaczy. Panel „Podział kosztów", „Wszyscy oddali", „Wyślij rozliczenie
+ekipie", badge „Rozliczono"/„N nie zapłaciło" w nagłówku strony i karta „Po meczu"
+liczą przez `winienWplate()` (`lib/payments.ts`) — organizator jest z tego liczenia
+zawsze wyłączony, a w panelu widnieje osobnym wierszem bez przełącznika wpłaty
+(„Ty · płacisz za obiekt"). Pełne uzasadnienie i szczegóły wdrożenia →
+[domena.md § Płatności](./domena.md#płatności).
+
 **„Twoja płatność" — uczestnik widzi, ile ma zapłacić.** Do niedawna kwotę po
 uwzględnieniu zniżki kartowej i status opłacone/nieopłacone widział wyłącznie
 organizator w panelu „Podział kosztów". Karta na stronie meczu
@@ -1484,7 +1493,7 @@ każde renderowane tylko, gdy dotyczy tego meczu:
 
 | Zadanie | Warunek renderowania | „Zrobione" |
 |---|---|---|
-| Rozlicz ekipę | `event.costGrosze > 0` | nikt nie ma `hasPaid === false` wśród `regulars` |
+| Rozlicz ekipę | `event.costGrosze > 0` | nikt nie ma `hasPaid === false` wśród `placacy` (`regulars` bez organizatora — `winienWplate()`, migracja `160`, patrz [domena.md § Płatności](./domena.md#płatności)) |
 | Wpisz wynik | `event.trackResults` | `matchResult != null` |
 | Zaproś gości do Bojo | są nieprzejęci goście w składzie | znika, gdy `0` |
 

@@ -45,7 +45,7 @@ vi.mock('@/lib/supabase', () => ({
 import { supabase } from '@/lib/supabase';
 import {
   createEvent, joinEvent, joinEventAsGuest, confirmFromMaybe, removeParticipant, getMyParticipationMap,
-  wolneMiejscaWgRol, addGuest, repeatEvent, werdyktGry, czasRezerwyTekst, updateEvent,
+  wolneMiejscaWgRol, addGuest, repeatEvent, werdyktGry, czasRezerwyTekst, updateEvent, toEvent,
 } from '@/lib/events';
 import type { EventItem } from '@/types';
 
@@ -839,5 +839,54 @@ describe('updateEvent', () => {
   it('pusta nazwa miejsca nie przechodzi do bazy', async () => {
     await expect(updateEvent('event-1', { ...bazowy, fieldName: '   ' }))
       .rejects.toThrow(/Nazwa miejsca/);
+  });
+});
+
+// F-1 (docs/faza1-organizator-plan.md): organizator płaci za obiekt i zbiera
+// od reszty — jego własny wiersz w `event_participants` nigdy nie jest
+// „zaległością", choć bazodanowo wygląda tak samo jak każdy inny nieopłacony
+// wpis. `unpaidCount` zasila `doRozliczenia()` na /moje-gry.
+describe('toEvent — unpaidCount bez organizatora', () => {
+  const bazowyRow = {
+    id: 'e1',
+    organizer_id: 'org-1',
+    sport: 'piłka nożna',
+    field_name: 'Orlik',
+    event_date: '2026-08-01',
+    event_time: '18:00',
+    max_players: 10,
+    visibility: 'public',
+  };
+
+  it('nie liczy nieopłaconego organizatora do unpaidCount', () => {
+    const event = toEvent({
+      ...bazowyRow,
+      event_participants: [
+        { user_id: 'org-1', is_reserve: false, pending_approval: false, has_paid: false },
+        { user_id: 'gracz-1', is_reserve: false, pending_approval: false, has_paid: true },
+      ],
+    });
+    expect(event.unpaidCount).toBe(0);
+  });
+
+  it('liczy nieopłaconych graczy normalnie', () => {
+    const event = toEvent({
+      ...bazowyRow,
+      event_participants: [
+        { user_id: 'org-1', is_reserve: false, pending_approval: false, has_paid: true },
+        { user_id: 'gracz-1', is_reserve: false, pending_approval: false, has_paid: false },
+      ],
+    });
+    expect(event.unpaidCount).toBe(1);
+  });
+
+  it('gość bez konta (user_id null) nadal liczy się jako zaległość', () => {
+    const event = toEvent({
+      ...bazowyRow,
+      event_participants: [
+        { user_id: null, is_guest: true, is_reserve: false, pending_approval: false, has_paid: false },
+      ],
+    });
+    expect(event.unpaidCount).toBe(1);
   });
 });

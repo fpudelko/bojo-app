@@ -40,6 +40,8 @@ END $$;
 \set ZAMKNIETY '''ffffffff-0000-4000-8000-000000000004'''
 \set BRAKREZ2  '''ffffffff-0000-4000-8000-000000000005'''
 \set BEZORG    '''ffffffff-0000-4000-8000-000000000006'''
+\set ORGSAM    '''ffffffff-0000-4000-8000-000000000007'''
+\set ORGIGRACZ '''ffffffff-0000-4000-8000-000000000008'''
 
 INSERT INTO auth.users (id, email, email_confirmed_at, raw_user_meta_data) VALUES
   (:ORG::uuid,   'org.przypomnienia@test.local',   now(), '{"display_name":"Ola Organizatorka"}'::jsonb),
@@ -71,6 +73,31 @@ VALUES (:WCZORA::uuid, :ORG::uuid, 'Ola Organizatorka', 'piłka nożna', 'Orlik 
         2000, false);
 INSERT INTO event_participants (event_id, user_id, name, has_paid)
 VALUES (:WCZORA::uuid, :GRACZ::uuid, 'Grzegorz Gracz', false);
+
+-- Mecz WCZORAJ (F-1, migracja 160): organizator SAM w składzie, nieopłacony.
+-- Płaci za obiekt i zbiera od reszty — jego własny wiersz nigdy nie jest
+-- zaległością, mimo `has_paid = false`. Bez tej migracji przypomnienie mówiło
+-- mu „odhacz wpłaty — 1 osoba jeszcze nie oddała" o samym sobie.
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title,
+                    cost_grosz, track_results)
+VALUES (:ORGSAM::uuid, :ORG::uuid, 'Ola Organizatorka', 'piłka nożna', 'Orlik Testowy',
+        (now() AT TIME ZONE 'Europe/Warsaw')::date - 1, '20:00', 4, 'public', 'Organizator sam w składzie',
+        2000, false);
+INSERT INTO event_participants (event_id, user_id, name, has_paid)
+VALUES (:ORGSAM::uuid, :ORG::uuid, 'Ola Organizatorka', false);
+
+-- Mecz WCZORAJ: organizator I gracz oboje nieopłaceni. Zaległość ma liczyć
+-- WYŁĄCZNIE gracza — „1 osoba", nie „2 osoby".
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title,
+                    cost_grosz, track_results)
+VALUES (:ORGIGRACZ::uuid, :ORG::uuid, 'Ola Organizatorka', 'piłka nożna', 'Orlik Testowy',
+        (now() AT TIME ZONE 'Europe/Warsaw')::date - 1, '20:00', 4, 'public', 'Organizator i gracz',
+        2000, false);
+INSERT INTO event_participants (event_id, user_id, name, has_paid) VALUES
+  (:ORGIGRACZ::uuid, :ORG::uuid,   'Ola Organizatorka', false),
+  (:ORGIGRACZ::uuid, :GRACZ::uuid, 'Grzegorz Gracz',    false);
 
 -- Mecz WCZORAJ, w pełni domknięty: za darmo, bez wyników. Nie ma o co prosić.
 INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
@@ -231,6 +258,17 @@ SELECT _p_oczekuj('odmiana: 1 / 2 / 5 / 12 / 22',
 
 SELECT _p_oczekuj('mecz bez zaległości NIE generuje prośby o domknięcie',
   (SELECT count(*) FROM notifications WHERE event_id = :CZYSTY::uuid), 0);
+
+-- --- F-1 (migracja 160): organizator nie jest swoim dłużnikiem -------------
+SELECT _p_oczekuj('organizator sam w składzie, nieopłacony — ZERO próśb o domknięcie',
+  (SELECT count(*) FROM notifications
+    WHERE event_id = :ORGSAM::uuid AND type = 'po_meczu_do_domkniecia'), 0);
+
+SELECT _p_oczekuj('organizator i gracz oboje nieopłaceni — zaległość liczy WYŁĄCZNIE gracza',
+  (SELECT count(*) FROM notifications
+    WHERE event_id = :ORGIGRACZ::uuid AND type = 'po_meczu_do_domkniecia'
+      AND body LIKE '%1 osoba jeszcze nie oddała%'
+      AND body NOT LIKE '%2 osob%'), 1);
 
 SELECT _p_oczekuj('gracz nie dostaje prośby o rozliczenie cudzego meczu',
   (SELECT count(*) FROM notifications
