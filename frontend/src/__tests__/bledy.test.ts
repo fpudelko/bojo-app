@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { odcisk } from '@/lib/bledy';
+import { odcisk, zglosZyczenieWygladu } from '@/lib/bledy';
 
 // Odcisk decyduje o tym, czy dwa błędy to ten sam wiersz w panelu, czy dwa.
 // Za mocne grupowanie chowa różne problemy pod jednym wpisem; za słabe robi
@@ -46,5 +46,12 @@ describe('odcisk błędu', () => {
     // indeksu w bazie.
     const dlugi = 'x'.repeat(5000);
     expect(odcisk(dlugi).length).toBeLessThan(500);
+  });
+});
+
+describe('zglosZyczenieWygladu', () => {
+  it('odrzuca pustą i samą-białe-znaki treść przed wywołaniem sieci', async () => {
+    await expect(zglosZyczenieWygladu('t1', '')).rejects.toThrow('Napisz, czego brakuje');
+    await expect(zglosZyczenieWygladu('t1', '   ')).rejects.toThrow('Napisz, czego brakuje');
   });
 });

@@ -6,7 +6,7 @@ export type StatusZgloszenia = 'nowe' | 'w_toku' | 'zamkniete';
 
 export interface ZgloszenieBledu {
   id: string;
-  rodzaj: 'uzytkownik' | 'awaria' | 'obiekt';
+  rodzaj: 'uzytkownik' | 'awaria' | 'obiekt' | 'turniej_wyglad';
   opis: string;
   slad: string | null;
   adres: string | null;
@@ -14,6 +14,7 @@ export interface ZgloszenieBledu {
   wersja: string | null;
   userId: string | null;
   fieldId: string | null;
+  turniejId: string | null;
   status: StatusZgloszenia;
   notatka: string | null;
   liczba: number;
@@ -33,6 +34,7 @@ function naZgloszenie(w: any): ZgloszenieBledu {
     wersja: w.wersja ?? null,
     userId: w.user_id ?? null,
     fieldId: w.field_id ?? null,
+    turniejId: w.turniej_id ?? null,
     status: w.status,
     notatka: w.notatka ?? null,
     liczba: w.liczba ?? 1,
