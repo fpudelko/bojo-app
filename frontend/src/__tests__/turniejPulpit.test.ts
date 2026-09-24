@@ -51,7 +51,10 @@ describe('pulpitPrzedTurniejem', () => {
   it('czekające zgłoszenia pokazują się osobno — to decyzja do podjęcia', () => {
     const p = pulpitPrzedTurniejem(turniej, [druzyna('zgloszona'), druzyna('zgloszona')], [], false);
     const poz = p.find((x) => x.klucz === 'zgloszenia');
-    expect(poz?.tekst).toBe('2 zgłoszeń czeka na decyzję');
+    // Polski ma TRZY formy, a liczebnik odmienia też czasownik obok.
+    // Uproszczenie do „1 zgłoszenie / N zgłoszeń" dawało „2 zgłoszeń czeka",
+    // czyli błąd widoczny w panelu przy każdej drugiej drużynie (audyt 5).
+    expect(poz?.tekst).toBe('2 zgłoszenia czekają na decyzję');
     expect(poz?.stan).toBe('uwaga');
   });
 

@@ -34,6 +34,7 @@ import {
 } from '@/lib/turniejFormat';
 import { odmienZawodnikow, odmienDruzyny, etykietaTerminu } from '@/lib/turniejEtykiety';
 import { pulpitPrzedTurniejem, opoznienieWMinutach, arenyTeraz } from '@/lib/turniejPulpit';
+import { plural, withCount } from '@/lib/plural';
 import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz } from '@/types';
 import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
 
@@ -291,7 +292,7 @@ export default function PanelClient() {
     const wynik = await potwierdz({
       tytul: 'Usunąć turniej?',
       konsekwencje: [
-        `Zniknie ${druzyny.length === 1 ? '1 drużyna' : `${druzyny.length} drużyn`} i cały skład`,
+        `${plural(druzyny.length, 'Zniknie', 'Znikną', 'Zniknie')} ${withCount(druzyny.length, 'drużyna', 'drużyny', 'drużyn')} i cały skład`,
         'Linki do turnieju i drużyn przestaną działać',
         'Tego nie da się cofnąć',
       ],
@@ -305,6 +306,11 @@ export default function PanelClient() {
 
   const czekajace = druzyny.filter((d) => d.status === 'zgloszona');
   const wTurnieju = druzyny.filter((d) => d.status === 'przyjeta');
+  // Rozegrany mecz zamyka drogę do układania terminarza od nowa: baza broni
+  // wyniku (`zapisz_terminarz` odmawia), więc interfejs ma tego nie proponować.
+  const rozegranych = mecze.filter(
+    (m) => m.status === 'zakonczony' || m.status === 'walkower' || m.status === 'trwa',
+  ).length;
   const rezerwa = druzyny.filter((d) => d.status === 'rezerwa');
 
   const potrzebujeGrup = turniej.format === 'grupy_puchar';
@@ -772,7 +778,10 @@ export default function PanelClient() {
                     const szac = szacunekCzasu(podglad, { liczbaAren: Math.max(1, areny.length), czasMeczuMin: turniej.czasMeczuMin, przerwaMin: turniej.przerwaMin });
                     return (
                       <p className="text-sm text-slate-600 dark:text-slate-300">
-                        Podgląd: {szac.liczbaMeczow} meczów do rozegrania, ok. {szac.liczbaFal} fal ({szac.czasCalkowityMin} min).
+                        {/* Bez słowa „fal". To pojęcie z wnętrza generatora:
+                            organizator nie planuje fal, tylko chce wiedzieć,
+                            ile meczów i jak długo to potrwa. */}
+                        Podgląd: {withCount(szac.liczbaMeczow, 'mecz', 'mecze', 'meczów')} do rozegrania, ok. {szac.czasCalkowityMin} min grania.
                       </p>
                     );
                   })()}
@@ -783,7 +792,15 @@ export default function PanelClient() {
                         <span className="text-ink">{druzynyPoId.get(m.druzynaAId ?? '') ?? (m.zrodloAMeczId ? 'TBD' : '-')}</span>
                         {' vs '}
                         <span className="text-ink">{druzynyPoId.get(m.druzynaBId ?? '') ?? (m.zrodloBMeczId ? 'TBD' : '-')}</span>
-                        {m.zaplanowanyAt && <span className="ml-2 text-xs text-slate-400">{new Date(m.zaplanowanyAt).toLocaleString('pl-PL')}</span>}
+                        {m.zaplanowanyAt && (
+                          /* `toLocaleString` dawało „24.10.2026, 10:00:00”:
+                             sekundy w terminarzu nic nie znaczą, a data
+                             cyfrowa czyta się gorzej niż słowna. Ten sam
+                             zapis co wszędzie indziej w aplikacji. */
+                          <span className="ml-2 text-xs text-slate-400">
+                            {etykietaTerminu(m.zaplanowanyAt.slice(0, 10), m.zaplanowanyAt.slice(11, 16))}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -794,9 +811,27 @@ export default function PanelClient() {
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  <Button size="sm" onClick={rozpocznijGenerowanie} disabled={wTurnieju.length < 2}>
+                  {/* Po pierwszym ROZEGRANYM meczu generowanie od nowa jest
+                      wyłączone, a nie tylko ostrzegane. Wcześniej przycisk był
+                      aktywny, okno uprzedzało „to nie zadziała, jeśli…", a po
+                      kliknięciu serwer słusznie odmawiał. Przycisk, który
+                      zapowiada własną porażkę, wygląda na prowizorkę, a do tego
+                      każe organizatorowi zgadywać, czy „nie zadziała" znaczy
+                      „stracę wyniki". */}
+                  <Button
+                    size="sm"
+                    onClick={rozpocznijGenerowanie}
+                    disabled={wTurnieju.length < 2 || rozegranych > 0}
+                  >
                     {mecze.length > 0 ? 'Wygeneruj terminarz od nowa' : 'Wygeneruj terminarz'}
                   </Button>
+                  {rozegranych > 0 && (
+                    <p className="text-xs text-slate-400">
+                      {plural(rozegranych, 'Rozegrano już', 'Rozegrano już', 'Rozegrano już')}{' '}
+                      {withCount(rozegranych, 'mecz', 'mecze', 'meczów')}, więc terminarz da się
+                      tylko przesuwać, nie układać od nowa.
+                    </p>
+                  )}
                   {wTurnieju.length < 2 && (
                     <p className="text-xs text-slate-400">
                       Potrzebne co najmniej 2 przyjęte drużyny (masz {wTurnieju.length}).
