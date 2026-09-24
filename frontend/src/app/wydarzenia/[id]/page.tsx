@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { eventJsonLd } from '@/lib/structuredData';
-import { getEventMeta, metadataDlaMeczu } from './eventMeta';
+import { getEventMeta, metadataDlaMeczu, policzZajeteMiejsca } from './eventMeta';
 import EventDetailClient from './EventDetailClient';
 
 // Server wrapper: provides per-event link-preview metadata (Open Graph), then
@@ -26,7 +26,10 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function EventPage({ params }: { params: { id: string } }) {
   const ev = await getEventMeta(params.id);
-  const jsonLd = ev ? eventJsonLd(params.id, ev) : null;
+  // Liczymy skład tylko dla meczu publicznego — dla innych JSON-LD i tak nie
+  // powstaje, a zapytanie byłoby zbędne.
+  const zajete = ev?.visibility === 'public' ? await policzZajeteMiejsca(params.id) : undefined;
+  const jsonLd = ev ? eventJsonLd(params.id, { ...ev, zajete }) : null;
 
   return (
     <>

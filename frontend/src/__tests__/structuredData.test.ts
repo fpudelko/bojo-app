@@ -131,6 +131,55 @@ describe('eventJsonLd — pola', () => {
   });
 });
 
+describe('eventJsonLd — pola wymagane przez Google (Search Console, 2026-09-23)', () => {
+  it('ma description: opis organizatora, a w jego braku zdanie z faktów meczu', () => {
+    const wlasny = eventJsonLd('a', publicEvent({ description: '  Gramy   na luzie,\n zapraszamy ' }), BASE)!;
+    expect(wlasny.description).toBe('Gramy na luzie, zapraszamy');
+
+    const zFaktow = eventJsonLd('a', publicEvent({ field_name: 'Orlik Rataje' }), BASE)!;
+    expect(zFaktow.description).toContain('piłka nożna');
+    expect(zFaktow.description).toContain('18:00');
+    expect(zFaktow.description).toContain('Orlik Rataje');
+  });
+
+  it('przycina długi opis', () => {
+    const out = eventJsonLd('a', publicEvent({ description: 'x'.repeat(1000) }), BASE)!;
+    expect((out.description as string).length).toBeLessThanOrEqual(300);
+  });
+
+  it('ma image wskazujący kartę podglądu meczu', () => {
+    const out = eventJsonLd('abc', publicEvent(), BASE)!;
+    expect(out.image).toEqual(['https://bojo.pl/wydarzenia/abc/opengraph-image']);
+  });
+
+  it('ma performer bez nazwisk graczy', () => {
+    const out = eventJsonLd('a', publicEvent({ title: 'Wtorkowa ligówka' }), BASE)!;
+    expect(out.performer).toEqual({ '@type': 'PerformingGroup', name: 'Skład meczu: Wtorkowa ligówka' });
+  });
+
+  it('oferta ma validFrom z chwili założenia meczu', () => {
+    const out = eventJsonLd('a', publicEvent({ cost_grosz: 1500, created_at: '2026-09-01T10:00:00+00:00' }), BASE)!;
+    expect(out.offers).toMatchObject({ validFrom: '2026-09-01T10:00:00+00:00' });
+  });
+
+  it('availability: wolne miejsca, ostatnie miejsca, komplet', () => {
+    const av = (o: Partial<EventForJsonLd>) =>
+      (eventJsonLd('a', publicEvent({ cost_grosz: 0, max_players: 10, ...o }), BASE)!.offers as { availability: string }).availability;
+    expect(av({ zajete: 3 })).toBe('https://schema.org/InStock');
+    expect(av({ zajete: 8 })).toBe('https://schema.org/LimitedAvailability');
+    expect(av({ zajete: 10 })).toBe('https://schema.org/SoldOut');
+    // Nieznana liczba zapisanych: nie ogłaszamy kompletu na ślepo.
+    expect(av({ zajete: undefined })).toBe('https://schema.org/InStock');
+  });
+
+  it('zamknięte zapisy i odwołany mecz to SoldOut, nawet przy wolnych miejscach', () => {
+    const av = (o: Partial<EventForJsonLd>) =>
+      (eventJsonLd('a', publicEvent({ cost_grosz: 0, max_players: 10, zajete: 2, ...o }), BASE)!.offers as { availability: string }).availability;
+    expect(av({ zapisy_zamkniete: true })).toBe('https://schema.org/SoldOut');
+    expect(av({ status: 'cancelled' })).toBe('https://schema.org/SoldOut');
+  });
+});
+
 describe('siteJsonLd', () => {
   it('wiąże WebSite z Organization przez @id', () => {
     const graph = siteJsonLd(BASE)['@graph'] as Record<string, unknown>[];

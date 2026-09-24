@@ -1158,6 +1158,7 @@ tego mieć, bo nie ma ludzi, którzy tam grają.
 |---|---|---|
 | `ItemList` na hubach | ~~listuje obiekty z `noindex` (D11)~~ | **NAPRAWIONE 2026-08-25** (runda 2, Partia 1): `.in('seo_tier', [1, 2])` w `lib/hubKatalogu.ts` — istniejący próg tieringu (migracja 112), NIE próg z odrzuconego 4c. Test: `hubKatalogu.test.ts` |
 | `SportsEvent` | poprawny, ale strona nie ma `noindex` dla prywatnych (P1) | patrz P1 |
+| `SportsEvent` — pola zalecane | Search Console 2026-09-23: brak `description`, `image`, `performer`, `offers.validFrom`, `offers.availability` (5 ostrzeżeń niekrytycznych, 2 mecze) | **NAPRAWIONE 2026-09-24** w `eventJsonLd()` (`lib/structuredData.ts`): opis organizatora albo zdanie z faktów meczu; obrazek = karta `/wydarzenia/[id]/opengraph-image`; `performer` = `PerformingGroup` „Skład meczu: …” (bez nazwisk graczy, świadomie); `validFrom` = `events.created_at`; `availability` = `SoldOut` przy komplecie, zamkniętych zapisach lub odwołaniu, `LimitedAvailability` przy ≤ 2 wolnych, inaczej `InStock`. Zajęte miejsca liczy `policzZajeteMiejsca()` (`app/wydarzenia/[id]/eventMeta.ts`) tak samo jak karta OG. Test: `structuredData.test.ts`. Po deployu: w Search Console „Sprawdź poprawkę” |
 | `BreadcrumbList` na `/boisko/[id]` | prowadzi do hubu, do którego nie ma widocznego linku (D7) | rozwiązuje `<nav>` z 3f |
 | `SoftwareApplication.featureList` | mówi o zniżkach z kart i o liście rezerwowej — zgodne z produktem | zostaje |
 
