@@ -1,7 +1,8 @@
 # Baza danych
 
-150 migracji (`001`–`152`, z lukami w numeracji — dwóch numerów tuż przed `082` brak,
-`150`/`151` nie są bezpośrednio przed `152`) w `supabase/migrations/`. Modele domenowe →
+159 plików migracji w `supabase/migrations/` (numeracja sięga dziś `161` — dwa numery
+tuż przed `082` są celowo puste, patrz git blame). Dokładna liczba: `ls supabase/migrations/*.sql | wc -l`,
+nie warto jej tu zamrażać. Modele domenowe →
 [domena.md](./domena.md).
 
 ---

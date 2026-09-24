@@ -24,7 +24,8 @@ Co z tego wynika, wprost:
 
 | Pozycja | Rewizja mówiła | Teraz |
 |---|---|---|
-| Gry cykliczne (`SHOW_RECURRING`) | do skasowania | **zostają** — flaga włączona od migracji `073`, kod już poszedł w tę stronę |
+| Gry cykliczne (`SHOW_RECURRING`) | do skasowania | ~~**zostają** — flaga włączona od migracji `073`~~ — **NIEAKTUALNE od 2026-08-16**: kolejna decyzja właściciela, jeden dzień po tej tabeli, ponownie wyłączyła flagę („produkcyjna decyzja o rezygnacji z gier cyklicznych/stałych gierek”,
+  `frontend/src/lib/features.ts`). Kod zostaje, ale nikt nie zamierza go włączać — patrz §1.3 |
 | „Półka, która nie umie być pusta" + `SHOW_GAME_ALERTS` | jedna z pięciu rzeczy do zbudowania | **schodzi na później** — to agenda otwartych gier |
 | Przejęcie profilu gościa (claim) | pierwsze | **nadal kluczowe** — w stałej ekipie ci sami goście wracają co tydzień, więc ta sama strata powtarza się 50× w roku, nie raz |
 | Web-push (PWA) | do skasowania („kanał powrotu dla użytkowników, których nie ma") | **wraca jako priorytet** — stała ekipa to dokładnie kohorta, którą jest po co przypominać: te same 10 osób, ten sam czwartek, jedno pytanie „grasz?". Plan: [§8 „PWA + web-push"](#pwa--web-push--plan-priorytet-od-2026-08-15) |
@@ -144,27 +145,31 @@ dołączenie. Zostaje jako otwarte tylko to, co dokument opisywał osobno:
 `game_alerts` (promień + sport, oparte o lokalizację, nie o członkostwo) wciąż
 za flagą `SHOW_GAME_ALERTS` — to inna funkcja, nie ta sama luka.
 
-### 1.3 Gry cykliczne ukryte flagą
+### 1.3 Gry cykliczne ukryte flagą — KOD ZROBIONY, DECYZJA PODJĘTA (zostają ukryte)
+
 Wizja wymienia je w pierwszej propozycji wartości, na równi z grami pojedynczymi.
 `SHOW_RECURRING = false` nadal ukrywa wejścia w `Header.tsx`, `app/page.tsx`,
-`app/moje-gry` — decyzja do podjęcia: odmrozić czy zapisać uzasadnienie ukrycia.
+`app/moje-gry`.
 
-Kod **nie jest już kompletny w takim stopniu, jak wcześniej zapisano tutaj**: kreator
-jednorazowego meczu (`app/wydarzenia/nowe/page.tsx`, krok 2) ma dziś kafelek „Wydarzenie
-cykliczne" (`components/events/RecurringSettingsDialog.tsx`), który tworzy szablon
-w `recurring_events` niezależnie od jednorazowego meczu — celowo minimalny zakres, patrz
-[docs/funkcje.md#czego-nie-ma](./docs/funkcje.md#czego-nie-ma). Brakuje:
+**Ten wpis był podwójnie nieaktualny i obie nieaktualności naprawione tutaj:**
 
-- kolumny `events.recurring_event_id` i realnego linkowania „następnego wydarzenia"
-  (`lib/recurring.ts#getNextEventsForRecurring` dziś cicho zwraca puste — kolumna,
-  której szuka to zapytanie, nigdy nie powstała w żadnej migracji),
-- realnego ekranu `/cykliczne/[id]/edytuj` — dziś zaślepka „Ta funkcja jest jeszcze
-  w przygotowaniu".
+1. **"Decyzja do podjęcia" już nie jest otwarta.** `features.ts` datuje decyzję
+   o pozostawieniu flagi wyłączonej na 2026-08-16: „produkcyjna decyzja o rezygnacji
+   z gier cyklicznych/stałych gierek". To NIE jest brak decyzji — to świadome
+   odrzucenie, młodsze niż [PRZESŁANKA STRATEGICZNA](#przesłanka-strategiczna-2026-08-15--czytaj-przed-planowaniem)
+   z 15.08, która mówiła odwrotnie (patrz poprawka przy tamtej tabeli). Kod
+   zostaje w repo nietknięty, tylko nikt dziś nie zamierza go włączać.
+2. **"Brakuje" listowało dwie rzeczy, które już istnieją.** Migracja
+   `073_serie_wydarzen_cyklicznych.sql` dodaje `events.recurring_event_id`
+   (używana też w `092`), `getNextEventsForRecurring()` w `lib/recurring.ts`
+   zwraca realne dane (nie puste na sztywno), a `/cykliczne/[id]/edytuj` to
+   dziś 350-liniowy formularz edycji szablonu, którego własny komentarz mówi
+   wprost: „zastępuje zaślepkę („Ta funkcja jest jeszcze w przygotowaniu”)".
+   Ten wpis był pisany PRZED `073` i nikt go nie zaktualizował po tym, jak `073`
+   naprawiła dokładnie te dwa braki.
 
-Zakres pełnej integracji: migracja dodająca `events.recurring_event_id`, naprawa
-`spawnEventInstance()` żeby faktycznie linkowała, realny formularz edycji szablonu
-(mógłby ponownie użyć komponentów pól z `components/events/`, tak jak dziś robią to
-kreator i edycja jednorazowego meczu).
+Zostaje wyłącznie pytanie produktowe (czy kiedykolwiek odmrozić kompletny kod) —
+nie zadanie techniczne.
 
 ### 1.4 Rozliczenie po meczu — ZROBIONE
 Propozycja brzmi „Rozliczysz ekipę w minutę". Wpis opisywał dwa problemy, oba naprawione:

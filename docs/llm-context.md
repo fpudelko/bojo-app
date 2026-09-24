@@ -408,7 +408,6 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Wynajem sędziego.**
 - **Publiczna lista graczy** — trasa `/gracze` przekierowuje na listę meczów.
 - **Osobny backend, API ani kontrolery.**
-- **Automatyczne uruchamianie migracji.**
 
 Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — potwierdzenia SMS, gry
 cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie". Kod istnieje,

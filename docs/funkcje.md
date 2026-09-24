@@ -4889,7 +4889,6 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 - **Osobna wartość „widoczne dla grupy" w `events.visibility`.** Kolumna to nadal
   wyłącznie `private` / `public` — ale prywatny mecz przypięty do grupy JEST widoczny
   dla jej członków (`getMyGroupEvents()`), patrz [domena.md § Grupy](./domena.md#grupy).
-- **MVP** w statystykach. Jedyne wystąpienie słowa to tekst nagrody na `/turniej`.
 - **Rankingi publiczne.**
 - **Ocena umiejętności, poziom zaawansowania, dopasowywanie gier do poziomu.**
 - **Odznaki** — poza znaczkiem „rzetelny gracz".
@@ -4900,7 +4899,6 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 - **Strona pod gołym `/boiska`** — trasa istnieje tylko jako `/boiska/[sport]`;
   `/boiska` samo to redirect na `/mapa?gry=0`, tym samym wzorcem co `/gracze`.
 - **Osobny backend, API, kontrolery.** Frontend rozmawia z Supabase bezpośrednio.
-- **Automatyczne uruchamianie migracji.**
 - **Powiadomienia o nowym terminie serii przez e-mail/SMS.** Auto-tworzenie terminów
   (migracja `073`) powiadamia wyłącznie w aplikacji (dzwonek) — `recurring_event_invites`
   (kontakty e-mail/telefon, dodawane ręcznie na `/cykliczne/[id]`) nie dostają nic przy
