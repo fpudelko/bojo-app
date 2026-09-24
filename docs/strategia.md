@@ -109,10 +109,12 @@ użytkownikach.
 
 ## 5. Dług techniczny
 
-- [ ] **Zweryfikować w Supabase, które migracje są zastosowane.** W repo jest **57**
-      migracji (`001`–`057`). Stanu bazy produkcyjnej **nie da się odczytać z repo** —
-      migracje uruchamia się ręcznie w SQL Editor. Objaw braku: aplikacja rzuca błędem
-      o nieznanej kolumnie. Patrz [baza-danych.md](./baza-danych.md).
+- [x] ~~**Zweryfikować w Supabase, które migracje są zastosowane.**~~ ZROBIONE — stan
+      schematu trzyma dziennik `schema_migracje` w bazie, a migracje uruchamia workflow
+      `migracje.yml` (dokładające automatem przy merge'u, kasujące po kliknięciu).
+      Wpis powstał przy 57 migracjach i twierdził, że wklejamy je ręcznie do SQL Editora;
+      jedno i drugie jest nieaktualne. Patrz [baza-danych.md](./baza-danych.md)
+      i sekcja „Pułapki” w [AGENTS.md](../AGENTS.md).
 - [ ] **Zod — walidacja danych z bazy** (mappery `toEvent`, `toField` — dziś rzutowanie
       bez walidacji runtime)
 - [ ] **Dokończyć logowanie błędów** — część `.catch(()=>{})` już zastąpiona

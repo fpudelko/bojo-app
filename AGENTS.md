@@ -287,7 +287,10 @@ i `npm run check:docs` przy każdym PR i push na master):
 - **Auth i RLS** — `lib/auth.tsx`, polityki w migracjach. Pamiętaj: niepasująca polityka
   nie rzuca błędu, tylko po cichu aktualizuje 0 wierszy.
 - **Płatności** — cenę zawsze liczy `priceForParticipant()` (`lib/payments.ts`).
-- **Migracje** — uruchamiane ręcznie na produkcji; błąd w SQL trafia do bazy na żywo.
+- **Migracje** — na produkcję idą SAME przy merge'u do mastera, jeśli tylko DOKŁADAJĄ
+  rzeczy (podział po ryzyku, patrz „Pułapki" niżej), więc błąd w SQL trafia do bazy
+  na żywo **bez niczyjego kliknięcia**. Kliknięcia wymagają wyłącznie te, które kasują
+  albo przepisują w miejscu.
 - **Kasowanie danych** — `deleteEvent`, `deleteGroup`, usuwanie konta.
 
 ## Zanim uznasz, że funkcja nie istnieje — sprawdź flagi
@@ -340,10 +343,11 @@ z porzuconego PR-a). Wyjściem z każdego jest reset: Actions → Migracje → R
 **Na produkcję przy merge'u idzie tylko to, co DOKŁADA.** `scripts/ryzyko-migracji.mjs`
 czyta każdy plik i dzieli: kolumna, tabela, polityka, funkcja, indeks jadą automatem;
 `DROP TABLE/SCHEMA/COLUMN/TYPE`, `TRUNCATE`, `DELETE FROM`, `ALTER COLUMN … TYPE`,
-`RENAME COLUMN/TO` i `SET NOT NULL` wymagają kliknięcia. Na dzisiejszych 155 migracjach
-ręcznych jest **7**. Zadanie produkcyjne zatrzymuje się przed pierwszą ręczną razem
-z całą resztą za nią (migracji nie da się przeskoczyć) i wypisuje w podsumowaniu, co
-czeka.
+`RENAME COLUMN/TO` i `SET NOT NULL` wymagają kliknięcia. Na dzisiejszych 159 migracjach
+ręcznych jest **7** — aktualny podział wypisuje `node scripts/ryzyko-migracji.mjs`,
+więc nie musisz wierzyć tej liczbie na słowo. Zadanie produkcyjne zatrzymuje się przed
+pierwszą ręczną razem z całą resztą za nią (migracji nie da się przeskoczyć) i wypisuje
+w podsumowaniu, co czeka.
 
 Skaner pomija komentarze i **ciała funkcji** (`$$ … $$`): `DELETE FROM` w ciele funkcji
 niczego przy migracji nie kasuje, tylko definiuje zachowanie na później. Bez tego
@@ -357,8 +361,19 @@ Setup, backfill i co robić przy błędzie →
 [supabase/migrations/README.md](./supabase/migrations/README.md).
 
 Z tego wynika niezmieniona zasada: dodanie kolumny w migracji ≠ kolumna istnieje
-w produkcyjnej bazie. Jeśli apka rzuca błędem o nieznanej kolumnie, najpewniej migracja
-czeka na uruchomienie na produkcji.
+w produkcyjnej bazie. Zmieniła się natomiast DIAGNOZA, gdy apka rzuca błędem o nieznanej
+kolumnie — „migracja czeka na uruchomienie" przestało być pierwszą hipotezą, bo migracja
+dokładająca kolumnę poszła automatem przy merge'u. Sprawdzaj w tej kolejności:
+
+1. **Czy przed nią w kolejce nie stoi migracja RĘCZNA.** Zadanie produkcyjne zatrzymuje
+   się przed pierwszą taką i razem z nią czeka CAŁA reszta za nią, także te bezpieczne.
+   Jedna niekliknięta blokuje wszystkie późniejsze i to jest dziś najczęstsza przyczyna.
+2. **Czy zadanie „produkcja (bezpieczne)" w ogóle przeszło** (Actions → Migracje przy tym
+   merge'u). Brak sekretu `SUPABASE_DB_URL_PROD` kończy je ZIELONO z adnotacją
+   w podsumowaniu, celowo — czerwony master przy każdym merge'u uczyłby ignorować
+   czerwone znaczki na masterze.
+3. **Czy nie patrzysz na podgląd Vercela z PR-a.** Podgląd celuje w bazę dev, nie
+   w produkcję, więc „nieznana kolumna" znaczy tam co innego.
 
 **Gorsza wersja tej samej pułapki: migracja puszczona w POŁOWIE.** Gdy seed wywala się
 na nieznanej kolumnie, odruch brzmi „puszczę z ręki tę jedną linijkę, żeby się
