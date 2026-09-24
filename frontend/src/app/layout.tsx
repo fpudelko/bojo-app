@@ -160,7 +160,7 @@ export default function RootLayout({
         <link
           rel="icon"
           type="image/svg+xml"
-          href="data:image/svg+xml,%3Csvg viewBox='0 0 110 110' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='110' height='110' rx='26' fill='%2315663E'/%3E%3Cpath d='M40 33 L40 77 L62 77 Q74 77 74 65.5 Q74 56 64 54.5 Q72 52.5 72 43.5 Q72 33 60 33 Z M51 42 L59 42 Q63 42 63 46.5 Q63 51 59 51 L51 51 Z M51 59 L60 59 Q65 59 65 64 Q65 68 60 68 L51 68 Z' fill='%23ffffff' fill-rule='evenodd'/%3E%3C/svg%3E"
+          href="data:image/svg+xml,%3Csvg viewBox='0 0 110 110' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='110' height='110' rx='26' fill='%2315663E'/%3E%3Cg stroke='%231E7A4B' stroke-width='3' fill='none'%3E%3Cline x1='0' y1='55' x2='110' y2='55'/%3E%3Ccircle cx='57' cy='55' r='31'/%3E%3C/g%3E%3Cpath d='M40 33 L40 77 L62 77 Q74 77 74 65.5 Q74 56 64 54.5 Q72 52.5 72 43.5 Q72 33 60 33 Z' fill='%23ffffff'/%3E%3Ccircle cx='57' cy='46.5' r='4.5' fill='%2315663E'/%3E%3Ccircle cx='58' cy='63.5' r='4.5' fill='%2315663E'/%3E%3C/svg%3E"
         />
       </head>
       <body className="min-h-screen bg-canvas font-sans antialiased text-ink">

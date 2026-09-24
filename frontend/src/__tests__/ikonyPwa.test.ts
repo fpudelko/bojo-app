@@ -16,6 +16,7 @@ import manifest from '@/app/manifest';
 const KATALOG = process.cwd();
 const skrypt = readFileSync(path.join(KATALOG, 'scripts', 'generuj-ikony.mjs'), 'utf8');
 const logo = readFileSync(path.join(KATALOG, 'src', 'components', 'Logo.tsx'), 'utf8');
+const layout = readFileSync(path.join(KATALOG, 'src', 'app', 'layout.tsx'), 'utf8');
 
 const bezSpacji = (s: string) => s.replace(/\s+/g, '');
 
@@ -25,6 +26,25 @@ describe('ikony PWA', () => {
     expect(zLogo, 'nie znaleziono ścieżki w LOGO_SVG_STRING').toBeTruthy();
     // Po zdjęciu białych znaków, bo w SVG bywa inne łamanie linii.
     expect(bezSpacji(skrypt)).toContain(bezSpacji(zLogo!));
+  });
+
+  // Favicon w karcie przeglądarki jest TRZECIĄ kopią tej samej ścieżki —
+  // `<link rel="icon">` w layout.tsx niesie własny SVG jako `data:` URI, bo ma
+  // działać bez pliku na dysku. Wcześniej rozjechała się cicho: podmiana logo
+  // zaktualizowała Logo.tsx i generuj-ikony.mjs (pilnowane testem wyżej), ale
+  // nie tę kopię — favicon w karcie przeglądarki, czyli miejsce widziane
+  // najczęściej ze wszystkich, zostawał stary.
+  it('ścieżka litery w favicon-data-URI (layout.tsx) zgadza się z logo', () => {
+    const href = layout.match(/href="data:image\/svg\+xml,([^"]+)"/)?.[1];
+    expect(href, 'nie znaleziono favicon data-URI w layout.tsx').toBeTruthy();
+    // Favicon SVG jest zapisany z cudzysłowami pojedynczymi (podwójny kończyłby
+    // atrybut `href="..."` w JSX), więc atrybut `d` szuka innego ogranicznika
+    // niż ten sam wzorzec dla LOGO_SVG_STRING niżej.
+    const zFavicon = decodeURIComponent(href!).match(/<path d='([^']+)'/)?.[1];
+    expect(zFavicon, 'nie znaleziono ścieżki w zdekodowanym favicon SVG').toBeTruthy();
+
+    const zLogo = logo.match(/LOGO_SVG_STRING[\s\S]*?<path d="([^"]+)"/)?.[1];
+    expect(bezSpacji(zFavicon!)).toBe(bezSpacji(zLogo!));
   });
 
   it('zieleń w generatorze zgadza się z logo i manifestem', () => {
