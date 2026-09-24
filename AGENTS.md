@@ -22,7 +22,7 @@ Wymaga `.env` w katalogu głównym (skopiuj z `.env.example`) z kluczami Supabas
 cd frontend
 npx tsc --noEmit       # typecheck — musi być czysto
 npm run lint           # ESLint — błędy blokują CI, ostrzeżenia nie
-npm test               # Vitest, 827 testów (stan 2026-08-26)
+npm test               # Vitest — musi być zielono (liczba testów rośnie co PR)
 npm run build          # build produkcyjny (potrzebuje tylko atrap kluczy, patrz niżej)
 ```
 
@@ -609,7 +609,8 @@ ponownie i zacommituj wynik.
 - **NIE pushuj bezpośrednio na `master`. Każda zmiana idzie przez pull request** —
   branch → PR → **merge przez agenta** → deploy. Powód: PR zostaje jako czytelny
   zapis zmiany (diff, opis, preview z Vercela), nawet jeśli nikt go nie recenzuje
-  na żywo. Merge do mastera to deploy na produkcję — środowisko jest jedno.
+  na żywo. Merge do mastera to deploy NA PRODUKCJĘ — obok jest dev (`BojoDev`,
+  patrz „Pułapki” wyżej), ale ten jeden merge trafia na żywo, nie na podgląd.
 - **Agent sam mergueje swój PR**, gdy CI jest zielone. Nie czekaj na potwierdzenie
   właściciela — decyzja z 2026-08-05, gdy aplikacja nie była jeszcze publiczna.
   Warunki, bez których NIE wolno mergować:

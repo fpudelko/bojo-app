@@ -35,10 +35,19 @@ potwierdzenia i przypomnienia SMS, turniej, rezerwacje obiektów.
 **Infrastruktura:**
 - Frontend: Vercel | Baza + Auth: Supabase | E-mail: Resend | SMS: SMSAPI.pl (główny)
   + Twilio (zapasowy)
-- **57 migracji** bazy, **11 workflowów** GitHub Actions
+- Migracje i workflowy Actions rosną co tydzień — aktualne liczby:
+  `ls supabase/migrations/*.sql | wc -l` i `ls .github/workflows/*.yml | wc -l`,
+  nie warto ich tu zamrażać (ten akapit sam był nieaktualny: stał tu „57”
+  i „11” przy 159 migracjach i 21 workflowach)
 
-**Jedno wąskie gardło infrastrukturalne:** jest tylko **jedno środowisko** (prod). Każda
-zmiana idzie od razu na żywo. To pierwsza rzecz do naprawienia przy „realnym starcie".
+**ZROBIONE — rozdzielenie dev/prod.** Ten akapit do 2026-09-22 opisywał jedno
+środowisko (prod) jako priorytet #1 do naprawienia. Dziś jest baza `BojoDev` (Vercel
+Preview Deployments celują w nią), a `.github/workflows/migracje.yml` aplikuje na nią
+migracje automatycznie przy każdym pushu dotykającym `supabase/migrations/**`. Na
+PRODUKCJĘ migracje DOKŁADAJĄCE idą automatem przy merge'u do mastera; kasujące lub
+przepisujące w miejscu czekają na kliknięcie (Actions → Migracje → Run workflow).
+Szczegóły → sekcja „Pułapki” w [AGENTS.md](../AGENTS.md) i
+[baza-danych.md](./baza-danych.md).
 
 ---
 
@@ -119,7 +128,9 @@ użytkownikach.
       bez walidacji runtime)
 - [ ] **Dokończyć logowanie błędów** — część `.catch(()=>{})` już zastąpiona
 - [ ] **Ujednolicić copy „Zapisz się" / „Dołącz do gry"**
-- [ ] **Weryfikacja domeny w Resend** (SPF/DKIM) — patrz §3
+- [x] ~~**Weryfikacja domeny w Resend** (SPF/DKIM)~~ ZROBIONE 2026-09-10 —
+      `bojo.pl` zweryfikowane, wszystkie funkcje brzegowe domyślnie wysyłają z
+      `noreply@bojo.pl`. Patrz `supabase/functions/powiadom-goscia/README.md`
 - [ ] **Domknąć reguły dostępu w RLS** — część sprawdzana dziś po stronie przeglądarki
 
 ---
@@ -130,11 +141,12 @@ Priorytet: **wzrost i retencja** (monetyzacja dopiero przy trakcji).
 Statusy zweryfikowane wobec kodu — część pozycji jest zbudowana wcześniej, niż zakładała
 pierwotna kolejność faz.
 
-### Faza 0 — Fundamenty
-- Rozdzielenie dev/prod
-- Domknięcie długu technicznego (§5)
-- Weryfikacja domeny Resend, rejestracja nadawcy „Bojo" w SMSAPI
-- **Cel: stabilna baza pod growth.**
+### Faza 0 — Fundamenty — ZROBIONE
+- ~~Rozdzielenie dev/prod~~ — `BojoDev` + `migracje.yml`, patrz §1
+- ~~Weryfikacja domeny Resend~~ — patrz §5. Rejestracja nadawcy „Bojo" w SMSAPI zostaje
+  otwarta: SMS jest za flagą `SHOW_SMS_FEATURES = false`, więc nikt tego nie używa
+- Dług techniczny (§5) — część zrobiona, reszta (Zod, RLS, logowanie błędów) zostaje
+- **Cel zrealizowany: stabilna baza pod growth.**
 
 ### Faza 1 — Akwizycja / viral
 - **PWA + push notifications** — instalowalna apka + darmowy kanał przypomnień
