@@ -469,8 +469,8 @@ tego turnieju. Etykieta linku z zakładki Info zmieniła się na „+ Ustaw wygl
 a zakładka Ustawienia dostała jedno zdanie na górze, które mówi, co się na niej edytuje.
 
 MECHANIKA: `components/turnieje/PanelProsbaOWyglad.tsx`, `zglosZyczenieWygladu()`
-w `lib/bledy.ts`. Czwarty rodzaj `turniej_wyglad` w `zgloszenia_bledow` (migracja `099`)
-i nowa kolumna `turniej_id`, migracja `162`. Admin czyta w `/admin/bledy`.
+w `lib/bledy.ts`. Tabela `zgloszenia_bledow` jest z `099`; czwarty rodzaj `turniej_wyglad`
+i nowa kolumna `turniej_id` dokłada migracja `162`. Admin czyta w `/admin/bledy`.
 
 ### 2026-09-24 — Turniej po grupach nie ogłasza już własnego końca
 
