@@ -14,6 +14,11 @@ import { test, expect, type Page } from '@playwright/test';
 // nadaj PR-owi etykietę `zrzuty:zaakceptuj` — workflow wygeneruje nowe wzorce
 // i dopisze je do gałęzi.
 //
+// Zmiana treści potrafi poruszyć wzorce na kilku niepowiązanych stronach naraz
+// (np. zamiana długiego myślnika na przecinek/dwukropek w #405 skróciła kilka
+// akapitów o kilka pikseli) — to nie jest regresja, tylko efekt uboczny
+// poprawki tekstu, do zaakceptowania po przejrzeniu.
+//
 // ZAKRES TEGO PLIKU: **bez bazy danych**.
 // Ten plik uruchamia się na atrapach kluczy Supabase, w tym samym przebiegu co
 // build produkcyjny — nie potrzebuje Dockera ani lokalnego stosu. Komunikaty,
