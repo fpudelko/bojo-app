@@ -674,7 +674,7 @@ export default function GroupDetailClient() {
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               Nie musisz dodawać do ekipy jak najwięcej osób. Jeśli zrobisz mecz
-              publicznym, zobaczą go też gracze spoza ekipy, z okolicy.
+              publicznym, trafi na listę otwartych gier w Bojo, poza samą ekipą.
             </p>
           </div>
         )}

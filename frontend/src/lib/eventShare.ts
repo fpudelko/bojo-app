@@ -12,7 +12,9 @@ import { sportEmoji } from './sports';
 import { eventDisplayTitle } from './eventTitle';
 import { eventLocation } from './utils';
 import { plural, withCount } from './plural';
-import type { EventItem } from '@/types';
+import { momentZapisu } from './events';
+import { kolejkaRezerwy } from './kolejkaRezerwy';
+import type { EventItem, EventParticipant } from '@/types';
 
 /**
  * Kanoniczny adres meczu.
@@ -33,7 +35,7 @@ export type DaneDoUdostepnienia = Pick<
   EventItem,
   'sport' | 'title' | 'maxPlayers' | 'date' | 'time' | 'endTime' | 'costGrosze'
 > & Partial<Pick<EventItem,
-  'fieldName' | 'fieldAddress' | 'customLocationName' | 'customAddress' | 'district'
+  'fieldName' | 'fieldAddress' | 'customLocationName' | 'customAddress' | 'district' | 'goalkeepersEnabled'
 >>;
 
 /** „18:00" z „18:00:00" — baza zwraca godziny z sekundami, czat ich nie potrzebuje. */
@@ -74,6 +76,48 @@ export interface StanUdostepnienia {
  * Bez `stan` (wywołania z listy, gdzie składu nie ma) linia miejsc zostaje
  * dokładnie taka jak dotąd — to jest bezpiecznik wsteczny, nie ozdoba.
  */
+// `withCount` zamiast reguły `n < 5`: ta myli się na 12–14, a 14 to domyślny
+// skład piłkarski w kreatorze — czyli najczęstsza liczba w całej aplikacji.
+//
+// Wydzielone z `eventShareText()` (F-4, docs/faza1-organizator-plan.md), żeby
+// `tekstSkladu()` liczyła DOKŁADNIE to samo — dwa teksty pokazujące ten sam
+// stan meczu nie mogą się rozjechać w jednej z dwóch liczb, które gracz
+// faktycznie sprawdza przed kliknięciem.
+function liniaMiejscICeny(
+  e: Pick<DaneDoUdostepnienia, 'maxPlayers' | 'costGrosze'>,
+  stan?: StanUdostepnienia,
+): string {
+  const opisMiejsc = (() => {
+    if (!stan) return withCount(e.maxPlayers, 'miejsce', 'miejsca', 'miejsc');
+    if (stan.zapisyZamkniete) return 'Zapisy zamknięte';
+    if (stan.wolneMiejsca > 0) {
+      // Czasownik odmienia się TAK SAMO jak rzeczownik: „Zostało 1 miejsce",
+      // „Zostały 3 miejsca", „Zostało 8 miejsc" — ten sam wyjątek 12-14, który
+      // `plural()` już liczy, więc druga, osobna reguła by się z nim rozjechała.
+      const czasownik = plural(stan.wolneMiejsca, 'Zostało', 'Zostały', 'Zostało');
+      return `${czasownik} ${withCount(stan.wolneMiejsca, 'miejsce', 'miejsca', 'miejsc')}`;
+    }
+    return stan.reserveEnabled ? 'Komplet, wejdź na rezerwę' : 'Komplet';
+  })();
+  const cena = e.costGrosze > 0
+    ? `${(e.costGrosze / 100).toFixed(2).replace('.', ',')} zł od osoby`
+    : 'za darmo';
+  return `${opisMiejsc} · ${cena}`;
+}
+
+/** Argument, którym organizator przebija opór graczy przed zakładaniem konta
+ *  — pada TYLKO wtedy, gdy da się go uczciwie złożyć: ta sama bramka, która na
+ *  stronie meczu decyduje, czy pokazać „Dołącz bez konta" zamiast „Komplet —
+ *  zapisy zamknięte" (`EventDetailClient.tsx`, ustalenie `P-7`). Obietnica bez
+ *  pokrycia byłaby tu gorsza niż jej brak. `null`, gdy zdania nie da się złożyć
+ *  uczciwie — wywołujący pomija linię zamiast wstawiać pustkę. */
+function zdanieBezKonta(stan?: StanUdostepnienia): string | null {
+  if (stan && !stan.zapisyZamkniete && (stan.wolneMiejsca > 0 || stan.reserveEnabled)) {
+    return 'Zapisujesz się bez zakładania konta.';
+  }
+  return null;
+}
+
 export function eventShareText(e: DaneDoUdostepnienia, stan?: StanUdostepnienia): string {
   const linie: string[] = [];
 
@@ -101,33 +145,10 @@ export function eventShareText(e: DaneDoUdostepnienia, stan?: StanUdostepnienia)
   });
   linie.push(gdzie.secondary ? `${gdzie.primary}, ${gdzie.secondary}` : gdzie.primary);
 
-  // `withCount` zamiast reguły `n < 5`: ta myli się na 12–14, a 14 to domyślny
-  // skład piłkarski w kreatorze — czyli najczęstsza liczba w całej aplikacji.
-  const opisMiejsc = (() => {
-    if (!stan) return withCount(e.maxPlayers, 'miejsce', 'miejsca', 'miejsc');
-    if (stan.zapisyZamkniete) return 'Zapisy zamknięte';
-    if (stan.wolneMiejsca > 0) {
-      // Czasownik odmienia się TAK SAMO jak rzeczownik: „Zostało 1 miejsce",
-      // „Zostały 3 miejsca", „Zostało 8 miejsc" — ten sam wyjątek 12-14, który
-      // `plural()` już liczy, więc druga, osobna reguła by się z nim rozjechała.
-      const czasownik = plural(stan.wolneMiejsca, 'Zostało', 'Zostały', 'Zostało');
-      return `${czasownik} ${withCount(stan.wolneMiejsca, 'miejsce', 'miejsca', 'miejsc')}`;
-    }
-    return stan.reserveEnabled ? 'Komplet, wejdź na rezerwę' : 'Komplet';
-  })();
-  const cena = e.costGrosze > 0
-    ? `${(e.costGrosze / 100).toFixed(2).replace('.', ',')} zł od osoby`
-    : 'za darmo';
-  linie.push(`${opisMiejsc} · ${cena}`);
+  linie.push(liniaMiejscICeny(e, stan));
 
-  // Argument, którym organizator przebija opór graczy przed zakładaniem
-  // konta — pada TYLKO wtedy, gdy da się go uczciwie złożyć: ta sama bramka,
-  // która na stronie meczu decyduje, czy pokazać „Dołącz bez konta" zamiast
-  // „Komplet — zapisy zamknięte" (`EventDetailClient.tsx`, ustalenie `P-7`).
-  // Obietnica bez pokrycia byłaby tu gorsza niż jej brak.
-  if (stan && !stan.zapisyZamkniete && (stan.wolneMiejsca > 0 || stan.reserveEnabled)) {
-    linie.push('Zapisujesz się bez zakładania konta.');
-  }
+  const zdanie = zdanieBezKonta(stan);
+  if (zdanie) linie.push(zdanie);
 
   return linie.join('\n');
 }
@@ -377,6 +398,122 @@ export async function shareEvent(
 
   try {
     await navigator.clipboard.writeText(textDoKopiowania(e, url, stan));
+    return 'copied';
+  } catch {
+    return 'failed';
+  }
+}
+
+/**
+ * Skład ponumerowaną listą — to jest to, co organizator dziś wkleja ręcznie
+ * na WhatsApp: „1. Marek 2. Kuba … 12. ___ 13. ___ — brakuje dwóch". Bojo
+ * prowadzi tę listę lepiej (twardy limit, rezerwa, kolejność), ale nie umiało
+ * jej wysłać (F-4, docs/faza1-organizator-plan.md).
+ *
+ * Ostatnie dwie linie (miejsca/cena, „bez konta") liczą DOKŁADNIE to samo co
+ * `eventShareText()` — `liniaMiejscICeny()`/`zdanieBezKonta()` są wspólne, więc
+ * oba teksty nie mogą pokazać dwóch różnych liczb wolnych miejsc.
+ *
+ *   ⚽ Piłka nożna 7v7 · czwartek, 25 września · 18:00
+ *   Orlik Sołacz
+ *
+ *   Skład 10/14:
+ *   1. Marek Kowalski
+ *   2. Kuba Nowak 🧤
+ *   …
+ *   10. Ola Wiśniewska
+ *   11–14: wolne
+ *
+ *   Rezerwa: Adam Z., Piotr K.
+ *   Zostały 4 miejsca · 20,00 zł od osoby
+ *   Zapisujesz się bez zakładania konta.
+ *
+ * @param regulars skład (`is_reserve = false`), bez obserwujących i
+ *   oczekujących na akceptację — nie grają, nie mają co robić na liście.
+ * @param rezerwa  WSZYSTKIE wpisy `is_reserve = true` z tego meczu; kolejność
+ *   liczy `kolejkaRezerwy()` (ta sama reguła co baza), więc wywołujący nie
+ *   sortuje niczego z góry.
+ */
+export function tekstSkladu(
+  e: DaneDoUdostepnienia,
+  regulars: EventParticipant[],
+  rezerwa: EventParticipant[],
+  stan?: StanUdostepnienia,
+): string {
+  const linie: string[] = [];
+
+  let kiedy: string;
+  try {
+    kiedy = format(parseISO(e.date), 'EEEE, d MMMM', { locale: pl });
+  } catch {
+    kiedy = e.date;
+  }
+  linie.push(`${sportEmoji(e.sport)} ${eventDisplayTitle({
+    title: e.title, sport: e.sport, maxPlayers: e.maxPlayers,
+  })} · ${kiedy} · ${hhmm(e.time)}`);
+
+  const gdzie = eventLocation({
+    fieldName: e.fieldName,
+    fieldAddress: e.fieldAddress,
+    customLocationName: e.customLocationName,
+    customAddress: e.customAddress,
+    district: e.district,
+  });
+  linie.push(gdzie.secondary ? `${gdzie.primary}, ${gdzie.secondary}` : gdzie.primary);
+  linie.push('');
+
+  const posortowani = [...regulars].sort((a, b) => momentZapisu(a).localeCompare(momentZapisu(b)));
+  linie.push(`Skład ${posortowani.length}/${e.maxPlayers}:`);
+  posortowani.forEach((p, i) => {
+    linie.push(`${i + 1}. ${p.name}${p.isGoalkeeper ? ' 🧤' : ''}`);
+  });
+  const wolne = e.maxPlayers - posortowani.length;
+  if (wolne === 1) linie.push(`${e.maxPlayers}: wolne`);
+  else if (wolne > 1) linie.push(`${posortowani.length + 1}–${e.maxPlayers}: wolne`);
+
+  // Dwie osobne kolejki przy bramkarzach — pole, potem bramkarze, każda we
+  // WŁASNEJ kolejności rozdawania ofert. Bez podziału na role, gdy mecz ich
+  // nie rozróżnia: `kolejkaRezerwy(…, false, false)` ignoruje wtedy rolę.
+  const gkEnabled = e.goalkeepersEnabled ?? false;
+  const wKolejce = gkEnabled
+    ? [...kolejkaRezerwy(rezerwa, true, false), ...kolejkaRezerwy(rezerwa, true, true)]
+    : kolejkaRezerwy(rezerwa, false, false);
+  if (wKolejce.length > 0) {
+    linie.push('');
+    linie.push(`Rezerwa: ${wKolejce.map((p) => p.name).join(', ')}`);
+  }
+
+  linie.push(liniaMiejscICeny(e, stan));
+  const zdanie = zdanieBezKonta(stan);
+  if (zdanie) linie.push(zdanie);
+
+  return linie.join('\n');
+}
+
+/** Otwiera systemowy arkusz udostępniania ze składem; bez `url` w
+ *  `navigator.share` — to wiadomość do ludzi, którzy już mają link (są w
+ *  meczu albo dostali go wcześniej), więc adres jest już w tekście przez
+ *  `textDoKopiowania()` wyłącznie na ścieżce schowka. */
+export async function udostepnijSklad(
+  e: DaneDoUdostepnienia,
+  regulars: EventParticipant[],
+  rezerwa: EventParticipant[],
+  url: string,
+  stan?: StanUdostepnienia,
+): Promise<WynikUdostepnienia> {
+  const text = tekstSkladu(e, regulars, rezerwa, stan);
+
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title: 'Skład meczu', text, url });
+      return 'shared';
+    } catch {
+      return 'failed';
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(`${text}\n${url}`);
     return 'copied';
   } catch {
     return 'failed';

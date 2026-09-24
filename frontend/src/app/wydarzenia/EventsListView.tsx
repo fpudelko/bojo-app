@@ -617,7 +617,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
               ? 'Zmień filtr albo wrzuć własny mecz.'
               : mamEkipe === false
                 ? 'Grasz ze stałą ekipą? Wejdź do niej kodem od kolegów, mecze ekipy zobaczysz w „Grupy".'
-                : 'Wrzuć własny, zobaczą go gracze z okolicy.'}
+                : 'Wrzuć własny, trafi na listę otwartych gier.'}
           </p>
           {/* Najpierw odpowiedź na to, po co ktoś tu przyszedł: skoro meczu
               nie ma DZIŚ, jedyne sensowne „dalej" to dowiedzieć się, gdy

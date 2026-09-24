@@ -74,9 +74,18 @@ export function toEvent(row: any): EventItem {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (row.event_participants as any[]).filter((p) => p.pending_approval).length
       : undefined,
+    // Organizator wykluczony (`p.user_id !== row.organizer_id`) — płaci za
+    // obiekt i zbiera od reszty, jego własny wiersz nigdy nie jest
+    // „zaległością" (`winienWplate()` w `lib/payments.ts`). Zapytania, które
+    // nie osadzają `user_id` w `event_participants`, mają tu zawsze
+    // `undefined !== <uuid>` = `true` dla każdego wiersza — czyli zachowują
+    // się dokładnie tak jak przed tą zmianą; pole liczy się poprawnie
+    // wyłącznie tam, gdzie `user_id` jest w zapytaniu (dziś: `/moje-gry`,
+    // jedyne miejsce czytające `unpaidCount`).
     unpaidCount: Array.isArray(row.event_participants)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ? (row.event_participants as any[]).filter((p) => !p.is_reserve && !p.pending_approval && !p.has_paid).length
+      ? (row.event_participants as any[]).filter((p) =>
+        !p.is_reserve && !p.pending_approval && !p.has_paid && p.user_id !== row.organizer_id).length
       : undefined,
     visibility: row.visibility,
     createdAt: row.created_at,
@@ -1531,7 +1540,9 @@ export async function getMyParticipatedEvents(
 
   const { data, error } = await supabase
     .from('events')
-    .select('*, event_participants(id, is_reserve, pending_approval, has_paid)')
+    // `user_id` tutaj: `toEvent()` liczy `unpaidCount` bez organizatora
+    // (`winienWplate()`), a to jest jedyne miejsce, które czyta to pole.
+    .select('*, event_participants(id, user_id, is_reserve, pending_approval, has_paid)')
     .in('id', eventIds)
     .order('event_date', { ascending: false });
   if (error) throw new Error(error.message);

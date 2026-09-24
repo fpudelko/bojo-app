@@ -34,6 +34,10 @@ export type AnalyticsEvent =
   | 'guest_claimed'
   /** Organizator wysłał rozliczenie ekipie — czy domknięcie po meczu wychodzi poza jego ekran. */
   | 'settlement_shared'
+  /** Organizator wysłał skład na czat (F-4) — czy zamiennik posta z WhatsAppa jest używany. */
+  | 'squad_shared'
+  /** „Powtórz mecz” zaprosiło N osób z poprzedniego składu (F-5, `{ eventId, ile }`). */
+  | 'repeat_invited'
   /** Ktoś pobrał termin meczu jako `.ics` (`{ eventId }`). Mierzy, czy kalendarz
    *  telefonu jest realną drogą powrotu na mecz, czy tylko naszym założeniem —
    *  bez tego licznika „Do kalendarza" zostaje przyciskiem, o którym nie da się

@@ -674,6 +674,32 @@ zasilają badge „Rozliczono"/„X nie zapłaciło" (organizator) i „Zapłaco
 dla wydarzeń, które już się rozpoczęły (`eventStarted`); wcześniej w tym samym miejscu
 jest cena.
 
+**Organizator nigdy nie jest swoim dłużnikiem (migracja `160`).** Organizator, który
+gra we własnym meczu, siedzi w składzie jak każdy inny — jego wiersz ma
+`has_paid = false`, dopóki nikt go nie odhaczy. Bez rozróżnienia panel „Podział
+kosztów", tekst „Wyślij rozliczenie ekipie" i przypomnienie dzień po meczu
+(`wyslij_przypomnienia()`, blok C) liczyły go jako zaległość. `winienWplate()`
+w `lib/payments.ts` jest JEDYNYM źródłem tej reguły — filtruje `regulars` do
+`placacy` (organizator wyklucza się przez `userId !== organizerId`, obok
+standardowych warunków `!isReserve && !pendingApproval && rsvp !== 'maybe'`).
+Migracja `160` jest lustrem tej samej reguły w SQL. Organizator płacący widnieje
+w panelu OSOBNO, bez przełącznika wpłaty („Ty · płacisz za obiekt") — bez tego
+wiersza znikałby z listy bez wyjaśnienia. **Rozważane i odrzucone przy tej samej
+okazji:** przeliczanie kosztu obiektu na faktyczny skład („podziel 250 zł na 10
+osób zamiast na 14 miejsc"). `event_participants` jest listą ludzi zapisanych
+PRZEZ Bojo, nie listą ludzi na boisku — mogą grać osoby, których nikt nie dopisał
+do żadnego meczu, więc liczba wierszy w bazie nie mówi, ile osób realnie
+przyszło. Pełne uzasadnienie → [faza1-organizator-plan.md](./faza1-organizator-plan.md#f-2-koszt-obiektu-dzielony-przez-faktyczny-skład--odrzucone).
+
+**Kto dostaje zaproszenie, gdy organizator „Powtórzy mecz" (F-5, migracja żadna).**
+`odbiorcyPowtorki()` w `lib/playerInvites.ts` — osoby z kontem z poprzedniego składu,
+bez organizatora (dostaje kopię automatycznie), bez rezerwy/obserwujących/oczekujących
+na akceptację, bez gości bez konta (nie mają jak dostać zaproszenia w aplikacji). Mecz
+przypięty do grupy jest **wyjątkiem rozłącznym** z tą regułą: tam zaproszeń nie ma
+wcale, bo wyzwalacz `072` już powiadamia całą grupę przy `INSERT` nowego meczu —
+zaproszenie dublowałoby to samo powiadomienie. Pełny opis interfejsu →
+[funkcje.md](./funkcje.md#po-publikacji-mecz-gotowy--wyślij-link).
+
 ---
 
 ## Grupy

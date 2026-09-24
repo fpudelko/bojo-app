@@ -1,4 +1,4 @@
-import type { PaymentMethod, SportsCardProvider } from '@/types';
+import type { EventParticipant, PaymentMethod, SportsCardProvider } from '@/types';
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   blik: 'BLIK',
@@ -66,6 +66,26 @@ export function priceForParticipant(
     return { priceGrosze: costGrosze, discountApplied: false, discountUnspecified: true };
   }
   return { priceGrosze: Math.max(0, costGrosze - discountGrosze), discountApplied: true, discountUnspecified: false };
+}
+
+/**
+ * Czy ten wpis składu jest winien wpłatę organizatorowi. Organizator płaci za
+ * obiekt i zbiera od reszty — jego własny wiersz w składzie nigdy nie jest
+ * „zaległością", choć bazodanowo wygląda tak samo jak każdy inny nieopłacony
+ * wpis (`has_paid = false`). Bez tego rozróżnienia panel „Podział kosztów",
+ * wiadomość „Wyślij rozliczenie ekipie" i przypomnienie po meczu liczyły
+ * organizatora jako dłużnika samego siebie.
+ *
+ * Lustro warunku `AND x.user_id IS DISTINCT FROM e.organizer_id` w bloku C
+ * funkcji `wyslij_przypomnienia()` (migracja `160`) — zmiana jednego bez
+ * drugiego rozjeżdża panel i przypomnienie.
+ */
+export function winienWplate(
+  p: Pick<EventParticipant, 'userId' | 'isReserve' | 'pendingApproval' | 'rsvp'>,
+  organizerId: string,
+): boolean {
+  return !p.isReserve && !p.pendingApproval && p.rsvp !== 'maybe'
+    && p.userId !== organizerId;
 }
 
 /** Keeps only the 9 digits of a Polish mobile number and groups them 3-3-3

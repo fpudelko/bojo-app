@@ -449,32 +449,6 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-09-22 — Boisko potwierdzone przez graczy trafia do wyszukiwarki
-
-PROBLEM: katalog Bojo ma ponad 30 000 boisk, ale część z nich ma w bazie tylko tyle,
-ile było w OpenStreetMap, i te strony są celowo poza indeksem Google (`noindex`) — nie
-mają nic do powiedzenia ponad źródło. Bojo umie jednak dołożyć do obiektu fakt, którego
-nie ma nigdzie indziej: potwierdzenie od graczy, którzy tam byli („jest oświetlenie",
-„nawierzchnia to trawa"). Do tej pory takie potwierdzenie nie zmieniało nic dla
-widoczności: obiekt z dwoma potwierdzonymi faktami zostawał poza wyszukiwarką, bo
-mechanizm awansu znał tylko rozegrany mecz i komentarz.
-
-ROZWIĄZANIE BOJO: gdy dowolny fakt o boisku zbierze zgodne potwierdzenia od dwóch osób,
-strona tego boiska wchodzi do wyszukiwarki. Boisko, o którym gracze coś wiedzą, staje
-się znajdowalne; boisko, o którym Bojo nie ma nic własnego do powiedzenia, zostaje
-pinezką na mapie w aplikacji. Awans jest w jedną stronę: wycofanie głosu nie usuwa
-strony z wyszukiwarki.
-
-MECHANIKA: migracja `158` dokłada trzeci wyzwalacz promocji `seo_tier` obok tych
-z migracji `112` (mecz, komentarz). Warunek liczy się per para (fakt, wartość), więc
-„tak" od jednej osoby i „nie" od drugiej to spór, a nie potwierdzenie, i nie awansuje
-niczego. Próg to `QUORUM_POTWIERDZEN` z `lib/potwierdzeniaObiektu.ts`, ten sam, przy
-którym fakt pokazuje się człowiekowi na stronie i wchodzi do JSON-LD, żeby robot nigdy
-nie wyprzedzał tego, co widać. Wyzwalacz łapie `INSERT OR UPDATE`, bo zapis głosu to
-upsert. Migracja niesie backfill dla głosów zebranych od `123`. Progu indeksacji ani
-`oblicz_seo_tier()` nie rusza: indeks przez to wyłącznie rośnie. Test:
-`kworumPotwierdzen.test.ts`.
-
 ### 2026-09-24 — Turniej po grupach nie ogłasza już własnego końca
 
 PROBLEM: audyt przeszedł pełny łuk turnieju i trafił na moment, w którym publiczna
@@ -520,6 +494,83 @@ MECHANIKA: `toTurniej()` w `lib/turnieje.ts` (normalizacja godziny), `ulozHarmon
 w `lib/turniejFormat.ts` (osłona), `generujPodglad()` w panelu turnieju,
 `components/ui/ToggleRow.tsx`. Testy: `turniejTerminarzGodzina.test.ts`.
 
+### 2026-09-23 — Okno gościa tłumaczy, po co e-mail, a Bojo nie obiecuje podaży, której nie ma
+
+PROBLEM: formularz „Dołącz do meczu bez logowania" wymagał e-maila bez wyjaśnienia —
+pole wyglądało jak rejestracja i newsletter, dokładnie ten mur, który organizator
+próbuje ominąć linkiem „bez konta". Osobno: trzy miejsca w aplikacji (potwierdzenie
+otwarcia meczu dla okolicy, ekran po zapisie gościa, zaproszenie do konta dzień po
+meczu) obiecywały graczowi, że publiczny mecz „zobaczą gracze z okolicy" — nieprawda
+w mieście, gdzie w danym momencie nikt akurat nie szuka gry: obietnica bez pokrycia,
+którą Bojo składało samo sobie. Do tego pole daty w kreatorze i edycji liczyło „dziś"
+w UTC, więc między północą a 1–2 w nocy czasu polskiego cofało się o dzień i odmawiało
+wybrania dzisiejszej daty.
+
+ROZWIĄZANIE BOJO: pole e-mail w formularzu gościa ma dziś jedno zdanie pod spodem —
+do czego adres służy i czego nie wymaga (bez hasła, bez konta). Trzy miejsca z obietnicą
+„gracze z okolicy" stracił tę frazę na rzecz faktu bez daty: mecz trafia na publiczną
+listę otwartych gier, a graczy szukających meczu dopiero przybywa. Lista korzyści
+z konta (ekran po zapisie gościa i zaproszenie dzień po meczu) to dziś jedno źródło
+zamiast dwóch rozjeżdżających się kopii. Pola dat liczą „dziś"/„jutro" po czasie
+lokalnym, nie przez `toISOString()`.
+
+MECHANIKA: helper pod polem e-mail w formularzu gościa (`EventDetailClient.tsx`).
+`content/kontoGoscia.ts` (`KORZYSCI_KONTA`) renderowane przez `.map()` w oknie po
+zapisie gościa i w `/gracz/przejmij/[token]`; mail `zaloz_konto`
+(`supabase/functions/powiadom-goscia/tresc.ts`) trzyma tę samą listę ręcznie, pilnowane
+testem czytającym plik. `dzisLokalnie()`/`jutroLokalnie()` w `lib/eventDates.ts` (budowane
+z lokalnych metod `Date`, nie przez UTC), użyte w polu daty kreatora i edycji, oknach
+„Zmień termin"/„Powtórz mecz" i w `lib/groups.ts`. Testy: `kontoGoscia.test.ts`,
+`zakazaneFrazyWTsx.test.ts`, `eventDates.test.ts`. Bez migracji.
+
+### 2026-09-23 — Organizator wie, co Bojo zrobi za niego, i wysyła skład jednym kliknięciem
+
+PROBLEM: organizator nie widział żadnego z trzech zegarów Bojo (przypomnienie dzień
+przed meczem, kolejka rezerwowa, domknięcie po meczu), a panel „Mecz gotowy" obiecywał
+zawsze „Przypomnienie wyśle się samo" — nieprawda dla meczu założonego po 18:00 dzień
+przed terminem albo w dniu meczu, bo automat łapie wyłącznie mecze na jutro. Brakowało
+też dwóch rzeczy, które organizator robi co tydzień na WhatsAppie: wysłania listy
+składu i zaproszenia tych samych ludzi na kolejny termin.
+
+ROZWIĄZANIE BOJO: karta „Co Bojo zrobi za Ciebie" na stronie meczu pokazuje dokładny
+czas przypomnienia (albo że jest już za późno, z przyciskiem „Wyślij link teraz"), ile
+czasu ma rezerwowy na decyzję, kto nie dostanie żadnej wiadomości, i kiedy przypomnimy
+o rozliczeniu. Przycisk „Wyślij skład" wysyła ponumerowaną listę składu z wolnymi
+miejscami i rezerwą — zamiennik posta, który organizator dziś przepisuje ręcznie.
+„Powtórz mecz" domyślnie zaprasza poprzedni skład (osoby z kontem), więc kopia meczu
+nie startuje już pusta.
+
+MECHANIKA: `lib/harmonogramMeczu.ts` (czysta funkcja, `PRZYPOMNIENIA_UTC` jest lustrem
+`cron.schedule('bojo-przypomnienia', …)` z migracji `129`, pilnowane testem czytającym
+pliki migracji), `components/events/HarmonogramMeczu.tsx`. `tekstSkladu()`
+w `lib/eventShare.ts`, wspólne z `eventShareText()` przez `liniaMiejscICeny()`
+i `zdanieBezKonta()`. `odbiorcyPowtorki()` w `lib/playerInvites.ts` filtruje skład do
+osób z kontem, bez organizatora i bez rezerwy; mecz przypięty do grupy pomija
+zaproszenia (wyzwalacz `072` już powiadamia całą grupę). Bez migracji.
+
+### 2026-09-23 — Organizator nie jest dłużnikiem samego siebie w rozliczeniu
+
+PROBLEM: organizator grający we własnym meczu miał w bazie taki sam wiersz jak każdy
+inny uczestnik (`has_paid = false`, dopóki nikt go nie odhaczył). Panel „Podział
+kosztów", wiadomość „Wyślij rozliczenie ekipie" i przypomnienie dzień po meczu liczyły
+go razem z resztą: organizator widział własne imię w „Zaległościach" na czacie całej
+ekipy i dostawał przypomnienie „odhacz wpłaty" o samym sobie.
+
+ROZWIĄZANIE BOJO: organizator płaci za obiekt i zbiera od reszty, więc jego wiersz
+w składzie nigdy nie jest zaległością. Panel kosztów pokazuje go osobno, bez
+przełącznika wpłaty („Ty · płacisz za obiekt"), a rozliczenie na czacie i przypomnienie
+po meczu pomijają go w liczeniu.
+
+MECHANIKA: `winienWplate()` w `lib/payments.ts`, jedna reguła używana przez panel
+kosztów i kartę „Po meczu" w `EventDetailClient.tsx`, przez `tekstRozliczenia()`
+w `lib/settlementShare.ts` (parametr `organizerId`, wymagany) i przez `toEvent()`
+w `lib/events.ts` (`unpaidCount` na `/moje-gry`). Migracja `160` jest lustrem tej
+reguły w `wyslij_przypomnienia()` (blok C). Rozważane i odrzucone przy tej okazji:
+przeliczanie kosztu obiektu na faktyczny skład — `event_participants` to lista ludzi
+zapisanych przez Bojo, nie lista ludzi na boisku, więc liczba wierszy w bazie nie mówi,
+ile osób realnie grało. Testy: `payments.test.ts`, `settlementShare.test.ts`,
+`events.test.ts`, `supabase/test/przypomnienia.sql`.
+
 ### 2026-09-23 — Podgląd linku turnieju pokazuje turniej, nie notatkę z zaplecza
 
 PROBLEM: organizator nie pokazuje ludziom aplikacji, tylko wysyła LINK, a podgląd tego
@@ -546,6 +597,32 @@ Przyczyną zera na obrazku był `select('*')` na `turniej_druzyny`: tabela ma gr
 KOLUMNOWY (migracja `145` nie wypuszcza anonowi telefonu i maila kapitana), więc gwiazdka
 kończyła się odmową dostępu, a `count ?? 0` zamieniało błąd w ciche zero. Zegar:
 `czasGry()` w `lib/turniejWynik.ts`.
+
+### 2026-09-22 — Boisko potwierdzone przez graczy trafia do wyszukiwarki
+
+PROBLEM: katalog Bojo ma ponad 30 000 boisk, ale część z nich ma w bazie tylko tyle,
+ile było w OpenStreetMap, i te strony są celowo poza indeksem Google (`noindex`) — nie
+mają nic do powiedzenia ponad źródło. Bojo umie jednak dołożyć do obiektu fakt, którego
+nie ma nigdzie indziej: potwierdzenie od graczy, którzy tam byli („jest oświetlenie",
+„nawierzchnia to trawa"). Do tej pory takie potwierdzenie nie zmieniało nic dla
+widoczności: obiekt z dwoma potwierdzonymi faktami zostawał poza wyszukiwarką, bo
+mechanizm awansu znał tylko rozegrany mecz i komentarz.
+
+ROZWIĄZANIE BOJO: gdy dowolny fakt o boisku zbierze zgodne potwierdzenia od dwóch osób,
+strona tego boiska wchodzi do wyszukiwarki. Boisko, o którym gracze coś wiedzą, staje
+się znajdowalne; boisko, o którym Bojo nie ma nic własnego do powiedzenia, zostaje
+pinezką na mapie w aplikacji. Awans jest w jedną stronę: wycofanie głosu nie usuwa
+strony z wyszukiwarki.
+
+MECHANIKA: migracja `158` dokłada trzeci wyzwalacz promocji `seo_tier` obok tych
+z migracji `112` (mecz, komentarz). Warunek liczy się per para (fakt, wartość), więc
+„tak" od jednej osoby i „nie" od drugiej to spór, a nie potwierdzenie, i nie awansuje
+niczego. Próg to `QUORUM_POTWIERDZEN` z `lib/potwierdzeniaObiektu.ts`, ten sam, przy
+którym fakt pokazuje się człowiekowi na stronie i wchodzi do JSON-LD, żeby robot nigdy
+nie wyprzedzał tego, co widać. Wyzwalacz łapie `INSERT OR UPDATE`, bo zapis głosu to
+upsert. Migracja niesie backfill dla głosów zebranych od `123`. Progu indeksacji ani
+`oblicz_seo_tier()` nie rusza: indeks przez to wyłącznie rośnie. Test:
+`kworumPotwierdzen.test.ts`.
 
 ### 2026-09-22 — Licznik drużyn w turnieju mówi, ile jest PRZYJĘTYCH
 
@@ -617,136 +694,4 @@ mecz sprzed ponad 30 dni wypada z okna, a konwersja gościa liczy ZDARZENIA, nie
 bo `guest_joined` powstaje bez zalogowania i wiersz nie niesie identyfikatora.
 Test `aktywacja.test.ts` porównuje dwa zestawy o tym samym wolumenie i przeciwnym
 wyniku.
-
-### 2026-09-20 — Kapitan turnieju ma wreszcie gdzie skompletować skład
-
-PROBLEM: Link do drużyny turniejowej — w tym module CAŁA droga, którą powstają konta
-zawodników — kapitan widział DOKŁADNIE RAZ, na ekranie potwierdzenia zgłoszenia. Kto
-zamknął kartę, nie odzyskiwał go nigdzie: pasek „Twoja drużyna" pokazywał nazwę i nie
-prowadził donikąd, a jedyne inne miejsce z tym linkiem był panel organizatora, do którego
-kapitan nie ma wstępu. Operacje kapitańskie (dopisz zawodnika, zmień nazwę, wycofaj
-drużynę) istniały w kodzie od migracji `145` i nie miały ani jednego przycisku poza tym
-panelem. Do tego strona turnieju twardo otwierała zakładkę „Mecze", więc każdy link
-udostępniony w okresie zapisów lądował na napisie „Terminarz jeszcze nie jest gotowy",
-a kolumna `zapisy_do` istniała w bazie i była ignorowana — organizator wypełniał termin,
-który nic nie robił.
-
-ROZWIĄZANIE BOJO: powstał ekran drużyny (`/turnieje/[id]/druzyna/[id]`) ze stałym linkiem,
-licznikiem składu „5 z 8", dopisywaniem zawodników bez konta, wpisowym z numerem BLIK
-i listą własnych meczów. Kapitan może zaprosić IMIENNIE ludzi ze swoich ekip — zaproszony
-dostaje kartę „Dołączam / Nie mogę" na `/moje-gry`, tam gdzie widzi zaproszenia na mecz.
-Domyślna zakładka strony turnieju zależy teraz od jego stanu (zapisy → Info, trakt →
-Mecze, koniec → Tabela), w zapisach stoi nad nią licznik wolnych miejsc z terminem
-granicznym, `/t/[kod]` mówi najpierw, do czego człowiek dołącza (turniej, data, miejsce,
-kto już jest w składzie), a grający filtruje terminarz na „Nasze".
-
-MECHANIKA (początek i koniec łuku, migracja `156`): wyliczenie czasu w kreatorze
-(`lib/turniejKreator.ts`) odpala prawdziwe generatory terminarza na atrapach drużyn, więc
-nie może rozjechać się z panelem. Kreator kończy się ekranem-plakatem z linkiem i gotowym
-tekstem. Podium liczy `lib/turniejPodium.ts` — miejsce jest LICZONE, nie zapisywane
-w kolumnie, żeby nie powstała druga prawda o tym, kto wygrał; drabinka bije tabelę,
-a trzeciego miejsca bez meczu o 3. miejsce nie wymyślamy. Profil gracza:
-`get_player_turniej_stats()`/`get_player_turnieje()`, `SECURITY INVOKER`, więc ściana
-logowania egzekwuje się sama.
-
-MECHANIKA (dzień turnieju, migracja `155`): konsola prowadzącego dostała arkusz ze
-składem zamiast dwóch natywnych list rozwijanych (`ArkuszSkladu.tsx`), zegar meczu
-liczony z `rozpoczety_at` (`czasGry()`/`poCzasie()`), walkower (`walkower_meczu()`)
-i kartę „następny na tej arenie". Poprawiony błąd: koszykarskie `+1/+2/+3` zapisywały
-po jednym punkcie, bo wywołanie nie przekazywało `wartosc`. Powiadomienie
-`turniej_nastepny_mecz` idzie wyzwalaczem przy zakończeniu meczu — tylko gdy turniej
-trwa i tylko gdy następny mecz jest tego samego dnia. Strona turnieju odświeża mecze
-i zdarzenia co 20 s. Pulpit organizatora: `lib/turniejPulpit.ts`
-(`pulpitPrzedTurniejem()`, `opoznienieWMinutach()`, `arenyTeraz()`).
-
-MECHANIKA: migracja `154` (`turniej_zaproszenia`, funkcja `czy_sam_kapitan_druzyny()`
-— świadomie węższa niż `czy_kapitan_druzyny()`, bo organizator turnieju NIE widzi
-zaproszeń w cudzych drużynach; wyzwalacze: dopełnienie `turniej_id`, powiadomienie
-`turniej_zaproszenie_do_druzyny`, gaszenie zaproszenia po wejściu do drużyny).
-Nowa trasa `app/turnieje/[id]/druzyna/[druzynaId]`, `lib/turniejZaproszenia.ts`,
-`components/turnieje/ZaprosZEkipyDialog.tsx` i `ZaproszeniaTurniejowe.tsx`,
-`domyslnaZakladka()` i `przyjmujeZgloszenia()` (termin graniczny) w `lib/turnieje.ts`,
-`stanZapisowTurnieju()` w `lib/turniejEtykiety.ts`.
-
-### 2026-09-18 — Strona mówi tym samym językiem, co pierwsza wiadomość do organizatora
-
-PROBLEM: Pierwszy kontakt z organizatorem (docs/outreach-organizatorzy.md) zaczyna się od
-misji („zbieramy społeczność, żeby łatwiej było ogarnąć skład") i od tego, że Bojo buduje
-konkretny, mały zespół. Kto klikał link po takiej wiadomości, lądował na stronie, gdzie
-słowo „misja" nie padało ani razu, za produktem nie stał żaden człowiek, a zamknięcie
-brzmiało „Zorganizuj mecz" zamiast powtórzyć małą prośbę z rozmowy („zorganizuj
-NASTĘPNĄ gierkę"). Najmocniejszy argument rozmowy znikał dokładnie w chwili największej
-uwagi. Do tego `/faq` odsyłało do `/cykliczne`, funkcji schowanej za wyłączoną flagą
-`SHOW_RECURRING` od 2026-08-16 — stopka i nagłówek były opakowane flagą, odpowiedź w FAQ
-nie była, i żaden istniejący test fraz tego nie widział. Modal po świeżej rejestracji
-kierował „Jestem organizatorem" do kreatora GRUPY, choć aktywacją produktu jest pierwszy
-wystawiony MECZ, nie grupa.
-
-ROZWIĄZANIE BOJO: landing dostał sekcję misji (po „Jak to działa") i zamknięcie
-zapraszające do wystawienia jednej gierki (po FAQ, przed stopką) — obie ŚWIADOMIE bez
-liczby osób w zespole i bez imion (decyzja właściciela). Powstała strona `/o-bojo`: kto
-robi Bojo, dlaczego zaczyna od organizatorów, oraz dwie listy wprost — co działa dziś
-i czego jeszcze nie ma (efekt pratfall: przyznanie się do braku PRZED obietnicą).
-`/dlaczego-bojo` dostało sekcję „Co napisać ekipie" — trzy gotowe teksty do skopiowania
-na czat (wrzucanie linku, „po co kolejna apka", „nie chcę podawać maila"), plus lead,
-który przestał brzmieć obronnie. `/faq` przestało odsyłać do `/cykliczne`, opisując
-zamiast tego „Powtórz mecz" (realnie działa). Modal po rejestracji kieruje organizatora
-do `/wydarzenia/nowe`; „Załóż grupę" zostaje jako drugorzędne wyjście dla kogoś ze stałą
-ekipą.
-
-MECHANIKA: `content/oBojo.ts`, `app/o-bojo/page.tsx` (na `StronaTresci`/`SekcjaTresci`/
-`MiniFaq`, jak `/dlaczego-bojo`), `components/home/landing/LandingMisja.tsx`,
-`components/home/landing/LandingZaproszenie.tsx`, `LANDING_MISJA` i `LANDING_ZAPROSZENIE`
-w `landing/content.ts`, `CO_NAPISAC_EKIPIE` w `content/dlaczego.ts`,
-`components/tresc/PrzyciskKopiuj.tsx`, `content/kontakt.ts` (`KONTAKT_HREF`, dziś
-`mailto:bojopolska@gmail.com`, docelowo `kontakt@bojo.pl` po weryfikacji domeny
-w Resend). Zdarzenie `argument_skopiowany` w `lib/analytics.ts` — bez migracji, kolumna
-`event_type` to TEXT bez ograniczenia (migracja `047`). Nowy test w `tresciStron.test.ts`
-pilnuje, żeby żadna jednostka treści nie odsyłała do trasy za wyłączoną flagą — ten sam
-błąd klasy, który przeżył miesiąc w `/faq`. Testy: `landingContent.test.ts`
-(misja/zaproszenie: kierunek korzyści, brak liczby osób), `tresciStron.test.ts`.
-
-### 2026-09-18 — Filtry mapy: koniec dublowania kategorii i liczników, które nie zgadzają się ze sobą
-
-PROBLEM: arkusz filtrów mapy na bojo.pl pytał o sport DWA RAZY, w dwóch sekcjach stojących
-jedna pod drugą. Sekcja „Sport" miała siatkówkę, siatkówkę plażową i koszykówkę; sekcja
-„Typ obiektu" — te same nazwy jeszcze raz, licząc przy tym coś zupełnie innego: sport
-`siatkówka` to 2566 publicznych boisk, `venue_type = 'volleyball_outdoor'` — cztery.
-Pozycja „Tenis" obiecywała sport, którego mapa nie pokazuje wcale, więc dawała zawsze zero
-wyników, a cała kolumna `venue_type` jest wypełniona w 539 z 35 952 obiektów (1,5%), więc
-każdy wybór typu wycinał niemal cały katalog. Do tego liczby kłamały w trzech miejscach
-naraz: przycisk „Pokaż 884 boiska" przy katalogu na 36 tysięcy nie mówił, że liczy okolicę
-w promieniu 15 km, a nie Polskę; nakładka nad oddaloną mapą pokazywała 38 314, bo liczyła
-PARY obiekt-sport zamiast obiektów; zapytanie o widoczny kadr przychodziło po cichu ucięte
-do tysiąca wierszy, więc w gęstym mieście część boisk nie miała pinezki, a filtr sportu
-przeszukiwał tylko ten ogryzek.
-
-ROZWIĄZANIE BOJO: filtr „Typ obiektu" zniknął z mapy — zostają sport, nawierzchnia,
-miejscowość z promieniem i „Gry dziś", każdy pytający o co innego. Pod przyciskiem
-„Pokaż N boisk" stoi teraz zakres tej liczby, więc liczba nie udaje już rozmiaru
-katalogu. Liczba w kółku przy oddalonej mapie liczy obiekty, nie ich sporty, i zgadza się
-z liczbą pinezek po przybliżeniu. Filtr nawierzchni działa też przy oddalonej mapie,
-„Gry dziś" przestawia mapę na obiekty z grą z całego kraju zamiast zostawiać niezmienione
-kółka, a filtr „Piłka nożna" pokazuje wreszcie 95 boisk opisanych w katalogu wyłącznie
-jako futsal.
-
-DRUGIE ZGŁOSZENIE tego samego dnia, po pierwszej poprawce: liczby wciąż wyglądały za małe
-(884/380/71 dla „Wszystkie sporty"/„Piłka nożna"/„Siatkówka plażowa" przy katalogu na
-36 tysięcy). Pierwsza poprawka NAZWAŁA liczbę („w Twojej okolicy (15 km), nie w całym
-katalogu"), nie zmieniła jej źródła — a źródłem była 15-kilometrowa okolica startowa,
-dokładnie w chwili, gdy użytkownik patrzył na mapę całej Polski. Przy oddalonej mapie i BEZ
-wybranej miejscowości przycisk liczy dziś sumę skupisk KADRU MAPY z filtrami szkicu — tę
-samą liczbę, co nakładka „N boisk w tym widoku" — i zakres mówi wtedy „w tym widoku mapy".
-Lista kart pod mapą zostaje świadomie przy 15 km (dociągnięcie kart dla całego kraju
-zniweczyłoby sens skupisk) i ma własny, uczciwy dopisek — dwa liczniki, dwa różne pytania,
-tak jak licznik nad listą i nakładka nad mapą już wcześniej.
-
-MECHANIKA: `VenueExplorer.tsx` (sekcja „Typ obiektu" usunięta, `?type=` czyszczony
-z adresu, `graDzisWszedzie`, `previewSkupiskCount`, `zakresPodgladu`), `applyHint` w
-`components/ui/FilterSheet.tsx`, `FiltryObiektow` w `lib/api.ts` (filtry zawężają
-zapytanie po stronie bazy; stronicowanie `order('id')` + `range()` zamiast cichego limitu
-PostgREST), `rozwinSporty()`/`pasujeSport()`/`SPORTY_NA_MAPIE` w `lib/sports.ts` (jedna
-lista sportów mapy zamiast trzech kopii), migracja `153_skupiska_licza_obiekty`
-(`count(DISTINCT f.id)`, `p_typy` → `p_nawierzchnie`). `venue_type` zostaje w bazie i na
-karcie obiektu jako informacja. Testy: `filtryMapy.test.ts`.
 

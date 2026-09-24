@@ -78,3 +78,26 @@ export const ZAKAZANE_WSZEDZIE = [
   'zapłać przez', // no payment integration
   'przelew(amy|u) pieni', // Bojo does not move money
 ] as const;
+
+/**
+ * Zakazane w KAŻDYM pliku `.tsx` pod `app/` i `components/` — nie tylko
+ * w stałych `content/*.ts` (F-7, docs/faza1-organizator-plan.md).
+ *
+ * PO CO OSOBNA LISTA. `landingContent.test.ts` i `tresciStron.test.ts`
+ * skanują wyłącznie stałe importowane z `content/*.ts` — dlatego zdanie
+ * „zobaczą go gracze z okolicy" przeżywało kolejne porządki treści: żyło
+ * wprost w czterech komponentach (`EventDetailClient.tsx`,
+ * `wydarzenia/nowe/page.tsx`, `EventsListView.tsx`, `landing/content.ts`)
+ * i w piątym miejscu tej samej rodziny (`grupy/[id]/GroupDetailClient.tsx`),
+ * a żaden test nie patrzył tam, gdzie te zdania faktycznie mieszkają.
+ * Obiecywało podaż graczy, której landing sam nazywa dziś za małą
+ * (`LANDING_MISJA.uczciwie`).
+ *
+ * `pilnujZakazanychFrazWTsx.test.ts` skanuje surowe pliki, z pominięciem
+ * komentarzy (ten sam powód co przy długim myślniku, AGENTS.md — komentarz
+ * tłumaczący POWÓD zakazu, tak jak ten tutaj, sam musiałby zacytować frazę).
+ */
+export const ZAKAZANE_W_TSX = [
+  'zobacz[aąę].*gracze.*okolic',
+  'otwart(e|ych) gr[ay].*okolic',
+] as const;

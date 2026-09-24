@@ -186,7 +186,7 @@ Jedno miejsce, jeden przełącznik. Pełna tabela z miejscami użycia →
 
 | Flaga | Co chowa | Dlaczego schowane |
 |---|---|---|
-| ~~`SHOW_TURNIEJE`~~ | — | **WŁĄCZONA 2026-09-16**, po pięciu etapach. Zastąpiła flagę `SHOW_CUP` (stary „BOJO Cup" usunięty z frontu 2026-09-13, tabele `tournament_*` skasowane migracją `151`). Szczegóły → §6 |
+| `SHOW_TURNIEJE` | — | **WYŁĄCZONA ponownie 2026-09-17, tymczasowo** (decyzja właściciela po przeglądzie na żywo: moduł działa, pierwsze wrażenie nie jest gotowe), mimo że wszystkie pięć etapów jest zrobionych. Zastąpiła flagę `SHOW_CUP` (stary „BOJO Cup" usunięty z frontu 2026-09-13, tabele `tournament_*` skasowane migracją `151`). Szczegóły → §6 |
 | ~~`SHOW_GAME_ALERTS`~~ | — | **WŁĄCZONA 2026-09-12.** Powód wyłączenia (brak kanału) zniknął — kanał istnieje (§3). Wejście: „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów |
 | `SHOW_SMS_FEATURES` | Potwierdzenie SMS + przypomnienia | Brak podpiętej bramki SMS |
 | `SHOW_RECURRING` | Gry cykliczne | Skupienie na meczach jednorazowych — patrz §1.3 |
@@ -457,9 +457,12 @@ jest głównym mechanizmem zakładania kont w tym module. Tabele: `turnieje`, `t
 `turniej_zdarzenia`, `turniej_ogloszenia`, `turniej_blik` — polskie nazwy celowo, żeby nie
 kolidować ze starym schematem podczas przenosin.
 
-Flaga `SHOW_TURNIEJE` (`frontend/src/lib/features.ts`) — **włączona od 2026-09-16**, po
-pięciu etapach/PR-ach (fundament i zgłoszenia → terminarz → rozgrywka na żywo → tabela
-i statystyki → domknięcie i odmrożenie), migracje `145`–`150` (`151` kasuje stary moduł).
+Flaga `SHOW_TURNIEJE` (`frontend/src/lib/features.ts`) — odmrożona 2026-09-16 na koniec
+Etapu 4, po pięciu etapach/PR-ach (fundament i zgłoszenia → terminarz → rozgrywka na żywo →
+tabela i statystyki → domknięcie i odmrożenie), migracje `145`–`150` (`151` kasuje stary
+moduł), a **wyłączona z powrotem 2026-09-17** (decyzja właściciela po przeglądzie na żywo:
+moduł działa, pierwsze wrażenie nie jest gotowe). Dziś jest `false` — moduł jest gotowy,
+ale schowany za flagą aż do decyzji o ponownym starcie.
 
 **Zrobione: wszystkie 5 etapów.** Etap 0 (`145`) — turniej, zgłoszenia, skład, panel.
 Etap 1 (`146`) — terminarz: generator w `lib/turniejFormat.ts`, zakładka Terminarz na
@@ -475,7 +478,8 @@ kasowanie `151`) — ogłoszenia publiczne z powiadomieniem do zawodników
 „opłacone" per drużyna (pole istniało od Etapu 0, bez UI), „Zamień drużynę w ekipę"
 (RPC `zamien_druzyne_w_ekipe()` — przycisk kapitana, nie organizatora), obraz OG per
 turniej, `lib/turniejShare.ts`, odmrożenie `SHOW_TURNIEJE` i wejścia w `/moje-gry`
-i `/profil`, fizyczne skasowanie starego „BOJO Cup" (migracja `151`).
+i `/profil`, fizyczne skasowanie starego „BOJO Cup" (migracja `151`). Flaga została
+wyłączona z powrotem dzień później, 2026-09-17 — patrz wyżej.
 
 ### Świadomie NIE budujemy (zapisane w planie, nie zapomniane)
 - Czatu turniejowego, głosowania graczy na MVP (prowadzący wybiera ręcznie), płatności

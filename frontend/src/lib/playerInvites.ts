@@ -13,7 +13,7 @@
 
 import { supabase } from './supabase';
 import { toEvent } from './events';
-import type { EventItem } from '@/types';
+import type { EventItem, EventParticipant } from '@/types';
 
 export interface PlayerInvite {
   id: string;
@@ -140,6 +140,28 @@ export async function invitePlayers(
     .select('id');
   if (error) throw new Error(error.message);
   return data?.length ?? 0;
+}
+
+/**
+ * Odbiorcy imiennego zaproszenia przy „Powtórz mecz" (F-5,
+ * docs/faza1-organizator-plan.md): osoby z KONTEM, które grały w poprzednim
+ * meczu — bez organizatora (dostaje mecz automatycznie, jest jego autorem),
+ * bez rezerwy/obserwujących/oczekujących na akceptację (zapraszamy tych,
+ * którzy faktycznie grali) i bez gości bez konta (nie mają jak dostać
+ * zaproszenia w aplikacji — dostają sam link po utworzeniu meczu).
+ *
+ * `sklad` to `regulars` ze strony meczu (`!isReserve && !pendingApproval`
+ * już odfiltrowane tam) — funkcja i tak sama pilnuje `rsvp !== 'maybe'`
+ * i `isGuest`/`userId`, więc bezpiecznie przyjmuje też szerszą listę.
+ */
+export function odbiorcyPowtorki(
+  sklad: Pick<EventParticipant, 'userId' | 'isGuest' | 'isReserve' | 'pendingApproval' | 'rsvp'>[],
+  organizerId: string,
+): string[] {
+  return sklad
+    .filter((p) => !p.isGuest && !!p.userId && p.userId !== organizerId
+      && !p.isReserve && !p.pendingApproval && p.rsvp !== 'maybe')
+    .map((p) => p.userId!);
 }
 
 /** Zaproszony chowa zaproszenie. Wiersz zostaje, żeby nie wróciło. */

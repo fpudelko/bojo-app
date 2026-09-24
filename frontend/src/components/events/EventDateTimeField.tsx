@@ -1,7 +1,7 @@
 'use client';
 
 import TimeSelect from '@/components/ui/TimeSelect';
-import { opisDaty } from '@/lib/eventDates';
+import { opisDaty, dzisLokalnie } from '@/lib/eventDates';
 
 const CZASY_GRY = [30, 45, 60, 75, 90, 105, 120, 150, 180];
 
@@ -60,7 +60,7 @@ export default function EventDateTimeField({
         <input
           type="date"
           value={date}
-          min={new Date().toISOString().slice(0, 10)}
+          min={dzisLokalnie()}
           onChange={(e) => setDate(e.target.value)}
           className={[inputCls, dateError ? 'border-red-400 ring-1 ring-red-400' : ''].join(' ')}
         />

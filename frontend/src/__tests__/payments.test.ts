@@ -6,7 +6,17 @@ import {
   blikPhoneDigits,
   canSeeBlikPhone,
   BLIK_PHONE_REVEAL_MINUTES,
+  winienWplate,
 } from '@/lib/payments';
+
+const ORGANIZER = 'organizer-id';
+const uczestnik = (overrides: Partial<Parameters<typeof winienWplate>[0]> = {}) => ({
+  userId: 'gracz-id',
+  isReserve: false,
+  pendingApproval: false,
+  rsvp: 'yes' as const,
+  ...overrides,
+});
 
 describe('perPlayerPriceGrosze', () => {
   it('dzieli równo, gdy liczba miejsc mieści się w koszcie bez reszty', () => {
@@ -104,5 +114,31 @@ describe('canSeeBlikPhone', () => {
 
   it('returns false when minutesToStart is unparseable', () => {
     expect(canSeeBlikPhone({ isOrganizer: false, isInSquad: true, minutesToStart: null })).toBe(false);
+  });
+});
+
+describe('winienWplate', () => {
+  it('a regular player in the squad owes payment', () => {
+    expect(winienWplate(uczestnik(), ORGANIZER)).toBe(true);
+  });
+
+  it('the organizer never owes payment to themselves', () => {
+    expect(winienWplate(uczestnik({ userId: ORGANIZER }), ORGANIZER)).toBe(false);
+  });
+
+  it('a guest without an account (undefined userId) still owes payment', () => {
+    expect(winienWplate(uczestnik({ userId: undefined }), ORGANIZER)).toBe(true);
+  });
+
+  it('someone on the reserve list does not owe payment', () => {
+    expect(winienWplate(uczestnik({ isReserve: true }), ORGANIZER)).toBe(false);
+  });
+
+  it('someone awaiting approval does not owe payment', () => {
+    expect(winienWplate(uczestnik({ pendingApproval: true }), ORGANIZER)).toBe(false);
+  });
+
+  it('someone just observing ("maybe") does not owe payment', () => {
+    expect(winienWplate(uczestnik({ rsvp: 'maybe' }), ORGANIZER)).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { eventUrl, eventShareText, type DaneDoUdostepnienia, tekstOdwolania, tekstPrzywrocenia } from '@/lib/eventShare';
+import { eventUrl, eventShareText, type DaneDoUdostepnienia, tekstOdwolania, tekstPrzywrocenia, tekstSkladu } from '@/lib/eventShare';
+import type { EventParticipant } from '@/types';
 
 const bazowy: DaneDoUdostepnienia = {
   sport: 'piłka nożna',
@@ -12,6 +13,29 @@ const bazowy: DaneDoUdostepnienia = {
   fieldName: 'Orlik Sołacz',
   fieldAddress: 'ul. Niestachowska 8',
 };
+
+let licznikZapisu = 0;
+function gracz(overrides: Partial<EventParticipant> = {}): EventParticipant {
+  licznikZapisu += 1;
+  return {
+    id: overrides.id ?? `p${licznikZapisu}`,
+    eventId: 'e1',
+    name: overrides.name ?? 'Gracz',
+    isGuest: false,
+    hasPaid: false,
+    isReserve: false,
+    createdAt: `2026-08-01T00:${String(licznikZapisu).padStart(2, '0')}:00Z`,
+    zapisanoAt: `2026-08-01T00:${String(licznikZapisu).padStart(2, '0')}:00Z`,
+    paidAmount: 0,
+    isCaptain: false,
+    isGoalkeeper: false,
+    pendingApproval: false,
+    rsvp: 'yes',
+    claimPassed: false,
+    hasSportsCard: false,
+    ...overrides,
+  };
+}
 
 describe('eventUrl', () => {
   it('buduje adres kanoniczny, nie krótki /d/', () => {
@@ -229,5 +253,120 @@ describe('tekstPrzywrocenia', () => {
   it('ma ten sam kształt co zaproszenie i odwołanie — cztery linie', () => {
     expect(tekstPrzywrocenia(bazowy).split('\n')).toHaveLength(4);
     expect(tekstOdwolania(bazowy).split('\n')).toHaveLength(4);
+  });
+});
+
+describe('tekstSkladu (F-4)', () => {
+  const skladowy: DaneDoUdostepnienia = { ...bazowy, maxPlayers: 3 };
+
+  it('numeruje skład i pokazuje ile miejsc zostało wolnych', () => {
+    const regulars = [gracz({ id: 'a', name: 'Marek' }), gracz({ id: 'b', name: 'Kuba' })];
+    const tekst = tekstSkladu(skladowy, regulars, []);
+    expect(tekst).toContain('Skład 2/3:');
+    expect(tekst).toContain('1. Marek');
+    expect(tekst).toContain('2. Kuba');
+    expect(tekst).toContain('3: wolne');
+  });
+
+  it('dwa i więcej wolnych miejsc: zakres N–M', () => {
+    const regulars = [gracz({ id: 'a', name: 'Marek' })];
+    const tekst = tekstSkladu({ ...bazowy, maxPlayers: 4 }, regulars, []);
+    expect(tekst).toContain('2–4: wolne');
+  });
+
+  it('komplet: brak linii "wolne"', () => {
+    const regulars = [gracz({ id: 'a' }), gracz({ id: 'b' }), gracz({ id: 'c' })];
+    const tekst = tekstSkladu(skladowy, regulars, []);
+    expect(tekst).not.toContain('wolne');
+  });
+
+  it('numeruje w kolejności zapisu, nie w kolejności przekazania', () => {
+    const pierwszy = gracz({ id: 'a', name: 'Pierwszy', zapisanoAt: '2026-08-01T00:05:00Z' });
+    const drugi = gracz({ id: 'b', name: 'Drugi', zapisanoAt: '2026-08-01T00:01:00Z' });
+    const tekst = tekstSkladu(skladowy, [pierwszy, drugi], []);
+    expect(tekst).toContain('1. Drugi');
+    expect(tekst).toContain('2. Pierwszy');
+  });
+
+  it('oznacza bramkarza w składzie', () => {
+    const regulars = [gracz({ id: 'a', name: 'Kuba Nowak', isGoalkeeper: true })];
+    expect(tekstSkladu(skladowy, regulars, [])).toContain('1. Kuba Nowak 🧤');
+  });
+
+  it('rezerwa niepusta: linia z imionami w kolejności kolejki', () => {
+    const rezerwa = [
+      gracz({ id: 'r1', name: 'Adam Z.', zapisanoAt: '2026-08-01T00:05:00Z', isReserve: true }),
+      gracz({ id: 'r2', name: 'Piotr K.', zapisanoAt: '2026-08-01T00:01:00Z', isReserve: true }),
+    ];
+    const tekst = tekstSkladu(skladowy, [], rezerwa);
+    expect(tekst).toContain('Rezerwa: Piotr K., Adam Z.');
+  });
+
+  it('rezerwa pusta: brak linii "Rezerwa"', () => {
+    expect(tekstSkladu(skladowy, [], [])).not.toContain('Rezerwa');
+  });
+
+  it('pomija odpuszczoną ofertę (claimPassed) w liście rezerwy', () => {
+    const rezerwa = [
+      gracz({ id: 'r1', name: 'Adam Z.', isReserve: true }),
+      gracz({ id: 'r2', name: 'Odpuścił', isReserve: true, claimPassed: true }),
+    ];
+    const tekst = tekstSkladu(skladowy, [], rezerwa);
+    expect(tekst).toContain('Rezerwa: Adam Z.');
+    expect(tekst).not.toContain('Odpuścił');
+  });
+
+  it('pomija obserwujących (rsvp maybe) w liście rezerwy', () => {
+    const rezerwa = [
+      gracz({ id: 'r1', name: 'Adam Z.', isReserve: true }),
+      gracz({ id: 'r2', name: 'Obserwator', isReserve: true, rsvp: 'maybe' }),
+    ];
+    const tekst = tekstSkladu(skladowy, [], rezerwa);
+    expect(tekst).not.toContain('Obserwator');
+  });
+
+  it('z bramkarzami: dwie kolejki, pole przed bramkarzami', () => {
+    const zGk: DaneDoUdostepnienia = { ...skladowy, goalkeepersEnabled: true };
+    const rezerwa = [
+      gracz({ id: 'r1', name: 'Bramkarz Rezerwowy', isReserve: true, isGoalkeeper: true, zapisanoAt: '2026-08-01T00:01:00Z' }),
+      gracz({ id: 'r2', name: 'Polowy Rezerwowy', isReserve: true, isGoalkeeper: false, zapisanoAt: '2026-08-01T00:02:00Z' }),
+    ];
+    const tekst = tekstSkladu(zGk, [], rezerwa);
+    const linia = tekst.split('\n').find((l) => l.startsWith('Rezerwa:'));
+    expect(linia).toBe('Rezerwa: Polowy Rezerwowy, Bramkarz Rezerwowy');
+  });
+
+  it('zapisy zamknięte: ta sama etykieta co eventShareText, bez zdania o koncie', () => {
+    const stan = { wolneMiejsca: 0, reserveEnabled: true, zapisyZamkniete: true };
+    const tekstListy = tekstSkladu(skladowy, [], [], stan);
+    const tekstMeczu = eventShareText(skladowy, stan);
+    expect(tekstListy).toContain('Zapisy zamknięte');
+    expect(tekstListy).not.toContain('Zapisujesz się bez zakładania konta.');
+    // Ostatnia niepusta linia obu tekstów niesie ten sam opis miejsc i ceny —
+    // wydzielone do wspólnego `liniaMiejscICeny()`, żeby nie mogły się rozjechać.
+    const ostatniaListy = tekstListy.trim().split('\n').at(-1);
+    const ostatniaMeczu = tekstMeczu.trim().split('\n').at(-1);
+    expect(ostatniaListy).toBe(ostatniaMeczu);
+  });
+
+  it('zgodność ostatniej linii z eventShareText dla tego samego stanu (miejsca wolne)', () => {
+    const stan = { wolneMiejsca: 2, reserveEnabled: true, zapisyZamkniete: false };
+    const regulars = [gracz({ id: 'a' })];
+    const tekstListy = tekstSkladu(skladowy, regulars, [], stan);
+    const tekstMeczu = eventShareText(skladowy, stan);
+    const liniePlatnosciListy = tekstListy.split('\n').filter((l) => l.includes('zł od osoby') || l.includes('Zostało') || l.includes('Zostały'));
+    const liniePlatnosciMeczu = tekstMeczu.split('\n').filter((l) => l.includes('zł od osoby') || l.includes('Zostało') || l.includes('Zostały'));
+    expect(liniePlatnosciListy).toEqual(liniePlatnosciMeczu);
+    expect(tekstListy).toContain('Zapisujesz się bez zakładania konta.');
+  });
+
+  it('pierwsza linia niesie sport, tytuł, dzień i godzinę razem', () => {
+    const tekst = tekstSkladu(bazowy, [], []);
+    expect(tekst.split('\n')[0]).toBe('⚽ Piłka nożna 7v7 · środa, 12 sierpnia · 18:00');
+  });
+
+  it('druga linia niesie miejsce', () => {
+    const tekst = tekstSkladu(skladowy, [], []);
+    expect(tekst.split('\n')[1]).toBe('Orlik Sołacz, ul. Niestachowska 8');
   });
 });

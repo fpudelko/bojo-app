@@ -10,7 +10,7 @@
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { eventDisplayTitle } from './eventTitle';
-import { priceForParticipant } from './payments';
+import { priceForParticipant, winienWplate } from './payments';
 import { withCount } from './plural';
 import type { EventItem, EventParticipant } from '@/types';
 
@@ -25,11 +25,17 @@ const zl = (grosze: number) => `${(grosze / 100).toFixed(2).replace('.', ',')} z
  * Tekst rozliczenia: ile kosztuje, kto jeszcze nie oddał, gdzie wysłać BLIK.
  *
  * Bierze wyłącznie skład (`regulars`) — rezerwowy nie ma za co płacić, dopóki
- * nie wejdzie do gry, dokładnie jak w karcie „Twoja płatność".
+ * nie wejdzie do gry, dokładnie jak w karcie „Twoja płatność". Organizator
+ * (`organizerId`) jest z tego liczenia zawsze wyłączony — płaci za obiekt
+ * i zbiera od reszty, jego wiersz nigdy nie jest zaległością (`winienWplate()`
+ * w `lib/payments.ts`). Parametr jest wymagany świadomie: bez niego wcześniejsza
+ * wersja tej funkcji wypisywała imię organizatora w „Zaległościach" na czacie
+ * całej ekipy.
  */
 export function tekstRozliczenia(
   e: DaneDoRozliczenia,
   sklad: EventParticipant[],
+  organizerId: string,
   nieobecni: Set<string> = new Set(),
 ): string {
   const kwota = (p: EventParticipant) =>
@@ -42,9 +48,10 @@ export function tekstRozliczenia(
     kiedy = e.date;
   }
 
-  const zaleglosci = sklad.filter((p) => !p.hasPaid);
-  const zebrano = sklad.filter((p) => p.hasPaid).reduce((s, p) => s + kwota(p).priceGrosze, 0);
-  const oczekiwane = sklad.reduce((s, p) => s + kwota(p).priceGrosze, 0);
+  const placacy = sklad.filter((p) => winienWplate(p, organizerId));
+  const zaleglosci = placacy.filter((p) => !p.hasPaid);
+  const zebrano = placacy.filter((p) => p.hasPaid).reduce((s, p) => s + kwota(p).priceGrosze, 0);
+  const oczekiwane = placacy.reduce((s, p) => s + kwota(p).priceGrosze, 0);
 
   const linie: string[] = [
     `Rozliczenie: ${eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers })}`,

@@ -59,9 +59,11 @@ export default function PoMeczuCard({
   /** `event.costGrosze > 0` — bez tego panel kosztów w ogóle nie istnieje. */
   maPlatnosc: boolean;
   liczbaNieoplaconych: number;
-  /** `regulars.length` — bez tego `liczbaNieoplaconych === 0` nie odróżnia
-   *  "wszyscy już oddali" od "skład jest pusty", a przycisk "Zapłacili"
-   *  nie ma się wtedy do czego odnosić. */
+  /** Liczba płacących — `regulars.length` BEZ organizatora (`winienWplate()`
+   *  w `lib/payments.ts`, organizator płaci za obiekt i nie oddaje sam sobie).
+   *  Bez tego `liczbaNieoplaconych === 0` nie odróżnia "wszyscy już oddali" od
+   *  "nikt oprócz organizatora nie gra", a przycisk "Zapłacili" nie ma się
+   *  wtedy do czego odnosić. */
   liczbaWSkladzie: number;
   onWyslijRozliczenie: () => void;
   /** Ta sama akcja co przycisk "Wszyscy oddali"/"Cofnij" w zakładce

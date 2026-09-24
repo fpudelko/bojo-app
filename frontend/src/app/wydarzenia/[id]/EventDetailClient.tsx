@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff,
+  Calendar, CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff, ListOrdered,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -17,6 +17,8 @@ import ZaprosZnajomychPanel from '@/components/events/ZaprosZnajomychPanel';
 import OznaczenieKapitana from '@/components/events/OznaczenieKapitana';
 import TeamProposals from '@/components/events/TeamProposals';
 import PoMeczuCard from '@/components/events/PoMeczuCard';
+import HarmonogramMeczu from '@/components/events/HarmonogramMeczu';
+import { harmonogramMeczu, godzinaPolska } from '@/lib/harmonogramMeczu';
 import DopiszGoscia from '@/components/events/DopiszGoscia';
 import RozmowaWydarzenia from '@/components/events/RozmowaWydarzenia';
 import { getComments, nieprzeczytaneKomentarze, kluczRozmowyWidziano } from '@/lib/comments';
@@ -38,7 +40,8 @@ import ZachetaPush, { zaproponujPowiadomienia } from '@/components/events/Zachet
 import { useToast } from '@/lib/toast';
 import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
-import { eventUrl, shareEvent, udostepnijOdwolanie, udostepnijPrzywrocenie } from '@/lib/eventShare';
+import { eventUrl, shareEvent, udostepnijOdwolanie, udostepnijPrzywrocenie, udostepnijSklad } from '@/lib/eventShare';
+import { KORZYSCI_KONTA } from '@/content/kontoGoscia';
 import { pobierzIcs } from '@/lib/kalendarz';
 import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce, terminOferty } from '@/lib/kolejkaRezerwy';
@@ -52,6 +55,7 @@ import {
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
   awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu, czasRezerwyTekst,
 } from '@/lib/events';
+import { invitePlayers, odbiorcyPowtorki } from '@/lib/playerInvites';
 import {
   updateParticipantTeam, updateParticipantPayment, ustawPlatnoscWszystkim,
   assignTeamsRandomly, clearTeams as clearTeamsDb, setCaptain,
@@ -69,13 +73,13 @@ import { tekstRozliczenia } from '@/lib/settlementShare';
 import { track } from '@/lib/analytics';
 import { domyslnyTerminPowtorki } from '@/lib/recurring';
 import { eventDisplayTitle } from '@/lib/eventTitle';
-import { minutesUntilStart, timeUntil, krotkiTermin } from '@/lib/eventDates';
+import { minutesUntilStart, timeUntil, krotkiTermin, dzisLokalnie } from '@/lib/eventDates';
 import {
   getTeamProposals, createTeamProposal, deleteTeamProposal,
   voteTeamProposal, unvoteTeamProposal, acceptTeamProposal,
   type TeamProposal,
 } from '@/lib/teamProposals';
-import { PAYMENT_METHOD_LABELS, PAYMENT_METHODS, sportsCardLabel, priceForParticipant, canSeeBlikPhone } from '@/lib/payments';
+import { PAYMENT_METHOD_LABELS, PAYMENT_METHODS, sportsCardLabel, priceForParticipant, canSeeBlikPhone, winienWplate } from '@/lib/payments';
 import {
   getMyDelegatePermissions, getDelegateCandidates, getEventDelegates, setEventDelegate, setPaymentSettings,
   type MyDelegatePermissions, type DelegateCandidate, type EventDelegate,
@@ -606,6 +610,13 @@ export default function EventDetailClient() {
   const [repeatBusy, setRepeatBusy] = useState(false);
   const [repeatJoin, setRepeatJoin] = useState(true);
   const [repeatRole, setRepeatRole] = useState<'player' | 'goalkeeper'>('player');
+  // F-5 (docs/faza1-organizator-plan.md): „Powtórz mecz” dotąd kończyło się
+  // pustym meczem — organizator znowu wklejał link i czekał, aż każdy wejdzie
+  // sam. Domyślnie WŁĄCZONE (decyzja właściciela, 2026-09-23): cotygodniowa
+  // ekipa jest przypadkiem głównym, nie wyjątkiem. Bez znaczenia (i bez
+  // kontrolki), gdy mecz jest przypięty do grupy — tam powiadamia już
+  // wyzwalacz `072` przy `INSERT` nowego meczu.
+  const [zapraszajZeSkladu, setZapraszajZeSkladu] = useState(true);
   // Domyślnie rozwinięte — to teraz cała treść osobnej zakładki Ustawienia,
   // nie jedna z wielu kart na długiej stronie, więc zwijanie na wejściu
   // nie ma już sensu (dawniej `false` chroniło przed zajmowaniem miejsca).
@@ -631,6 +642,9 @@ export default function EventDetailClient() {
   // Id szablonu cyklicznego, gdy kreator go właśnie utworzył razem z tym
   // meczem (?cykliczne=<id>) — patrz `wydarzenia/nowe/page.tsx`.
   const [cyklicznyId, setCyklicznyId] = useState<string | null>(null);
+  // Ile osób „Powtórz mecz” zaprosiło z poprzedniego składu (?zaproszono=N,
+  // F-5) — panel „Mecz gotowy” dokłada o tym jedną linię.
+  const [zaproszonoLiczba, setZaproszonoLiczba] = useState(0);
   // Wylogowany kliknął „Zaloguj się, aby dołączyć" (?dolacz=1) — po powrocie
   // z logowania otwieramy okno zapisu automatycznie zamiast zostawiać go na
   // widoku identycznym z tym sprzed logowania.
@@ -818,6 +832,8 @@ export default function EventDetailClient() {
     const p = new URLSearchParams(window.location.search);
     const cid = p.get('cykliczne');
     if (cid) setCyklicznyId(cid);
+    const zap = Number(p.get('zaproszono') ?? '0');
+    if (zap > 0) setZaproszonoLiczba(zap);
     // Wylogowany klika „Zaloguj się, aby dołączyć" i wraca na tę samą stronę
     // po zalogowaniu — dotąd lądował na widoku identycznym z tym sprzed
     // logowania i musiał od nowa znaleźć przycisk „Dołącz". `?dolacz=1` niesie
@@ -829,6 +845,7 @@ export default function EventDetailClient() {
     p.delete('utworzono');
     p.delete('cykliczne');
     p.delete('dolacz');
+    p.delete('zaproszono');
     const q = p.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
   }, []);
@@ -998,6 +1015,13 @@ export default function EventDetailClient() {
   // żeby nie zajmował miejsca w składzie, a nie deklaracja gry. Bez tego filtru
   // wpadał do kolejki rezerwowej i człowiek, który kliknął „Obserwuj",
   // widział siebie jako rezerwowego.
+  // Kto jest winien wpłatę organizatorowi — czyli `regulars` BEZ samego
+  // organizatora. Płaci za obiekt i zbiera od reszty, jego własny wiersz
+  // w składzie nigdy nie jest „zaległością", choć w bazie wygląda tak samo
+  // jak każdy inny nieopłacony wpis (`has_paid = false`). Cała księgowość
+  // rozliczenia (panel „Podział kosztów", „Wyślij rozliczenie ekipie", karta
+  // „Po meczu") liczy z `placacy`, nigdy z `regulars` wprost.
+  const placacy = regulars.filter((p) => winienWplate(p, event.organizerId));
   // Sortowane po `momentZapisu`, nie po kolejności z zapytania (to ostatnie
   // idzie po `created_at`, patrz `lib/events.ts:getEvent`): dla kogoś, kto
   // najpierw obserwował i potem dołączył, kolejka ma liczyć się od momentu
@@ -1601,8 +1625,8 @@ export default function EventDetailClient() {
    *  sportowej różni kwoty w obrębie tego samego meczu. */
   const handleWszyscyOddali = async () => {
     if (!isOrganizer && !canManagePayments) return;
-    const oplacone = regulars.some((p) => !p.hasPaid);
-    const cel = oplacone ? regulars.filter((p) => !p.hasPaid) : regulars;
+    const oplacone = placacy.some((p) => !p.hasPaid);
+    const cel = oplacone ? placacy.filter((p) => !p.hasPaid) : placacy;
     if (await potwierdz(oplacone
       ? {
         tytul: `Oznaczyć ${withCount(cel.length, 'osobę', 'osoby', 'osób')} jako opłacone?`,
@@ -1610,7 +1634,7 @@ export default function EventDetailClient() {
         potwierdzLabel: 'Wszyscy oddali',
       }
       : {
-        tytul: `Cofnąć oznaczenie wpłaty wszystkim (${regulars.length})?`,
+        tytul: `Cofnąć oznaczenie wpłaty wszystkim (${placacy.length})?`,
         konsekwencje: ['Nikt nie będzie miał odhaczonej wpłaty, zaczniesz odhaczanie od zera.'],
         potwierdzLabel: 'Cofnij wszystkim',
         wariant: 'destrukcyjny' as const,
@@ -1691,7 +1715,11 @@ export default function EventDetailClient() {
     if (await potwierdz({
       tytul: 'Otworzyć mecz dla okolicy?',
       konsekwencje: [
-        'Mecz trafi na publiczną listę otwartych gier, zobaczą go gracze z okolicy.',
+        // F-7 (docs/faza1-organizator-plan.md): „zobaczą go gracze z okolicy"
+        // obiecywało podaż, której dziś za mało — landing mówi to samo wprost
+        // w sekcji „Gdzie jesteśmy dziś" (`content.ts`, `LANDING_MISJA.uczciwie`).
+        'Mecz trafi na publiczną listę otwartych gier w Bojo. Graczy szukających '
+          + 'meczu dopiero przybywa: najpewniej uzupełnisz skład linkiem do znajomych.',
         'Kto ma link, i tak mógł dołączyć, to nie zmienia dostępu, tylko dokłada mecz do listy.',
         'Da się cofnąć: „Kto widzi ten mecz" wraca na prywatny jednym kliknięciem.',
       ],
@@ -1800,7 +1828,10 @@ export default function EventDetailClient() {
    *  a przy gościach bez konta link i tak nie pokazałby im nic nowego. */
   const handleWyslijRozliczenie = async () => {
     const nieobecniSwiezy = await zapewnijNieobecnychWczytanych();
-    const text = tekstRozliczenia(event, regulars, new Set(nieobecniSwiezy.map((n) => n.reportedParticipantId)));
+    const text = tekstRozliczenia(
+      event, regulars, event.organizerId,
+      new Set(nieobecniSwiezy.map((n) => n.reportedParticipantId)),
+    );
     track('settlement_shared', { eventId: event.id });
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
@@ -1866,6 +1897,21 @@ export default function EventDetailClient() {
     // 'failed' obejmuje anulowanie arkusza przez użytkownika, więc milczymy.
   };
 
+  /** „Wyślij skład na czat" (F-4, docs/faza1-organizator-plan.md) — ponumerowana
+   *  lista, którą organizator dziś przepisuje ręcznie na WhatsApp. `rezerwa`
+   *  bierze WSZYSTKIE wpisy z rezerwy, nie tylko `reserves` (ten filtr
+   *  wyklucza `rsvp === 'maybe'`, co jest tu bez znaczenia — `kolejkaRezerwy()`
+   *  w `tekstSkladu()` i tak odsiewa obserwujących swoim własnym warunkiem). */
+  const handleWyslijSklad = async () => {
+    track('squad_shared', { eventId: event.id });
+    const wynik = await udostepnijSklad(
+      event, regulars, participants.filter((p) => p.isReserve),
+      eventUrl(event.id, window.location.origin),
+      { wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete },
+    );
+    if (wynik === 'copied') toast('Skopiowano, wklej na czacie ze znajomymi');
+  };
+
   const openEditWhen = () => {
     setWhenDate(event.date);
     setWhenTime((event.time ?? '18:00').slice(0, 5));
@@ -1891,6 +1937,16 @@ export default function EventDetailClient() {
    *  skład dla zakończonego meczu jest domyślnie zwinięty do samych awatarów
    *  (`rosterOpen` startuje jako `false`) — scroll trafiał więc w puste
    *  miejsce, bez listy gości do zaproszenia. */
+  /** „Pokaż kogo" w karcie „Co Bojo zrobi za Ciebie" (`HarmonogramMeczu.tsx`) —
+   *  ten sam wzorzec co `handleZaprosGosciaPoMeczu` niżej, ale bez `goToTab`:
+   *  karta żyje wyłącznie na zakładce Skład, więc przełączanie jej nie dotyczy. */
+  const handlePokazGoscBezWiadomosci = () => {
+    setRosterOpen(true);
+    requestAnimationFrame(() => {
+      document.getElementById('sklad')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const handleZaprosGosciaPoMeczu = () => {
     // Karta "Po meczu" jest uniwersalna (widoczna na każdej zakładce), a lista
     // do zaproszenia gości mieszka na zakładce Skład — bez przełączenia scroll
@@ -2097,12 +2153,31 @@ export default function EventDetailClient() {
       );
       setRepeatOpen(false);
       toast('Wydarzenie skopiowane!');
+
+      // F-5: zaproszenia przy powtórce — POZA meczem ekipy (`072` powiadamia
+      // wtedy całą grupę o nowym meczu; zaproszenie dołożyłoby drugie
+      // powiadomienie o tym samym). Błąd zaproszeń NIE cofa meczu — kopia
+      // powstała i jest w pełni użyteczna, organizator wyśle link ręcznie.
+      let zaproszono = 0;
+      if (zapraszajZeSkladu && !event.groupId) {
+        try {
+          const odbiorcy = odbiorcyPowtorki(regulars, event.organizerId);
+          zaproszono = await invitePlayers(newId, odbiorcy, { invitedBy: user.id });
+          track('repeat_invited', { eventId: newId, ile: zaproszono });
+        } catch {
+          toast('Mecz utworzony, zaproszeń nie udało się wysłać. Wyślij link.');
+        }
+      }
+
       // `?utworzono=1` — ten sam panel „Mecz gotowy — wyślij link" co po
-      // kreatorze i po „Powtórz" z `/moje-gry → Historia`. Brakowało go tu
+      // kreatorze i po „Powtórz" z `/moje-gry → Historia”. Brakowało go tu
       // (audyt 2026-09-12, ustalenie `S-6`): organizator powtarzający mecz
       // z jego własnej strony ląduje w dokładnie tym samym momencie —
       // nowy mecz bez wysłanego linku — co po utworzeniu od zera.
-      router.push(`/wydarzenia/${newId}?utworzono=1`);
+      // `&zaproszono=N` — panel dokłada linię „Zaproszono N osób z
+      // poprzedniego składu”; zdejmowane z adresu tym samym kodem co
+      // `utworzono`, więc nie trafi do linku wysyłanego dalej.
+      router.push(`/wydarzenia/${newId}?utworzono=1${zaproszono > 0 ? `&zaproszono=${zaproszono}` : ''}`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setRepeatBusy(false); }
@@ -2456,15 +2531,15 @@ export default function EventDetailClient() {
           <div className="flex items-center justify-between text-sm mb-3">
             <span className="text-slate-500">Opłaconych</span>
             <span className="font-semibold text-green-700">
-              {regulars.filter((p) => p.hasPaid).length} / {regulars.length}
+              {placacy.filter((p) => p.hasPaid).length} / {placacy.length}
             </span>
           </div>
           {(() => {
             // Sports-card discounts mean not everyone owes the same amount.
             const owed = (p: EventParticipant) =>
               priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard).priceGrosze;
-            const collected = regulars.filter((p) => p.hasPaid).reduce((sum, p) => sum + owed(p), 0);
-            const expected = regulars.reduce((sum, p) => sum + owed(p), 0);
+            const collected = placacy.filter((p) => p.hasPaid).reduce((sum, p) => sum + owed(p), 0);
+            const expected = placacy.reduce((sum, p) => sum + owed(p), 0);
             return (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-500">Zebrano</span>
@@ -2481,20 +2556,48 @@ export default function EventDetailClient() {
               nie ma czekać za przewijaniem całego składu. Dwa stany jednego
               przycisku, sterowane tym, czy ktoś jeszcze nie oddał; nie
               renderuje się, gdy skład jest pusty. */}
-          {regulars.length > 0 && (
+          {placacy.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-100">
               <Button variant="outline" className="w-full" onClick={handleWszyscyOddali} disabled={busy}>
-                {regulars.some((p) => !p.hasPaid)
+                {placacy.some((p) => !p.hasPaid)
                   ? 'Wszyscy oddali'
                   : <span className="text-slate-500">Cofnij (nikt nie oddał)</span>}
               </Button>
             </div>
           )}
+          {/* Organizator płaci za obiekt i zbiera od reszty — jego wiersz nie ma
+              przełącznika wpłaty (dotyczy samego siebie), ale musi być widoczny:
+              bez niego organizator szukałby siebie na liście i wnioskowałby,
+              że coś zniknęło (F-1, docs/faza1-organizator-plan.md). */}
+          {(() => {
+            const organizator = regulars.find((p) => p.userId === event.organizerId);
+            if (!organizator) return null;
+            const price = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, organizator.hasSportsCard);
+            return (
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-2.5 py-1">
+                  {organizator.avatarUrl
+                    ? <img src={organizator.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                    : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{organizator.name.charAt(0).toUpperCase()}</span>
+                  }
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-ink truncate">
+                      {user?.id === organizator.userId ? 'Ty' : organizator.name}
+                      <span className="text-slate-400 font-normal"> · płaci za obiekt</span>
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-400">
+                    {price.discountUnspecified ? '' : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
           {/* Per-participant toggle — a real switch, not a colored pill, so
               it's unmistakable that clicking it changes something. */}
           <div className="mt-4 pt-4 border-t border-slate-100">
             <ul className="divide-y divide-slate-100">
-              {regulars.map((p) => {
+              {placacy.map((p) => {
                 const price = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard);
                 return (
                   <li key={p.id} className="flex items-center gap-2.5 py-2.5">
@@ -2878,8 +2981,8 @@ export default function EventDetailClient() {
         {tab === 'sklad' && (isOwner || canManageSquad || canManagePayments) && resultsAvailable && !isCancelled && (
           <PoMeczuCard
             maPlatnosc={event.costGrosze > 0}
-            liczbaNieoplaconych={regulars.filter((p) => !p.hasPaid).length}
-            liczbaWSkladzie={regulars.length}
+            liczbaNieoplaconych={placacy.filter((p) => !p.hasPaid).length}
+            liczbaWSkladzie={placacy.length}
             onWyslijRozliczenie={handleWyslijRozliczenie}
             onWszyscyOddali={handleWszyscyOddali}
             busy={busy}
@@ -2922,10 +3025,32 @@ export default function EventDetailClient() {
                 — zgłoszone wprost: ta karta, "Zaproś z grupy" przy liczniku
                 miejsc i sekcja „Zaproś" niżej mówiły to samo trzy
                 razy. "Kopiuj link" i "Zaproś z grupy" zostają wyłącznie w tych
-                dwóch stałych miejscach, nie powtarzają się tutaj. */}
+                dwóch stałych miejscach, nie powtarzają się tutaj.
+
+                Zdanie było STAŁE i obiecywało coś, co bywa nieprawdą (F-3,
+                docs/faza1-organizator-plan.md): `wyslij_przypomnienia()` łapie
+                wyłącznie mecze na JUTRO, więc mecz założony po 18:00 dzień
+                przed terminem albo w dniu meczu nie dostaje ŻADNEGO automatu.
+                Liczone tą samą funkcją co karta „Co Bojo zrobi za Ciebie". */}
             <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-              Przypomnienie wyśle się samo, Ty wyślij tylko link.
+              {(() => {
+                const pozycja = harmonogramMeczu(event, participants)
+                  .find((p) => p.klucz === 'przypomnienie' || p.klucz === 'przypomnienie_za_pozno');
+                return pozycja?.klucz === 'przypomnienie'
+                  ? `Przypomnienie pójdzie do składu automatycznie, ok. ${godzinaPolska(pozycja.kiedy)}. Ty wyślij tylko link.`
+                  : 'Mecz jest za wcześnie na automatyczne przypomnienie: wyślij link teraz.';
+              })()}
             </p>
+
+            {/* F-5: „Powtórz mecz” zaprosiło poprzedni skład — organizator ma
+                widzieć, że to się stało, dokładnie w tej samej chwili, w której
+                widzi panel „Mecz gotowy”. */}
+            {zaproszonoLiczba > 0 && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+                <UserPlus className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+                Zaproszono {withCount(zaproszonoLiczba, 'osobę', 'osoby', 'osób')} z poprzedniego składu.
+              </p>
+            )}
 
             {cyklicznyId && (
               <Link
@@ -3171,6 +3296,21 @@ export default function EventDetailClient() {
           </div>
         </div>
 
+        {/* ── CO BOJO ZROBI ZA CIEBIE (F-3) ── tylko dla organizatora/delegata
+            z pełną edycją, tylko przed startem meczu i tylko na meczu, który
+            nie został odwołany (harmonogramMeczu() i tak zwraca pustą listę
+            dla `status === 'cancelled'`, ale strona nie pokazuje wtedy nawet
+            pustej karty). Pod kartą „Kiedy i gdzie" — to jest jej naturalna
+            kontynuacja: „wiesz kiedy i gdzie, a oto co się stanie samo". */}
+        {(isOwner || canManageEvent) && !eventStarted && !isCancelled && (
+          <HarmonogramMeczu
+            event={event}
+            sklad={participants}
+            onWyslijLinkTeraz={handleShare}
+            onPokazGoscBezWiadomosci={handlePokazGoscBezWiadomosci}
+          />
+        )}
+
         {/* ── CECHY MECZU (pigułki) ── cena, widoczność, ekipa, akceptacja.
             STOJĄ PONIŻEJ KARTY „Kiedy i gdzie", nie nad nią (2026-09-13,
             zgłoszone wprost). Rząd pigułek nad kartą wchodził na ekran
@@ -3248,7 +3388,7 @@ export default function EventDetailClient() {
               )
             ) : event.costGrosze > 0 ? (
               (isOwner || canManagePayments) ? (() => {
-                const unpaid = regulars.filter((p) => !p.hasPaid).length;
+                const unpaid = placacy.filter((p) => !p.hasPaid).length;
                 return unpaid === 0 ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
                     <Check className="h-3.5 w-3.5" strokeWidth={2.25} /> Rozliczono
@@ -3515,20 +3655,35 @@ export default function EventDetailClient() {
             {/* Roster — replaces avatar row when open */}
             {(regulars.length > 0 || reserves.length > 0 || isOwner || canManageSquad) && rosterRozwiniety && (
               <div className="mt-4 border-t border-slate-100 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="min-w-0 shrink-0 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                     {withCount(regulars.length, 'gracz', 'gracze', 'graczy')}
                     {reserves.length > 0 && ` · ${reserves.length} na rezerwie`}
                   </span>
-                  {!(isOwner && !eventStarted) && (
-                    <button
-                      type="button"
-                      onClick={() => setRosterOpen(false)}
-                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      <ChevronDown className="h-3.5 w-3.5 rotate-180" /> Zwiń
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {/* „Wyślij skład na czat" (F-4) — zamiennik listy, którą
+                        organizator dziś przepisuje ręcznie na WhatsApp. Tylko
+                        do startu meczu: potem skład się już nie zmienia w sposób,
+                        o którym trzeba kogokolwiek informować. */}
+                    {(isOwner || canManageSquad) && !isCancelled && !eventStarted && (
+                      <button
+                        type="button"
+                        onClick={handleWyslijSklad}
+                        className="flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800"
+                      >
+                        <ListOrdered className="h-3.5 w-3.5" strokeWidth={2.25} /> Wyślij skład
+                      </button>
+                    )}
+                    {!(isOwner && !eventStarted) && (
+                      <button
+                        type="button"
+                        onClick={() => setRosterOpen(false)}
+                        className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5 rotate-180" /> Zwiń
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {/* Sygnał do organizatora: skoro przycisk „Zaproś do Bojo" żyje
                     przy pojedynczym wierszu gościa, łatwo go nie zauważyć,
@@ -4692,7 +4847,7 @@ export default function EventDetailClient() {
             <input
               type="date"
               value={whenDate}
-              min={new Date().toISOString().slice(0, 10)}
+              min={dzisLokalnie()}
               onChange={(e) => { setWhenDate(e.target.value); setWhenConfirm(false); }}
               className="mb-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
@@ -5174,6 +5329,16 @@ export default function EventDetailClient() {
                   className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-ink focus:ring-2 focus:ring-primary-500 outline-none"
                   disabled={guestBusy}
                 />
+                {/* F-6 (docs/faza1-organizator-plan.md): pole samo w sobie
+                    wygląda jak rejestracja i newsletter, dokładnie ten sam
+                    mur, który organizator próbuje przebić linkiem „bez konta".
+                    E-mail zostaje WYMAGANY — bez niego gość nie dowie się
+                    o odwołaniu meczu (`O-36`/`P-3`), zmienia się wyłącznie to,
+                    co widać. */}
+                <p className="mt-1.5 text-[11px] text-slate-400">
+                  Tylko do wiadomości o tym meczu: zmiana, odwołanie, zwolnione miejsce.
+                  Bez hasła i bez zakładania konta.
+                </p>
               </div>
             </div>
 
@@ -5335,21 +5500,19 @@ export default function EventDetailClient() {
             </p>
 
             {/* Trzy wartości — tylko dla osób BEZ konta. Właściciela konta nie ma sensu
-                przekonywać do czegoś, co już ma; jemu skracamy ekran do logowania. */}
+                przekonywać do czegoś, co już ma; jemu skracamy ekran do logowania.
+                Lista jest dziś jedno źródło z `/gracz/przejmij/[token]`
+                (`content/kontoGoscia.ts`, F-6) — dwa ekrany, poprzednio dwie różne
+                treści, w tym dwie nieprawdziwe obietnice ("dołączysz do ekipy",
+                "przejrzysz otwarte gry w okolicy"). */}
             {!newUserHasAccount && (
               <ul className="mt-4 space-y-2.5 border-t border-slate-100 dark:border-slate-700 pt-4 text-xs text-slate-700 dark:text-slate-300">
-                <li className="flex gap-2">
-                  <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-                  <span>Dołączysz do ekipy i dostaniesz powiadomienia o kolejnych meczach</span>
-                </li>
-                <li className="flex gap-2">
-                  <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-                  <span>Założysz własny mecz i zbierzesz skład jednym linkiem</span>
-                </li>
-                <li className="flex gap-2">
-                  <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
-                  <span>Przejrzysz otwarte gry w okolicy</span>
-                </li>
+                {KORZYSCI_KONTA.map((korzysc) => (
+                  <li key={korzysc} className="flex gap-2">
+                    <Check className="h-4 w-4 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+                    <span>{korzysc}</span>
+                  </li>
+                ))}
               </ul>
             )}
 
@@ -5511,7 +5674,7 @@ export default function EventDetailClient() {
                   type="date"
                   value={repeatDate}
                   onChange={(e) => setRepeatDate(e.target.value)}
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={dzisLokalnie()}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
@@ -5553,6 +5716,43 @@ export default function EventDetailClient() {
                   <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', repeatJoin ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
                 </button>
               </div>
+              {/* F-5 (docs/faza1-organizator-plan.md): bez tego „Powtórz mecz”
+                  kończyło się pustym meczem — organizator znowu wklejał link
+                  i czekał, aż każdy wejdzie sam. Mecz przypięty do grupy nie
+                  ma tej kontrolki: tam powiadamia już wyzwalacz przy
+                  utworzeniu nowego meczu w grupie — drugie zaproszenie
+                  dublowałoby to samo powiadomienie. */}
+              {event.groupId ? (
+                <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-400">
+                  Członkowie ekipy dostaną powiadomienie o nowym meczu.
+                </p>
+              ) : (
+                <div className="flex items-center justify-between pt-1">
+                  <div className="min-w-0 pr-3">
+                    <p className="text-sm font-medium text-slate-900">Zaproś skład z tego meczu</p>
+                    <p className="text-xs text-slate-500">
+                      {(() => {
+                        const odbiorcy = odbiorcyPowtorki(regulars, event.organizerId);
+                        const bezKonta = regulars.filter((p) => p.isGuest).length;
+                        if (odbiorcy.length === 0 && bezKonta === 0) return 'Nikogo nie ma jeszcze w składzie.';
+                        const zKontem = `${withCount(odbiorcy.length, 'osoba z kontem dostanie zaproszenie', 'osoby z kontem dostaną zaproszenie', 'osób z kontem dostanie zaproszenie')}.`;
+                        return bezKonta > 0
+                          ? `${zKontem} ${withCount(bezKonta, 'osoba', 'osoby', 'osób')} bez konta: wyślesz link po utworzeniu.`
+                          : zKontem;
+                      })()}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setZapraszajZeSkladu((v) => !v)}
+                    className={['relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors', zapraszajZeSkladu ? 'bg-primary-600' : 'bg-slate-200'].join(' ')}
+                    role="switch"
+                    aria-checked={zapraszajZeSkladu}
+                  >
+                    <span className={['pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform', zapraszajZeSkladu ? 'translate-x-5' : 'translate-x-0'].join(' ')} />
+                  </button>
+                </div>
+              )}
               {gkEnabled && repeatJoin && (
                 <div>
                   <p className="text-xs font-medium text-slate-600 mb-1">Twoja rola</p>
