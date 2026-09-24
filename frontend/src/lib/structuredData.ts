@@ -2,6 +2,8 @@
 // rules — above all "never emit a private event" — can be unit-tested without
 // standing up Supabase.
 
+import { format, parseISO } from 'date-fns';
+import { pl } from 'date-fns/locale';
 import { defaultEventTitle } from './eventTitle';
 import {
   najlepszePotwierdzenie, QUORUM_POTWIERDZEN, type PotwierdzeniaZliczone,
@@ -83,6 +85,48 @@ export interface EventForJsonLd {
   cost_grosz?: number;
   lat?: number | null;
   lng?: number | null;
+  /** Opis wpisany przez organizatora. */
+  description?: string;
+  /** Kiedy mecz powstał — od tej chwili można się zapisać (`offers.validFrom`). */
+  created_at?: string;
+  zapisy_zamkniete?: boolean;
+  /** Zajęte miejsca w składzie (bez rezerwy i bez czekających na akceptację).
+   *  `undefined` = nie wiemy, wtedy nie ogłaszamy kompletu. */
+  zajete?: number;
+}
+
+/** Longest description we emit — Google shows a snippet, not an essay. */
+const MAX_OPIS_JSONLD = 300;
+
+function opisMeczu(ev: EventForJsonLd, placeName: string | undefined): string {
+  const wlasny = (ev.description ?? '').replace(/\s+/g, ' ').trim();
+  if (wlasny) {
+    return wlasny.length > MAX_OPIS_JSONLD
+      ? `${wlasny.slice(0, MAX_OPIS_JSONLD - 1).trimEnd()}…`
+      : wlasny;
+  }
+  // No organizer text: describe the match from its own facts, same shape as
+  // the <meta name="description"> built in app/wydarzenia/[id]/eventMeta.ts.
+  let dzien = ev.date;
+  try { dzien = format(parseISO(ev.date), 'EEEE d MMMM yyyy', { locale: pl }); } catch { /* raw date */ }
+  const godzina = ev.time ? `, godz. ${ev.time.slice(0, 5)}` : '';
+  const miejsce = placeName ? `, ${placeName}` : '';
+  return `Amatorski mecz: ${ev.sport}, ${dzien}${godzina}${miejsce}. Zapisy przez Bojo.`;
+}
+
+/**
+ * `offers.availability`. Closed sign-ups win over free spots — the same rule
+ * as the "Zapisy zamknięte" badge (lib/stanZapisow.ts): the reader's question
+ * is "can I get in", and the answer is no regardless of the count.
+ */
+function dostepnosc(ev: EventForJsonLd): string {
+  if (ev.status === 'cancelled' || ev.zapisy_zamkniete) return 'https://schema.org/SoldOut';
+  if (ev.max_players && ev.zajete != null) {
+    const wolne = ev.max_players - ev.zajete;
+    if (wolne <= 0) return 'https://schema.org/SoldOut';
+    if (wolne <= 2) return 'https://schema.org/LimitedAvailability';
+  }
+  return 'https://schema.org/InStock';
 }
 
 /**
@@ -108,6 +152,11 @@ export function eventJsonLd(
     '@type': 'SportsEvent',
     name,
     url,
+    description: opisMeczu(ev, placeName),
+    // The per-match card from app/wydarzenia/[id]/opengraph-image.tsx — it
+    // already renders the cover photo when one exists, so this one URL is
+    // right in both cases.
+    image: [`${url}/opengraph-image`],
     sport: ev.sport,
     startDate: ev.time ? `${ev.date}T${ev.time}` : ev.date,
     ...(ev.end_time ? { endDate: `${ev.date}T${ev.end_time}` } : {}),
@@ -150,9 +199,15 @@ export function eventJsonLd(
             price: (ev.cost_grosz / 100).toFixed(2),
             priceCurrency: 'PLN',
             url,
+            availability: dostepnosc(ev),
+            ...(ev.created_at ? { validFrom: ev.created_at } : {}),
           },
         }
       : {}),
+    // Google asks for `performer`. An amateur match has no headliner, and the
+    // players' names stay off machine-readable data on purpose — so the
+    // performer is the squad itself, named after the match.
+    performer: { '@type': 'PerformingGroup', name: `Skład meczu: ${name}` },
     organizer: { '@id': `${base}/#organization` },
   };
 }
