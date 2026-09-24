@@ -374,10 +374,15 @@ to funkcja `SECURITY DEFINER` w bazie (RPC). Jedyny wyjątek od reguły „brak 
 to `frontend/src/app/api/geocode/` — serwerowy proxy do Nominatim, bo przeglądarka nie
 może ustawić nagłówka `User-Agent`.
 
-Migracje SQL uruchamia się **ręcznie**, wklejając je do Supabase → SQL Editor. Nic nie
-robi tego automatycznie, więc numer migracji w repozytorium mówi tylko, co zostało
-napisane — nie co zostało zastosowane w bazie produkcyjnej. Bojo ma jedno środowisko:
-każdy merge do gałęzi `master` trafia na produkcję.
+Migracje SQL w Bojo uruchamia workflow GitHub Actions, nie człowiek wklejający je do
+Supabase → SQL Editor. Które pliki już poszły, wie dziennik `schema_migracje` w bazie,
+więc stan schematu da się odczytać — numer migracji w repozytorium przestał być jedyną
+poszlaką. Podział przebiega po RYZYKU, nie po środowisku: migracja, która tylko dokłada
+rzeczy (kolumna, tabela, polityka, funkcja, indeks), trafia na produkcję sama przy
+merge'u do gałęzi `master`; migracja, która kasuje albo przepisuje w miejscu, czeka na
+świadome uruchomienie i blokuje przy tym wszystkie późniejsze, bo migracji nie da się
+przeskoczyć. Bojo ma dwie bazy: produkcyjną oraz `BojoDev`, w którą celują podglądy
+pull requestów z Vercela. Kod produkcyjny idzie na żywo przy każdym merge'u do `master`.
 
 **Pytania, na które odpowiada ta sekcja:** Czy Bojo ma API? Jak Bojo pilnuje uprawnień?
 Czemu w Bojo nie ma backendu? Jak uruchamia się migracje w Bojo? Ile środowisk ma Bojo?

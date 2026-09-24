@@ -62,8 +62,12 @@ npm run build                 # build produkcyjny
 
 ## Baza danych
 
-Schema i migracje: `supabase/migrations/`. Wgrywasz je w Supabase → SQL Editor
-(kolejno wg numeracji). Dane startowe: `supabase/seed.sql`.
+Schema i migracje: `supabase/migrations/`. Uruchamia je workflow
+`.github/workflows/migracje.yml`, nie człowiek w SQL Editorze: migracje dokładające
+rzeczy idą na produkcję same przy merge'u do `master`, kasujące i przepisujące
+w miejscu czekają na kliknięcie (Actions → Migracje → Run workflow). Szczegóły
+i setup: [supabase/migrations/README.md](./supabase/migrations/README.md).
+Dane startowe: `supabase/seed.sql`.
 
 Najważniejsze tabele: `fields` (boiska), `events` (mecze), `event_participants`,
 `recurring_events` (cykliczne), `bookings` (rezerwacje), `field_outreach` (CRM kontaktu),
