@@ -10,6 +10,7 @@ import ToggleRow from '@/components/ui/ToggleRow';
 import CoverUpload from '@/components/ui/CoverUpload';
 import PanelGaleria from '@/components/turnieje/PanelGaleria';
 import PanelSponsorzy from '@/components/turnieje/PanelSponsorzy';
+import PanelProsbaOWyglad from '@/components/turnieje/PanelProsbaOWyglad';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
@@ -179,13 +180,15 @@ export default function PanelClient() {
     );
   }
 
-  // Galeria i sponsorzy (migracja `159`) — w Ustawieniach, NIE jako szósta
-  // zakładka panelu: sześć nie mieści się w szerokości telefonu (lekcja
-  // z 2026-09-17 na stronie turnieju).
+  // Galeria, sponsorzy (migracja `159`) i prośba o inny wygląd (migracja
+  // `162`) — w Ustawieniach, NIE jako osobna zakładka panelu: sześć nie
+  // mieści się w szerokości telefonu (lekcja z 2026-09-17 na stronie
+  // turnieju).
   const sekcjeMediow = (
     <>
       <PanelGaleria turniejId={id} userId={user.id} potwierdz={potwierdz} />
       <PanelSponsorzy turniejId={id} potwierdz={potwierdz} />
+      <PanelProsbaOWyglad turniejId={id} />
     </>
   );
 
@@ -883,6 +886,17 @@ export default function PanelClient() {
 
         {zakladka === 'ustawienia' && uprawnienia?.jestOrganizatorem && (
           <div className="space-y-5">
+            {/* Ta zakładka edytuje publiczną stronę turnieju (zakładka Info)
+                razem z ustawieniami operacyjnymi (BLIK, zapisy) w jednym
+                miejscu — świadomie, patrz komentarz przy `sekcjeMediow`
+                niżej. Zdanie tutaj orientuje, dokąd się trafiło: kliknięcie
+                „+ Dodaj zdjęcia" na Info otwiera WSZYSTKO poniżej, nie samą
+                galerię, i bez tego zdania to zaskakuje. */}
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Tu edytujesz publiczną stronę turnieju (nazwę, zdjęcia, sponsorów i inne
+              elementy, które widzi każdy na zakładce Info) oraz ustawienia zapisów.
+            </p>
+
             {/* Okładka pojawia się dziś jedynie jako miniatura na liście
                 turniejów (`t.okladkaUrl` w `KartaTurnieju`) — pole i
                 `setOkladkaTurnieju()` istniały od Etapu 0 modułu, ale bez
