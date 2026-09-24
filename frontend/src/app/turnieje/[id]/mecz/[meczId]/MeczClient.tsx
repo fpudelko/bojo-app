@@ -164,6 +164,7 @@ export default function MeczClient() {
   // nieużywana wprost, liczy się sam fakt zmiany stanu.
   void tik;
   const czas = czasGry(mecz.rozpoczetyAt, new Date(), turniej?.czasMeczuMin);
+  const meczPucharowy = mecz.faza !== 'grupa' && mecz.faza !== 'liga';
   const minalCzas = poCzasie(mecz.rozpoczetyAt, turniej?.czasMeczuMin ?? 0);
 
   const przeliczLokalnie = (lista: TurniejZdarzenie[]) => {
@@ -180,20 +181,33 @@ export default function MeczClient() {
    * (147) liczyły wszystko poprawnie, tylko nikt im nie powiedział ile.
    * Turniej koszykarski prowadzony tą konsolą kończył się fałszywym wynikiem.
    */
+  /** Minuta meczu liczona z `rozpoczetyAt`, a nie wpisywana z ręki.
+   *  Kolumna `minuta` istniała od migracji 147 i była ZAWSZE pusta, bo nic jej
+   *  nie podawało: przebieg meczu czytał się „⚽ Gol : Ekipa z Osiedla", bez
+   *  informacji, kiedy padł. Prowadzący nie ma jak wpisywać minut, ale zegar
+   *  i tak je zna. Gdy mecz nie jest rozpoczęty, zostaje `undefined`. */
+  const minutaTeraz = (): number | undefined => {
+    if (!mecz?.rozpoczetyAt) return undefined;
+    const od = new Date(mecz.rozpoczetyAt).getTime();
+    if (Number.isNaN(od)) return undefined;
+    return Math.max(0, Math.floor((Date.now() - od) / 60_000));
+  };
+
   const dodajZdarzenieAkcja = async (
     druzynaId: string, typ: ZdarzenieTyp, zawodnikId?: string, asystaZawodnikId?: string, wartosc = 1,
   ) => {
+    const minuta = minutaTeraz();
     const tymczasowe: TurniejZdarzenie = {
       id: `tymczasowe-${Date.now()}`, meczId, turniejId: turniej?.id ?? id, druzynaId,
       zawodnikId: zawodnikId || undefined, asystaZawodnikId: asystaZawodnikId || undefined,
-      typ, wartosc, createdAt: new Date().toISOString(),
+      typ, wartosc, minuta, createdAt: new Date().toISOString(),
     };
     const nowaLista = [...zdarzenia, tymczasowe];
     setZdarzenia(nowaLista);
     przeliczLokalnie(nowaLista);
     try {
       const realne = await dodajZdarzenie(meczId, {
-        druzynaId, typ, wartosc,
+        druzynaId, typ, wartosc, minuta,
         zawodnikId: zawodnikId || undefined,
         asystaZawodnikId: asystaZawodnikId || undefined,
       });
@@ -300,16 +314,13 @@ export default function MeczClient() {
       toast('Wpisz różne wyniki karnych, remis w tej fazie musi mieć rozstrzygnięcie', 'error');
       return;
     }
-    const wynik = await potwierdz({
-      tytul: 'Zakończyć mecz?',
-      konsekwencje: [
-        'Wyniku nie da się później cofnąć',
-        obieDruzynyZnane ? 'Zwycięzca przejdzie do kolejnej rundy (jeśli to mecz drabinki)' : '',
-      ].filter(Boolean),
-      potwierdzLabel: 'Zakończ mecz',
-      wariant: 'destrukcyjny',
-    });
-    if (wynik !== 'tak') return;
+    // BEZ OSOBNEGO OKNA. Zakończenie meczu wymagało trzech stuknięć:
+    // „Zakończ mecz" otwierało panel, „Potwierdź zakończenie" w panelu,
+    // a potem jeszcze okno „Zakończyć mecz?". Panel JEST potwierdzeniem:
+    // trzeba go świadomie otworzyć, wpisać w nim karne i MVP, i dopiero
+    // wtedy zatwierdzić. Czwarta bramka w tym miejscu niczego nie chroni,
+    // a prowadzący robi to kilkanaście razy w ciągu dnia, jedną ręką.
+    // Konsekwencje przeniesione do panelu, nad przycisk.
     try {
       await zakonczMecz(meczId, {
         karneA: wymagaKarnych ? karneA : undefined,
@@ -553,8 +564,16 @@ export default function MeczClient() {
                     </select>
                   </div>
                 )}
+                <div className="rounded-lg bg-slate-50 dark:bg-slate-700/40 px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                  Wyniku nie da się później cofnąć.
+                  {/* Zdanie o kolejnej rundzie tylko w meczu PUCHAROWYM.
+                      Wcześniej stało wszędzie z dopiskiem „(jeśli to mecz
+                      drabinki)", czyli aplikacja pytała prowadzącego o coś,
+                      co sama wie. */}
+                  {meczPucharowy && ' Zwycięzca przejdzie do kolejnej rundy.'}
+                </div>
                 <div className="flex gap-2">
-                  <Button onClick={zakonczMeczAkcja}>Potwierdź zakończenie</Button>
+                  <Button onClick={zakonczMeczAkcja}>Zakończ mecz</Button>
                   <Button variant="outline" onClick={() => setPokazZakoncz(false)}>Anuluj</Button>
                 </div>
               </div>
@@ -570,9 +589,15 @@ export default function MeczClient() {
               const zawodnik = wszyscyZawodnicy.find((zw) => zw.id === z.zawodnikId);
               const asysta = wszyscyZawodnicy.find((zw) => zw.id === z.asystaZawodnikId);
               return (
+                /* Dwukropek stał tu ZAWSZE, także gdy po nim nie było nazwiska
+                   (drużyna bez wpisanego składu), więc wiersz czytał się
+                   „⚽ Gol : Ekipa z Osiedla". Separator pojawia się teraz
+                   tylko wtedy, gdy faktycznie coś rozdziela. */
                 <div key={z.id} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                  <span>{ETYKIETA_ZDARZENIA[z.typ]}</span>
-                  <span className="text-slate-400">:</span>
+                  {z.minuta !== undefined && (
+                    <span className="shrink-0 font-mono text-xs text-slate-400">{z.minuta}&apos;</span>
+                  )}
+                  <span className="shrink-0">{ETYKIETA_ZDARZENIA[z.typ]}</span>
                   <span className="min-w-0 truncate">
                     {zawodnik ? `${zawodnik.imie} (${nazwaDruzyny})` : nazwaDruzyny}
                     {asysta && <span className="text-slate-400"> · asysta: {asysta.imie}</span>}

@@ -13,6 +13,7 @@
  */
 
 import { liczDruzynyWTurnieju } from './turniejEtykiety';
+import { plural, withCount } from './plural';
 import type { Turniej, TurniejArena, TurniejDruzyna, TurniejMecz } from '@/types';
 
 export type StanPozycji = 'gotowe' | 'uwaga' | 'brak';
@@ -60,7 +61,11 @@ export function pulpitPrzedTurniejem(
     pozycje.push({
       klucz: 'zgloszenia',
       stan: 'uwaga',
-      tekst: `${czekajace.length} ${czekajace.length === 1 ? 'zgłoszenie czeka' : 'zgłoszeń czeka'} na decyzję`,
+      // Odmiana przez `plural()`, nie przez `=== 1`. Uproszczenie do dwóch
+      // form daje „2 zgłoszeń czeka" zamiast „2 zgłoszenia czekają": polski
+      // ma trzy formy, a liczebnik odmienia też czasownik obok.
+      tekst: `${withCount(czekajace.length, 'zgłoszenie', 'zgłoszenia', 'zgłoszeń')} ${
+        plural(czekajace.length, 'czeka', 'czekają', 'czeka')} na decyzję`,
       zakladka: 'druzyny',
     });
   }

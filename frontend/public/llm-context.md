@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-23 · migracja `161` · 62 tabel
+**Stan na:** 2026-09-24 · migracja `161` · 62 tabel
 
 ---
 
@@ -475,6 +475,29 @@ upsert. Migracja niesie backfill dla głosów zebranych od `123`. Progu indeksac
 `oblicz_seo_tier()` nie rusza: indeks przez to wyłącznie rośnie. Test:
 `kworumPotwierdzen.test.ts`.
 
+### 2026-09-24 — Turniej po grupach nie ogłasza już własnego końca
+
+PROBLEM: audyt przeszedł pełny łuk turnieju i trafił na moment, w którym publiczna
+strona pokazywała „Zakończony" tuż po fazie grupowej. Przyczyna: stan turnieju uznawał
+za koniec sytuację, w której rozegrano wszystkie ISTNIEJĄCE mecze, a przy formacie
+„grupy → puchar" to jest chwila przed powstaniem drabinki. Kapitanowie czytali koniec
+turnieju przed ćwierćfinałem. Osobno: karta na liście turniejów liczyła drużyny
+czwartą już regułą (wliczała zgłoszenia czekające), panel odmieniał liczebniki
+dwoma formami zamiast trzech („2 zgłoszeń czeka"), przebieg meczu nie pokazywał minuty,
+a zakończenie meczu wymagało trzech stuknięć.
+
+ROZWIĄZANIE BOJO: stan „Grupy rozegrane, czeka na drabinkę" jest osobnym stanem, nie
+udawanym końcem ani udawanym „trwa". Liczenie drużyn zeszło do mapowania wiersza z bazy,
+więc żadna powierzchnia nie musi już o tej regule pamiętać. Minuta zdarzenia liczy się
+z zegara meczu, bo prowadzący nie ma jak jej wpisywać. Zakończenie meczu ma jedno
+potwierdzenie, a zdanie o kolejnej rundzie pokazuje się wyłącznie w meczu pucharowym.
+Po rozegranym meczu układanie terminarza od nowa jest wyłączone, a nie tylko ostrzegane.
+
+MECHANIKA: `stanTurnieju()` i `maDrabinke()` w `lib/turniejEtykiety.ts`, `toTurniej()`
+w `lib/turnieje.ts` (osadzone zapytania wciągają `status`), `lib/turniejPulpit.ts`,
+konsola w `app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Kolumna
+`turniej_zdarzenia.minuta` istniała od migracji `147` i była dotąd zawsze pusta.
+
 ### 2026-09-23 (2) — Organizator może wreszcie ułożyć terminarz turnieju
 
 PROBLEM: przycisk „Wygeneruj terminarz" w panelu organizatora nie robił NIC i nie mówił
@@ -726,31 +749,4 @@ PostgREST), `rozwinSporty()`/`pasujeSport()`/`SPORTY_NA_MAPIE` w `lib/sports.ts`
 lista sportów mapy zamiast trzech kopii), migracja `153_skupiska_licza_obiekty`
 (`count(DISTINCT f.id)`, `p_typy` → `p_nawierzchnie`). `venue_type` zostaje w bazie i na
 karcie obiektu jako informacja. Testy: `filtryMapy.test.ts`.
-
-### 2026-09-16 — Opis strony boiska w wynikach wyszukiwania mówi o nawierzchni, nie o meczach
-
-PROBLEM: Po zaindeksowaniu katalogu (17 473 stron od 5 września) strony boisk Bojo zaczęły
-pojawiać się w Google na zapytania o konkretne obiekty — i to wysoko: dziesiątki zapytań
-w pierwszej piątce wyników, część w pierwszej trójce. Mimo to prawie nikt nie klikał:
-58 zapytań stojących w TOP5 nie dostało ani jednego kliknięcia, co dało 20% wszystkich
-wyświetleń zmarnowanych na pozycji, o którą inni walczą miesiącami. Przyczyną było to,
-co widać w wyniku: opis powtarzał nazwę i adres stojące w tytule tuż nad nim, a potem
-obiecywał „Zobacz nadchodzące mecze" — a mecz rozegrano na około 40 obiektach z ponad
-36 tysięcy, więc dla niemal każdego boiska ta obietnica była pusta.
-
-ROZWIĄZANIE BOJO: Opis strony boiska w wynikach wyszukiwania niesie dziś wyłącznie fakty,
-których nie ma w tytule: nawierzchnię, oświetlenie oraz to, czy obiekt jest kryty czy
-otwarty — czyli rzeczy, po których człowiek wybiera boisko. Gdy starcza miejsca, dochodzi
-adres z ulicą, bo po niej rozstrzyga się między boiskami w tej samej miejscowości. Zdanie
-o nadchodzących meczach zniknęło: Bojo nie obiecuje w wyszukiwarce czegoś, czego na danym
-obiekcie może nie być. Sport i miejscowość też wypadły — niesie je tytuł wyniku, a forma
-„w «miejscowość»" wymagałaby odmiany, której nie da się poprawnie wyprowadzić dla
-dziesiątek tysięcy nazw z katalogu.
-
-MECHANIKA: `metaOpisObiektu()` w `frontend/src/content/opisObiektu.ts`, używana przez
-`generateMetadata()` w `app/boisko/[id]/page.tsx`. Fakty budowane z pól `surface`
-(przez `surfaceLabel()`), `isIndoor` i `lit`; adres dokładany tylko wtedy, gdy całość
-mieści się w 160 znakach, powyżej których wyszukiwarka ucina opis. Test:
-`src/__tests__/opisObiektu.test.ts`. Bez migracji. Dane źródłowe: eksport Search Console
-z 2026-09-16, opisany w `docs/seo-geo-strategia.md`, sekcja 7a.2.
 

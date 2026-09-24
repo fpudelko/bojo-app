@@ -174,20 +174,20 @@ describe('stanTurnieju — zapisy z terminem granicznym', () => {
 
   it('z terminem mówi konkretną datę zamiast samego czasownika', () => {
     const s = stanTurnieju(
-      { status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: '2026-10-16T23:59:59' }, [], dzisiaj,
+      { format: 'grupy_puchar' as const, status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: '2026-10-16T23:59:59' }, [], dzisiaj,
     );
     expect(s.label).toContain('Zapisy do');
     expect(s.label).not.toBe('Trwają zapisy');
   });
 
   it('bez terminu zostaje przy dotychczasowym zdaniu', () => {
-    const s = stanTurnieju({ status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: undefined }, [], dzisiaj);
+    const s = stanTurnieju({ format: 'grupy_puchar' as const, status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: undefined }, [], dzisiaj);
     expect(s.label).toBe('Trwają zapisy');
   });
 
   it('termin, który już minął, nie udaje otwartych zapisów z datą', () => {
     const s = stanTurnieju(
-      { status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: '2026-10-09T23:59:59' }, [], dzisiaj,
+      { format: 'grupy_puchar' as const, status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: '2026-10-09T23:59:59' }, [], dzisiaj,
     );
     expect(s.label).toBe('Trwają zapisy');
   });

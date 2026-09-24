@@ -119,6 +119,16 @@ export const FORMAT_OPIS: Record<TurniejFormat, string> = {
   liga:         'Każdy z każdym, bez fazy pucharowej, liczy się tylko tabela.',
 };
 
+/** Fazy pucharowe, czyli wszystko poza grupą i ligą. Używane do rozstrzygnięcia,
+ *  czy turniej formatu „grupy → puchar" ma już drabinkę. */
+const FAZY_PUCHAROWE: ReadonlySet<MeczFaza> = new Set<MeczFaza>([
+  '1/32', '1/16', '1/8', 'cwierc', 'polfinal', 'o_3_miejsce', 'final',
+]);
+
+export function maDrabinke(mecze: readonly { faza: MeczFaza }[]): boolean {
+  return mecze.some((m) => FAZY_PUCHAROWE.has(m.faza));
+}
+
 export const FAZA_LABEL: Record<MeczFaza, string> = {
   grupa:        'Faza grupowa',
   liga:         'Liga',
@@ -217,7 +227,7 @@ export interface StanTurnieju {
  * zamknięte zapisy) — terminarz dokłada to, czego kolumna nie wie.
  */
 export function stanTurnieju(
-  t: Pick<Turniej, 'status' | 'dataStartu' | 'zapisyDo'>,
+  t: Pick<Turniej, 'status' | 'dataStartu' | 'zapisyDo' | 'format'>,
   mecze: readonly { status: string; zaplanowanyAt?: string; faza: MeczFaza }[],
   dzisiaj: Date = new Date(),
 ): StanTurnieju {
@@ -243,9 +253,27 @@ export function stanTurnieju(
 
   if (naZywo) return { label: 'Na żywo', ton: 'bg-primary-50 text-primary-700', szczegol: 'Mecz w toku' };
 
-  // Komplet rozegrany to koniec, choćby kolumna twierdziła inaczej.
-  if (mecze.length > 0 && zostalo.length === 0) {
+  // Komplet rozegrany to koniec, choćby kolumna twierdziła inaczej — ALE
+  // wyłącznie wtedy, gdy format nie jest jeszcze nikomu winien meczów.
+  //
+  // Przy „grupy → puchar" ten warunek trafiał w moment tuż PO fazie grupowej:
+  // wszystkie istniejące mecze były rozegrane, bo drabinka jeszcze nie
+  // powstała. Publiczna strona ogłaszała wtedy „Zakończony" w chwili, w której
+  // turniej dopiero wchodzi w najciekawszą część, a kapitanowie czytali koniec
+  // przed ćwierćfinałem. Zgłoszone z audytu 5, na pełnym przejściu turnieju.
+  const czekaNaDrabinke = t.format === 'grupy_puchar' && !maDrabinke(mecze);
+  if (mecze.length > 0 && zostalo.length === 0 && !czekaNaDrabinke) {
     return { label: 'Zakończony', ton: 'bg-slate-100 text-slate-600' };
+  }
+  if (czekaNaDrabinke && zostalo.length === 0 && mecze.length > 0) {
+    // Stan przejściowy z własną nazwą, nie udawany koniec i nie udawane
+    // „trwa": organizator ma tu do wykonania krok, a widz ma wiedzieć,
+    // że najciekawsze dopiero przed nim.
+    return {
+      label: 'Grupy rozegrane',
+      ton: 'bg-primary-50 text-primary-700',
+      szczegol: 'Czeka na drabinkę',
+    };
   }
   if (t.status === 'zakonczony') return { label: 'Zakończony', ton: 'bg-slate-100 text-slate-600' };
 

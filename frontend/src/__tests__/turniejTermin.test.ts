@@ -45,42 +45,75 @@ describe('stanTurnieju', () => {
     ({ status, zaplanowanyAt, faza });
 
   it('decyzja organizatora wygrywa: odwołany i szkic', () => {
-    expect(stanTurnieju({ status: 'odwolany', dataStartu: '2026-09-20' }, [], DZIS).label).toBe('Odwołany');
-    expect(stanTurnieju({ status: 'szkic', dataStartu: '2026-09-20' }, [], DZIS).label).toBe('W przygotowaniu');
+    expect(stanTurnieju({ format: 'liga' as const, status: 'odwolany', dataStartu: '2026-09-20' }, [], DZIS).label).toBe('Odwołany');
+    expect(stanTurnieju({ format: 'liga' as const, status: 'szkic', dataStartu: '2026-09-20' }, [], DZIS).label).toBe('W przygotowaniu');
   });
 
   it('mecz w toku bije wszystko inne', () => {
-    const stan = stanTurnieju({ status: 'trwa', dataStartu: '2026-09-16' },
+    const stan = stanTurnieju({ format: 'liga' as const, status: 'trwa', dataStartu: '2026-09-16' },
       [mecz('zakonczony'), mecz('trwa'), mecz('zaplanowany')], DZIS);
     expect(stan.label).toBe('Na żywo');
   });
 
   it('komplet rozegrany to koniec, choćby kolumna mówiła „trwa"', () => {
     // To jest dokładnie ten turniej sprzed tygodnia, który świecił „Trwa".
-    const stan = stanTurnieju({ status: 'trwa', dataStartu: '2026-09-09' },
+    const stan = stanTurnieju({ format: 'liga' as const, status: 'trwa', dataStartu: '2026-09-09' },
       [mecz('zakonczony'), mecz('walkower')], DZIS);
     expect(stan.label).toBe('Zakończony');
   });
 
   it('końcówka turnieju nazywa się inaczej niż jego początek', () => {
-    const koncowka = stanTurnieju({ status: 'trwa', dataStartu: '2026-09-16' },
+    const koncowka = stanTurnieju({ format: 'liga' as const, status: 'trwa', dataStartu: '2026-09-16' },
       [mecz('zakonczony'), mecz('zakonczony'), mecz('zaplanowany', '2026-09-16T19:00:00Z', 'final')], DZIS);
     expect(koncowka.label).toBe('Ostatnie mecze');
     expect(koncowka.szczegol).toBe('Finał dziś, 19:00');
 
-    const poczatek = stanTurnieju({ status: 'trwa', dataStartu: '2026-09-16' },
+    const poczatek = stanTurnieju({ format: 'liga' as const, status: 'trwa', dataStartu: '2026-09-16' },
       [mecz('zaplanowany', '2026-09-16T10:00:00Z'), mecz('zaplanowany'), mecz('zaplanowany'), mecz('zaplanowany')], DZIS);
     expect(poczatek.label).toBe('Trwa');
   });
 
   it('zapisy mówią, kiedy start', () => {
-    const stan = stanTurnieju({ status: 'zapisy', dataStartu: '2026-09-17' }, [], DZIS);
+    const stan = stanTurnieju({ format: 'liga' as const, status: 'zapisy', dataStartu: '2026-09-17' }, [], DZIS);
     expect(stan.label).toBe('Trwają zapisy');
     expect(stan.szczegol).toBe('Start jutro');
   });
 
   it('turniej bez terminarza nie udaje zakończonego', () => {
     // Pusty terminarz znaczy „jeszcze nie wygenerowano", a nie „wszystko rozegrane".
-    expect(stanTurnieju({ status: 'trwa', dataStartu: '2026-09-16' }, [], DZIS).label).toBe('Trwa');
+    expect(stanTurnieju({ format: 'liga' as const, status: 'trwa', dataStartu: '2026-09-16' }, [], DZIS).label).toBe('Trwa');
+  });
+});
+
+// Audyt 5 przeszedł pełny łuk turnieju i trafił na moment, w którym publiczna
+// strona ogłaszała „Zakończony” tuż po fazie grupowej: wszystkie ISTNIEJĄCE
+// mecze były rozegrane, bo drabinka jeszcze nie powstała. Kapitanowie czytali
+// koniec turnieju przed ćwierćfinałem.
+describe('stanTurnieju — grupy przed drabinką', () => {
+  const rozegrany = (faza: 'grupa' | 'final') => ({ status: 'zakonczony', faza });
+
+  it('grupy rozegrane, drabinki brak: to NIE jest koniec', () => {
+    const stan = stanTurnieju(
+      { format: 'grupy_puchar' as const, status: 'trwa', dataStartu: '2026-09-09' },
+      [rozegrany('grupa'), rozegrany('grupa')], DZIS,
+    );
+    expect(stan.label).toBe('Grupy rozegrane');
+    expect(stan.szczegol).toBe('Czeka na drabinkę');
+  });
+
+  it('gdy drabinka JUŻ jest i wszystko rozegrane, koniec jest końcem', () => {
+    const stan = stanTurnieju(
+      { format: 'grupy_puchar' as const, status: 'trwa', dataStartu: '2026-09-09' },
+      [rozegrany('grupa'), rozegrany('final')], DZIS,
+    );
+    expect(stan.label).toBe('Zakończony');
+  });
+
+  it('liga nie czeka na żadną drabinkę, więc komplet to koniec', () => {
+    const stan = stanTurnieju(
+      { format: 'liga' as const, status: 'trwa', dataStartu: '2026-09-09' },
+      [rozegrany('grupa')], DZIS,
+    );
+    expect(stan.label).toBe('Zakończony');
   });
 });
