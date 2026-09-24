@@ -28,6 +28,23 @@
 > w atrapie testowej (`supabase/test/shim.sql`) — naprawione tam, nie
 > w tej migracji, bo to stan atrapy, nie produkcji. Etapy 6–8 (komponenty,
 > podpięcie w UI) zostają do kolejnego PR-a.
+>
+> **Aktualizacja 2026-09-22 (trzecia) — Etapy 7–8 zrobione, plan domknięty.**
+> Ekrany na zakładce Info i w panelu → Ustawienia, z dwiema rzeczami ponad plan
+> opisanymi w §9. Jedyne, co zostaje poza kodem: ręczne założenie bucketu
+> `turniej-media` (punkt 1 w §9).
+>
+> **Aktualizacja 2026-09-23 — magazyn plików zmieniony na Cloudflare R2
+> (migracja `161`).** Właściciel zdecydował się na R2 zamiast Supabase
+> Storage dzień po zamknięciu planu — bucket `turniej-media` w Supabase
+> i tak nigdy realnie nie powstał. **§2, §4 i §5 tego dokumentu opisują
+> WERSJĘ HISTORYCZNĄ (Supabase Storage) — kod jej już nie odzwierciedla.**
+> Aktualny opis architektury (endpoint `/api/turniej-media/*`, dlaczego to
+> DRUGI w repo wyjątek od „braku backendu", jak działa autoryzacja bez RLS)
+> → [docs/domena.md](./domena.md#turniej-media-zdjęcia-logotypy-sponsorów-na-cloudflare-r2-161).
+> Decyzje o KSZTAŁCIE danych (dwie tabele, ścieżka jako granica dostępu,
+> logo sponsora opcjonalne, baza trzyma ścieżkę nie URL) zostają aktualne —
+> zmienił się wyłącznie dostawca Storage pod spodem.
 
 ## 0. Czego NIE budujemy teraz
 
@@ -352,9 +369,11 @@ Dane: turniej „T" (organizator O), obcy X, drugi turniej „T2" (inny organiza
 
 ## 9. Kolejność prac (jak w każdym etapie modułu)
 
-1. Bucket `turniej-media` ręcznie w Supabase Dashboard (publiczny). **Do zrobienia
-   ręcznie przy wdrożeniu** — nikt jeszcze go nie założył, migracja `159` (punkt 2)
-   nie wymaga tego do zaaplikowania się, tylko realne uploady go potrzebują.
+1. ~~Bucket `turniej-media` ręcznie w Supabase Dashboard (publiczny).~~
+   **NIEAKTUALNE od 2026-09-23** — magazyn to teraz Cloudflare R2, migracja
+   `161` skasowała polityki `storage.objects` z punktu 2. Bucket R2, jego
+   publiczny adres i CORS założone ręcznie w Cloudflare Dashboard (poza tym
+   repo) — szczegóły → docs/domena.md, sekcja R2.
 2. Migracja `159` (nie `158` — zajęty w międzyczasie, patrz nagłówek pliku) —
    **zrobione 2026-09-22**, potwierdzone `baza-testowa.sh` od zera. Bucket nie
    istnieje lokalnie, więc testy Storage w `rls.sql` operują na samych
@@ -370,7 +389,14 @@ Dane: turniej „T" (organizator O), obcy X, drugi turniej „T2" (inny organiza
    (zakładka Ustawienia) wgrywa okładkę, `KartaTurnieju` na `/turnieje` już
    ją pokazywała. Zero migracji, zgodnie z decyzją #4 w §1.
 7. Komponenty: `Lightbox.tsx` → `Galeria.tsx` → `Sponsorzy.tsx` → `PanelGaleria.tsx` → `PanelSponsorzy.tsx`.
+   **Zrobione 2026-09-22.**
 8. Podpięcie w `TurniejClient.tsx` (zakładka Info) i `PanelClient.tsx` (zakładka Ustawienia).
+   **Zrobione 2026-09-22.** Dwie rzeczy dołożone ponad plan: (a) sekcje w panelu widzi
+   także współorganizator z `moze_edytowac` — reszta Ustawień jest dla organizatora, ale
+   RLS z `159` wpuszcza każdego z `czy_zarzadza_turniejem()`, więc interfejs nie może być
+   węższy niż baza; (b) link sponsora dopuszcza wyłącznie `http`/`https`
+   (`normalizujLinkSponsora()`/`bezpiecznyLinkSponsora()`) — plan o tym milczał, a
+   `javascript:` w linku widocznym dla każdego to wstrzyknięcie skryptu.
 9. Bramki: `tsc` → `lint` → `test` → `build` → `check:docs`.
 10. Dokumentacja w tym samym PR-ze: `docs/domena.md` (nowa sekcja „Turniej:
     galeria i sponsorzy"), `docs/baza-danych.md` (dwie tabele + bucket),

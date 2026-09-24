@@ -269,6 +269,12 @@ widoczny dla żadnego innego narzędzia w repo — Playwright zgłasza go wprost
   `payments.ts`…). Komponenty tego nie omijają.
 - Wyjątek: `frontend/src/app/api/geocode/` — serwerowy proxy do Nominatim (przeglądarka
   nie może ustawić `User-Agent`).
+- Drugi wyjątek: `frontend/src/app/api/turniej-media/` — media galerii/sponsorów
+  turnieju leżą na Cloudflare R2, nie w Supabase Storage (migracja `161`, decyzja
+  właściciela 2026-09-23, tylko dla tego jednego bucketu). R2 nie zna RLS ani
+  `auth.uid()`, więc TEN endpoint naprawdę autoryzuje po stronie serwera — woła
+  `czy_zarzadza_turniejem()` przez RPC z tokenem użytkownika, zanim wyda podpisany URL.
+  Szczegóły → [docs/domena.md](./docs/domena.md#turniej-media-zdjęcia-logotypy-sponsorów-na-cloudflare-r2-161).
 - Interfejs jest **po polsku**. Komentarze w kodzie po angielsku.
 
 Uzasadnienia i granice → [docs/domena.md](./docs/domena.md#granice-architektury).

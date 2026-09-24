@@ -273,6 +273,16 @@ export function ulozHarmonogram(mecze: readonly NowyMecz[], opcje: OpcjeHarmonog
   const czasSlotuMs = (opcje.czasMeczuMin + opcje.przerwaMin) * 60_000;
   let slotStart = new Date(opcje.startAt).getTime();
 
+  // Nieprawidłowa data NIE ma po cichu zamienić się w terminarz z NaN.
+  // Bez tej osłony `toISOString()` niżej rzucało gołe „RangeError: Invalid
+  // time value" wewnątrz obsługi kliknięcia, czyli organizator klikał
+  // „Wygeneruj terminarz" i nie działo się nic: ani terminarz, ani komunikat.
+  // Realny przypadek: `godzina_startu` z Postgresa ma sekundy, więc sklejenie
+  // `${data}T${godzina}:00` dawało `...T10:00:00:00`.
+  if (Number.isNaN(slotStart)) {
+    throw new Error(`Nie umiem odczytać godziny startu turnieju („${opcje.startAt}").`);
+  }
+
   const zaplanowane: NowyMecz[] = [];
   for (const k of kolejki) {
     const meczeKolejki = poKolejkach.get(k)!;

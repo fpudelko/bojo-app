@@ -26,7 +26,16 @@ export function toTurniej(row: any): Turniej {
     miasto: row.miasto ?? undefined,
     dataStartu: row.data_startu,
     dataKonca: row.data_konca ?? undefined,
-    godzinaStartu: row.godzina_startu,
+    // HH:MM, nie HH:MM:SS. Postgres oddaje kolumnę `time` z sekundami, a cała
+    // reszta aplikacji zakłada format z TimeSelect, czyli bez nich. Rozjazd
+    // wywracał układanie terminarza: `${dataStartu}T${godzinaStartu}:00` dawało
+    // `2026-10-24T10:00:00:00`, czyli nieprawidłową datę, a `toISOString()`
+    // rzucało RangeError wewnątrz obsługi kliknięcia. Przycisk „Wygeneruj
+    // terminarz" nie robił NIC i nie mówił dlaczego.
+    //
+    // Normalizacja siedzi tutaj, na granicy z bazą, bo to jedyne miejsce,
+    // przez które ta wartość wchodzi do aplikacji.
+    godzinaStartu: String(row.godzina_startu ?? '').slice(0, 5),
     zapisyDo: row.zapisy_do ?? undefined,
     maxDruzyn: row.max_druzyn,
     minDruzyn: row.min_druzyn ?? undefined,
@@ -48,7 +57,15 @@ export function toTurniej(row: any): Turniej {
     wymagaAkceptacji: row.wymaga_akceptacji,
     mvpZawodnikId: row.mvp_zawodnik_id ?? undefined,
     createdAt: row.created_at,
-    liczbaDruzyn: Array.isArray(row.turniej_druzyny) ? row.turniej_druzyny.length : undefined,
+    // WYŁĄCZNIE przyjęte, ta sama reguła co `zajmujeMiejsce()`. Surowa długość
+    // osadzonej tablicy liczyła też zgłoszenia czekające na decyzję, więc karta
+    // na liście mówiła „2/8 drużyn" w chwili, gdy strona turnieju mówiła
+    // „0 drużyn z 8". To CZWARTE miejsce, w którym ta reguła się rozjechała,
+    // dlatego liczenie schodzi tu, do mapowania wiersza: wyżej nikt już nie
+    // musi o niej pamiętać.
+    liczbaDruzyn: Array.isArray(row.turniej_druzyny)
+      ? (row.turniej_druzyny as { status?: string }[]).filter((d) => d.status === 'przyjeta').length
+      : undefined,
   };
 }
 
@@ -235,7 +252,7 @@ export async function getTurniej(id: string): Promise<Turniej | null> {
 export async function getTurniejePubliczne(limit = 50): Promise<Turniej[]> {
   const { data, error } = await supabase
     .from('turnieje')
-    .select('*, turniej_druzyny(id)')
+    .select('*, turniej_druzyny(id, status)')
     .eq('widocznosc', 'publiczny')
     .in('status', ['zapisy', 'zamkniete_zapisy', 'trwa', 'zakonczony'])
     .order('data_startu', { ascending: true })
@@ -247,7 +264,7 @@ export async function getTurniejePubliczne(limit = 50): Promise<Turniej[]> {
 /** Organizowane przeze mnie + te, w których gram (przez `turniej_zawodnicy`). */
 export async function getMojeTurnieje(userId: string): Promise<Turniej[]> {
   const [organizowane, graneRaw] = await Promise.all([
-    supabase.from('turnieje').select('*, turniej_druzyny(id)').eq('organizator_id', userId),
+    supabase.from('turnieje').select('*, turniej_druzyny(id, status)').eq('organizator_id', userId),
     supabase.from('turniej_zawodnicy').select('turniej_id').eq('user_id', userId),
   ]);
   if (organizowane.error) throw new Error(organizowane.error.message);
@@ -259,7 +276,7 @@ export async function getMojeTurnieje(userId: string): Promise<Turniej[]> {
 
   let grane: Turniej[] = [];
   if (idGranych.length > 0) {
-    const { data, error } = await supabase.from('turnieje').select('*, turniej_druzyny(id)').in('id', idGranych);
+    const { data, error } = await supabase.from('turnieje').select('*, turniej_druzyny(id, status)').in('id', idGranych);
     if (error) throw new Error(error.message);
     grane = (data ?? []).map(toTurniej);
   }

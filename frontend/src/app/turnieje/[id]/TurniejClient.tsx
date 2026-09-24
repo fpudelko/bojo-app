@@ -21,8 +21,10 @@ import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, s
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
+import { getZdjecia, getSponsorzy } from '@/lib/turniejGaleria';
 import { podiumTurnieju, tekstPodium, medal } from '@/lib/turniejPodium';
 import { linkDojazdu } from '@/lib/utils';
+import { withCount } from '@/lib/plural';
 import { useWstecz } from '@/lib/historia';
 import { sportEmoji } from '@/lib/sports';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
@@ -30,9 +32,11 @@ import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
 import Drabinka from '@/components/turnieje/Drabinka';
 import Klasyfikacja from '@/components/turnieje/Klasyfikacja';
 import Ogloszenia from '@/components/turnieje/Ogloszenia';
+import Galeria from '@/components/turnieje/Galeria';
+import Sponsorzy from '@/components/turnieje/Sponsorzy';
 import KartaDruzyny from '@/components/turnieje/KartaDruzyny';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
-import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie, TurniejOgloszenie } from '@/types';
+import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie, TurniejOgloszenie, TurniejZdjecie, TurniejSponsor } from '@/types';
 
 // Sześć zakładek zamiast czterech. „Terminarz" i „Wyniki" dzieliły wcześniej
 // ten sam zbiór meczów, a tabela i drabinka siedziały razem w „Wynikach" —
@@ -132,6 +136,8 @@ export default function TurniejClient() {
   const [ogloszenia, setOgloszenia] = useState<TurniejOgloszenie[]>([]);
   /** Ogłoszeń nie dało się wczytać — puste miejsce ma powiedzieć co innego niż „nie ma ogłoszeń". */
   const [ogloszeniaBlad, setOgloszeniaBlad] = useState(false);
+  const [zdjecia, setZdjecia] = useState<TurniejZdjecie[]>([]);
+  const [sponsorzy, setSponsorzy] = useState<TurniejSponsor[]>([]);
   const [mojaDruzyna, setMojaDruzyna] = useState<TurniejDruzyna | null>(null);
   const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
   const [ladowanie, setLadowanie] = useState(true);
@@ -201,7 +207,7 @@ export default function TurniejClient() {
         //
         // Każda sekcja dostaje więc własny wynik i własny stan pusty. Jedyne,
         // co naprawdę przesądza o „nie znaleziono", to brak samego turnieju.
-        const [d, o, m, a, g, z, og, mj] = await Promise.allSettled([
+        const [d, o, m, a, g, z, og, mj, zd, sp] = await Promise.allSettled([
           user ? getDruzynyZeSkladem(id) : getDruzyny(id),
           user ? getMojaOsobe(id, user.id) : Promise.resolve(null),
           getMecze(id),
@@ -210,6 +216,8 @@ export default function TurniejClient() {
           getZdarzeniaTurnieju(id),
           getOgloszenia(id),
           user ? getMojaDruzyne(id, user.id) : Promise.resolve(null),
+          getZdjecia(id),
+          getSponsorzy(id),
         ]);
         if (!aktualne) return;
         setDruzyny(d.status === 'fulfilled' ? d.value : []);
@@ -221,6 +229,10 @@ export default function TurniejClient() {
         setOgloszenia(og.status === 'fulfilled' ? og.value : []);
         setOgloszeniaBlad(og.status === 'rejected');
         setMojaDruzyna(mj.status === 'fulfilled' ? mj.value : null);
+        // Galeria i sponsorzy to dodatek do zakładki Info: gdy zapytanie padnie
+        // (np. baza bez migracji `159`), sekcje po prostu się nie pokazują.
+        setZdjecia(zd.status === 'fulfilled' ? zd.value : []);
+        setSponsorzy(sp.status === 'fulfilled' ? sp.value : []);
         // BLIK: tylko organizator/zarządzający i kapitanowie mają RLS-owe
         // prawo do wiersza — reszta po prostu nie dostanie nic, więc wołanie
         // „na wszelki wypadek" jest bezpieczne i nie wymaga sprawdzania roli
@@ -482,7 +494,7 @@ export default function TurniejClient() {
                 aktywna === z ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800',
               ].join(' ')}
             >
-              {z === 'druzyny' ? `Drużyny (${druzyny.length})` : ETYKIETY_ZAKLADEK[z]}
+              {z === 'druzyny' ? `Drużyny (${liczbaWTurnieju})` : ETYKIETY_ZAKLADEK[z]}
             </button>
           ))}
         </div>
@@ -504,9 +516,24 @@ export default function TurniejClient() {
             zakładki, tabelę i drabinkę szczególnie. */}
         <div className="flex items-center gap-2.5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-sm">
           <span className="shrink-0 text-xl">{sportEmoji(turniej.sport)}</span>
-          <div className="min-w-0 flex-1 truncate text-sm text-slate-600 dark:text-slate-300">
+          <div className="min-w-0 flex-1 text-sm text-slate-600 dark:text-slate-300">
+            {/* `liczbaWTurnieju`, nie `druzyny.length`. Surowa długość tablicy
+                liczyła także zgłoszenia czekające na decyzję, więc ten wiersz
+                mówił „1/8 drużyn" w tej samej chwili, gdy pulpit organizatora
+                mówił „0 z 8". Reguła zmieniła się w #411, ale to miejsce
+                zostało pominięte, bo renderuje liczbę wprost, zamiast wołać
+                `liczDruzynyWTurnieju()`. Kapitan i organizator patrzyli na
+                dwie różne liczby o tym samym. */}
             <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
-            {etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)} · {druzyny.length}/{turniej.maxDruzyn} drużyn
+            {/* Licznik w DRUGIEJ linii, nie sklejony z datą. Przy 360 px cały
+                wiersz szedł przez `truncate`, więc data słowna („sob. 24
+                października") zjadała miejsce i „· 1 z 8 drużyn" znikało za
+                wielokropkiem — a to pierwsza liczba, jakiej szuka kapitan.
+                Data zostaje w jednej linii, licznik dostaje własną. */}
+            <span className="block truncate">{etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}</span>
+            <span className="block text-xs text-slate-500 dark:text-slate-400">
+              {withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn}
+            </span>
           </div>
           <button onClick={udostepnij} aria-label="Udostępnij" className="shrink-0 text-primary-600">
             <Share2 className="h-4 w-4" />
@@ -730,18 +757,33 @@ export default function TurniejClient() {
               </div>
             )}
 
+            {/* Brak miejsca to nie jest powód, żeby o miejscu nie mówić.
+                Wiersz po prostu znikał, a kapitan, który ma zapłacić wpisowe,
+                szuka właśnie lokalizacji: cisza w tym miejscu czyta się jak
+                turniej wymyślony na próbę, nie jak „organizator jeszcze
+                rezerwuje". Szary, bo to dokładnie znaczenie zarezerwowane dla
+                „ta droga jest na razie zamknięta, nic się nie zepsuło". */}
+            {!turniej.miejsceNazwa && !turniej.miejsceAdres && (
+              <div className="flex items-start gap-2 text-sm">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+                <div className="min-w-0 flex-1 text-slate-500 dark:text-slate-400">
+                  Miejsce jeszcze nieustalone. Organizator dopisze je przed startem.
+                </div>
+              </div>
+            )}
+
             <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
               <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <div className="min-w-0">
                 <div className="font-medium text-ink">{FORMAT_LABEL[turniej.format]}</div>
-                <div className="text-xs text-slate-400">{opisFormatu(turniej, druzyny.length)}</div>
+                <div className="text-xs text-slate-400">{opisFormatu(turniej, liczbaWTurnieju)}</div>
               </div>
             </div>
 
             <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <div className="min-w-0">
-                <div>{druzyny.length}/{turniej.maxDruzyn} drużyn · skład {turniej.minZawodnikow}–{turniej.maxZawodnikow} osób</div>
+                <div>{withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn} · skład {turniej.minZawodnikow}–{turniej.maxZawodnikow} osób</div>
                 <div className="text-xs text-slate-400">
                   Mecz {turniej.czasMeczuMin} min
                   {turniej.przerwaMin > 0 && `, przerwa ${turniej.przerwaMin} min`}
@@ -778,10 +820,24 @@ export default function TurniejClient() {
           </div>
         )}
 
+        {/* Galeria i sponsorzy pod kartą szczegółów — zakładka Info ma być
+            stroną turnieju do przewijania w dół, nie tylko listą faktów.
+            Plan → docs/turniej-galeria-sponsorzy-plan.md §7. */}
+        {aktywna === 'info' && (
+          <>
+            <Galeria
+              zdjecia={zdjecia}
+              mozeZarzadzac={uprawnienia.mozeEdytowac}
+              linkDoPanelu={`/turnieje/${id}/panel?tab=ustawienia`}
+            />
+            <Sponsorzy sponsorzy={sponsorzy} />
+          </>
+        )}
+
         {aktywna === 'druzyny' && (
           <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-500">{druzyny.length}/{turniej.maxDruzyn} drużyn</span>
+              <span className="text-sm text-slate-500">{withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn}</span>
               {przyjmujeZgloszenia(turniej, liczbaWTurnieju) && (
                 <Link href={`/turnieje/${id}/zglos`} className="text-sm font-medium text-primary-600">+ Zgłoś drużynę</Link>
               )}
