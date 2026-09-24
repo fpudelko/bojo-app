@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-24 · migracja `161` · 62 tabel
+**Stan na:** 2026-09-24 · migracja `162` · 62 tabel
 
 ---
 
@@ -374,10 +374,15 @@ to funkcja `SECURITY DEFINER` w bazie (RPC). Jedyny wyjątek od reguły „brak 
 to `frontend/src/app/api/geocode/` — serwerowy proxy do Nominatim, bo przeglądarka nie
 może ustawić nagłówka `User-Agent`.
 
-Migracje SQL uruchamia się **ręcznie**, wklejając je do Supabase → SQL Editor. Nic nie
-robi tego automatycznie, więc numer migracji w repozytorium mówi tylko, co zostało
-napisane — nie co zostało zastosowane w bazie produkcyjnej. Bojo ma jedno środowisko:
-każdy merge do gałęzi `master` trafia na produkcję.
+Migracje SQL w Bojo uruchamia workflow GitHub Actions, nie człowiek wklejający je do
+Supabase → SQL Editor. Które pliki już poszły, wie dziennik `schema_migracje` w bazie,
+więc stan schematu da się odczytać — numer migracji w repozytorium przestał być jedyną
+poszlaką. Podział przebiega po RYZYKU, nie po środowisku: migracja, która tylko dokłada
+rzeczy (kolumna, tabela, polityka, funkcja, indeks), trafia na produkcję sama przy
+merge'u do gałęzi `master`; migracja, która kasuje albo przepisuje w miejscu, czeka na
+świadome uruchomienie i blokuje przy tym wszystkie późniejsze, bo migracji nie da się
+przeskoczyć. Bojo ma dwie bazy: produkcyjną oraz `BojoDev`, w którą celują podglądy
+pull requestów z Vercela. Kod produkcyjny idzie na żywo przy każdym merge'u do `master`.
 
 **Pytania, na które odpowiada ta sekcja:** Czy Bojo ma API? Jak Bojo pilnuje uprawnień?
 Czemu w Bojo nie ma backendu? Jak uruchamia się migracje w Bojo? Ile środowisk ma Bojo?
@@ -403,7 +408,6 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Wynajem sędziego.**
 - **Publiczna lista graczy** — trasa `/gracze` przekierowuje na listę meczów.
 - **Osobny backend, API ani kontrolery.**
-- **Automatyczne uruchamianie migracji.**
 
 Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — potwierdzenia SMS, gry
 cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie". Kod istnieje,
@@ -448,6 +452,25 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-09-24 (2) — Prośba o inny wygląd strony turnieju idzie wprost z panelu
+
+PROBLEM: organizator, który chciał inny wygląd strony turnieju (kolory, układ,
+dodatkowy element), nie miał gdzie tego napisać poza mailem czy Discordem — bez
+kontekstu, KTÓREGO turnieju dotyczy i bez adresu do jego panelu. Osobno: kliknięcie
+„+ Dodaj zdjęcia" na zakładce Info otwierało całą zakładkę Ustawienia (nazwa, opis,
+regulamin, BLIK, zapisy), nie samą galerię — etykieta zapowiadała węższy ekran, niż
+faktycznie się otwierał.
+
+ROZWIĄZANIE BOJO: nowa karta w panelu, pod Galerią i Sponsorami — organizator opisuje,
+czego brakuje, a zespół Bojo wprowadza zmianę ręcznie (świadomie nieautomatyczne).
+Prośba trafia do tego samego miejsca co zgłoszenia błędów, z linkiem prosto do panelu
+tego turnieju. Etykieta linku z zakładki Info zmieniła się na „+ Ustaw wygląd strony",
+a zakładka Ustawienia dostała jedno zdanie na górze, które mówi, co się na niej edytuje.
+
+MECHANIKA: `components/turnieje/PanelProsbaOWyglad.tsx`, `zglosZyczenieWygladu()`
+w `lib/bledy.ts`. Czwarty rodzaj `turniej_wyglad` w `zgloszenia_bledow` (migracja `099`)
+i nowa kolumna `turniej_id`, migracja `162`. Admin czyta w `/admin/bledy`.
 
 ### 2026-09-24 — Turniej po grupach nie ogłasza już własnego końca
 
@@ -672,26 +695,4 @@ które dałyby zaznaczenie niewidoczne i niemożliwe do odznaczenia; pusta tabli
 (`next/dynamic`, `ssr: false`), bo to najczęściej otwierany adres w serwisie.
 Ścieżka logowania ta sama co z listy meczów: `logowanieDlaAlertu()` i
 `zamiarAlertuZAdresu()`. Testy: `alertZObiektu.test.ts`.
-
-### 2026-09-21 — Panel Bojo mierzy aktywację, nie tylko wolumen
-
-PROBLEM: panel analityki Bojo liczył, ILE rzeczy powstało („Mecze utworzone / 7 dni").
-Ten licznik pokazuje identyczną wartość w dwóch stanach, które są przeciwieństwami:
-dziesięciu organizatorów po jednym meczu i jeden organizator z dziesięcioma. Cała
-strategia Bojo stoi na zdaniu „organizator przyprowadza 10–14 osób", a organizator,
-który zrobił jeden mecz i nie wrócił, nie przyprowadził nikogo. Drugiej liczby,
-konwersji zapisu bez konta w konto, nie liczył nikt od sierpnia, mimo że oba zdarzenia
-leżą w bazie.
-
-ROZWIĄZANIE BOJO: `/admin/analityka` pokazuje nad retencją dwie liczby z okna 30 dni:
-odsetek organizatorów, którzy wrócili po drugi mecz (z medianą odstępu), oraz stosunek
-przejęć wpisu gościa do zapisów bez konta.
-
-MECHANIKA: czyste funkcje `powtarzalnoscOrganizatora()` i `konwersjaGoscia()`
-w `lib/analytics.ts`, bez nowych zdarzeń i bez migracji. Oba zastrzeżenia stoją przy
-liczbach w panelu, nie w stopce: powtarzalność jest DOLNYM oszacowaniem, bo pierwszy
-mecz sprzed ponad 30 dni wypada z okna, a konwersja gościa liczy ZDARZENIA, nie ludzi,
-bo `guest_joined` powstaje bez zalogowania i wiersz nie niesie identyfikatora.
-Test `aktywacja.test.ts` porównuje dwa zestawy o tym samym wolumenie i przeciwnym
-wyniku.
 

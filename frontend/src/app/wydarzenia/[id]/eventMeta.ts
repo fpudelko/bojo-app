@@ -26,13 +26,16 @@ export interface EventMeta {
   cover?: string;
   lat: number | null;
   lng: number | null;
+  description?: string;
+  created_at?: string;
+  zapisy_zamkniete?: boolean;
 }
 
 export async function getEventMeta(id: string): Promise<EventMeta | null> {
   const { data } = await supabase
     .from('events')
     .select(
-      'title, sport, event_date, event_time, end_time, field_name, custom_location_name, custom_address, visibility, status, max_players, cost_grosz, cover_image_url, lat, lng',
+      'title, sport, event_date, event_time, end_time, field_name, custom_location_name, custom_address, visibility, status, max_players, cost_grosz, cover_image_url, lat, lng, description, created_at, zapisy_zamkniete',
     )
     .eq('id', id)
     .maybeSingle();
@@ -53,7 +56,26 @@ export async function getEventMeta(id: string): Promise<EventMeta | null> {
     cover: data.cover_image_url ?? undefined,
     lat: data.lat ?? null,
     lng: data.lng ?? null,
+    description: data.description ?? undefined,
+    created_at: data.created_at ?? undefined,
+    zapisy_zamkniete: data.zapisy_zamkniete ?? false,
   };
+}
+
+/**
+ * Zajęte miejsca w składzie: bez rezerwowych i bez wierszy czekających na
+ * akceptację, tak samo jak w opengraph-image.tsx i na karcie meczu. Potrzebne
+ * do `offers.availability` w JSON-LD (lib/structuredData.ts). Błąd odczytu
+ * daje `undefined`, a wtedy JSON-LD nie zgaduje kompletu.
+ */
+export async function policzZajeteMiejsca(id: string): Promise<number | undefined> {
+  const { count, error } = await supabase
+    .from('event_participants')
+    .select('*', { count: 'exact', head: true })
+    .eq('event_id', id)
+    .eq('pending_approval', false)
+    .eq('is_reserve', false);
+  return error ? undefined : (count ?? 0);
 }
 
 /**

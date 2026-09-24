@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Bug, Loader2, MapPin, MessageSquareWarning, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Bug, Loader2, MapPin, MessageSquareWarning, Palette, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
 import { useAdmin } from '@/lib/admin';
@@ -141,7 +141,9 @@ export default function AdminBledyPage() {
                     ? <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
                     : z.rodzaj === 'obiekt'
                       ? <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-                      : <MessageSquareWarning className="mt-0.5 h-5 w-5 shrink-0 text-primary-700" />}
+                      : z.rodzaj === 'turniej_wyglad'
+                        ? <Palette className="mt-0.5 h-5 w-5 shrink-0 text-purple-600" />
+                        : <MessageSquareWarning className="mt-0.5 h-5 w-5 shrink-0 text-primary-700" />}
 
                   <div className="min-w-0 flex-1">
                     <p className="break-words text-sm font-semibold text-ink">{z.opis}</p>
@@ -166,6 +168,13 @@ export default function AdminBledyPage() {
                         className="mt-1 inline-block text-xs font-medium text-primary-700 underline underline-offset-2"
                       >
                         Otwórz obiekt
+                      </Link>
+                    ) : z.turniejId ? (
+                      <Link
+                        href={`/turnieje/${z.turniejId}/panel?tab=ustawienia`}
+                        className="mt-1 inline-block text-xs font-medium text-primary-700 underline underline-offset-2"
+                      >
+                        Otwórz panel turnieju
                       </Link>
                     ) : z.adres && (
                       <p className="mt-1 truncate text-xs text-slate-400" title={z.adres}>{z.adres}</p>

@@ -29,7 +29,7 @@ export default function Galeria({ zdjecia, mozeZarzadzac, linkDoPanelu }: Galeri
         </h2>
         {mozeZarzadzac && (
           <Link href={linkDoPanelu} className="text-sm font-medium text-primary-600">
-            {zdjecia.length === 0 ? '+ Dodaj zdjęcia' : 'Zarządzaj'}
+            {zdjecia.length === 0 ? '+ Ustaw wygląd strony' : 'Wygląd strony'}
           </Link>
         )}
       </div>

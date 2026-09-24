@@ -159,6 +159,31 @@ export async function zglosBladObiektu(
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Prośba o inny wygląd strony turnieju — pisze organizator z panelu.
+ * Trafia do tego samego panelu administratora co zgłoszenia błędów (migracja
+ * `162`): jedno miejsce, w które patrzy administrator, `rodzaj` mówi mu, że
+ * to prośba o design, nie awaria. Zmianę i tak wprowadza człowiek po stronie
+ * Bojo — to pole zbiera TREŚĆ prośby, nie automatyzuje wykonania.
+ */
+export async function zglosZyczenieWygladu(turniejId: string, opis: string): Promise<void> {
+  const tresc = opis.trim();
+  if (!tresc) throw new Error('Napisz, czego brakuje');
+
+  const { error } = await supabase.rpc('zapisz_zgloszenie_bledu', {
+    p_rodzaj: 'turniej_wyglad',
+    p_opis: tresc,
+    p_odcisk: null,
+    p_slad: null,
+    p_adres: kontekst().adres,
+    p_przegladarka: kontekst().przegladarka,
+    p_wersja: WERSJA,
+    p_field_id: null,
+    p_turniej_id: turniejId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 /** Tylko do testów — sesja żyje tak długo jak karta przeglądarki. */
 export function wyczyscPamiecSesji(): void {
   wyslane.clear();

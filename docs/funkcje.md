@@ -4592,7 +4592,9 @@ i sponsorów → [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy
 siatka 3 kolumn, dotknięcie otwiera pełnoekranowy podgląd `Lightbox.tsx` ze strzałkami,
 Escape i dotknięciem tła) oraz **Sponsorzy** (`Sponsorzy.tsx`, logo 64×64 albo plakietka
 z samą nazwą, link z `rel="sponsored"`). Obie znikają, gdy są puste — poza galerią dla
-zarządzającego, który widzi „+ Dodaj zdjęcia" prowadzące do panelu. Zarządzanie mieszka
+zarządzającego, który widzi „+ Ustaw wygląd strony" prowadzące do panelu (etykieta mówi
+wprost, że otwiera się cała zakładka Ustawienia, nie tylko dodawanie zdjęć — zmiana
+2026-09-24 po zgłoszeniu, że „+ Dodaj zdjęcia" mylnie zapowiadało węższy ekran). Zarządzanie mieszka
 w panelu, zakładka **Ustawienia** (`PanelGaleria.tsx` — kolejność strzałkami, usuwanie;
 `PanelSponsorzy.tsx` — nazwa i link zapisywane przy wyjściu z pola, logo opcjonalne),
 **nie** jako szósta zakładka panelu. Widzi je także współorganizator z `moze_edytowac`
@@ -4608,6 +4610,15 @@ który i tak nigdy nie zdążył realnie powstać. `frontend/src/app/api/turniej
 weryfikuje token Supabase i woła `czy_zarzadza_turniejem()`, zanim wyda podpisany URL
 do zapisu. Odczyt jest publiczny wprost pod `NEXT_PUBLIC_R2_PUBLIC_URL`. Szczegóły
 i uzasadnienie → [docs/domena.md](./domena.md#turniej-media-zdjęcia-logotypy-sponsorów-na-cloudflare-r2-161).
+
+**Prośba o inny wygląd strony turnieju (2026-09-24, migracja `162`).** W zakładce
+Ustawienia panelu, pod Galerią i Sponsorami, karta `PanelProsbaOWyglad.tsx` — organizator
+opisuje, czego chce (kolory, układ, dodatkowy element), a zespół Bojo wprowadza zmianę
+ręcznie. Świadomie nieautomatyczne: pole zbiera TREŚĆ prośby, nie wykonuje jej. Zapis
+idzie przez `zglosZyczenieWygladu()` (`lib/bledy.ts`) do tej samej tabeli co zgłoszenia
+błędów (`zgloszenia_bledow`, rodzaj `turniej_wyglad`, migracja `099`) — admin czyta ją
+w `/admin/bledy` z linkiem prosto do panelu tego turnieju, bez zakładania osobnej tabeli
+na kolejny rodzaj zgłoszenia od człowieka.
 
 ### Etap A przebudowy UX (migracja `154`) — kapitan i pierwsze wrażenie
 
@@ -4889,7 +4900,6 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 - **Osobna wartość „widoczne dla grupy" w `events.visibility`.** Kolumna to nadal
   wyłącznie `private` / `public` — ale prywatny mecz przypięty do grupy JEST widoczny
   dla jej członków (`getMyGroupEvents()`), patrz [domena.md § Grupy](./domena.md#grupy).
-- **MVP** w statystykach. Jedyne wystąpienie słowa to tekst nagrody na `/turniej`.
 - **Rankingi publiczne.**
 - **Ocena umiejętności, poziom zaawansowania, dopasowywanie gier do poziomu.**
 - **Odznaki** — poza znaczkiem „rzetelny gracz".
@@ -4900,7 +4910,6 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 - **Strona pod gołym `/boiska`** — trasa istnieje tylko jako `/boiska/[sport]`;
   `/boiska` samo to redirect na `/mapa?gry=0`, tym samym wzorcem co `/gracze`.
 - **Osobny backend, API, kontrolery.** Frontend rozmawia z Supabase bezpośrednio.
-- **Automatyczne uruchamianie migracji.**
 - **Powiadomienia o nowym terminie serii przez e-mail/SMS.** Auto-tworzenie terminów
   (migracja `073`) powiadamia wyłącznie w aplikacji (dzwonek) — `recurring_event_invites`
   (kontakty e-mail/telefon, dodawane ręcznie na `/cykliczne/[id]`) nie dostają nic przy
