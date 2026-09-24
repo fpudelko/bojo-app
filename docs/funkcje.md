@@ -4616,7 +4616,8 @@ Ustawienia panelu, pod Galerią i Sponsorami, karta `PanelProsbaOWyglad.tsx` —
 opisuje, czego chce (kolory, układ, dodatkowy element), a zespół Bojo wprowadza zmianę
 ręcznie. Świadomie nieautomatyczne: pole zbiera TREŚĆ prośby, nie wykonuje jej. Zapis
 idzie przez `zglosZyczenieWygladu()` (`lib/bledy.ts`) do tej samej tabeli co zgłoszenia
-błędów (`zgloszenia_bledow`, rodzaj `turniej_wyglad`, migracja `099`) — admin czyta ją
+błędów (`zgloszenia_bledow`, tabela z `099`, nowy rodzaj `turniej_wyglad` dokłada `162`)
+— admin czyta ją
 w `/admin/bledy` z linkiem prosto do panelu tego turnieju, bez zakładania osobnej tabeli
 na kolejny rodzaj zgłoszenia od człowieka.
 

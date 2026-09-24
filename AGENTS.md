@@ -343,7 +343,7 @@ z porzuconego PR-a). Wyjściem z każdego jest reset: Actions → Migracje → R
 **Na produkcję przy merge'u idzie tylko to, co DOKŁADA.** `scripts/ryzyko-migracji.mjs`
 czyta każdy plik i dzieli: kolumna, tabela, polityka, funkcja, indeks jadą automatem;
 `DROP TABLE/SCHEMA/COLUMN/TYPE`, `TRUNCATE`, `DELETE FROM`, `ALTER COLUMN … TYPE`,
-`RENAME COLUMN/TO` i `SET NOT NULL` wymagają kliknięcia. Na dzisiejszych 159 migracjach
+`RENAME COLUMN/TO` i `SET NOT NULL` wymagają kliknięcia. Na dzisiejszych 160 migracjach
 ręcznych jest **7** — aktualny podział wypisuje `node scripts/ryzyko-migracji.mjs`,
 więc nie musisz wierzyć tej liczbie na słowo. Zadanie produkcyjne zatrzymuje się przed
 pierwszą ręczną razem z całą resztą za nią (migracji nie da się przeskoczyć) i wypisuje
