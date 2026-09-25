@@ -33,7 +33,7 @@ export default function HarmonogramMeczu({
   if (pozycje.length === 0) return null;
 
   return (
-    <div className="mx-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+    <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
       <p className="font-semibold text-ink">Co Bojo zrobi za Ciebie</p>
       <ul className="mt-2.5 space-y-2.5">
         {pozycje.map((p) => (

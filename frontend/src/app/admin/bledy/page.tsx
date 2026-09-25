@@ -110,7 +110,7 @@ export default function AdminBledyPage() {
             <button
               key={wartosc}
               onClick={() => setFiltr(wartosc)}
-              className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
+              className={`shrink-0 rounded border px-3.5 py-1.5 text-sm font-medium transition ${
                 filtr === wartosc
                   ? 'border-primary-700 bg-primary-50 text-primary-700'
                   : 'border-slate-200 bg-white text-slate-600'
@@ -153,7 +153,7 @@ export default function AdminBledyPage() {
                       {/* Licznik wystąpień to najważniejsza liczba przy awarii:
                           mówi, czy dotyczy jednej osoby, czy wszystkich. */}
                       {z.liczba > 1 && (
-                        <span className="rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700">
+                        <span className="rounded bg-red-50 px-2 py-0.5 font-bold text-red-700">
                           ×{z.liczba}
                         </span>
                       )}

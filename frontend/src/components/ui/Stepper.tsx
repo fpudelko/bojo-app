@@ -31,7 +31,7 @@ export default function Stepper({
   /** Jedna linijka pod spodem — dla znaczenia, którego sama liczba nie niesie. */
   hint?: string;
 }) {
-  const przycisk = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors disabled:opacity-30 disabled:hover:bg-transparent';
+  const przycisk = 'flex h-11 w-11 shrink-0 items-center justify-center rounded border transition-colors disabled:opacity-30 disabled:hover:bg-transparent';
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">

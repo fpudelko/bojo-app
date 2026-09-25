@@ -65,7 +65,7 @@ export function PillDropdown({ label, active, children }: {
         onClick={toggle}
         aria-expanded={open}
         className={[
-          'inline-flex items-center gap-1 rounded-full border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
+          'inline-flex items-center gap-1 rounded border bg-white px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
           active ? 'border-primary-700 bg-primary-50 text-primary-700' : 'border-slate-200 text-ink',
         ].join(' ')}
       >
@@ -99,7 +99,7 @@ export function TogglePill({ label, icon, active, loading, onClick }: {
       onClick={onClick}
       aria-pressed={active}
       className={[
-        'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
+        'inline-flex shrink-0 items-center gap-1 rounded border px-3 py-1.5 text-[13px] font-medium shadow-md transition-colors whitespace-nowrap',
         active ? 'border-primary-700 bg-primary-700 text-white' : 'border-slate-200 bg-white text-ink',
       ].join(' ')}
     >

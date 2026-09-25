@@ -89,7 +89,7 @@ function DraggablePlayer({
           <GripVertical className="w-3.5 h-3.5" />
         </span>
       )}
-      <span className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
+      <span className={`w-2 h-2 rounded shrink-0 ${c.dot}`} />
       <span className="flex-1 text-slate-800 truncate">{participant.name}</span>
       {participant.isCaptain && <Star className="w-3 h-3 text-amber-500 shrink-0" />}
       {showCaptain && isOrganizer && (
@@ -139,7 +139,7 @@ function DroppableColumn({
       ].join(' ')}
     >
       <div className="flex items-center justify-end mb-2.5">
-        <span className={`text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ${c.badge}`}>
+        <span className={`text-xs font-bold rounded w-5 h-5 flex items-center justify-center ${c.badge}`}>
           {participants.length}
         </span>
       </div>
@@ -397,15 +397,15 @@ export default function TeamsPanel({
           {/* Publish state describes the real squad — meaningless for a draft
               proposal, which changes nothing until the organizer accepts it. */}
           {variant === 'manage' && (teamsPublished ? (
-            <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">opublikowane</span>
+            <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded px-2 py-0.5">opublikowane</span>
           ) : isOrganizer ? (
-            <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">robocze</span>
+            <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">robocze</span>
           ) : null)}
         </div>
 
         {/* Balance badge */}
         {hasTeams && (
-          <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold border ${isBalanced ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+          <div className={`flex items-center gap-1.5 rounded px-3 py-1 text-xs font-bold border ${isBalanced ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
             <span className="text-blue-600">{teamA.length}</span>
             <span className="text-slate-400">vs</span>
             <span className="text-red-600">{teamB.length}</span>

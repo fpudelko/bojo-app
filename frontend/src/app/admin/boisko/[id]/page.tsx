@@ -365,7 +365,7 @@ export default function AdminVenueEditorPage() {
                   type="button"
                   onClick={handleToggleVisibility}
                   disabled={visibilityBusy}
-                  className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                  className={`shrink-0 rounded px-3 py-1.5 text-xs font-bold transition-colors ${
                     mapVisibility === 'public'
                       ? 'bg-slate-200 text-slate-600 hover:bg-red-100 hover:text-red-700'
                       : 'bg-primary-50 text-primary-700 hover:bg-primary-100'

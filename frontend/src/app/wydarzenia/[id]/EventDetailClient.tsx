@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff, ListOrdered,
+  CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff, ListOrdered,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -68,7 +68,7 @@ import type {
   EventItem, EventParticipant, MatchResult, PlayerGoal,
   PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
-import { sportEmoji } from '@/lib/sports';
+import { sportEmoji, sportLabel } from '@/lib/sports';
 import { przejmijWpisGoscia, udostepnijZaproszenieGoscia, pobierzTokenGoscia, linkPrzejeciaWpisu } from '@/lib/guestClaim';
 import { zapamietajWpisGoscia, mojWpisGoscia, zapomnijWpisGoscia } from '@/lib/mojWpisGoscia';
 import { tekstRozliczenia } from '@/lib/settlementShare';
@@ -168,9 +168,9 @@ function SettingSwitch({ icon, title, desc, checked, disabled, onChange }: {
 function PlayerAvatar({ p }: { p: EventParticipant }) {
   return p.avatarUrl ? (
     /* eslint-disable-next-line @next/next/no-img-element */
-    <img src={p.avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+    <img src={p.avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
   ) : (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-[11px] font-bold text-primary-700">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary-50 text-[11px] font-bold text-primary-700">
       {p.name.charAt(0).toUpperCase()}
     </span>
   );
@@ -200,12 +200,12 @@ function PlayerLink({ p, className, children }: {
  *  ona czystym szumem. */
 function RolaGracza({ bramkarz, wariant = 'pelny' }: { bramkarz: boolean; wariant?: 'pelny' | 'maly' }) {
   const wspolne = wariant === 'maly'
-    ? 'shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold'
-    : 'shrink-0 rounded-full border px-1.5 py-0.5 text-xs font-semibold';
+    ? 'shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-semibold'
+    : 'shrink-0 rounded border px-1.5 py-0.5 text-xs font-semibold';
   return bramkarz ? (
-    <span title="Bramkarz" className={`${wspolne} border-primary-100 bg-primary-50 text-primary-700`}>🧤 BR</span>
+    <span title="Bramkarz" className={`${wspolne} border-primary-100 bg-primary-50 text-primary-700`}>BR</span>
   ) : (
-    <span title="Zawodnik z pola" className={`${wspolne} border-slate-200 bg-slate-50 text-slate-500`}>⚽ POLE</span>
+    <span title="Zawodnik z pola" className={`${wspolne} border-slate-200 bg-slate-50 text-slate-500`}>POLE</span>
   );
 }
 
@@ -295,7 +295,7 @@ function ParticipantsList({
             {reserves.map((p, i) => (
               <div key={p.id} className="py-2">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-[11px] font-bold text-slate-400">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-slate-100 dark:bg-slate-700 text-[11px] font-bold text-slate-400">
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -374,7 +374,7 @@ function PublishedTeamsCard({
           { key: 'B' as const, players: teamB }]
           .map(({ key, players }) => (
             <div key={key}>
-              <p className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold mb-2 ${TEAM_COLOR_CLASSES[key].pill}`}>
+              <p className={`inline-block rounded px-2 py-0.5 text-[11px] font-bold mb-2 ${TEAM_COLOR_CLASSES[key].pill}`}>
                 {TEAM_LABELS[key]} ({TEAM_LETTERS[key]}) · {players.length}
               </p>
               <div className="space-y-1.5">
@@ -548,7 +548,9 @@ export default function EventDetailClient() {
       setNieprzeczytaneRozmowa(0);
     }
   }, [tab, event?.id]);
-  const [rosterOpen, setRosterOpen] = useState(false);
+  // Skład rozwinięty od wejścia (redesign 2026-09, zgłoszone wprost: „lista
+  // ludzi to jednak lista"). Stos awatarów zostaje jako stan po „Zwiń".
+  const [rosterOpen, setRosterOpen] = useState(true);
   // Podział na drużyny duplikuje się w zakładce Skład (patrz `druzynySection`
   // niżej) — tam jest treścią poboczną, domyślnie zwiniętą, żeby nie
   // przesłaniać listy uczestników. W zakładce Wynik ten sam JSX renderuje się
@@ -1110,8 +1112,6 @@ export default function EventDetailClient() {
     }
   }
 
-  const timeStr = `${event.time?.slice(0, 5) ?? ''}${event.endTime ? `–${event.endTime.slice(0, 5)}` : ''}`;
-
   // ── Karta „Kiedy i gdzie" ────────────────────────────────────────────
   // Pełna data, nie skrót z paska nagłówka: karta ma miejsce, a „niedziela,
   // 30 sierpnia" czyta się bez dekodowania w przeciwieństwie do „niedz. 30 sie".
@@ -1138,6 +1138,9 @@ export default function EventDetailClient() {
   // informacji o terminie niż karta, z której się na nią weszło — data
   // dwunastopunktowym szarym tekstem, bez „za 3 h". Zgłoszone wprost.
   const zaCzas = timeUntil(event.date, event.time);
+  // Cena w skrócie: „15 zł", a „7,50 zł" tylko gdy są grosze. Pas na górze
+  // i przycisk „Dołącz" mówią nią to samo.
+  const cenaKrotka = event.costGrosze % 100 === 0 ? `${event.costGrosze / 100} zł` : zl(event.costGrosze);
 
   // Handlers
   const handleMaybe = async () => {
@@ -2576,8 +2579,8 @@ export default function EventDetailClient() {
               <div className="mt-4 pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-2.5 py-1">
                   {organizator.avatarUrl
-                    ? <img src={organizator.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                    : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{organizator.name.charAt(0).toUpperCase()}</span>
+                    ? <img src={organizator.avatarUrl} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
+                    : <span className="w-7 h-7 rounded bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{organizator.name.charAt(0).toUpperCase()}</span>
                   }
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-ink truncate">
@@ -2601,8 +2604,8 @@ export default function EventDetailClient() {
                 return (
                   <li key={p.id} className="flex items-center gap-2.5 py-2.5">
                     {p.avatarUrl
-                      ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                      : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
+                      ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
+                      : <span className="w-7 h-7 rounded bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
                     }
                     <div className="flex-1 min-w-0">
                       <span className="flex items-center gap-1.5 text-sm text-ink">
@@ -2831,7 +2834,7 @@ export default function EventDetailClient() {
             >
               <ArrowLeft className="h-4 w-4" strokeWidth={2.25} />
             </button>
-            <h1 className="min-w-0 flex-1 truncate text-lg font-extrabold tracking-tight text-ink">
+            <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight text-ink">
               {eventDisplayTitle(event)}
             </h1>
           </div>
@@ -2868,7 +2871,7 @@ export default function EventDetailClient() {
                       Konwencje). Własne komentarze nigdy nie liczą się jako
                       nieprzeczytane. */}
                   {t === 'rozmowa' && nieprzeczytaneRozmowa > 0 && (
-                    <span className="ml-1.5 rounded-full bg-pink-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneRozmowa}</span>
+                    <span className="ml-1.5 rounded bg-pink-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneRozmowa}</span>
                   )}
                 </button>
               ))}
@@ -3064,7 +3067,7 @@ export default function EventDetailClient() {
                 <p className="text-sm font-semibold text-blue-800">
                   Prośby o dołączenie
                   {pendingRequests.length > 0 && (
-                    <span className="ml-1.5 rounded-full bg-blue-200 px-1.5 py-0.5 text-[11px] font-bold text-blue-800">{pendingRequests.length}</span>
+                    <span className="ml-1.5 rounded bg-blue-200 px-1.5 py-0.5 text-[11px] font-bold text-blue-800">{pendingRequests.length}</span>
                   )}
                 </p>
               </div>
@@ -3076,9 +3079,9 @@ export default function EventDetailClient() {
                   <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 border border-blue-100">
                     {p.avatarUrl ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={p.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
+                      <img src={p.avatarUrl} alt="" className="h-9 w-9 rounded object-cover shrink-0" />
                     ) : (
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-primary-50 text-primary-700">
                         <UserPlus className="w-4 h-4" />
                       </span>
                     )}
@@ -3122,71 +3125,64 @@ export default function EventDetailClient() {
             identyfikacją meczu (widoczną na każdej zakładce), a to jest
             odpowiedź na pytanie, które gracz zadaje przed wyjściem z domu —
             i musi dać się z niej JEDNYM dotknięciem pojechać na miejsce. */}
-        <div className="px-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            {/* Bez nagłówka „KIEDY I GDZIE" — zgłoszone wprost: data z ikoną
-                kalendarza i adres z pinezką mówią same, co to za karta, więc
-                etykieta powtarzała treść pod sobą własnymi słowami. */}
-            {/* AKCJA STOI PRZY SWOIM WIERSZU, JAKO IKONA — od 2026-09-13,
-                zgłoszone wprost („te trzy przyciski źle wyglądają").
+        {/* PAS NA GÓRZE (redesign 2026-09) — godzina i cena dużym krojem,
+            miejsce jako wiersz listy pod spodem. Wcześniej to samo siedziało
+            w zaokrąglonej karcie z ramką i cieniem; właściciel zgłosił wprost,
+            że ramki zjadają miejsce na telefonie. Treść i zachowanie te same
+            co w karcie: termin edytuje organizator, kalendarz przy terminie,
+            nawigacja przy miejscu, nazwa obiektu prowadzi na jego stronę.
 
-                Do teraz pod kartą stał rząd trzech przycisków z podpisami:
-                „Nawiguj", „O boisku" i „Do kalendarza". Na telefonie nie
-                mieściły się w jednej linii, więc łamały się na dwa rzędy —
-                a rozmieszczenie 2+1 sugerowało hierarchię, której nie ma.
-                Do tego wszystkie trzy stały pod SPODEM obu wierszy, choć
-                każdy dotyczy tylko jednego z nich.
-
-                Dziś: kalendarz przy DACIE, nawigacja przy MIEJSCU, a „O boisku"
-                znika jako osobny przycisk, bo jego rolę przejmuje sama nazwa
-                obiektu — podkreślona i w kolorze odnośnika, ze strzałką. Rzecz,
-                w którą i tak chce się kliknąć, ma być klikalna; osobny przycisk
-                obok niej był obejściem tego, że nie była.
-
-                Ikony bez podpisów niosą `aria-label` i `title`, a ich pole
-                dotyku to pełne 44 px (WCAG 2.5.5) mimo 20-pikselowej ikony. */}
-
+            AKCJA STOI PRZY SWOIM WIERSZU, JAKO IKONA (2026-09-13): kalendarz
+            przy DACIE, nawigacja przy MIEJSCU, „O boisku" to sama nazwa
+            obiektu. Ikony bez podpisów niosą `aria-label` i `title`, a ich pole
+            dotyku to pełne 44 px (WCAG 2.5.5). */}
+        <section className="border-y border-primary-100 bg-primary-50/70 px-4 pb-4 pt-3 dark:border-primary-900/60 dark:bg-primary-950/40">
+          <p className="text-[13px] font-medium text-primary-700">{sportLabel(event.sport)}</p>
+          <div className="mt-3 grid grid-cols-2 border-t border-primary-100 dark:border-primary-900/60">
             {/* ── KIEDY ── */}
-            <div className="mt-2 flex items-start gap-1">
-              {(isOrganizer || canEditDelegate) && !eventStarted ? (
-                <button
-                  type="button"
-                  onClick={openEditWhen}
-                  className="flex min-w-0 flex-1 items-start gap-2 py-2 text-left text-sm text-ink"
-                >
-                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                  {/* `data-termin-meczu`: wszystko, co w tej karcie zmienia się
-                      z dnia na dzień — data, godzina, „za 3 h". Zrzuty
-                      scenariuszy zasłaniają to maską, bo seed liczy datę jako
-                      ODSTĘP od dnia uruchomienia, więc bez maski ten sam,
-                      niezmieniony widok meldował „zmianę wyglądu" każdego dnia. */}
-                  <span className="min-w-0 flex-1" data-termin-meczu>
-                    <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                    {timeStr && <> · {timeStr}</>}
-                    {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
+            <div className="flex min-w-0 items-start gap-1 pt-3">
+              {(() => {
+                // `data-termin-meczu`: wszystko, co zmienia się z dnia na
+                // dzień — data, godzina, „za 3 h". Zrzuty scenariuszy
+                // zasłaniają to maską, bo seed liczy datę jako ODSTĘP od dnia
+                // uruchomienia.
+                const termin = (
+                  <span className="block min-w-0" data-termin-meczu>
+                    <span className="block text-2xl font-semibold leading-none tracking-tight tabular-nums">
+                      {event.time ? event.time.slice(0, 5) : zWielkiejLitery(dataPelna)}
+                    </span>
+                    {event.time && (
+                      <span className="mt-1.5 block text-[13px] leading-snug text-slate-600 dark:text-slate-400">
+                        {zWielkiejLitery(dataPelna)}
+                      </span>
+                    )}
+                    {event.endTime && (
+                      <span className="block text-[13px] leading-snug text-slate-500 dark:text-slate-400">
+                        do {event.endTime.slice(0, 5)}
+                        {czasTrwaniaMin && <span className="whitespace-nowrap"> · {czasTrwaniaMin} min</span>}
+                      </span>
+                    )}
                     {zaCzas && (
-                      <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                      <span className="mt-2 inline-block rounded bg-primary-700 px-1.5 py-0.5 text-[11px] font-semibold text-white">
                         {zaCzas}
                       </span>
                     )}
                   </span>
-                  <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
-                </button>
-              ) : (
-                <p className="flex min-w-0 flex-1 items-start gap-2 py-2 text-sm text-ink">
-                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                  <span data-termin-meczu>
-                    <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                    {timeStr && <> · {timeStr}</>}
-                    {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
-                    {zaCzas && (
-                      <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                        {zaCzas}
-                      </span>
-                    )}
-                  </span>
-                </p>
-              )}
+                );
+                return (isOrganizer || canEditDelegate) && !eventStarted ? (
+                  <button
+                    type="button"
+                    onClick={openEditWhen}
+                    aria-label="Zmień termin meczu"
+                    className="flex min-w-0 flex-1 items-start gap-1.5 text-left text-ink"
+                  >
+                    {termin}
+                    <Pencil className="mt-1 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
+                  </button>
+                ) : (
+                  <div className="min-w-0 flex-1 text-ink">{termin}</div>
+                );
+              })()}
               {/* Kalendarz widoczny dla KAŻDEGO, także niezapisanego: bywa tym,
                   co rozstrzyga, czy w ogóle da się dołączyć. Znika po starcie
                   meczu i przy odwołanym — wtedy wpis już niczego nie planuje. */}
@@ -3196,64 +3192,71 @@ export default function EventDetailClient() {
                   onClick={handleDoKalendarza}
                   aria-label="Dodaj mecz do kalendarza"
                   title="Dodaj do kalendarza"
-                  className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-primary-700 active:scale-95 dark:text-slate-400 dark:hover:bg-slate-700"
+                  className="-mt-2.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-500 transition hover:bg-primary-100 hover:text-primary-700 active:scale-95 dark:text-slate-400 dark:hover:bg-primary-900/40"
                 >
-                  <CalendarPlus className="h-5 w-5" strokeWidth={2} />
+                  <CalendarPlus className="h-5 w-5" strokeWidth={1.75} />
                 </button>
               )}
             </div>
+            {/* ── ILE ── cena tym samym krojem co godzina: to drugie pytanie,
+                które się zadaje przed dołączeniem. */}
+            <div className="min-w-0 border-l border-primary-100 pl-4 pt-3 dark:border-primary-900/60">
+              <span className="block text-2xl font-semibold leading-none tracking-tight tabular-nums text-ink">
+                {event.costGrosze > 0 ? cenaKrotka : 'Za darmo'}
+              </span>
+              <span className="mt-1.5 block text-[13px] leading-snug text-slate-600 dark:text-slate-400">
+                {event.costGrosze > 0 ? 'za osobę' : 'bez opłat'}
+              </span>
+            </div>
+          </div>
+        </section>
 
-            {/* ── GDZIE ── */}
-            {venueBadgeLabel && (
-              <div className="mt-1 flex items-start gap-1">
-                {event.fieldId ? (
-                  <Link
-                    href={`/boisko/${event.fieldId}`}
-                    onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
-                    className="group flex min-w-0 flex-1 items-start gap-2 py-2 text-sm"
-                  >
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                    {/* Bez `truncate` — to jest miejsce, w którym adres ma się
-                        zmieścić w całości, choćby w dwóch linijkach. */}
-                    <span className="min-w-0 flex-1">
-                      <span className="font-semibold text-primary-700 underline decoration-primary-300 underline-offset-2 group-hover:decoration-primary-600 dark:text-primary-300">
-                        {eventLoc.primary}
-                      </span>
-                      {eventLoc.secondary && (
-                        <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
-                      )}
-                    </span>
-                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" strokeWidth={2.25} />
-                  </Link>
-                ) : (
-                  // Miejsce spoza katalogu nie ma strony, więc nie udaje
-                  // odnośnika — zostaje zwykłym tekstem.
-                  <p className="flex min-w-0 flex-1 items-start gap-2 py-2 text-sm text-ink">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                    <span className="min-w-0">
-                      <span className="font-semibold">{eventLoc.primary}</span>
-                      {eventLoc.secondary && (
-                        <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
-                      )}
-                    </span>
-                  </p>
-                )}
-                {dojazdHref && (
-                  <a
-                    href={dojazdHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Nawiguj do miejsca gry"
-                    title="Nawiguj"
-                    className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-primary-700 active:scale-95 dark:text-slate-400 dark:hover:bg-slate-700"
-                  >
-                    <Navigation className="h-5 w-5" strokeWidth={2} />
-                  </a>
-                )}
-              </div>
+        {/* ── GDZIE ── wiersz listy, nie karta. Bez `truncate`: adres ma się
+            zmieścić w całości, choćby w dwóch linijkach. */}
+        {venueBadgeLabel && (
+          <div className="!mt-0 flex items-center gap-1 border-b border-slate-200 pl-4 pr-2 dark:border-slate-700">
+            {event.fieldId ? (
+              <Link
+                href={`/boisko/${event.fieldId}`}
+                onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
+                className="group flex min-w-0 flex-1 items-center gap-3 py-3 text-sm"
+              >
+                <MapPin className="h-[18px] w-[18px] shrink-0 text-slate-400" strokeWidth={1.75} />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium text-ink group-hover:text-primary-700">{eventLoc.primary}</span>
+                  {eventLoc.secondary && (
+                    <span className="block text-[13px] text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
+                  )}
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={2} />
+              </Link>
+            ) : (
+              // Miejsce spoza katalogu nie ma strony, więc nie udaje
+              // odnośnika — zostaje zwykłym tekstem.
+              <p className="flex min-w-0 flex-1 items-center gap-3 py-3 text-sm text-ink">
+                <MapPin className="h-[18px] w-[18px] shrink-0 text-slate-400" strokeWidth={1.75} />
+                <span className="min-w-0">
+                  <span className="block font-medium">{eventLoc.primary}</span>
+                  {eventLoc.secondary && (
+                    <span className="block text-[13px] text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
+                  )}
+                </span>
+              </p>
+            )}
+            {dojazdHref && (
+              <a
+                href={dojazdHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Nawiguj do miejsca gry"
+                title="Nawiguj"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-500 transition hover:bg-slate-100 hover:text-primary-700 active:scale-95 dark:text-slate-400 dark:hover:bg-slate-700"
+              >
+                <Navigation className="h-5 w-5" strokeWidth={1.75} />
+              </a>
             )}
           </div>
-        </div>
+        )}
 
         {/* ── CO BOJO ZROBI ZA CIEBIE (F-3) ── tylko dla organizatora/delegata
             z pełną edycją, tylko przed startem meczu i tylko na meczu, który
@@ -3295,12 +3298,12 @@ export default function EventDetailClient() {
               (`canSeeBlikPhone`) siedzi nietknięta tam, gdzie była. Cenę i tak
               niesie pigułka „7 zł / os." w rzędzie pigułek. */}
         <div className="px-4">
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             {/* My relation to this match — the two axes (ownership × participation)
                 shown up front, so nobody has to expand the roster to learn
                 whether they're actually in. */}
             {isOwner && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-700 px-3 py-1.5 text-xs font-bold text-white">
+              <span className="inline-flex items-center gap-1.5 rounded bg-primary-700 px-3 py-1.5 text-xs font-bold text-white">
                 <Star className="h-3.5 w-3.5" strokeWidth={2.25} /> Organizujesz
               </span>
             )}
@@ -3318,7 +3321,7 @@ export default function EventDetailClient() {
               // akceptacji". Rezerwa to stan bierny: masz miejsce w kolejce,
               // nie w składzie. Jeden kolor dla wszystkich komunikatów o rezerwie
               // sprawia, że po kilku meczach sam kolor niesie informację.
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700">
+              <span className="inline-flex items-center gap-1.5 rounded bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700">
                 <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
                 Rezerwa{myReservePosition ? ` · ${myReservePosition}.` : ''}
                 {myConfirmed.isGoalkeeper ? ' · bramkarz' : ''}
@@ -3328,42 +3331,34 @@ export default function EventDetailClient() {
               // Bursztyn — tak jak baner „Obserwujesz ten mecz" i przycisk
               // w dolnym pasku. Szary zwolnił się dla rezerwy, a obserwowanie
               // miało już swój kolor w dwóch innych miejscach tej samej strony.
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
+              <span className="inline-flex items-center gap-1.5 rounded bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
                 <Eye className="h-3.5 w-3.5" strokeWidth={2.25} /> Obserwujesz
               </span>
             )}
             {/* price — po starcie meczu ustępuje miejsca statusowi rozliczenia:
                 cena "ile trzeba zapłacić" traci sens, gdy już się zapłaciło albo nie */}
-            {!eventStarted ? (
-              event.costGrosze > 0 ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-                  <Tag className="h-3.5 w-3.5" strokeWidth={2.25} />
-                  {(event.costGrosze / 100).toFixed(0)} zł / os.
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-                  <Tag className="h-3.5 w-3.5" strokeWidth={2.25} /> Za darmo
-                </span>
-              )
-            ) : event.costGrosze > 0 ? (
+            {/* Cena przed startem stoi w pasie na górze (godzina | cena),
+                więc tu pigułka pojawia się dopiero PO starcie, jako stan
+                rozliczenia. */}
+            {!eventStarted ? null : event.costGrosze > 0 ? (
               (isOwner || canManagePayments) ? (() => {
                 const unpaid = placacy.filter((p) => !p.hasPaid).length;
                 return unpaid === 0 ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                  <span className="inline-flex items-center gap-1.5 rounded bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
                     <Check className="h-3.5 w-3.5" strokeWidth={2.25} /> Rozliczono
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                  <span className="inline-flex items-center gap-1.5 rounded bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
                     <Banknote className="h-3.5 w-3.5" strokeWidth={2.25} /> {withCount(unpaid, 'osoba nie zapłaciła', 'osoby nie zapłaciły', 'osób nie zapłaciło')}
                   </span>
                 );
               })() : myConfirmed && !myConfirmed.isReserve ? (
                 myConfirmed.hasPaid ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
+                  <span className="inline-flex items-center gap-1.5 rounded bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
                     <Check className="h-3.5 w-3.5" strokeWidth={2.25} /> Zapłacono
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                  <span className="inline-flex items-center gap-1.5 rounded bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
                     <Clock className="h-3.5 w-3.5" strokeWidth={2.25} /> Zapłać
                   </span>
                 )
@@ -3376,7 +3371,7 @@ export default function EventDetailClient() {
                 onClick={() => setVisOpen(true)}
                 disabled={busy}
                 className={[
-                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
+                  'inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
                   event.visibility === 'public'
                     ? 'bg-primary-50 text-primary-700 hover:bg-primary-100'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
@@ -3389,7 +3384,7 @@ export default function EventDetailClient() {
               </button>
             ) : (
               <span className={[
-                'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium',
+                'inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium',
                 event.visibility === 'public' ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-600',
               ].join(' ')}>
                 {event.visibility === 'public'
@@ -3402,7 +3397,7 @@ export default function EventDetailClient() {
                 rezerwę i obserwowanie, więc to jedyny kolor, który tu nic innego
                 nie znaczy */}
             {!eventStarted && event.requireApproval && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
+              <span className="inline-flex items-center gap-1.5 rounded bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
                 <UserPlus className="h-3.5 w-3.5" strokeWidth={2.25} /> Wymaga akceptacji
               </span>
             )}
@@ -3413,7 +3408,7 @@ export default function EventDetailClient() {
             {event.recurringEventId && isOwner && (
               <Link
                 href={`/cykliczne/${event.recurringEventId}`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+                className="inline-flex items-center gap-1.5 rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
               >
                 <Repeat className="h-3.5 w-3.5" strokeWidth={2.25} /> Stała gierka
               </Link>
@@ -3428,7 +3423,7 @@ export default function EventDetailClient() {
                 onClick={() => setGroupPickerOpen(true)}
                 disabled={busy}
                 className={[
-                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
+                  'inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition disabled:opacity-50',
                   groupInfo ? 'bg-primary-50 text-primary-700 hover:bg-primary-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
                 ].join(' ')}
               >
@@ -3439,7 +3434,7 @@ export default function EventDetailClient() {
               groupInfo && (
                 <Link
                   href={`/grupy/${groupInfo.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 transition hover:bg-primary-100"
+                  className="inline-flex items-center gap-1.5 rounded bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 transition hover:bg-primary-100"
                 >
                   <Users className="h-3.5 w-3.5" strokeWidth={2.25} /> {groupInfo.name}
                 </Link>
@@ -3479,56 +3474,64 @@ export default function EventDetailClient() {
         {/* id: kotwica dla karty "Po meczu" (PoMeczuCard, "Zaproś do Bojo").
             Też wyłącznie w „Składzie" — patrz komentarz przy nagłówku wyżej. */}
         {tab === 'sklad' && (
-        <div id="sklad" className="px-4">
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-            <div className="text-center">
-              <span className="text-3xl font-extrabold tracking-tight text-primary-700">
+        <div id="sklad">
+          {/* Licznik bez karty (redesign 2026-09): pełna szerokość, linie
+              zamiast ramki i cienia. `data-licznik-miejsc` to kotwica dla
+              scenariuszy — wcześniej szukały najbliższego `rounded-2xl`,
+              czyli trzymały się wyglądu, który właśnie się zmienił. */}
+          <div data-licznik-miejsc className="border-y border-slate-200 bg-white px-4 py-4 dark:border-slate-700 dark:bg-slate-800">
+            {/* Kolor paska i komplet = NIEBIESKI, nie czerwony — tak jak
+                wszędzie indziej w apce (`lib/komplet.ts`, decyzja właściciela
+                z 2026-08-19: czerwień znaczy „coś poszło źle", a komplet jest
+                stanem, o który się gra, nie awarią).
+
+                Bursztyn dopiero, gdy zostaje NAPRAWDĘ mało miejsc (≤2) — od
+                2026-08-30: „Zostało 11 wolnych miejsc" nie może wyglądać tak
+                samo pilnie jak „Zostało 1 miejsce". */}
+            <div className="flex items-baseline justify-between gap-3">
+              <p className={`text-[15px] font-semibold ${
+                isFull ? 'text-blue-700' : freeSpots <= 2 ? 'text-amber-600' : 'text-ink'
+              }`}>
+                {isFull
+                  // Only pitch the reserve list to someone who could actually act on
+                  // it — a player already signed up (squad, reserve, pending or
+                  // observing) is told the match is full, not invited to join again.
+                  // Po starcie meczu dołączenie do rezerwy jest już bez sensu.
+                  ? (amIInvolved || eventStarted ? 'Komplet' : 'Komplet: dołącz do rezerwy')
+                  : `Zostało ${withCount(freeSpots, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}`}
+              </p>
+              <span className="shrink-0 text-sm font-medium tabular-nums text-slate-500 dark:text-slate-400">
                 {takenSpots} / {event.maxPlayers}
               </span>
             </div>
 
-            {/* Kolor paska i komplet = NIEBIESKI, nie czerwony — tak jak
-                wszędzie indziej w apce (`lib/komplet.ts`, decyzja właściciela
-                z 2026-08-19: czerwień znaczy „coś poszło źle", a komplet jest
-                stanem, o który się gra, nie awarią). Ta strona była JEDYNYM
-                miejscem, które tego nie stosowało — `#ef4444` malowało pasek
-                na czerwono dokładnie w chwili, gdy organizator osiągnął cel. */}
-            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  isFull ? PASEK_KOMPLET : takenSpots / event.maxPlayers >= 0.8 ? 'bg-amber-400' : 'bg-primary-600'
-                }`}
-                style={{ width: `${Math.min(100, Math.round((takenSpots / event.maxPlayers) * 100))}%` }}
-              />
-            </div>
-
-            {/* Bursztyn dopiero, gdy zostaje NAPRAWDĘ mało miejsc (≤2) — od
-                2026-08-30. Wcześniej tekst był bursztynowy niezależnie od
-                liczby: „Zostało 11 wolnych miejsc" wyglądało tak samo pilnie
-                jak „Zostało 1 miejsce", choć bursztyn w tej apce znaczy
-                pilność („Zapłać", „nie zapłacili"). Zgłoszone wprost z sesji
-                QA. Komplet dostaje kolor „komplet" (niebieski), nie bursztyn —
-                to inny stan, nie ostrzeżenie. */}
-            <p className={`mt-3 text-center text-sm font-bold ${
-              isFull ? 'text-blue-700' : freeSpots <= 2 ? 'text-amber-600' : 'text-slate-600'
-            }`}>
-              {isFull
-                // Only pitch the reserve list to someone who could actually act on
-                // it — a player already signed up (squad, reserve, pending or
-                // observing) is told the match is full, not invited to join again.
-                // Po starcie meczu dołączenie do rezerwy jest już bez sensu
-                // (`joinBarVisible` niżej z tego samego powodu chowa cały pasek
-                // zapisu) — sam napis wtedy też nie zaprasza do rezerwy.
-                ? (amIInvolved || eventStarted ? 'Komplet' : 'Komplet: dołącz do rezerwy')
-                : `Zostało ${withCount(freeSpots, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}`}
-            </p>
+            {/* Pasek z odcinków — jeden na miejsce, dopóki da się je policzyć
+                wzrokiem (do 24); przy większych meczach ciągły. Odcinek mówi
+                „tu brakuje jednej osoby", ciągły pasek tylko „prawie". */}
+            {(() => {
+              const kolor = isFull ? PASEK_KOMPLET : takenSpots / event.maxPlayers >= 0.8 ? 'bg-amber-400' : 'bg-primary-600';
+              return event.maxPlayers <= 24 ? (
+                <div className="mt-3 flex gap-0.5" aria-hidden="true">
+                  {Array.from({ length: event.maxPlayers }, (_, i) => (
+                    <span key={i} className={`h-1 flex-1 ${i < takenSpots ? kolor : 'bg-slate-200 dark:bg-slate-700'}`} />
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-3 h-1 w-full overflow-hidden bg-slate-200 dark:bg-slate-700" aria-hidden="true">
+                  <div
+                    className={`h-full transition-all ${kolor}`}
+                    style={{ width: `${Math.min(100, Math.round((takenSpots / event.maxPlayers) * 100))}%` }}
+                  />
+                </div>
+              );
+            })()}
 
             {/* Rozbicie na role. Sam licznik zbiorczy kłamał przez przemilczenie:
                 „zostały 2 wolne miejsca" przy komplecie w polu znaczyło
                 „2 miejsca dla bramkarzy", a zawodnik z pola i tak lądował na
                 rezerwie — dowiadując się o tym dopiero po zapisaniu się. */}
             {gkEnabled && !isFull && (
-              <p className="mt-1 text-center text-xs text-slate-500">
+              <p className="mt-2 text-[13px] text-slate-500">
                 {wolne.rozdzielone
                   ? <>
                       {wolne.pole > 0 ? `${wolne.pole} w polu` : 'pole: komplet'}
@@ -3581,14 +3584,14 @@ export default function EventDetailClient() {
                         src={p.avatarUrl}
                         alt={p.name}
                         title={p.name}
-                        className="h-8 w-8 rounded-full ring-2 ring-white object-cover"
+                        className="h-8 w-8 rounded ring-2 ring-white object-cover"
                         style={{ marginLeft: i === 0 ? 0 : -8, zIndex: regulars.length - i }}
                       />
                     ) : (
                       <div
                         key={p.id}
                         title={p.name}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700 ring-2 ring-white"
+                        className="flex h-8 w-8 items-center justify-center rounded bg-primary-100 text-[11px] font-bold text-primary-700 ring-2 ring-white"
                         style={{ marginLeft: i === 0 ? 0 : -8, zIndex: regulars.length - i }}
                       >
                         {initials(p.name)}
@@ -3597,7 +3600,7 @@ export default function EventDetailClient() {
                   ))}
                   {regulars.length > 8 && (
                     <div
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500 ring-2 ring-white"
+                      className="flex h-8 w-8 items-center justify-center rounded bg-slate-100 text-[11px] font-bold text-slate-500 ring-2 ring-white"
                       style={{ marginLeft: -8 }}
                     >
                       +{regulars.length - 8}
@@ -3608,7 +3611,7 @@ export default function EventDetailClient() {
               </button>
             )}
             {regulars.length === 0 && reserves.length === 0 && (
-              <p className="mt-5 text-center text-sm text-slate-400">Nikt jeszcze nie dołączył, bądź pierwszy!</p>
+              <p className="mt-4 text-sm text-slate-500">Nikt jeszcze nie dołączył, bądź pierwszy!</p>
             )}
 
             {/* Roster — replaces avatar row when open */}
@@ -3672,8 +3675,8 @@ export default function EventDetailClient() {
                   <li key={p.id} className="flex flex-wrap items-center gap-2 py-2.5 sm:flex-nowrap">
                     {/* Avatar */}
                     {p.avatarUrl
-                      ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
-                      : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
+                      ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
+                      : <span className="w-7 h-7 rounded bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
                     }
 
                     {/* Name + attribution */}
@@ -3689,7 +3692,7 @@ export default function EventDetailClient() {
                         {p.isGuest && (
                           <span
                             title="Gość bez konta: dopisany ręcznie"
-                            className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 shrink-0"
+                            className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 shrink-0"
                           >
                             gość
                           </span>
@@ -3713,7 +3716,7 @@ export default function EventDetailClient() {
                           ?? 'innego gracza';
                         return (
                           <span className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
-                            <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-bold text-slate-600 shrink-0">
+                            <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded bg-slate-200 text-[8px] font-bold text-slate-600 shrink-0">
                               {adderName.charAt(0).toUpperCase()}
                             </span>
                             dodał(a): <span className="font-medium text-slate-500 truncate">{adderName}</span>
@@ -3813,7 +3816,7 @@ export default function EventDetailClient() {
                       <li key={p.id} className="flex items-start justify-between gap-2 py-2.5">
                         <div className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">{pozycja ?? '-'}</span>
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-slate-100 text-xs font-medium text-slate-500">{pozycja ?? '-'}</span>
                             <span className="min-w-0 truncate">{p.name}</span>
                             {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
                             {p.isGuest && <span className="shrink-0 text-xs text-slate-400">(gość)</span>}
@@ -3823,12 +3826,12 @@ export default function EventDetailClient() {
                                 rezerwy i organizator nie wiedzieli, ile czasu
                                 zostało koledze na kliknięcie „Wchodzę". */}
                             {p.claimOfferedAt && (
-                              <span title="Zaproponowano zwolnione miejsce, czeka na decyzję" className="shrink-0 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                              <span title="Zaproponowano zwolnione miejsce, czeka na decyzję" className="shrink-0 rounded border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
                                 czeka na decyzję{deadline ? ` · ${krotkiTermin(deadline)}` : ''}
                               </span>
                             )}
                             {p.claimPassed && !p.claimOfferedAt && (
-                              <span title="Odpuścił(a) miejsce, możesz awansować ręcznie" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                              <span title="Odpuścił(a) miejsce, możesz awansować ręcznie" className="shrink-0 rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                                 przepuścił(a)
                               </span>
                             )}
@@ -3837,7 +3840,7 @@ export default function EventDetailClient() {
                                 w grze (migracja `135`) — inny badge, żeby to było
                                 widać, nie tylko w treści powiadomienia. */}
                             {p.ofertaWygaslaAt && !p.claimOfferedAt && !p.claimPassed && (
-                              <span title="Nie zdążył(a) odpowiedzieć w czasie, wraca na koniec kolejki, ale zostaje w grze" className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                              <span title="Nie zdążył(a) odpowiedzieć w czasie, wraca na koniec kolejki, ale zostaje w grze" className="shrink-0 rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                                 nie zdążył(a)
                               </span>
                             )}
@@ -3851,7 +3854,7 @@ export default function EventDetailClient() {
                               ?? 'innego gracza';
                             return (
                               <span className="ml-9 mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
-                                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-bold text-slate-600 shrink-0">
+                                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded bg-slate-200 text-[8px] font-bold text-slate-600 shrink-0">
                                   {adderName.charAt(0).toUpperCase()}
                                 </span>
                                 dodał(a): <span className="font-medium text-slate-500 truncate">{adderName}</span>
@@ -4178,14 +4181,12 @@ export default function EventDetailClient() {
             miejsce. Nagłówek jest nowy — bez niego akapit wyrwany z góry
             strony wyglądałby tu jak komentarz bez autora. */}
         {event.description && (
-          <div className="px-4">
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-              <h2 className="text-sm font-semibold text-ink">O meczu</h2>
-              <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
-                {event.description}
-              </p>
-            </div>
-          </div>
+          <section className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
+            <h2 className="text-sm font-semibold text-ink">O meczu</h2>
+            <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
+              {event.description}
+            </p>
+          </section>
         )}
 
         </>)}
@@ -4353,7 +4354,7 @@ export default function EventDetailClient() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setJoinAsGuestDialogOpen(true)}
-                    className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
+                    className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-primary-700 text-[15px] font-semibold text-white transition hover:bg-primary-800 active:scale-[0.99]"
                   >
                     {/* Przy komplecie mówimy to WPROST na przycisku, a nie
                         dopiero w oknie: „Dołącz bez konta" na pełnym meczu
@@ -4365,7 +4366,7 @@ export default function EventDetailClient() {
                       const powrot = `${window.location.pathname}?dolacz=1`;
                       window.location.href = `/logowanie?next=${encodeURIComponent(powrot)}&powod=dolacz`;
                     }}
-                    className="flex h-12 items-center justify-center rounded-2xl bg-slate-700 text-[15px] font-bold text-white transition active:scale-[0.99] px-4"
+                    className="flex h-12 items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-[15px] font-semibold text-ink transition active:scale-[0.99] dark:border-slate-600 dark:bg-slate-800"
                   >
                     Zaloguj się
                   </button>
@@ -4375,9 +4376,11 @@ export default function EventDetailClient() {
                   <button
                     onClick={() => { setJoinRole('player'); setJoinAsReserve(false); otworzOknoZapisu(); }}
                     disabled={busy}
-                    className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99] disabled:opacity-50"
+                    className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-primary-700 text-[15px] font-semibold text-white transition hover:bg-primary-800 active:scale-[0.99] disabled:opacity-50"
                   >
-                    Dołącz →
+                    {/* Cena na samym przycisku (redesign 2026-09): to ostatnia
+                        rzecz, którą się sprawdza przed kliknięciem. */}
+                    {event.costGrosze > 0 ? `Dołącz · ${cenaKrotka}` : 'Dołącz'}
                   </button>
                   {myMaybe ? (
                     <button
@@ -4481,7 +4484,7 @@ export default function EventDetailClient() {
                 stanie. To pierwsza rzecz, o którą pyta się na tym ekranie:
                 „kto to w ogóle ustawia". */}
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <p className={`inline-block rounded-full px-2.5 py-1 text-xs font-bold ${TEAM_COLOR_CLASSES[mojaDruzyna].pill}`}>
+              <p className={`inline-block rounded px-2.5 py-1 text-xs font-bold ${TEAM_COLOR_CLASSES[mojaDruzyna].pill}`}>
                 {TEAM_LABELS[mojaDruzyna]} ({TEAM_LETTERS[mojaDruzyna]}) · {mojiGracze.length}
               </p>
               {kapitanMojejDruzyny ? (
@@ -4528,7 +4531,7 @@ export default function EventDetailClient() {
               <h2 className="font-semibold text-ink text-sm">Zarządzaj wydarzeniem</h2>
               <span className="ml-auto flex items-center gap-2 text-xs font-medium text-primary-600">
                 {!editMode && event.visibility !== 'public' && (
-                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">Prywatne</span>
+                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Prywatne</span>
                 )}
                 {editMode ? 'Zamknij' : 'Edytuj'}
                 <ChevronDown className={['w-4 h-4 transition-transform', editMode ? 'rotate-180' : ''].join(' ')} />
@@ -4647,7 +4650,7 @@ export default function EventDetailClient() {
             i osobnym opisem każde. `!eventStarted`: po meczu nikogo się już
             nie zaprasza. */}
         {!isCancelled && !eventStarted && (myParticipation || isOwner || !!myDelegate) && (
-          <div className="px-4">
+          <div>
             <ZaprosZnajomychPanel
               event={event}
               stan={{ wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete }}
@@ -4729,9 +4732,9 @@ export default function EventDetailClient() {
           const inner = (
             <>
               {organizerAvatar ? (
-                <img src={organizerAvatar} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" />
+                <img src={organizerAvatar} alt="" className="h-10 w-10 rounded object-cover shrink-0" />
               ) : (
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-950 text-sm font-bold text-primary-700">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-primary-50 dark:bg-primary-950 text-sm font-bold text-primary-700">
                   {initials(organizerLabel)}
                 </span>
               )}
@@ -4743,16 +4746,16 @@ export default function EventDetailClient() {
             </>
           );
           return (
-            <div className="px-4">
+            <div>
               {event.organizerId ? (
                 <Link
                   href={`/gracz/${event.organizerId}`}
-                  className="flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-slate-100 dark:border-slate-700 hover:border-primary-200 dark:hover:border-primary-800 transition-colors"
+                  className="flex items-center gap-3 border-y border-slate-200 px-4 py-3 transition-colors hover:bg-slate-50 dark:border-slate-700"
                 >
                   {inner}
                 </Link>
               ) : (
-                <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-3 border-y border-slate-200 px-4 py-3 dark:border-slate-700">
                   {inner}
                 </div>
               )}
@@ -5141,7 +5144,7 @@ export default function EventDetailClient() {
                         type="button"
                         onClick={() => setJoinSportsCardProvider(c)}
                         className={[
-                          'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                          'rounded border px-3 py-1.5 text-xs font-semibold transition-colors',
                           joinSportsCardProvider === c
                             ? 'border-primary-600 bg-primary-50 text-primary-700'
                             : 'border-slate-200 text-slate-600 hover:border-slate-300',
@@ -5166,7 +5169,7 @@ export default function EventDetailClient() {
                       type="button"
                       onClick={() => setJoinPaymentMethod(m)}
                       className={[
-                        'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                        'rounded border px-3 py-1.5 text-xs font-semibold transition-colors',
                         joinPaymentMethod === m
                           ? 'border-primary-600 bg-primary-50 text-primary-700'
                           : 'border-slate-200 text-slate-600 hover:border-slate-300',
@@ -5370,7 +5373,7 @@ export default function EventDetailClient() {
                       onClick={() => setGuestPaymentMethod(m)}
                       disabled={guestBusy}
                       className={[
-                        'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50',
+                        'rounded border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50',
                         guestPaymentMethod === m
                           ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
                           : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-slate-300',

@@ -524,7 +524,7 @@ export default function TurniejClient() {
                 zostało pominięte, bo renderuje liczbę wprost, zamiast wołać
                 `liczDruzynyWTurnieju()`. Kapitan i organizator patrzyli na
                 dwie różne liczby o tym samym. */}
-            <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
+            <span className={`mr-1.5 rounded px-1.5 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
             {/* Licznik w DRUGIEJ linii, nie sklejony z datą. Przy 360 px cały
                 wiersz szedł przez `truncate`, więc data słowna („sob. 24
                 października") zjadała miejsce i „· 1 z 8 drużyn" znikało za
@@ -602,7 +602,7 @@ export default function TurniejClient() {
         {meczeNaZywo.length > 0 && (
           <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-300">
-              <span className="inline-block h-2 w-2 rounded-full bg-primary-600" /> Na żywo
+              <span className="inline-block h-2 w-2 rounded bg-primary-600" /> Na żywo
             </p>
             <div className="space-y-2">
               {meczeNaZywo.map((m) => (
@@ -637,9 +637,9 @@ export default function TurniejClient() {
         {turniej.status === 'zapisy' && (
           <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2.5 shadow-sm">
             <div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+              <div className="h-2 overflow-hidden rounded bg-slate-100 dark:bg-slate-700">
                 <div
-                  className="h-full rounded-full bg-primary-600 transition-all"
+                  className="h-full rounded bg-primary-600 transition-all"
                   style={{ width: `${zapisy.procent}%` }}
                 />
               </div>
@@ -985,7 +985,7 @@ export default function TurniejClient() {
 
             {legendaAwansu && (
               <p className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span className="h-3 w-[3px] shrink-0 rounded-full bg-primary-600" aria-hidden />
+                <span className="h-3 w-[3px] shrink-0 rounded bg-primary-600" aria-hidden />
                 {legendaAwansu}
               </p>
             )}

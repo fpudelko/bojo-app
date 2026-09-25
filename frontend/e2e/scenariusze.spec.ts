@@ -391,7 +391,9 @@ test.describe('dołączanie do meczu', () => {
     await niezapisany(page);
     await uspokoj(page);
 
-    const licznik = page.getByText('2 / 10').locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    // Kotwica po atrybucie, nie po klasie: licznik stracił kartę (redesign
+    // 2026-09) i razem z nią `rounded-2xl`, na którym trzymał się ten selektor.
+    const licznik = page.locator('[data-licznik-miejsc]').filter({ hasText: '2 / 10' });
     await expect(licznik).toBeVisible();
     await zaslonPaskamiDolnymi(page, () => expect(licznik).toHaveScreenshot('licznik-przed-dolaczeniem.png'));
 
@@ -413,8 +415,7 @@ test.describe('dołączanie do meczu', () => {
     ).toBeVisible();
     await bezChmurki(page);
     await uspokoj(page);
-    const po = tresc(page).getByText('3 / 10')
-      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    const po = tresc(page).locator('[data-licznik-miejsc]').filter({ hasText: '3 / 10' });
     await zaslonPaskamiDolnymi(page, () => expect(po).toHaveScreenshot('licznik-po-dolaczeniu.png'));
 
     await wypiszSie(page);
@@ -458,8 +459,7 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     await otworzMecz(page, MECZ.rezerwacjaBr);
     await uspokoj(page);
 
-    const licznik = page.getByText(/pole: komplet/i)
-      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    const licznik = page.locator('[data-licznik-miejsc]').filter({ hasText: /pole: komplet/i });
     await expect(licznik).toBeVisible();
     await zaslonPaskamiDolnymi(page, () => expect(licznik).toHaveScreenshot('bramkarze-rezerwacja-licznik.png'));
 
@@ -485,8 +485,7 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     await otworzMecz(page, MECZ.wspolnaPula);
     await uspokoj(page);
 
-    const licznik = page.getByText(/dla wszystkich ról/i)
-      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    const licznik = page.locator('[data-licznik-miejsc]').filter({ hasText: /dla wszystkich ról/i });
     await expect(licznik).toBeVisible();
     await zaslonPaskamiDolnymi(page, () => expect(licznik).toHaveScreenshot('bramkarze-wspolna-licznik.png'));
 
@@ -864,9 +863,8 @@ test.describe('skład', () => {
     await otworzMecz(page, MECZ.rezerwacjaBr);
     await uspokoj(page);
 
-    // Lista startuje ZWINIĘTA (`rosterOpen === false`) i rozwija ją kliknięcie
-    // w stos awatarów. Sam przycisk nie ma tekstu — awatary niosą `title`.
-    await tresc(page).getByTitle('Zawodnik 1', { exact: true }).first().click();
+    // Lista startuje ROZWINIĘTA od redesignu 2026-09 („lista ludzi to jednak
+    // lista"). Wcześniej rozwijało ją kliknięcie w stos awatarów.
 
     // Wiersz to `div.py-2`, nie `li` — ta lista nigdy nie była `<ul>`, choć
     // pierwsza wersja tego testu tak zakładała.

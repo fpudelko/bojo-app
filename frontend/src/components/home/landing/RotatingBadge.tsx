@@ -22,7 +22,7 @@ export default function RotatingBadge({ messages }: { messages: readonly string[
 
   return (
     <span
-      className="inline-flex min-h-[2.25rem] items-center rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-[13px] font-medium backdrop-blur-sm"
+      className="inline-flex min-h-[2.25rem] items-center rounded border border-white/15 bg-white/10 px-3.5 py-1.5 text-[13px] font-medium backdrop-blur-sm"
       aria-live="off"
     >
       <span key={index} className="animate-badge-fade motion-reduce:animate-none">

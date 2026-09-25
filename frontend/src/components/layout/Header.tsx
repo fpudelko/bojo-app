@@ -218,7 +218,7 @@ export default function Header({
                     title="Edytuj profil"
                   >
                     {userAvatar
-                      ? <img src={userAvatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
+                      ? <img src={userAvatar} alt="" className="w-5 h-5 rounded object-cover shrink-0" />
                       : <User className="w-3.5 h-3.5 shrink-0 text-slate-400" />}
                     {displayName(user)}
                   </Link>
@@ -327,9 +327,9 @@ export default function Header({
                   <NotificationBell />
                   <Link href="/profil" aria-label="Twój profil" className="shrink-0">
                     {userAvatar ? (
-                      <img src={userAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+                      <img src={userAvatar} alt="" className="h-8 w-8 rounded object-cover" />
                     ) : (
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700">
+                      <span className="flex h-8 w-8 items-center justify-center rounded bg-primary-50 text-xs font-bold text-primary-700">
                         {displayName(user).charAt(0).toUpperCase()}
                       </span>
                     )}

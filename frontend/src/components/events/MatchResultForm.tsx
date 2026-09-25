@@ -74,7 +74,7 @@ function ResultSummary({ result }: { result: MatchResult }) {
         <ol className="space-y-1">
           {rd.rankings.map((r, i) => (
             <li key={r.participantId} className="flex items-center gap-2 text-sm">
-              <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">{i + 1}</span>
+              <span className="w-5 h-5 rounded bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">{i + 1}</span>
               <span className="text-slate-800">{r.participantId}</span>
               {r.lapTime && <span className="text-slate-400 text-xs">{r.lapTime}</span>}
             </li>
@@ -172,11 +172,11 @@ export default function MatchResultForm({
   function Stepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
     return (
       <div className="flex items-center gap-1.5">
-        <button type="button" onClick={() => onChange(Math.max(0, value - 1))} className="w-6 h-6 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 text-sm">
+        <button type="button" onClick={() => onChange(Math.max(0, value - 1))} className="w-6 h-6 rounded border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 text-sm">
           <Minus className="w-3 h-3" />
         </button>
         <span className="w-5 text-center text-sm font-semibold">{value}</span>
-        <button type="button" onClick={() => onChange(value + 1)} className="w-6 h-6 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 text-sm">
+        <button type="button" onClick={() => onChange(value + 1)} className="w-6 h-6 rounded border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 text-sm">
           <Plus className="w-3 h-3" />
         </button>
       </div>
@@ -410,7 +410,7 @@ export default function MatchResultForm({
                   const p = participants.find((x) => x.id === r.participantId);
                   return (
                     <li key={r.participantId} className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg">
-                      <span className="w-6 h-6 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
+                      <span className="w-6 h-6 rounded bg-green-100 text-green-800 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
                       <span className="text-sm text-slate-800 flex-1">{p?.name ?? r.participantId}</span>
                       <div className="flex gap-1">
                         {i > 0 && (

@@ -480,7 +480,8 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
   );
 
   const cards = (rows: EventRow[]) => (
-    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
+    // Bez odstępów: wiersze dzielą linie (EventBrowseCard, redesign 2026-09).
+    <div className="lg:grid lg:grid-cols-2 lg:gap-x-6">
       {rows.map(({ event, distance }) => (
         <EventBrowseCard key={event.id} event={event} distance={distance} relation={statusFor(event)} isNew={jestNowe(event)} />
       ))}
@@ -693,11 +694,11 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
     <Link
       href="/moje-gry?tab=zaproszenia"
       aria-label={`Zaproszenia: ${inviteCount}`}
-      className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-accent-100 px-3 text-xs font-bold text-primary-900 ring-1 ring-accent-200 transition-colors hover:bg-accent-200"
+      className="flex h-9 shrink-0 items-center gap-1.5 rounded bg-accent-100 px-3 text-xs font-bold text-primary-900 ring-1 ring-accent-200 transition-colors hover:bg-accent-200"
     >
       <MailOpen className="h-3.5 w-3.5" strokeWidth={2.25} />
       Zaproszenia
-      <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary-700 px-1 text-[11px] text-white tabular-nums">
+      <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded bg-primary-700 px-1 text-[11px] text-white tabular-nums">
         {inviteCount}
       </span>
     </Link>
@@ -785,7 +786,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
             type="button"
             onClick={() => setViewMode((v) => (v === 'lista' ? 'mapa' : 'lista'))}
             aria-label={viewMode === 'lista' ? 'Pokaż na mapie' : 'Pokaż listę'}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
           >
             {viewMode === 'lista' ? <MapIcon className="h-4 w-4" /> : <List className="h-4 w-4" />}
           </button>
@@ -806,7 +807,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
             onClick={openSheet}
             aria-label={liczbaFiltrow > 0 ? `Filtry: ${liczbaFiltrow} aktywne` : 'Filtry'}
             className={clsx(
-              'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors',
+              'relative flex h-9 w-9 shrink-0 items-center justify-center rounded border shadow-sm transition-colors',
               liczbaFiltrow > 0
                 ? 'border-primary-700 bg-primary-700 text-white'
                 : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
@@ -814,7 +815,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
           >
             <SlidersHorizontal className="h-4 w-4" />
             {liczbaFiltrow > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-extrabold leading-none text-primary-950 ring-2 ring-white dark:ring-slate-900">
+              <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded bg-accent-500 px-1 text-[10px] font-extrabold leading-none text-primary-950 ring-2 ring-white dark:ring-slate-900">
                 {liczbaFiltrow}
               </span>
             )}

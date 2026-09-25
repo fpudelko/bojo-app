@@ -521,18 +521,18 @@ export default function VenueDetailClient({
                   {field.address}
                 </p>
                 {showBookingForField(field) && field.bookingType === 'internal' && (
-                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
+                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded bg-blue-100 text-blue-700 font-medium">
                     📅 Rezerwacja online
                   </span>
                 )}
                 {showBookingForField(field) && field.bookingType === 'external' && (
-                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 font-medium">
+                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded bg-orange-100 text-orange-700 font-medium">
                     🔗 Rezerwuj zewnętrznie
                   </span>
                 )}
               </div>
               {field.isIndoor && (
-                <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
+                <span className="shrink-0 text-xs px-2.5 py-1 rounded bg-blue-50 text-blue-700 font-medium">
                   Hala
                 </span>
               )}
@@ -543,14 +543,14 @@ export default function VenueDetailClient({
                   <span
                     key={s}
                     style={{ background: sportColor(s) + '18', color: sportColor(s) }}
-                    className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium"
+                    className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium"
                   >
                     <span role="img" aria-hidden>{sportEmoji(s)}</span>
                     {s}
                   </span>
               ))}
               {field.surface && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                <span className="text-xs px-2.5 py-1 rounded bg-slate-100 text-slate-600">
                   {surfaceLabel(field.surface)}
                 </span>
               )}
@@ -570,7 +570,7 @@ export default function VenueDetailClient({
                     <Building2 className="w-4 h-4 shrink-0 text-slate-400" />
                     <span className="font-medium">{field.operator}</span>
                     {field.operatorType && (
-                      <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{field.operatorType}</span>
+                      <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded">{field.operatorType}</span>
                     )}
                   </p>
                 )}
@@ -589,13 +589,13 @@ export default function VenueDetailClient({
             {/* Facilities chips */}
             {(field.lit !== undefined || field.fee !== undefined || field.hasChangingRooms || field.hasShower || field.hasToilets || field.capacity) && (
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {field.lit === true && <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">💡 Oświetlenie</span>}
-                {field.fee === false && <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">✓ Bezpłatne</span>}
-                {field.fee === true && <span className="text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">💳 Płatne</span>}
-                {field.hasChangingRooms && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">👕 Szatnia</span>}
-                {field.hasShower && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">🚿 Prysznic</span>}
-                {field.hasToilets && <span className="text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200">🚻 Toaleta</span>}
-                {field.capacity && <span className="text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200">👥 maks. {field.capacity} os.</span>}
+                {field.lit === true && <span className="text-xs px-2 py-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-200">💡 Oświetlenie</span>}
+                {field.fee === false && <span className="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">✓ Bezpłatne</span>}
+                {field.fee === true && <span className="text-xs px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">💳 Płatne</span>}
+                {field.hasChangingRooms && <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">👕 Szatnia</span>}
+                {field.hasShower && <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">🚿 Prysznic</span>}
+                {field.hasToilets && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200">🚻 Toaleta</span>}
+                {field.capacity && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200">👥 maks. {field.capacity} os.</span>}
               </div>
             )}
 
@@ -677,7 +677,7 @@ export default function VenueDetailClient({
                   {slotsLoading && (
                     <div className="flex flex-wrap gap-2">
                       {[0, 1, 2].map((i) => (
-                        <div key={i} className="h-9 w-36 rounded-full bg-slate-100 animate-pulse" />
+                        <div key={i} className="h-9 w-36 rounded bg-slate-100 animate-pulse" />
                       ))}
                     </div>
                   )}
@@ -700,7 +700,7 @@ export default function VenueDetailClient({
                             <button
                               key={slot.startTime}
                               disabled
-                              className="px-3 py-1.5 rounded-full text-sm font-medium bg-slate-100 text-slate-400 cursor-not-allowed"
+                              className="px-3 py-1.5 rounded text-sm font-medium bg-slate-100 text-slate-400 cursor-not-allowed"
                             >
                               {slot.startTime.slice(0, 5)}–{slot.endTime.slice(0, 5)}&nbsp;&nbsp;ZAJĘTE
                             </button>
@@ -712,7 +712,7 @@ export default function VenueDetailClient({
                             key={slot.startTime}
                             onClick={() => setSelectedSlot(isSelected ? null : slot)}
                             className={[
-                              'px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
+                              'px-3 py-1.5 rounded text-sm font-medium transition-colors',
                               isSelected
                                 ? 'bg-primary-700 text-white ring-2 ring-primary-700 ring-offset-1'
                                 : 'bg-primary-600 text-white hover:bg-primary-700',
@@ -897,7 +897,7 @@ export default function VenueDetailClient({
                           </span>
                         </div>
                       </div>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${spotsLeft <= 0 ? 'bg-red-100 text-red-700' : spotsLeft <= 3 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                      <span className={`text-xs px-2.5 py-1 rounded font-medium shrink-0 ${spotsLeft <= 0 ? 'bg-red-100 text-red-700' : spotsLeft <= 3 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
                         {spotsLeft <= 0 ? 'Pełne' : `+${spotsLeft} miejsc`}
                       </span>
                     </Link>
@@ -1033,7 +1033,7 @@ export default function VenueDetailClient({
               <button
                 onClick={handleToggleVisibility}
                 disabled={visibilityBusy}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                className={`shrink-0 rounded px-3 py-1.5 text-xs font-bold transition-colors ${
                   mapVisibility === 'public'
                     ? 'bg-slate-200 text-slate-600 hover:bg-red-100 hover:text-red-700'
                     : 'bg-primary-50 text-primary-700 hover:bg-primary-100'

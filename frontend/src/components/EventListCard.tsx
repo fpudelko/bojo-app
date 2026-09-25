@@ -100,7 +100,7 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
             <p className="min-w-0 flex-1 truncate font-bold text-ink leading-snug">
               {event.title || `${event.sport}${squadSuffix(max)}`}
             </p>
-            <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${priceClass}`}>
+            <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded ${priceClass}`}>
               {priceLabel}
             </span>
           </div>
@@ -123,11 +123,11 @@ export function EventListCard({ event, distance, relation }: { event: EventItem;
           {/* Row 3: progress bar + slots count */}
           {max > 0 && (
             <div className="mt-2.5 flex items-center gap-2.5">
-              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full ${fillColor} transition-all`} style={{ width: `${fillPct}%` }} />
+              <div className="flex-1 h-2 bg-slate-100 rounded overflow-hidden">
+                <div className={`h-full rounded ${fillColor} transition-all`} style={{ width: `${fillPct}%` }} />
               </div>
               {stanZapisow ? (
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${stanZapisow.klasy}`}>
+                <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold ${stanZapisow.klasy}`}>
                   {stanZapisow.napis}
                 </span>
               ) : (

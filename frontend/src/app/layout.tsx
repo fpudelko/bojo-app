@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Bricolage_Grotesque } from 'next/font/google';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import { ThemeProvider } from 'next-themes';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth';
@@ -17,29 +18,13 @@ import {
   TYTUL_DOMYSLNY, OPIS_DOMYSLNY, HASLO_PODGLADU,
 } from '@/content/metaWyszukiwarki';
 
-const inter = Inter({
-  subsets: ['latin', 'latin-ext'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-// Distinctive editorial display face for headings — characterful but clean,
-// full Polish diacritic support (latin-ext).
-const bricolage = Bricolage_Grotesque({
-  subsets: ['latin', 'latin-ext'],
-  variable: '--font-display',
-  display: 'swap',
-  // Wagi: w repo `font-display` stoi wyłącznie obok `font-bold` (700, 67 użyć)
-  // i `font-extrabold` (800, 14) — 600 nie jest używana ani razu. NIE zdejmujemy
-  // jej mimo to, i to jest wynik pomiaru, nie przeoczenie: Bricolage Grotesque
-  // jest krojem ZMIENNYM, więc Google serwuje jeden plik na podzbiór niezależnie
-  // od żądanych wag. Czysty build z wagami ['700','800'] dał dokładnie te same
-  // 10 plików .woff2 i te same 300 KB co z ['600','700','800'] (sprawdzone
-  // 2026-09-01). Lista wag nie jest tu dźwignią transferu — kto szuka
-  // oszczędności w ~173 KiB czcionek z pomiaru 7a.1, musi zdjąć RODZINĘ albo
-  // PODZBIÓR (latin-ext niesie polskie znaki, więc nie ten), nie wagę.
-  weight: ['600', '700', '800'],
-});
+// Geist (sans + mono) — one family for the whole app since the 2026-09 redesign.
+// Before, Inter for body and Bricolage Grotesque for headings: the pairing most
+// generated UIs reach for, and the owner read it as exactly that. One family,
+// hierarchy from size and weight; mono only for times and counts (tabular).
+// Loaded from the `geist` package (next/font/local under the hood), because
+// next 14.2's Google font list predates Geist. Variable font, latin-ext
+// glyphs included, self-hosted like before, so no request to Google.
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -150,7 +135,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl" suppressHydrationWarning className={`${inter.variable} ${bricolage.variable}`}>
+    <html lang="pl" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
         <script
           type="application/ld+json"

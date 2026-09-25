@@ -81,7 +81,7 @@ export default function MojeAlerty() {
   if (!user || !SHOW_GAME_ALERTS) return null;
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="-mx-4 border-b border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-center gap-3">
         <Bell className="h-5 w-5 shrink-0 text-slate-400" />
         <div className="min-w-0 flex-1">
@@ -132,7 +132,7 @@ export default function MojeAlerty() {
                     type="button"
                     onClick={() => usun(a)}
                     aria-label={`Usuń alert: ${nazwaAlertu(a)}`}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-slate-50 hover:text-red-500 dark:hover:bg-slate-700"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-slate-300 transition-colors hover:bg-slate-50 hover:text-red-500 dark:hover:bg-slate-700"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

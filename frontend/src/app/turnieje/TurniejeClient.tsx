@@ -36,7 +36,7 @@ function KartaTurnieju({ t }: { t: Turniej }) {
                 („Liga Koszykarska — 3 z 5 kolejek") i ucięte w połowie nie
                 mówią, o który turniej chodzi. */}
             <h3 className="min-w-0 flex-1 font-display font-semibold text-ink line-clamp-2">{t.nazwa}</h3>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
+            <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1">

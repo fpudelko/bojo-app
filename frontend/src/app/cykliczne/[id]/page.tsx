@@ -288,7 +288,7 @@ export default function RecurringEventDetailPage() {
               </div>
               <div className="flex flex-col items-end gap-2 shrink-0">
                 <span className={[
-                  'text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1',
+                  'text-xs px-2 py-1 rounded font-medium flex items-center gap-1',
                   event.visibility === 'public'
                     ? 'bg-green-50 text-green-700'
                     : 'bg-slate-100 text-slate-600',
@@ -298,7 +298,7 @@ export default function RecurringEventDetailPage() {
                     : <><Lock className="w-3 h-3" /> Prywatne</>}
                 </span>
                 <span className={[
-                  'text-xs px-2 py-1 rounded-full font-medium',
+                  'text-xs px-2 py-1 rounded font-medium',
                   event.isActive
                     ? 'bg-green-100 text-green-700'
                     : 'bg-slate-100 text-slate-500',
@@ -385,7 +385,7 @@ export default function RecurringEventDetailPage() {
               {invites.map((inv) => (
                 <li key={inv.id} className="flex items-center justify-between py-2.5 gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">
+                    <span className="w-7 h-7 rounded bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">
                       {inv.name.charAt(0).toUpperCase()}
                     </span>
                     <div className="min-w-0">

@@ -147,7 +147,7 @@ export default async function WojewodztwoPage(
                     </p>
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {field.sport.map((s) => (
-                        <span key={s} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary-50 text-primary-700">
+                        <span key={s} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-primary-50 text-primary-700">
                           <span role="img" aria-hidden>{sportEmoji(s)}</span> {s}
                         </span>
                       ))}

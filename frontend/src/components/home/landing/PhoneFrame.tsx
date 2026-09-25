@@ -24,7 +24,7 @@ export default function PhoneFrame({
     <div className={`relative w-full ${className}`}>
       <div className="rounded-[2.8rem] border-[7px] border-slate-800 shadow-[0_24px_56px_rgba(0,0,0,0.32)] overflow-hidden bg-slate-800">
         <div className="flex items-center justify-center bg-slate-800 py-2">
-          <div className="w-20 h-4 bg-slate-700 rounded-full" />
+          <div className="w-20 h-4 bg-slate-700 rounded" />
         </div>
         <div className="relative overflow-hidden">
           <Image
@@ -39,7 +39,7 @@ export default function PhoneFrame({
           />
         </div>
         <div className="flex justify-center bg-white py-2.5">
-          <div className="w-20 h-1 bg-slate-200 rounded-full" />
+          <div className="w-20 h-1 bg-slate-200 rounded" />
         </div>
       </div>
     </div>

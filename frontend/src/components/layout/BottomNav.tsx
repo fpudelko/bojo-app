@@ -470,7 +470,7 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
             <span
               key={d.position}
               className={clsx(
-                'absolute h-1.5 w-1.5 rounded-full',
+                'absolute h-1.5 w-1.5 rounded',
                 d.position === 'top-right' && '-top-0.5 right-0',
                 d.position === 'top-left' && '-top-0.5 left-0',
                 d.position === 'bottom-right' && '-bottom-0.5 -right-0.5 ring-2 ring-white',
@@ -482,7 +482,7 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
           {licznik > 0 && (
             <span
               className={clsx(
-                'absolute -right-2.5 -top-2 flex h-[15px] min-w-[15px] items-center justify-center rounded-full px-1 text-[9px] font-extrabold leading-none text-white ring-2 ring-white',
+                'absolute -right-2.5 -top-2 flex h-[15px] min-w-[15px] items-center justify-center rounded px-1 text-[9px] font-extrabold leading-none text-white ring-2 ring-white',
                 licznikKolor,
               )}
               aria-hidden="true"
@@ -561,8 +561,8 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
           aria-label="Stwórz nowy mecz"
           className="flex h-full flex-col items-center justify-center gap-0.5 pb-2 group"
         >
-          <span className="flex h-12 w-12 -mt-4 items-center justify-center rounded-full bg-primary-700 text-white shadow-lg ring-4 ring-white group-active:scale-95 transition-transform">
-            <Plus className="w-6 h-6" />
+          <span className="flex h-8 w-11 items-center justify-center rounded bg-primary-700 text-white group-active:scale-95 transition-transform">
+            <Plus className="w-5 h-5" />
           </span>
           <span className="text-[10px] font-semibold text-slate-400 tracking-wide">Nowy</span>
         </Link>

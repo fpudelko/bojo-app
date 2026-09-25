@@ -122,7 +122,7 @@ export default function RemindersSection({ eventId }: Props) {
                   </span>
                   <span className="text-xs text-slate-400 uppercase tracking-wide">{r.channel}</span>
                   {r.sent && (
-                    <span className="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5">Wysłano</span>
+                    <span className="text-xs bg-green-100 text-green-700 rounded px-2 py-0.5">Wysłano</span>
                   )}
                 </div>
                 {r.message && (

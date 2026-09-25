@@ -36,7 +36,7 @@ export default function Lightbox({ zdjecia, indeks, onZmien, onZamknij }: Lightb
   if (!otwarty || indeks === null) return null;
 
   const zdjecie = zdjecia[indeks];
-  const przycisk = 'absolute rounded-full bg-black/40 p-2 text-white backdrop-blur-sm transition hover:bg-black/60';
+  const przycisk = 'absolute rounded bg-black/40 p-2 text-white backdrop-blur-sm transition hover:bg-black/60';
 
   return (
     <div

@@ -91,7 +91,7 @@ function TrescPowiadomienia({ n, wymagaAkcji, grupa }: {
 
   return (
     <div className="flex gap-3">
-      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${klasa}`}>
+      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded ${klasa}`}>
         <Ikona className="h-4 w-4" />
       </span>
 
@@ -114,12 +114,12 @@ function TrescPowiadomienia({ n, wymagaAkcji, grupa }: {
         <div className="mt-1 flex items-center gap-2">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{rodzaj}</span>
           {wymagaAkcji && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+            <span className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
               Sprawdź <ChevronRight className="h-3 w-3" />
             </span>
           )}
           {!n.readAt && !wymagaAkcji && (
-            <span className="h-1.5 w-1.5 rounded-full bg-primary-600" aria-label="nieprzeczytane" />
+            <span className="h-1.5 w-1.5 rounded bg-primary-600" aria-label="nieprzeczytane" />
           )}
         </div>
       </div>
@@ -483,7 +483,7 @@ export default function NotificationBell() {
         >
           <Bell className="w-5 h-5" />
           {unreadReszta > 0 && (
-            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white leading-none">
+            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded bg-red-500 text-[10px] font-bold text-white leading-none">
               {unreadReszta > 9 ? '9+' : unreadReszta}
             </span>
           )}

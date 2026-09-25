@@ -3,43 +3,45 @@
 @tailwind utilities;
 
 :root {
-  --font-inter: 'Inter', system-ui, sans-serif;
   --color-primary: #15663E;
   --color-secondary: #2563eb;
   --color-accent: #F5A623;
-  --color-bg: #FAF9F6;
-  --color-bg-muted: #F0EEE9;
-  --color-text: #1A1D21;
-  --color-text-muted: #64748b;
-  --color-border: #E4E2DD;
-  --color-ink: #1A1D21;
-  --color-canvas: #FAF9F6;
+  /* Redesign 2026-09: białe tło strony zamiast kremowego — karty przestały
+     być wyspami na tle, więc tło nie musi ich odcinać. */
+  --color-bg: #FFFFFF;
+  --color-bg-muted: #F6F7F5;
+  --color-text: #0E1411;
+  --color-text-muted: #5B6660;
+  --color-border: #E3E6E3;
+  --color-ink: #0E1411;
+  --color-canvas: #FFFFFF;
   --color-surface: #FFFFFF;
-  --color-surface-raised: #F8F9FA;
+  --color-surface-raised: #F6F7F5;
 }
 
 .dark {
   color-scheme: dark;
 
-  /* Ink-blue palette — complements brand green without generic slate */
-  --color-canvas: #0D1117;
-  --color-surface: #161C27;
-  --color-surface-raised: #1C2333;
-  --color-surface-overlay: #222B3A;
+  /* Near-black with a hint of brand green (redesign 2026-09) — was ink-blue,
+     which clashed with the green-tinted neutrals of the light theme. */
+  --color-canvas: #0B0D0C;
+  --color-surface: #141816;
+  --color-surface-raised: #1A1E1C;
+  --color-surface-overlay: #202623;
 
   /* Borders — hairlines instead of heavy lines; depth via elevation */
-  --color-border: rgba(255, 255, 255, 0.07);
-  --color-border-strong: rgba(255, 255, 255, 0.12);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.14);
 
   /* Typography — warm off-white (not cool blue-gray) */
-  --color-ink: #E8EDF3;
-  --color-ink-muted: #8B949E;
+  --color-ink: #EDF0EE;
+  --color-ink-muted: #939C97;
 
   /* Legacy vars */
-  --color-bg: #0D1117;
-  --color-bg-muted: #161C27;
-  --color-text: #E8EDF3;
-  --color-text-muted: #8B949E;
+  --color-bg: #0B0D0C;
+  --color-bg-muted: #141816;
+  --color-text: #EDF0EE;
+  --color-text-muted: #939C97;
 }
 
 /* ── Dark-mode global token mapping ─────────────────────────────────────────
@@ -59,16 +61,16 @@
 .dark .hover\:bg-slate-50:hover  { background-color: rgba(255, 255, 255, 0.04); }
 .dark .hover\:bg-slate-100:hover { background-color: rgba(255, 255, 255, 0.06); }
 
-/* Text — warm off-white scale */
-.dark .text-slate-900 { color: #E8EDF3; }
-.dark .text-slate-800 { color: #DBE2EA; }
-.dark .text-slate-700 { color: #C4CDD8; }
-.dark .text-slate-600 { color: #AAB4C0; }
-.dark .text-slate-500 { color: #8B95A1; }
-.dark .text-slate-400 { color: #6E7783; }
-.dark .text-slate-300 { color: #525B67; }
-.dark .placeholder\:text-slate-400::placeholder { color: #6E7783; }
-.dark .placeholder\:text-slate-500::placeholder { color: #5B6470; }
+/* Text — off-white scale, same green tint as the light neutrals */
+.dark .text-slate-900 { color: #EDF0EE; }
+.dark .text-slate-800 { color: #DDE2DF; }
+.dark .text-slate-700 { color: #C7CEC9; }
+.dark .text-slate-600 { color: #AEB6B1; }
+.dark .text-slate-500 { color: #939C97; }
+.dark .text-slate-400 { color: #747D78; }
+.dark .text-slate-300 { color: #58605B; }
+.dark .placeholder\:text-slate-400::placeholder { color: #747D78; }
+.dark .placeholder\:text-slate-500::placeholder { color: #5E6661; }
 
 /* Borders / rings / dividers — hairlines */
 .dark .border-slate-100 { border-color: var(--color-border); }
@@ -82,9 +84,9 @@
 
 /* Brand green — lift dark greens so they read on dark surfaces */
 .dark .bg-primary-50  { background-color: rgba(34, 163, 97, 0.15); }
-.dark .text-primary-600 { color: #5FC88A; }
-.dark .text-primary-700 { color: #5FC88A; }
-.dark .text-primary-800 { color: #5FC88A; }
+.dark .text-primary-600 { color: #5CC98F; }
+.dark .text-primary-700 { color: #5CC98F; }
+.dark .text-primary-800 { color: #5CC98F; }
 
 /* ── Author-provided dark:* variants — re-asserted so they win ───────────── */
 .dark .dark\:bg-slate-800 { background-color: var(--color-surface); }
@@ -92,11 +94,11 @@
 .dark .dark\:bg-slate-700 { background-color: var(--color-surface-raised); }
 .dark .dark\:bg-slate-950 { background-color: var(--color-canvas); }
 
-.dark .dark\:text-slate-100 { color: #E8EDF3; }
-.dark .dark\:text-slate-200 { color: #D5DCE5; }
-.dark .dark\:text-slate-300 { color: #C4CDD8; }
-.dark .dark\:text-slate-400 { color: #8B95A1; }
-.dark .dark\:text-slate-500 { color: #6E7783; }
+.dark .dark\:text-slate-100 { color: #EDF0EE; }
+.dark .dark\:text-slate-200 { color: #DDE2DF; }
+.dark .dark\:text-slate-300 { color: #C7CEC9; }
+.dark .dark\:text-slate-400 { color: #939C97; }
+.dark .dark\:text-slate-500 { color: #747D78; }
 
 .dark .dark\:border-slate-700 { border-color: var(--color-border-strong); }
 .dark .dark\:border-slate-600 { border-color: var(--color-border-strong); }
@@ -115,7 +117,7 @@ body {
   /* overflow-x: clip (nie hidden!) — ucina poziome przepełnienie,
      ale NIE tworzy kontekstu przewijania, więc position: sticky w headerze działa. */
   overflow-x: clip;
-  font-family: var(--font-inter);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
   color: var(--color-text);
   background: var(--color-bg);
   -webkit-font-smoothing: antialiased;

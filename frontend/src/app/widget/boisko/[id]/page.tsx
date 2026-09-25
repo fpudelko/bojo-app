@@ -125,7 +125,7 @@ export default async function WidgetBoiskoPage({ params }: { params: { id: strin
                     </span>
                   </span>
                   <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                    className={`shrink-0 rounded px-2.5 py-1 text-xs font-medium ${
                       spotsLeft <= 0
                         ? 'bg-red-100 text-red-700'
                         : spotsLeft <= 3

@@ -382,7 +382,7 @@ export default function MeczClient() {
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 py-5">
         <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
+            <span className={`rounded px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
             {(mecz.zaplanowanyAt || arena) && (
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 {arena && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {arena.nazwa}</span>}

@@ -90,10 +90,10 @@ export default function PublicPlayerPage() {
                   <img
                     src={profile.avatarUrl}
                     alt=""
-                    className="w-16 h-16 rounded-full object-cover shrink-0"
+                    className="w-16 h-16 rounded object-cover shrink-0"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center shrink-0">
+                  <div className="w-16 h-16 rounded bg-primary-100 text-primary-700 flex items-center justify-center shrink-0">
                     <User className="w-7 h-7" />
                   </div>
                 )}
@@ -103,7 +103,7 @@ export default function PublicPlayerPage() {
                     {reliablePlayer && (
                       <span
                         title="Niezawodny gracz (powyżej 80% frekwencji, min. 5 meczów)"
-                        className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium"
+                        className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-medium"
                       >
                         <Star className="w-3 h-3" /> Niezawodny
                       </span>
@@ -162,9 +162,9 @@ export default function PublicPlayerPage() {
                               {rate}%
                             </span>
                           </div>
-                          <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all ${rate >= 80 ? 'bg-amber-400' : 'bg-red-400'}`}
+                              className={`h-full rounded transition-all ${rate >= 80 ? 'bg-amber-400' : 'bg-red-400'}`}
                               style={{ width: `${rate}%` }}
                             />
                           </div>
@@ -211,7 +211,7 @@ export default function PublicPlayerPage() {
                           </p>
                         </div>
                         {h.goals > 0 && (
-                          <span className="shrink-0 text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-950 rounded-full px-2 py-0.5">
+                          <span className="shrink-0 text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-950 rounded px-2 py-0.5">
                             {withCount(h.goals, 'gol', 'gole', 'goli')}
                           </span>
                         )}

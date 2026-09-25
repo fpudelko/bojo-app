@@ -64,7 +64,7 @@ export default function UstawieniaMaili() {
   if (!user) return null;
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="-mx-4 border-b border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
       <button
         type="button"
         onClick={() => setRozwiniete((v) => !v)}

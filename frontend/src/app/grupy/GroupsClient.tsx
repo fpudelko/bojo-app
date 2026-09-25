@@ -47,7 +47,7 @@ function KartaEkipy({ g, nieprzeczytane, noweMecze }: { g: GroupWithNext; nieprz
             <IkonaWiadomosci className="absolute -left-1.5 -top-1.5 h-4 w-4 text-pink-500" />
           )}
           {noweMecze && (
-            <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-800" aria-hidden="true" />
+            <span className="absolute -right-1 -top-1 h-3 w-3 rounded bg-orange-500 ring-2 ring-white dark:ring-slate-800" aria-hidden="true" />
           )}
         </span>
         <div className="min-w-0 flex-1">
@@ -71,12 +71,12 @@ function KartaEkipy({ g, nieprzeczytane, noweMecze }: { g: GroupWithNext; nieprz
            tekstu i znów rozpycha kartę). */
         <div className="mt-3 space-y-1.5">
           <div className="flex items-center gap-1.5">
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-bold text-primary-700 dark:bg-primary-950/40">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded bg-primary-50 px-2 py-0.5 text-[11px] font-bold text-primary-700 dark:bg-primary-950/40">
               <CalendarDays className="h-3 w-3" />
               <span>{zWielkiejLitery(dzien)}</span> · {g.nextEvent.time.slice(0, 5)}
             </span>
             {max > 0 && (
-              <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              <span className={`inline-flex shrink-0 items-center rounded px-2 py-0.5 text-[11px] font-bold ${
                 brakuje > 0
                   ? 'bg-amber-100 text-amber-700'
                   : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'
@@ -93,8 +93,8 @@ function KartaEkipy({ g, nieprzeczytane, noweMecze }: { g: GroupWithNext; nieprz
           )}
           {max > 0 && (
             <div className="flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-                <div className="h-full rounded-full bg-primary-600" style={{ width: `${pct}%` }} />
+              <div className="h-1.5 flex-1 overflow-hidden rounded bg-slate-100 dark:bg-slate-700">
+                <div className="h-full rounded bg-primary-600" style={{ width: `${pct}%` }} />
               </div>
               <span className="shrink-0 text-[11px] text-slate-400">{taken}/{max}</span>
             </div>

@@ -453,6 +453,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-25 (4) — Nowy wygląd Bojo: płasko, kanciasto, strona meczu czytelniejsza
+
+PROBLEM: właściciel Bojo ocenił, że aplikacja „wygląda na wygenerowaną przez AI”:
+każdy element w zaokrąglonej karcie z cieniem, chłodne szarości `slate`, para krojów
+Inter + Bricolage, emoji i ikony sportu na liście meczów. Karty zabierały miejsce na
+telefonie, a na stronie meczu godzina, cena i wolne miejsca ginęły między ramkami.
+
+ROZWIĄZANIE BOJO: jeden krój (Geist), szarości z nutą zieleni marki, rogi 2–4 px
+i karty bez cieni w całej aplikacji. Strona meczu zaczyna się jasnozielonym pasem
+z godziną i ceną dużym krojem, pod nim miejsce jako wiersz z nawigacją, licznik
+„Zostało N wolnych miejsc” z paskiem z odcinków (jeden odcinek na miejsce do 24 miejsc)
+i skład od razu jako lista. Przycisk zapisu brzmi „Dołącz · 15 zł” (zielony, dawniej
+bursztynowy „Dołącz →”). Lista meczów to wiersze: godzina i dzień, nazwa i miejsce,
+liczba wolnych miejsc i cena, bez ikon sportu i bez paska postępu. Profil to
+zgrupowane sekcje zamiast ośmiu osobnych kart. Znaczenia kolorów (różowy = wiadomości,
+niebieski = wymaga akceptacji / komplet, pomarańczowy = nowość, szary = zapisy
+zamknięte) się nie zmieniły.
+
+MECHANIKA: tokeny w `frontend/tailwind.config.ts` (paleta `slate` nadpisana,
+`borderRadius`, `boxShadow`), font z paczki `geist` w `app/layout.tsx`,
+`app/wydarzenia/[id]/EventDetailClient.tsx`, `components/EventBrowseCard.tsx`,
+`app/profil/page.tsx`. Szczegóły → [funkcje.md](./funkcje.md#wygląd-redesign-2026-09).
+
 ### 2026-09-25 (3) — Zapis bez konta nie udaje, że nie jest skończony; zaproszenie do ekipy prowadzi do meczu
 
 PROBLEM: po zapisie na mecz bez konta Bojo pisało „Ostatni krok, 15 sekund”, więc gracz
@@ -654,30 +677,3 @@ przeliczanie kosztu obiektu na faktyczny skład — `event_participants` to list
 zapisanych przez Bojo, nie lista ludzi na boisku, więc liczba wierszy w bazie nie mówi,
 ile osób realnie grało. Testy: `payments.test.ts`, `settlementShare.test.ts`,
 `events.test.ts`, `supabase/test/przypomnienia.sql`.
-
-### 2026-09-23 — Podgląd linku turnieju pokazuje turniej, nie notatkę z zaplecza
-
-PROBLEM: organizator nie pokazuje ludziom aplikacji, tylko wysyła LINK, a podgląd tego
-linku w komunikatorze był w trzech miejscach nieprawdziwy. Opis brał pole `turnieje.opis`
-wprost, więc dla turniejów seedowych na WhatsAppie wyświetlała się wewnętrzna notatka
-„[TUR] SPRAWDŹ: plakietka Na żywo na karcie meczu…". Licznik drużyn na obrazku pokazywał
-zero przy turnieju, w którym były cztery drużyny. Znaczników Twittera nie było wcale, więc
-część komunikatorów pokazywała globalny opis marki zamiast turnieju. Osobno: nagłówek
-strony turnieju liczył wszystkie zgłoszenia, a pulpit organizatora tylko przyjęte, czyli
-kapitan i organizator widzieli dwie różne liczby o tym samym.
-
-ROZWIĄZANIE BOJO: opis linku powstaje z DANYCH turnieju (sport, liczba drużyn, wpisowe,
-start, miejsce), a pole „Opis" dochodzi jako drugie zdanie i tylko wtedy, gdy nie jest
-notatką techniczną. Licznik na obrazku liczy to samo co strona i jest zielony, bo
-policzalny stan ma w Bojo zarezerwowaną zieleń. Znaczniki Twittera powielają
-OpenGraph. Turniej bez podanego miejsca mówi o tym wprost szarym wierszem zamiast
-pomijać temat. Zegar meczu, którego nikt nie zakończył, przestaje pokazywać liczbę po
-przekroczeniu dwukrotności regulaminowego czasu. Nazwa drużyny na liście jest
-odnośnikiem do ekranu drużyny, a skład rozwija osobny przycisk.
-
-MECHANIKA: `lib/turniejOpis.ts` (`opisTurnieju()`, `opisNadajeSie()`), metadane
-w `app/turnieje/[id]/turniejMeta.ts`, obrazek w `app/turnieje/[id]/opengraph-image.tsx`.
-Przyczyną zera na obrazku był `select('*')` na `turniej_druzyny`: tabela ma grant
-KOLUMNOWY (migracja `145` nie wypuszcza anonowi telefonu i maila kapitana), więc gwiazdka
-kończyła się odmową dostępu, a `count ?? 0` zamieniało błąd w ciche zero. Zegar:
-`czasGry()` w `lib/turniejWynik.ts`.
