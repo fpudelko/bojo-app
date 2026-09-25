@@ -467,7 +467,9 @@ function NewEventForm() {
     // który wyglądał jak zaczęty od zera.
     const przejdzDoLogowania = () => {
       const cel = `${window.location.pathname}${window.location.search}`;
-      window.location.href = `/logowanie?next=${encodeURIComponent(cel)}`;
+      // `powod=kreator` — zdanie pod nagłówkiem logowania mówi nowemu
+      // organizatorowi, gdzie założyć konto (W-7).
+      window.location.href = `/logowanie?next=${encodeURIComponent(cel)}&powod=kreator`;
     };
     return (
       <div className="min-h-screen flex flex-col bg-canvas">

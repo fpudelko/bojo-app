@@ -453,6 +453,25 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-25 (3) — Zapis bez konta nie udaje, że nie jest skończony; zaproszenie do ekipy prowadzi do meczu
+
+PROBLEM: po zapisie na mecz bez konta Bojo pisało „Ostatni krok, 15 sekund”, więc gracz
+nie wiedział, czy jest zapisany. Nowy organizator, który na ekranie logowania wpisał
+e-mail i nowe hasło, dostawał samo „Nieprawidłowy e-mail lub hasło.”. Zaproszenie do
+ekipy (link `/g/…`) wymagało założenia konta, choć najbliższy mecz tej ekipy przyjmuje
+zapis bez konta.
+
+ROZWIĄZANIE BOJO: ekran po zapisie mówi „Zapis gotowy, organizator Cię widzi. Konto nie
+jest potrzebne”, a odrzucenie brzmi „Nie teraz, zostaję bez konta”. Przy złych danych
+logowania Bojo proponuje „Pierwszy raz tutaj? Załóż konto na ten adres”, a ekran
+logowania mówi organizatorowi z kreatora, gdzie założyć konto. Zaproszenie do ekipy ma
+przycisk „Zapisz się na ten mecz bez konta” przy najbliższym meczu; licznik miejsc nie
+liczy już obserwujących.
+
+MECHANIKA: `AuthForm.tsx` (`POWODY.kreator`, `POWODY.dolacz`, stała `BLAD_ZLE_DANE`
+z `lib/auth.tsx`), `app/g/[code]/ZaproszenieClient.tsx`, `lib/zajeteMiejsca.ts`.
+Szczegóły → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md), W-6…W-8.
+
 ### 2026-09-25 (2) — Gracz bez konta widzi numer BLIK i status swojej wpłaty
 
 PROBLEM: w meczu płatnym gracz, który zapisał się w Bojo bez konta (imię i e-mail),
@@ -662,29 +681,3 @@ Przyczyną zera na obrazku był `select('*')` na `turniej_druzyny`: tabela ma gr
 KOLUMNOWY (migracja `145` nie wypuszcza anonowi telefonu i maila kapitana), więc gwiazdka
 kończyła się odmową dostępu, a `count ?? 0` zamieniało błąd w ciche zero. Zegar:
 `czasGry()` w `lib/turniejWynik.ts`.
-
-### 2026-09-22 — Boisko potwierdzone przez graczy trafia do wyszukiwarki
-
-PROBLEM: katalog Bojo ma ponad 30 000 boisk, ale część z nich ma w bazie tylko tyle,
-ile było w OpenStreetMap, i te strony są celowo poza indeksem Google (`noindex`) — nie
-mają nic do powiedzenia ponad źródło. Bojo umie jednak dołożyć do obiektu fakt, którego
-nie ma nigdzie indziej: potwierdzenie od graczy, którzy tam byli („jest oświetlenie",
-„nawierzchnia to trawa"). Do tej pory takie potwierdzenie nie zmieniało nic dla
-widoczności: obiekt z dwoma potwierdzonymi faktami zostawał poza wyszukiwarką, bo
-mechanizm awansu znał tylko rozegrany mecz i komentarz.
-
-ROZWIĄZANIE BOJO: gdy dowolny fakt o boisku zbierze zgodne potwierdzenia od dwóch osób,
-strona tego boiska wchodzi do wyszukiwarki. Boisko, o którym gracze coś wiedzą, staje
-się znajdowalne; boisko, o którym Bojo nie ma nic własnego do powiedzenia, zostaje
-pinezką na mapie w aplikacji. Awans jest w jedną stronę: wycofanie głosu nie usuwa
-strony z wyszukiwarki.
-
-MECHANIKA: migracja `158` dokłada trzeci wyzwalacz promocji `seo_tier` obok tych
-z migracji `112` (mecz, komentarz). Warunek liczy się per para (fakt, wartość), więc
-„tak" od jednej osoby i „nie" od drugiej to spór, a nie potwierdzenie, i nie awansuje
-niczego. Próg to `QUORUM_POTWIERDZEN` z `lib/potwierdzeniaObiektu.ts`, ten sam, przy
-którym fakt pokazuje się człowiekowi na stronie i wchodzi do JSON-LD, żeby robot nigdy
-nie wyprzedzał tego, co widać. Wyzwalacz łapie `INSERT OR UPDATE`, bo zapis głosu to
-upsert. Migracja niesie backfill dla głosów zebranych od `123`. Progu indeksacji ani
-`oblicz_seo_tier()` nie rusza: indeks przez to wyłącznie rośnie. Test:
-`kworumPotwierdzen.test.ts`.

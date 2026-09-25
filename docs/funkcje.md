@@ -201,6 +201,14 @@ oddaje. Strona wpisu `/gracz/przejmij/[token]` (tu prowadzi „Mój zapis →”
 na stronie meczu: kwota po zniżce, sposób, numer BLIK od godziny przed startem, status
 wpłaty (gdy organizator go pokazuje). Rezerwa i poczekalnia karty nie widzą.
 
+**Ekran po zapisie gościa mówi, że zapis jest gotowy — od 2026-09-25 (W-6).** Podlinia
+okna „Świetnie! Jesteś w składzie.” brzmiała „Ostatni krok, 15 sekund, żeby nie stracić
+powiadomień o kolejnych meczach”, czyli sugerowała, że zapis nie jest skończony. Dziś:
+„Zapis gotowy, organizator Cię widzi. Konto nie jest potrzebne, a jeśli chcesz, zajmie
+15 sekund i daje:” (przy prośbie o akceptację: „Prośba dotarła do organizatora…”),
+a przycisk odrzucenia to „Nie teraz, zostaję bez konta”. Po udanym zapisie gościa nie
+wyskakuje już dymek (toast) z tym samym statusem, bo zasłaniał dolny przycisk okna.
+
 **Mechanika.** Funkcja RPC `dolacz_do_meczu_jako_goscie()` (migracja `082`, poprawiona
 migracją `083` — INSERT…RETURNING z jawnym prefiksem tabeli) w Supabase, wołana z
 `frontend/src/lib/events.ts` (`joinEventAsGuest()`, zwraca `claimToken` i `isReserve`;
@@ -2776,6 +2784,20 @@ Tło jest dekoracją i jest całkowicie bierne: `pointer-events-none`, `overflow
 byłoby błędem dostępności — czytnik ekranu ich nie widzi, ale Tab dalej w nie wchodzi.
 React 18 nie zna propa `inert` (doszedł w 19), więc atrybut ustawiany jest przez `ref`.
 
+**Zdanie pod nagłówkiem zależy od tego, skąd ktoś przyszedł** (`?powod=`, słownik
+`POWODY` w `AuthForm.tsx`): `alert` (zakładanie alertu), od 2026-09-25 także `kreator`
+(brama `/wydarzenia/nowe`: „Pierwszy raz? Najszybciej przez Google. E-mailem: «Załóż je»
+pod formularzem…”) i `dolacz` (pasek „Zaloguj się” na stronie meczu: „Po zalogowaniu
+wrócisz do meczu z otwartym oknem zapisu.”). Nieznany `powod` daje zdanie domyślne.
+
+**Złe dane przy logowaniu podpowiadają rejestrację — od 2026-09-25 (W-7,
+[faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md)).** Nowy organizator
+z bramy kreatora trafiał na tryb logowania, wpisywał e-mail i NOWE hasło i dostawał samo
+„Nieprawidłowy e-mail lub hasło.”. Dziś pod tym komunikatem stoi przycisk „Pierwszy raz
+tutaj? Załóż konto na ten adres”, który przełącza formularz na rejestrację z tym samym
+adresem. Rozpoznanie po stałej `BLAD_ZLE_DANE` z `lib/auth.tsx`; test:
+`__tests__/authForm.test.tsx`.
+
 ### Gdzie ląduje zalogowany
 
 Domyślny cel po zalogowaniu/rejestracji to **`/moje-gry`** — zakładka „Mecze"
@@ -3312,7 +3334,21 @@ z powrotem na `/grupy/[id]?dolacz=<kod>&od=<uuid>`) — dokładnie ta sama mięk
 co przejęcie wpisu gościa (`/gracz/przejmij/[token]?auto=1`). Zalogowany odwiedzający
 jest przekierowany od razu, bez migania tego widoku; `GroupDetailClient` widząc
 `?dolacz=` dołącza go kodem automatycznie (`dolacz_do_grupy_kodem()`, migracja `094`)
-i czyści adres. Stare linki `/grupy/[id]?join=1` (bez kodu) nadal się otwierają, ale
+i czyści adres.
+
+**Najbliższy mecz ekipy da się wziąć bez konta — od 2026-09-25 (W-8, decyzja
+właściciela D-1, [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md)).** Karta
+„Najbliższy mecz” na `/g/[kod]` ma przycisk „Zapisz się na ten mecz bez konta →”
+prowadzący na `/wydarzenia/{id}` (kanoniczny link meczu, działa też dla meczu
+prywatnego), gdzie działa zwykły zapis gościa. Wcześniej zaproszenie do ekipy wymagało
+konta, zanim ktokolwiek dowiedział się, jak zagrać w czwartek, choć sam mecz przyjmuje
+zapis bez niego. Formularz konta zostaje pod spodem i nadal jest głównym wezwaniem
+strony (konto = członkostwo w ekipie). Licznik „N/M miejsc” na tej karcie liczy przez
+`liczZajeteMiejsca()` (`lib/zajeteMiejsca.ts`): bez rezerwy, bez czekających i **bez
+obserwujących** (do tej zmiany ich doliczał); „dziś” to dzień w Polsce
+(`terazWPolsce()`), nie w UTC. Test: `__tests__/zaproszenieDoEkipy.test.tsx`.
+
+Stare linki `/grupy/[id]?join=1` (bez kodu) nadal się otwierają, ale
 pokazują komunikat, że trzeba poprosić o nowy — bez kodu dołączenie od tej migracji nie
 jest już możliwe (patrz niżej).
 
