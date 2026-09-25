@@ -14,6 +14,7 @@ import { timeUntil } from './EventListCard';
 import { isUpcoming } from './EventCard';
 import { withCount } from '@/lib/plural';
 import { plakietkaStanuZapisow, kolorPaskaStanuZapisow } from '@/lib/stanZapisow';
+import { usePoMontazu } from '@/lib/usePoMontazu';
 
 /**
  * Participation status → the bottom-right slot, where "Dołącz →" normally sits.
@@ -88,6 +89,14 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
   const color = sportColor(event.sport);
   const emoji = sportEmoji(event.sport);
   const router = useRouter();
+  // Etykiety WZGLĘDNE („Dzisiaj”, „Jutro”, „za 2 h”) zależą od „teraz” i od
+  // strefy czasowej. Karta renderuje się też na serwerze (sekcja „Możesz
+  // dołączyć już dziś” na stronie głównej), a serwer liczy w UTC — tekst
+  // różnił się od pierwszego renderu u gracza w Warszawie i React wyrzucał
+  // cały HTML strony głównej (W-3, docs/faza1-przejscie-e2e-plan.md). Do
+  // montażu karta pokazuje datę bezwzględną; na listach klienckich dane
+  // przychodzą i tak po montażu, więc tam nic się nie zmienia.
+  const poMontazu = usePoMontazu();
 
   // Plakietka prowadzi PROSTO do zakładki Rozmowa, nie do zakładki Mecz jak
   // reszta karty — zgłoszone wprost. Nie może być zagnieżdżonym <a> (cała
@@ -126,12 +135,12 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
     const now = new Date(); now.setHours(0, 0, 0, 0);
     const evDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const diff = Math.round((evDay.getTime() - now.getTime()) / 86400000);
-    if (diff === 0) dayLabel = 'Dzisiaj';
-    else if (diff === 1) dayLabel = 'Jutro';
+    if (poMontazu && diff === 0) dayLabel = 'Dzisiaj';
+    else if (poMontazu && diff === 1) dayLabel = 'Jutro';
     else dayLabel = format(d, 'EEE d MMM', { locale: pl });
   } catch { /* ignore */ }
   const timeLabel = event.time ? event.time.slice(0, 5) : '';
-  const until = timeUntil(event.date, event.time ?? undefined);
+  const until = poMontazu ? timeUntil(event.date, event.time ?? undefined) : null;
   const soon = until !== null;
   const cancelled = event.status === 'cancelled';
   const past = cancelled || !isUpcoming(event);

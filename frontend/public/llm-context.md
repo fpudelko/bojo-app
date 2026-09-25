@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-24 · migracja `162` · 62 tabel
+**Stan na:** 2026-09-25 · migracja `162` · 62 tabel
 
 ---
 
@@ -453,6 +453,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-25 — Pierwsza wizyta z linku: nic nie zasłania zapisu na mecz
+
+PROBLEM: gracz, który pierwszy raz otwierał link do meczu Bojo, po 6 sekundach
+dostawał baner o cookies przykrywający w całości przycisk „Dołącz bez konta". Świeży
+organizator logujący się linkiem z maila (nowa karta przeglądarki) dostawał nad
+kreatorem okno „Kim jesteś?", a gracz w tej samej sytuacji — nad oknem zapisu na mecz.
+Strona główna bojo.pl w polskiej strefie czasowej renderowała się dwa razy, a sekcja
+„Możesz dołączyć już dziś" pokazywała latem mecz jeszcze przez dwie godziny po starcie.
+
+ROZWIĄZANIE BOJO: baner o cookies czeka, aż człowiek wyjdzie z ekranu z własnym dolnym
+paskiem akcji (strona meczu przed zapisem, kreator), i pokazuje się na pierwszym
+zwykłym ekranie. Okno wyboru roli pokazuje się tylko na stronach ogólnych (strona
+główna, lista meczów, „Moje gry", mapa), nigdy nad kreatorem ani nad meczem. Strona
+główna liczy „czy mecz już się zaczął" w czasie polskim, a karty meczów pokazują
+„Dzisiaj"/„za 2 h" dopiero w przeglądarce.
+
+MECHANIKA: `useCookieBannerVisible()` (`lib/cookieConsent.ts`) czyta
+`useBottomNavHidden()`; `czyPokazacWyborRoli()` w `PostSignupRoleModal.tsx` sprawdza
+cel logowania i bieżącą ścieżkę; `lib/czasPolski.ts` (`terazWPolsce`,
+`czyPrzedStartemWPolsce`) i `lib/usePoMontazu.ts` dla `EventBrowseCard`. Szczegóły
+i uzasadnienie → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md), W-1…W-3.
+
 ### 2026-09-24 (2) — Prośba o inny wygląd strony turnieju idzie wprost z panelu
 
 PROBLEM: organizator, który chciał inny wygląd strony turnieju (kolory, układ,
@@ -668,31 +690,3 @@ MECHANIKA: `zajmujeMiejsce()` i `liczCzekajaceZgloszenia()` w `lib/turniejEtykie
 wspólne dla strony turnieju, kafelka listy i pulpitu organizatora (`lib/turniejPulpit.ts`).
 Kolumna `turnieje.min_druzyn` (migracja `157`) jest NULLowalna: NULL znaczy „organizator
 nie podał" i jest innym stanem niż zero.
-
-### 2026-09-21 — Strona boiska na bojo.pl nie kończy się ślepym zaułkiem
-
-PROBLEM: strona obiektu w katalogu Bojo (ponad 30 000 boisk) jest adresem, pod który
-trafia praktycznie cały ruch z wyszukiwarki. Kto wszedł z zapytania o nazwę boiska
-i nie zastał tam żadnego meczu, czytał zdanie „Brak nadchodzących meczów na tym
-boisku." i nie dostawał żadnego wyjścia. Jedyny przycisk na stronie, „Zorganizuj
-tutaj", prosi o najtrudniejszą rzecz w aplikacji i nie mówi, co robi: czyta się jak
-zobowiązanie do wynajęcia obiektu, a stoi przed kimś, kto nie wie jeszcze, czym Bojo
-jest. Alert o nowych meczach w okolicy istniał i miał trzy wejścia, wszystkie
-w miejscach, do których ten człowiek nie dociera.
-
-ROZWIĄZANIE BOJO: przy braku meczów strona obiektu proponuje „Powiadom mnie, gdy ktoś
-tu zagra" — alert wypełniony sportami i położeniem TEGO boiska, z promieniem 5 km.
-Pod przyciskiem „Zorganizuj tutaj" stoi zdanie mówiące, co się stanie: zakładasz mecz
-na tym boisku, wysyłasz ekipie jeden link, a gracze zapisują się bez zakładania konta.
-Alert wymaga konta, bo wisi na koncie; zamiar przeżywa logowanie i po powrocie okno
-otwiera się samo.
-
-MECHANIKA: `domyslneZObiektu()` w `lib/alerts.ts` składa ustawienia okna z wiersza
-obiektu i przepuszcza sporty przez `FOCUS_SPORTS` — `field.sport` pochodzi z importu
-OSM i niesie też wartości bez chipa w oknie (`wielofunkcyjne`, `inne`, `piłka ręczna`),
-które dałyby zaznaczenie niewidoczne i niemożliwe do odznaczenia; pusta tablica znaczy
-„dowolny sport". Okno (`AlertSetupDialog`) ładuje się dopiero na kliknięcie
-(`next/dynamic`, `ssr: false`), bo to najczęściej otwierany adres w serwisie.
-Ścieżka logowania ta sama co z listy meczów: `logowanieDlaAlertu()` i
-`zamiarAlertuZAdresu()`. Testy: `alertZObiektu.test.ts`.
-
