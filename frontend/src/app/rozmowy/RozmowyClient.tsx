@@ -111,14 +111,14 @@ export default function RozmowyClient() {
               value={szukane}
               onChange={(e) => setSzukane(e.target.value)}
               placeholder="Szukaj w rozmowach"
-              className="w-full rounded-full border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm text-ink placeholder:text-slate-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-slate-700 dark:bg-slate-800 dark:focus:ring-primary-900"
+              className="w-full rounded border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm text-ink placeholder:text-slate-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-slate-700 dark:bg-slate-800 dark:focus:ring-primary-900"
             />
             {szukane && (
               <button
                 type="button"
                 onClick={() => setSzukane('')}
                 aria-label="Wyczyść szukanie"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:text-slate-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -177,11 +177,11 @@ export default function RozmowyClient() {
             {wpisyPrzefiltrowane.map((w) => (
               <li key={`${w.typ}-${w.id}`}>
                 <Link href={w.href} className="flex min-h-[44px] items-center gap-3 py-3 active:opacity-70">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl dark:bg-slate-700" aria-hidden="true">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-slate-100 text-xl dark:bg-slate-700" aria-hidden="true">
                     {w.typ === 'mecz' ? '⚽' : w.typ === 'dm' ? (
                       /* Inicjał jak w bąbelkach czatu — rozmowa prywatna to
                          OSOBA, a nie „rzecz" z ikoną kategorii. */
-                      <span className="flex h-full w-full items-center justify-center rounded-full bg-primary-100 text-base font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                      <span className="flex h-full w-full items-center justify-center rounded bg-primary-100 text-base font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
                         {w.tytul.charAt(0).toUpperCase()}
                       </span>
                     ) : <UsersIcon className="h-5 w-5 text-slate-500 dark:text-slate-300" />}
@@ -209,7 +209,7 @@ export default function RozmowyClient() {
                     </span>
                   </span>
                   {w.ile > 0 ? (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 dark:bg-pink-950 dark:text-pink-300">
                       <MessageCircle className="h-3 w-3" /> {w.ile}
                     </span>
                   ) : (

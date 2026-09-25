@@ -71,7 +71,7 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, pr
     >
       <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
         <span>M{mecz.numer} · {FAZA_LABEL[mecz.faza]}</span>
-        <span className={`rounded-full px-2 py-0.5 font-medium ${status.ton}`}>{status.label}</span>
+        <span className={`rounded px-2 py-0.5 font-medium ${status.ton}`}>{status.label}</span>
       </div>
       <div className="mt-2 flex items-center justify-between gap-3">
         <span className={`min-w-0 flex-1 truncate text-sm ${tonDruzyny('a')}`}>{nazwaA}</span>

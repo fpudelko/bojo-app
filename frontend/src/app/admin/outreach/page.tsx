@@ -419,7 +419,7 @@ export default function OutreachPanel() {
             <AlertTriangle className="w-3.5 h-3.5" />
             Duplikaty kontaktu
             {suspiciousMap.size > 0 && (
-              <span className="ml-0.5 bg-amber-100 text-amber-700 text-xs font-bold px-1.5 py-0.5 rounded-full">{suspiciousMap.size}</span>
+              <span className="ml-0.5 bg-amber-100 text-amber-700 text-xs font-bold px-1.5 py-0.5 rounded">{suspiciousMap.size}</span>
             )}
           </label>
           {/* Count badge */}
@@ -440,7 +440,7 @@ export default function OutreachPanel() {
                   onClick={() => toggleData(key)}
                   aria-pressed={active}
                   className={[
-                    'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                    'px-2.5 py-1 rounded text-xs font-medium border transition-colors',
                     active
                       ? 'bg-primary-600 text-white border-primary-600'
                       : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400',

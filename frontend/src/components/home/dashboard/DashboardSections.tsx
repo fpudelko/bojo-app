@@ -28,7 +28,7 @@ export function SectionHeader({ title, href, count, subtitle, extra }: {
         <h2 className="text-base font-bold text-ink">
           {title}
           {count != null && count > 0 && (
-            <span className="ml-2 rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700">
+            <span className="ml-2 rounded border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700">
               {count}
             </span>
           )}
@@ -156,7 +156,7 @@ export function NastepneEdycjeSection({ pozycje }: {
                 {formatujTermin(p.data)} · {p.godzina.slice(0, 5)}
               </p>
             </div>
-            <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-400 dark:border-slate-600 dark:bg-slate-800">
+            <span className="shrink-0 rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-400 dark:border-slate-600 dark:bg-slate-800">
               {p.powstanieZa <= 0 ? 'powinien już istnieć' : `powstanie za ${withCount(p.powstanieZa, 'dzień', 'dni', 'dni')}`}
             </span>
           </Link>

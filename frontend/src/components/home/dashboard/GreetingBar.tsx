@@ -22,9 +22,9 @@ export default function GreetingBar() {
         <NotificationBell />
         <Link href="/profil" aria-label="Twój profil" className="shrink-0">
           {avatar ? (
-            <img src={avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+            <img src={avatar} alt="" className="h-10 w-10 rounded object-cover" />
           ) : (
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
+            <span className="flex h-10 w-10 items-center justify-center rounded bg-primary-50 text-sm font-bold text-primary-700">
               {initial}
             </span>
           )}

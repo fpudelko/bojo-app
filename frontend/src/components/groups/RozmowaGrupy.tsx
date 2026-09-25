@@ -188,7 +188,7 @@ export default function RozmowaGrupy({ groupId, permissions, klawiatura = false 
                 <div key={p.id}>
                   {nowyDzien && (
                     <div className="my-3 flex justify-center">
-                      <span className="rounded-full bg-slate-200/70 px-2.5 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                      <span className="rounded bg-slate-200/70 px-2.5 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                         {etykietaDniaCzatu(p.createdAt)}
                       </span>
                     </div>
@@ -200,7 +200,7 @@ export default function RozmowaGrupy({ groupId, permissions, klawiatura = false 
                         o tej samej szerokości, żeby lewy brzeg bąbelków został
                         równo w linii zamiast skakać. */}
                     {!wlasny && (koniecGrupy ? (
-                      <span className="mr-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300" aria-hidden="true">
+                      <span className="mr-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-primary-100 text-[11px] font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300" aria-hidden="true">
                         {p.userName.charAt(0).toUpperCase()}
                       </span>
                     ) : (
@@ -263,7 +263,7 @@ export default function RozmowaGrupy({ groupId, permissions, klawiatura = false 
             <button
               onClick={() => scrollDoDolu()}
               aria-label="Przewiń do najnowszych"
-              className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-600 shadow-md ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-600"
+              className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded bg-white text-slate-600 shadow-md ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-600"
             >
               <ArrowDown className="h-4 w-4" />
             </button>
@@ -288,7 +288,7 @@ export default function RozmowaGrupy({ groupId, permissions, klawiatura = false 
             onClick={handleAdd}
             disabled={busy || !body.trim()}
             aria-label="Wyślij"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-700 text-white transition hover:bg-primary-800 disabled:opacity-50"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-primary-700 text-white transition hover:bg-primary-800 disabled:opacity-50"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>

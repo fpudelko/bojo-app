@@ -161,7 +161,7 @@ function VenueCard({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photoSrc} alt="" className="w-full h-full object-cover" />
         )}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/60 rounded-full px-4 py-1 text-white text-xs font-semibold">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/60 rounded px-4 py-1 text-white text-xs font-semibold">
           {index + 1} / {total}
         </div>
         {venue.source && (
@@ -186,7 +186,7 @@ function VenueCard({
           <div className="flex items-start justify-between gap-2 mb-1">
             <h2 className="text-xl font-bold text-slate-900 leading-tight">{venue.name}</h2>
             {venue.venue_type && (
-              <span className="shrink-0 mt-0.5 rounded-full bg-primary-100 text-primary-700 px-2.5 py-0.5 text-xs font-semibold">
+              <span className="shrink-0 mt-0.5 rounded bg-primary-100 text-primary-700 px-2.5 py-0.5 text-xs font-semibold">
                 {VENUE_TYPE_LABELS[venue.venue_type] ?? venue.venue_type}
               </span>
             )}
@@ -200,7 +200,7 @@ function VenueCard({
         {/* Sports */}
         <div className="flex flex-wrap gap-1.5">
           {venue.sport.map((s) => (
-            <span key={s} className="inline-flex items-center gap-1 bg-slate-100 rounded-full px-2.5 py-1 text-sm font-medium text-slate-700">
+            <span key={s} className="inline-flex items-center gap-1 bg-slate-100 rounded px-2.5 py-1 text-sm font-medium text-slate-700">
               {sportEmoji(s)} {s}
             </span>
           ))}
@@ -362,7 +362,7 @@ export default function PrzegladPage() {
       {/* Back */}
       <div className="absolute top-3 left-3 z-10">
         <Link href="/admin/moderacja"
-          className="inline-flex items-center gap-1 rounded-full bg-black/50 text-white text-xs px-3 py-1.5 hover:bg-black/70">
+          className="inline-flex items-center gap-1 rounded bg-black/50 text-white text-xs px-3 py-1.5 hover:bg-black/70">
           <ChevronLeft className="w-3.5 h-3.5" /> Wróć
         </Link>
       </div>

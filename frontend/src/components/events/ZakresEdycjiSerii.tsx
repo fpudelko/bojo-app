@@ -84,7 +84,7 @@ export default function ZakresEdycjiSerii({
                     ].join(' ')}
                     aria-hidden="true"
                   >
-                    {aktywna && <span className="h-2 w-2 rounded-full bg-primary-600" />}
+                    {aktywna && <span className="h-2 w-2 rounded bg-primary-600" />}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline gap-2">

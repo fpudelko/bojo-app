@@ -37,6 +37,47 @@ w `robots.ts`. Pilnuje tego `npm run check:docs` (sekcja 2).
 
 ---
 
+## Wygląd (redesign 2026-09)
+
+Właściciel zgłosił wprost, że aplikacja „wygląda na wygenerowaną przez AI”. Wybrał
+jeden z czterech kierunków pokazanych na makietach: jasny, płaski, kanciasty
+(„D, tryb jasny”). Wdrożenie idzie od tokenów, nie od ekranów, więc zmienia całą
+aplikację naraz, a ręcznie przerobione są tylko trzy miejsca, na których zależało
+najbardziej.
+
+**Tokeny (`frontend/tailwind.config.ts`, `app/globals.css`):**
+
+| Co | Było | Jest | Dlaczego tak |
+|---|---|---|---|
+| Krój | Inter + Bricolage Grotesque | Geist (sans + mono), paczka `geist` | jedna rodzina, hierarchia z rozmiaru i wagi; Next 14.2 nie ma Geist w liście Google Fonts |
+| Szarości | domyślny `slate` Tailwinda | `slate` nadpisany odcieniami z nutą zieleni | nazwa klasy zostaje (~4000 użyć i reguły trybu ciemnego), zmienia się odcień |
+| Zaokrąglenia | `xl`/`2xl` = 12–16 px | każdy stopień 2–4 px, `full` bez zmian | kanciasto; ~650 klas zostaje nietkniętych |
+| Pigułki | `rounded-full` | `rounded` (2 px) | skrypt jednorazowy; przełączniki, radia, spinnery i znaczniki na boisku taktyki zostały okrągłe |
+| Cienie | `shadow-sm` na każdej karcie | `sm`, domyślny i `card` = brak | hierarchię budują linie i odstępy; `md` i wyżej zostają dla warstw nad treścią |
+| Tło strony | kremowe `#FAF9F6` | białe | karty przestały być wyspami na tle |
+| Tryb ciemny | granatowy | prawie czarny z nutą zieleni | zgodny z odcieniem jasnego |
+
+**Ręcznie przerobione:**
+
+- **Strona meczu** (`EventDetailClient.tsx`): pas na górze z godziną i ceną dużym
+  krojem, miejsce jako wiersz listy z ikoną nawigacji, licznik bez karty z paskiem
+  z odcinków (jeden na miejsce do 24 miejsc, powyżej ciągły), skład rozwinięty od
+  wejścia (`rosterOpen` startuje jako `true`), „O meczu”, „Zaproś”, „Co Bojo zrobi
+  za Ciebie” i „Organizator” jako płaskie sekcje. Przycisk zapisu: zielony
+  „Dołącz · 15 zł” zamiast bursztynowego „Dołącz →”. Cena przed startem meczu nie
+  stoi już w rzędzie pigułek (jest w pasie), po starcie pigułka pokazuje stan
+  rozliczenia jak wcześniej. Scenariusze łapią licznik po `data-licznik-miejsc`,
+  nie po klasie `rounded-2xl`.
+- **Lista meczów** (`EventBrowseCard.tsx`): wiersz „godzina i dzień | nazwa
+  i miejsce | wolne miejsca, liczba graczy, cena”, bez emoji sportu, kolorowej
+  krawędzi i paska postępu. Właściciel: „bez zdjęć i ikon”.
+- **Profil** (`app/profil/page.tsx` i komponenty ustawień): zgrupowane sekcje
+  pełnej szerokości zamiast ośmiu osobnych kart.
+
+Znaczenia kolorów z AGENTS.md (różowy, niebieski, pomarańczowy, szary) nie zmieniły
+się. Nietknięte świadomie: strona główna dla niezalogowanych (gradient, bursztynowy
+przycisk) i kreator; to kolejne kroki, jeśli kierunek się sprawdzi.
+
 ## Gdzie jest spis tras
 
 Celowo nie utrzymujemy tu inwentarza tras i komponentów — agent znajdzie je szybciej

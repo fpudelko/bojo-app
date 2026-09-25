@@ -192,13 +192,13 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Header showMobileWordmark />
-      <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8 space-y-4">
+      <main className="flex-1 max-w-lg mx-auto w-full px-4 py-6">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Profil</h1>
 
         {/* Nawigacja — dawniej częściowo w hamburgerze (Header.tsx); mobile
             straciło ten hamburger dla zalogowanych, więc "Moje statystyki"
             i "Moje obiekty" mają tu swój jedyny dom. */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-100 overflow-hidden">
+        <div className="-mx-4 mt-4 border-y border-slate-200 bg-white divide-y divide-slate-200 overflow-hidden dark:border-slate-700">
           <Link
             href={`/gracz/${user.id}`}
             className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors"
@@ -230,13 +230,13 @@ export default function ProfilePage() {
         </div>
 
         {/* Identity card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-5">
+        <div className="-mx-4 border-b border-slate-200 bg-white px-4 py-5 space-y-5 dark:border-slate-700">
           {/* Avatar */}
           <div className="flex flex-col items-center gap-2">
             {currentAvatarUrl ? (
-              <img src={currentAvatarUrl} alt="Awatar" className="w-14 h-14 rounded-full object-cover" />
+              <img src={currentAvatarUrl} alt="Awatar" className="w-14 h-14 rounded object-cover" />
             ) : (
-              <div className="w-14 h-14 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-2xl font-bold shrink-0">
+              <div className="w-14 h-14 rounded bg-primary-100 text-primary-700 flex items-center justify-center text-2xl font-bold shrink-0">
                 {currentName.charAt(0).toUpperCase()}
               </div>
             )}
@@ -298,7 +298,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Phone with consent */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
+        <div className="-mx-4 border-b border-slate-200 bg-white px-4 py-5 space-y-4 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <Phone className="w-4 h-4 text-slate-400" />
             <h2 className="text-sm font-semibold text-slate-900">Numer telefonu</h2>
@@ -357,7 +357,7 @@ export default function ProfilePage() {
 
         {/* Wygląd — przeniesione z Header.tsx (mobile straciło hamburger) */}
         {mounted && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+          <div className="-mx-4 border-b border-slate-200 bg-white p-4 dark:border-slate-700">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {resolvedTheme === 'dark' ? <Moon className="w-4 h-4 text-slate-400" /> : <Sun className="w-4 h-4 text-slate-400" />}
@@ -378,7 +378,7 @@ export default function ProfilePage() {
             nadal NIE MA JEJ na ekranach, na których coś realnie pada: strona
             meczu, moje gry, mapa. Profil jest jedynym miejscem, do którego
             zalogowany trafia z każdego z nich. */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white dark:border-slate-700/80 dark:bg-slate-800">
+        <div className="-mx-4 border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
           <Link
             href="/zglos-blad"
             className="flex items-center justify-between gap-3 px-4 py-3.5 text-sm font-medium text-ink dark:text-slate-100"
@@ -398,7 +398,7 @@ export default function ProfilePage() {
             wejście w ustawienia ma od razu pokazać tę kartę, a nie górę profilu,
             z której trzeba jej dopiero szukać. `scroll-mt` odsuwa ją spod
             przyklejonego nagłówka — bez tego kotwica ląduje pod paskiem. */}
-        <div id="powiadomienia" className="scroll-mt-20 space-y-4">
+        <div id="powiadomienia" className="scroll-mt-20">
           <PowiadomieniaPush />
           {/* Poczta OSOBNO i BEZ warunku na zgodę przeglądarki — patrz
               `UstawieniaMaili`. Pod tą samą kotwicą `#powiadomienia`, bo to
@@ -416,7 +416,7 @@ export default function ProfilePage() {
         {/* Panel administratora — przeniesione z Header.tsx (mobile straciło
             hamburger; desktop nadal ma osobne menu z zębatką w Header.tsx) */}
         {isAdmin && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-100 overflow-hidden">
+          <div className="-mx-4 border-b border-slate-200 bg-white divide-y divide-slate-200 overflow-hidden dark:border-slate-700">
             <div className="px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Panel administratora</p>
             </div>
@@ -435,7 +435,7 @@ export default function ProfilePage() {
         )}
 
         {/* Sign out */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+        <div className="-mx-4 border-b border-slate-200 bg-white p-4 dark:border-slate-700">
           <button
             onClick={() => signOut()}
             className="w-full flex items-center gap-2 text-sm text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg px-3 py-2 transition-colors"
@@ -464,7 +464,7 @@ export default function ProfilePage() {
             /* Po rozwinięciu skutki są opisane WPROST, zanim pojawi się
                przycisk potwierdzenia — dyskretne wejście nie może znaczyć
                „łatwiej zrobić to nieświadomie". */
-            <div className="rounded-2xl border border-red-100 bg-white p-5 dark:border-red-900/40 dark:bg-slate-800">
+            <div className="-mx-4 border-b border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
               <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-red-700">
                 <AlertTriangle className="h-4 w-4" /> Usunięcie konta
               </h2>

@@ -51,7 +51,7 @@ function CallbackInner() {
   if (failed) {
     return (
       <div className="text-center max-w-sm">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded bg-amber-50">
           <AlertCircle className="h-6 w-6 text-amber-600" />
         </div>
         <h1 className="font-display text-xl font-bold text-ink">Link wygasł lub jest nieprawidłowy</h1>

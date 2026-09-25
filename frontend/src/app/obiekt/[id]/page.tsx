@@ -141,7 +141,7 @@ export default function VenueDashboardPage() {
             {field.sport.map((s) => (
               <span
                 key={s}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 text-xs font-medium"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white border border-slate-200 text-slate-600 text-xs font-medium"
               >
                 {sportEmoji(s)} {s}
               </span>

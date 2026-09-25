@@ -54,7 +54,7 @@ function tabButtonCls(active: boolean) {
 function PlakietkaZakladki({ ile }: { ile: number }) {
   if (ile <= 0) return null;
   return (
-    <span className="absolute -top-0.5 right-0 rounded-full bg-primary-700 px-1.5 text-[10px] font-bold leading-[15px] text-white tabular-nums">
+    <span className="absolute -top-0.5 right-0 rounded bg-primary-700 px-1.5 text-[10px] font-bold leading-[15px] text-white tabular-nums">
       {ile > 9 ? '9+' : ile}
     </span>
   );
@@ -374,7 +374,7 @@ function MojeGryContent() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div>
               {observing.map(({ event, relation }) => (
                 <EventBrowseCard key={event.id} event={event} relation={relation} />
               ))}
@@ -398,7 +398,7 @@ function MojeGryContent() {
                   Ustawienia (`EventDetailClient.tsx`) albo przycisku
                   „Powtórz" w karcie „Po meczu" (`PoMeczuCard.tsx`). Usunięte
                   po zgłoszeniu z sesji UX 2026-09-13 (cofa `O-40`). */}
-              <div className="space-y-3">
+              <div>
                 {history.map(({ event, relation }) => (
                   <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent[event.id]} />
                 ))}

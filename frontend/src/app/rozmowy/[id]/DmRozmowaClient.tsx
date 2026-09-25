@@ -171,7 +171,7 @@ export default function DmRozmowaClient() {
             type="button"
             onClick={wstecz}
             aria-label="Wróć"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -187,7 +187,7 @@ export default function DmRozmowaClient() {
                 onClick={() => setMenuOtwarte((v) => !v)}
                 aria-label="Więcej"
                 aria-expanded={menuOtwarte}
-                className="flex h-11 w-11 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="flex h-11 w-11 items-center justify-center rounded text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <MoreVertical className="h-5 w-5" />
               </button>
@@ -258,14 +258,14 @@ export default function DmRozmowaClient() {
                 <div key={w.id}>
                   {nowyDzien && (
                     <div className="my-3 flex justify-center">
-                      <span className="rounded-full bg-slate-200/70 px-2.5 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                      <span className="rounded bg-slate-200/70 px-2.5 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                         {etykietaDniaCzatu(w.createdAt)}
                       </span>
                     </div>
                   )}
                   <div className={`flex items-end ${wlasny ? 'justify-end' : 'justify-start'} ${tenSamNadawca ? 'mt-0.5' : 'mt-2.5'}`}>
                     {!wlasny && (koniecGrupy ? (
-                      <span className="mr-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300" aria-hidden="true">
+                      <span className="mr-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-primary-100 text-[11px] font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300" aria-hidden="true">
                         {w.nadawcaNazwa.charAt(0).toUpperCase()}
                       </span>
                     ) : (
@@ -336,7 +336,7 @@ export default function DmRozmowaClient() {
                 onClick={wyslij}
                 disabled={!tekst.trim() || wysylanie}
                 aria-label="Wyślij wiadomość"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-700 text-white shadow-sm transition hover:bg-primary-800 disabled:opacity-40"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-primary-700 text-white shadow-sm transition hover:bg-primary-800 disabled:opacity-40"
               >
                 {wysylanie ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </button>

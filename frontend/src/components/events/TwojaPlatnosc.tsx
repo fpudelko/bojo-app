@@ -77,11 +77,11 @@ export default function TwojaPlatnosc({
       {pokazStatus && (
         <div className="mt-4 pt-4 border-t border-slate-100">
           {oplacone ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+            <span className="inline-flex items-center gap-1.5 rounded bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
               <Check className="w-3.5 h-3.5" strokeWidth={2.25} /> Opłacone
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+            <span className="inline-flex items-center gap-1.5 rounded bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
               <Clock className="w-3.5 h-3.5" strokeWidth={2.25} /> Jeszcze nieopłacone
             </span>
           )}

@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
             <div className="flex justify-center py-6 text-slate-400"><Loader2 className="h-5 w-5 animate-spin" /></div>
           ) : done ? (
             <div className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-50">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded bg-green-50">
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
               </div>
               <h1 className="font-display text-xl font-bold text-ink">Hasło zmienione</h1>

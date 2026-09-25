@@ -37,7 +37,7 @@ function ProposalPreview({
         { label: 'Czerwoni', players: teamB, cls: 'bg-red-50 text-red-700' },
       ].map(({ label, players, cls }) => (
         <div key={label} className="rounded-xl border border-slate-100 p-2">
-          <p className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${cls}`}>
+          <p className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${cls}`}>
             {label} · {players.length}
           </p>
           <ul className="mt-1 space-y-0.5">
@@ -164,7 +164,7 @@ export default function TeamProposals({
               <Users className="w-4 h-4 text-slate-400" />
               Propozycje składów
               {proposals.length > 0 && (
-                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600">
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600">
                   {proposals.length}
                 </span>
               )}
@@ -196,7 +196,7 @@ export default function TeamProposals({
                     <p className="min-w-0 truncate text-sm font-medium text-ink">
                       {pr.authorName}
                       {pr.status === 'accepted' && (
-                        <span className="ml-2 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                        <span className="ml-2 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
                           zatwierdzona
                         </span>
                       )}
@@ -211,7 +211,7 @@ export default function TeamProposals({
                       <button
                         onClick={() => (pr.votedByMe ? onUnvote(pr.id) : onVote(pr.id))}
                         disabled={busy}
-                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                        className={`inline-flex items-center gap-1 rounded border px-2.5 py-1 text-xs font-semibold transition ${
                           pr.votedByMe
                             ? 'border-primary-200 bg-primary-50 text-primary-700'
                             : 'border-slate-200 text-slate-500 hover:bg-slate-50'
@@ -222,7 +222,7 @@ export default function TeamProposals({
                       </button>
                       ) : (
                         <span
-                          className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-400"
+                          className="inline-flex items-center gap-1 rounded border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-400"
                           title="Popierać mogą gracze tego meczu"
                         >
                           <ThumbsUp className="h-3.5 w-3.5" /> {pr.voteCount}

@@ -187,7 +187,7 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
   if (info && (mode === 'magic' || mode === 'reset' || mode === 'signup')) {
     return (
       <div className="text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-50">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded bg-green-50">
           <CheckCircle2 className="h-6 w-6 text-green-600" />
         </div>
         <h2 className="font-display text-xl font-bold text-ink">Sprawdź pocztę</h2>

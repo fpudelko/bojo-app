@@ -131,14 +131,14 @@ export default function ZachetaInstalacji() {
         {/* Uchwyt jak w każdym arkuszu systemowym — sam kształt mówi „to się
           * zamyka w dół", zanim ktokolwiek poszuka krzyżyka. */}
         <div className="flex justify-center pt-2.5">
-          <span className="h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-600" />
+          <span className="h-1 w-10 rounded bg-slate-300 dark:bg-slate-600" />
         </div>
 
         <button
           type="button"
           onClick={zamknij}
           aria-label="Nie teraz"
-          className="absolute right-3 top-3 rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+          className="absolute right-3 top-3 rounded p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
         >
           <X className="h-4 w-4" strokeWidth={2.5} />
         </button>

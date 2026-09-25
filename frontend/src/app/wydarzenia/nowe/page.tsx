@@ -571,7 +571,7 @@ function NewEventForm() {
                   <p className="text-sm font-medium text-slate-900">Lista rezerwowa</p>
                   <p className="text-xs text-slate-500">Przy komplecie kolejni czekają w kolejce.</p>
                 </div>
-                <div className="h-5 w-9 shrink-0 rounded-full bg-primary-600" />
+                <div className="h-5 w-9 shrink-0 rounded bg-primary-600" />
               </div>
 
               <div className="flex h-11 items-center justify-center rounded-xl bg-primary-700 text-sm font-semibold text-white">
@@ -842,7 +842,7 @@ function NewEventForm() {
                 aria-current={current ? 'step' : undefined}
                 aria-label={`Krok ${n}: ${STEP_TITLES[n - 1]}`}
                 className={clsx(
-                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all',
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded text-sm font-bold transition-all',
                   'focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2',
                   (current || done) && 'bg-primary-700 text-white',
                   current && 'ring-4 ring-primary-100 dark:ring-primary-900',

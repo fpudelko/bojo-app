@@ -307,7 +307,7 @@ export default function TaktykaDruzyny({
               type="button"
               onClick={() => zmienSchemat(u.schemat)}
               title={u.opis}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition ${
+              className={`shrink-0 rounded border px-3 py-1.5 text-[13px] font-semibold transition ${
                 aktualnySchemat === u.schemat
                   ? 'border-primary-700 bg-primary-50 text-primary-700'
                   : 'border-slate-200 bg-white text-slate-600'
@@ -425,7 +425,7 @@ export default function TaktykaDruzyny({
                   return setWybranyGracz(wybranyGracz === g.id ? null : g.id);
                 }}
                 disabled={!mozeEdytowac}
-                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition disabled:cursor-default ${
+                className={`rounded border px-2.5 py-1 text-xs font-medium transition disabled:cursor-default ${
                   wybranyGracz === g.id
                     ? 'border-accent-500 bg-accent-400 text-primary-950'
                     : wybranySlot === null
@@ -461,7 +461,7 @@ export default function TaktykaDruzyny({
                     type="button"
                     onClick={() => zmienTaktyke(klucz, o.wartosc)}
                     title={o.opis}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                    className={`rounded border px-2.5 py-1 text-xs font-semibold transition ${
                       taktyka[klucz] === o.wartosc
                         ? 'border-primary-700 bg-primary-50 text-primary-700'
                         : 'border-slate-200 bg-white text-slate-500'
@@ -582,7 +582,7 @@ export default function TaktykaDruzyny({
             onClick={wyslij}
             disabled={!tresc.trim() || wysylanie}
             aria-label="Wyślij"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-700 text-white disabled:opacity-40"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-primary-700 text-white disabled:opacity-40"
           >
             {wysylanie ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>

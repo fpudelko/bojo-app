@@ -543,7 +543,7 @@ export default function GroupDetailClient() {
                   {value === 'sklad' && <span className="ml-1.5 text-xs font-normal text-slate-400">{memberCount}</span>}
                   {/* Różowy = zawsze wiadomości w tej apce (patrz AGENTS.md, Konwencje). */}
                   {value === 'tablica' && nieprzeczytaneN > 0 && (
-                    <span className="ml-1.5 rounded-full bg-pink-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneN}</span>
+                    <span className="ml-1.5 rounded bg-pink-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{nieprzeczytaneN}</span>
                   )}
                 </button>
               ))}

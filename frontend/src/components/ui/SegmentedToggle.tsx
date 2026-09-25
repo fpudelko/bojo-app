@@ -47,12 +47,12 @@ export default function SegmentedToggle<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="relative grid shrink-0 grid-cols-2 rounded-full border border-slate-200 bg-white p-0.5 shadow-md"
+      className="relative grid shrink-0 grid-cols-2 rounded border border-slate-200 bg-white p-0.5 shadow-md"
     >
       <span
         aria-hidden="true"
         className={clsx(
-          'pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-primary-50 ring-2 ring-primary-700 transition-transform duration-200 ease-out',
+          'pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded bg-primary-50 ring-2 ring-primary-700 transition-transform duration-200 ease-out',
           drugaAktywna && 'translate-x-full',
         )}
       />
@@ -69,7 +69,7 @@ export default function SegmentedToggle<T extends string>({
           title={zIkonami ? o.label : undefined}
           onClick={() => onChange(o.value)}
           className={clsx(
-            'relative z-10 flex items-center justify-center whitespace-nowrap rounded-full font-medium transition-colors',
+            'relative z-10 flex items-center justify-center whitespace-nowrap rounded font-medium transition-colors',
             zIkonami
               ? 'h-9 w-9'
               : maly ? 'px-2.5 py-1 text-[12px]' : 'px-3 py-1.5 text-[13px]',

@@ -127,7 +127,7 @@ export default function OdpowiedzJednymKlikiem({
         type="button"
         onClick={(e) => wykonaj('gram', e)}
         disabled={!!busy}
-        className={`inline-flex items-center gap-1 rounded-full bg-primary-700 font-bold text-white transition hover:bg-primary-800 disabled:opacity-60 ${rozmiar}`}
+        className={`inline-flex items-center gap-1 rounded bg-primary-700 font-bold text-white transition hover:bg-primary-800 disabled:opacity-60 ${rozmiar}`}
       >
         {busy === 'gram' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
         Gram
@@ -138,7 +138,7 @@ export default function OdpowiedzJednymKlikiem({
         disabled={!!busy}
         aria-label="Nie gram"
         title="Nie gram"
-        className={`inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white font-semibold text-slate-500 transition hover:border-red-200 hover:text-red-600 disabled:opacity-60 ${rozmiar}`}
+        className={`inline-flex items-center gap-1 rounded border border-slate-200 bg-white font-semibold text-slate-500 transition hover:border-red-200 hover:text-red-600 disabled:opacity-60 ${rozmiar}`}
       >
         {busy === 'nie-gram' ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
       </button>

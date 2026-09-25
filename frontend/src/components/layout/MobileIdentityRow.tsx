@@ -22,9 +22,9 @@ export default function MobileIdentityRow() {
       <NotificationBell />
       <Link href="/profil" aria-label="Twój profil" className="shrink-0">
         {userAvatar ? (
-          <img src={userAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+          <img src={userAvatar} alt="" className="h-8 w-8 rounded object-cover" />
         ) : (
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700">
+          <span className="flex h-8 w-8 items-center justify-center rounded bg-primary-50 text-xs font-bold text-primary-700">
             {displayName(user).charAt(0).toUpperCase()}
           </span>
         )}

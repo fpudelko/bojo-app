@@ -4,16 +4,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Clock, MapPin, Crown, MessageCircle } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import type { EventItem } from '@/types';
 import type { MyEventStatus, MyEventRelation } from '@/lib/events';
-import { sportEmoji, sportColor } from '@/lib/sports';
 import { eventLocation } from '@/lib/utils';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { timeUntil } from './EventListCard';
 import { isUpcoming } from './EventCard';
 import { withCount } from '@/lib/plural';
-import { plakietkaStanuZapisow, kolorPaskaStanuZapisow } from '@/lib/stanZapisow';
+import { plakietkaStanuZapisow } from '@/lib/stanZapisow';
 import { usePoMontazu } from '@/lib/usePoMontazu';
 
 /**
@@ -34,7 +33,7 @@ import { usePoMontazu } from '@/lib/usePoMontazu';
 // w składzie nie jest żadnym z nich — to stan, tak samo jak zielony licznik
 // nadchodzących meczów na ikonie „Mecze" (AGENTS.md, Konwencje).
 const STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: string }>> = {
-  playing:   { label: 'Grasz ✓',              cls: 'bg-primary-700 text-white border-primary-700' },
+  playing:   { label: 'Grasz',              cls: 'bg-primary-700 text-white border-primary-700' },
   reserve:   { label: 'Rezerwa',              cls: 'bg-slate-100 text-slate-600 border-slate-200' },
   observing: { label: 'Obserwujesz',          cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   pending:   { label: 'Czeka na akceptację',  cls: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -50,7 +49,7 @@ const PAST_STATUS_CHIP: Partial<Record<MyEventStatus, { label: string; cls: stri
   pending:   { label: 'Nie zaakceptowano', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
 
-/** Compact list-view card with left sport-color border accent. Used on /wydarzenia. */
+/** Compact list row (time | what & where | spots). Used on /wydarzenia and other match lists. */
 export function EventBrowseCard({ event, distance, relation, unreadMessages, isNew, odznakiOrganizatora }: {
   event: EventItem; distance?: number; relation?: MyEventRelation;
   /** Nieprzeczytane wiadomości w rozmowie tego meczu — wyłącznie dla kogoś,
@@ -86,8 +85,6 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
   const ilePrósb = relation?.isOrganizer && odznakiOrganizatora
     ? (event.pendingApprovalCount ?? 0)
     : 0;
-  const color = sportColor(event.sport);
-  const emoji = sportEmoji(event.sport);
   const router = useRouter();
   // Etykiety WZGLĘDNE („Dzisiaj”, „Jutro”, „za 2 h”) zależą od „teraz” i od
   // strefy czasowej. Karta renderuje się też na serwerze (sekcja „Możesz
@@ -114,7 +111,7 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
       aria-label={`Otwórz rozmowę: ${withCount(unreadMessages!, 'nieprzeczytana wiadomość', 'nieprzeczytane wiadomości', 'nieprzeczytanych wiadomości')}`}
       onClick={idzDoRozmowy}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') idzDoRozmowy(e); }}
-      className="inline-flex cursor-pointer items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 transition-colors hover:bg-pink-200 dark:bg-pink-950 dark:text-pink-300"
+      className="inline-flex cursor-pointer items-center gap-1 rounded bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700 transition-colors hover:bg-pink-200 dark:bg-pink-950 dark:text-pink-300"
     >
       <MessageCircle className="h-3 w-3" /> {unreadMessages}
     </span>
@@ -124,10 +121,8 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
   const taken = event.participantsCount ?? 0;
   const left = max > 0 ? Math.max(0, max - taken) : 0;
   const full = max > 0 && taken >= max;
-  const pct = max > 0 ? Math.min(100, Math.round((taken / max) * 100)) : 0;
   // Zamknięte zapisy wygrywają z kompletem — uzasadnienie w `lib/stanZapisow.ts`.
   const stanZapisow = plakietkaStanuZapisow(event.zapisyZamkniete, full);
-  const barColor = kolorPaskaStanuZapisow(event.zapisyZamkniete, full, color);
 
   let dayLabel = '';
   try {
@@ -141,7 +136,6 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
   } catch { /* ignore */ }
   const timeLabel = event.time ? event.time.slice(0, 5) : '';
   const until = poMontazu ? timeUntil(event.date, event.time ?? undefined) : null;
-  const soon = until !== null;
   const cancelled = event.status === 'cancelled';
   const past = cancelled || !isUpcoming(event);
   const statusChip = relation ? (past ? PAST_STATUS_CHIP : STATUS_CHIP)[relation.status] : undefined;
@@ -184,202 +178,110 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
   // żeby jedna wypierała drugą.
   const gram = !past && relation?.status === 'playing';
 
+  // WIERSZ LISTY, NIE KARTA (redesign 2026-09). Wcześniej: zaokrąglona karta
+  // z cieniem, kolorowa lewa krawędź, emoji sportu w kafelku i pasek postępu.
+  // Właściciel zgłosił wprost, że ramki zjadają miejsce, a obrazki i ikony na
+  // liście są zbędne. Układ jak w tabeli: godzina | co i gdzie | ile miejsc.
+  // Zieleń dla „gram" i kolory zarezerwowane (różowy, niebieski, pomarańczowy)
+  // zostają z tymi samymi znaczeniami.
+  const wolneKolor = full ? 'text-blue-700 dark:text-blue-300' : left <= 2 ? 'text-amber-600' : 'text-primary-700';
   return (
     <Link
       href={`/wydarzenia/${event.id}`}
-      className={`flex overflow-hidden rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 transition-shadow active:scale-[0.995] ${
-        gram
-          ? 'bg-primary-50/60 ring-primary-200 dark:bg-primary-950/40 dark:ring-primary-800'
-          : 'bg-white ring-slate-100 dark:bg-slate-800 dark:ring-slate-700'
-      } ${past ? 'opacity-60' : 'hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)]'}`}
-      style={{ borderLeft: `4px solid ${past ? '#94a3b8' : color}` }}
+      className={`grid grid-cols-[4.5rem_minmax(0,1fr)_auto] gap-3 border-b border-slate-200 py-3.5 transition-colors dark:border-slate-700 ${
+        gram ? '-mx-2 rounded bg-primary-50/70 px-2 dark:bg-primary-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+      } ${past ? 'opacity-60' : ''}`}
     >
-      {/* min-w-0: without it this flex item refuses to shrink below its
-          content width, a long title stretches the row and the badges on
-          the right get clipped by the card's overflow-hidden. */}
-      <div className="min-w-0 flex-1 p-3">
-        {/* top: icon + title + price */}
-        <div className="flex items-start gap-2.5">
-          <div
-            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl"
-            style={{ backgroundColor: `${color}1a`, boxShadow: `inset 0 0 0 1px ${color}33` }}
-            aria-hidden="true"
-          >
-            {emoji}
-            {isNew && (
-              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-800" />
-            )}
-          </div>
+      {/* KIEDY */}
+      <div className="min-w-0 pt-px">
+        <span className="flex items-center gap-1 text-[15px] font-medium tabular-nums text-ink">
+          {timeLabel || '–'}
+          {isNew && (
+            <span className="h-1.5 w-1.5 shrink-0 bg-orange-500" aria-label="nowy mecz" />
+          )}
+        </span>
+        <span className="block whitespace-nowrap text-xs text-slate-500 first-letter:uppercase dark:text-slate-400">{dayLabel}</span>
+      </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              {/* `line-clamp-2`, nie `truncate`: plakietki obok są `shrink-0`,
-                  więc na 390 px tytułowi zostawało ~150 px i „Czwartkowa
-                  gierka" wychodziło jako „Czwartkowa …". Dwie linie mieszczą
-                  normalną nazwę w całości, a bardzo długą ucinają dopiero
-                  wtedy, gdy naprawdę nie ma jej gdzie zmieścić. */}
-              <h3 className="min-w-0 flex-1 text-sm font-bold leading-tight text-ink line-clamp-2">{title}</h3>
-              <div className="shrink-0 flex items-center gap-2">
-                {!past ? (
-                  <>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                      free ? 'bg-green-50 text-green-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      {priceLabel}
-                    </span>
-                    {/* Konkretna liczba próśb WYPIERA ogólne „Wymaga
-                        akceptacji": ta sama niebieska barwa (AGENTS.md:
-                        niebieski = „wymaga akceptacji uczestnictwa"), tylko
-                        zdanie mocniejsze — „2 prośby" znaczy „czekają na
-                        CIEBIE", a nie „ten mecz ma taki tryb zapisu".
-                        Najwyżej JEDNA z tych dwóch naraz, więc rząd tytułu
-                        niesie tyle samo plakietek co zawsze. */}
-                    {ilePrósb > 0 ? (
-                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
-                        {withCount(ilePrósb, 'prośba', 'prośby', 'próśb')}
-                      </span>
-                    ) : event.requireApproval && (
-                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
-                        Wymaga akceptacji
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  paymentBadge && (
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${paymentBadge.cls}`}>
-                      {paymentBadge.label}
-                    </span>
-                  )
-                )}
-              </div>
-            </div>
-
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-              {/* Ownership tag — a property of the match, not a status. Lives in
-                  the meta row so it never competes with the CTA slot below. */}
-              {relation?.isOrganizer && (
-                <span className="flex items-center gap-1 font-semibold text-primary-700">
-                  <Crown className="h-3 w-3 shrink-0" />
-                  Organizujesz
-                </span>
-              )}
-              {/* Odliczanie WYŁĄCZNIE dla meczu, który się odbędzie — `until`
-                  liczy się z terminu w bazie, a odwołanie go nie zmienia.
-                  Bez tego warunku odwołany mecz zaplanowany na dziś dostawał
-                  bursztynowe „Dzisiaj · 19:00 · za 4 h" tuż obok szarego chipu
-                  „Anulowany" — czyli wyglądał jak coś, na co trzeba zdążyć.
-                  Zgłoszone wprost z sesji QA. */}
-              <span className={`flex items-center gap-1 font-medium ${soon && !cancelled ? 'text-amber-600' : 'text-slate-500'}`}>
-                <Clock className="h-3 w-3" />
-                {dayLabel}{timeLabel ? ` · ${timeLabel}` : ''}
-                {until && !cancelled && ` · ${until}`}
-              </span>
-            </div>
-
-            {/* MIEJSCE W WŁASNYM WIERSZU, nie obok godziny.
-                Dzieliło wiersz z „Organizujesz" i terminem, a `flex-1` znaczy
-                „weź, co zostanie" — przy meczu, który się organizuje, zostawało
-                jakieś 80 px i z nazwy obiektu robiło się „Kompleks …",
-                „Orlik …", „Orli…". Trzy karty pod sobą mówiły wtedy dokładnie
-                tyle samo o miejscu: nic. `flex-wrap` tego nie ratował, bo
-                element, który potrafi skurczyć się do zera, nigdy nie zawija.
-
-                Kosztem jest kilkanaście pikseli wysokości karty — tanio jak na
-                jedyną informację, która odpowiada na „czy mi po drodze".
-                Odległość stoi tutaj, przy nazwie obiektu, bo mówi o tym samym. */}
-            {/* `line-clamp-2`, nie `truncate` — ten sam wzorzec i ten sam powód
-                co przy tytule wyżej. Nazwy katalogowych obiektów bywają
-                długie („Zespół Szkół Ogólnokształcących nr 2 im. …"), a jedna
-                linijka ucinała je w połowie słowa niezależnie od tego, ile
-                miejsca własny wiersz już dał. Zgłoszone wprost z sesji QA. */}
-            {(location || distance !== undefined) && (
-              <div className="mt-0.5 flex items-start gap-2 text-xs">
-                {location && (
-                  <span className="flex min-w-0 flex-1 items-start gap-1 text-slate-500">
-                    <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
-                    <span className="min-w-0 line-clamp-2">{location}</span>
-                  </span>
-                )}
-                {distance !== undefined && (
-                  <span className="shrink-0 font-medium text-primary-700">
-                    {distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+      {/* CO I GDZIE. `min-w-0`: bez niego `line-clamp` przestaje działać
+          i długi tytuł rozpycha wiersz. `line-clamp-2`, nie `truncate`:
+          „Czwartkowa gierka" ma się zmieścić w całości (zgłoszone z QA). */}
+      <div className="min-w-0">
+        <div className="flex items-start gap-2">
+          <h3 className="min-w-0 text-[15px] font-semibold leading-snug text-ink line-clamp-2">{title}</h3>
+          {plakietkaRozmowy && <span className="shrink-0 pt-0.5">{plakietkaRozmowy}</span>}
         </div>
+        {(location || distance !== undefined) && (
+          <p className="mt-0.5 text-[13px] leading-snug text-slate-500 line-clamp-2 dark:text-slate-400">
+            {location}
+            {location && distance !== undefined && ' · '}
+            {distance !== undefined && (distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`)}
+          </p>
+        )}
+        {/* Znaczniki: tylko to, co coś zmienia w decyzji. Odliczanie WYŁĄCZNIE
+            dla meczu, który się odbędzie (odwołany na dziś nie może wyglądać
+            jak coś, na co trzeba zdążyć). Konkretna liczba próśb WYPIERA ogólne
+            „Wymaga akceptacji" — ta sama niebieska barwa, mocniejsze zdanie. */}
+        {(relation?.isOrganizer || (until && !cancelled) || (!past && (ilePrósb > 0 || event.requireApproval)) || statusChip) && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {relation?.isOrganizer && (
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">Organizujesz</span>
+            )}
+            {until && !cancelled && (
+              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">{until}</span>
+            )}
+            {!past && (ilePrósb > 0 ? (
+              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700">
+                {withCount(ilePrósb, 'prośba', 'prośby', 'próśb')}
+              </span>
+            ) : event.requireApproval && (
+              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700">
+                Wymaga akceptacji
+              </span>
+            ))}
+            {statusChip && (
+              <span className={`rounded border px-1.5 py-0.5 text-[11px] font-semibold ${statusChip.cls}`}>
+                {statusChip.label}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
 
-        {/* progress / past indicator */}
+      {/* ILE MIEJSC / JAK SIĘ SKOŃCZYŁO. Zamknięte zapisy wygrywają
+          z kompletem — uzasadnienie w `lib/stanZapisow.ts`. */}
+      <div className="flex flex-col items-end gap-0.5 text-right">
         {past ? (
-          <div className="mt-2.5 flex items-center gap-2">
+          <>
             {cancelled ? (
-              // Czerwień, nie szarość — tak jak wszędzie indziej, gdzie ta
-              // apka mówi o odwołaniu (`NotificationBell.tsx`, baner na
-              // stronie meczu: „czerwień znaczy «coś poszło źle»: mecz
-              // odwołany, błąd, usunięcie", `lib/komplet.ts`). Szary chip
-              // obok bursztynowego odliczania czytał się jak stan neutralny,
-              // nie jak informacja, że mecz się nie odbędzie. Zgłoszone
-              // wprost z sesji QA.
-              <span className="rounded-full bg-red-50 dark:bg-red-950/40 px-2.5 py-0.5 text-[11px] font-semibold text-red-600 dark:text-red-400">Anulowany</span>
+              // Czerwień, nie szarość — tak jak wszędzie, gdzie ta apka mówi
+              // o odwołaniu: „czerwień znaczy «coś poszło źle»".
+              <span className="text-[13px] font-semibold text-red-600 dark:text-red-400">Anulowany</span>
             ) : (
-              <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Rozegrany</span>
+              <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">Rozegrany</span>
+            )}
+            {paymentBadge && (
+              <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${paymentBadge.cls}`}>{paymentBadge.label}</span>
             )}
             {max > 0 && (
               <span className="text-xs text-slate-500 dark:text-slate-400">{withCount(taken, 'gracz', 'gracze', 'graczy')}</span>
             )}
-            {/* Ta sama plakietka nieprzeczytanych co w karcie nadchodzącego meczu
-                niżej — bez niej mecz z Historii z nieprzeczytaną wiadomością
-                zapalał wskaźnik nieprzeczytanych w nawigacji (patrz `lib/rozmowy.ts`,
-                nie filtruje po dacie), ale nigdzie na karcie tego nie było widać:
-                ten branch JSX w ogóle nie renderował plakietki, niezależnie od
-                propa `unreadMessages`. Zgłoszone wprost — „mam kropkę, nie mam
-                gdzie szukać wiadomości". Owijka `ml-auto` trzyma parę (plakietka +
-                statusChip) razem przy prawej krawędzi, nawet gdy któregoś z nich
-                brakuje (np. organizator bez własnego udziału nie ma statusChipu). */}
-            {(pokazNieprzeczytane || statusChip) && (
-              <span className="ml-auto flex items-center gap-2">
-                {plakietkaRozmowy}
-                {statusChip && (
-                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusChip.cls}`}>
-                    {statusChip.label}
-                  </span>
-                )}
-              </span>
-            )}
-          </div>
-        ) : max > 0 ? (
-          <>
-            <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${pct}%`, backgroundColor: barColor }}
-              />
-            </div>
-            <div className="mt-1.5 flex items-center justify-between gap-2">
-              <span className="truncate text-xs font-semibold text-slate-700 dark:text-slate-300">{taken}/{max} graczy</span>
-              <div className="flex shrink-0 items-center gap-3">
-                {stanZapisow ? (
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${stanZapisow.klasy}`}>
-                    {stanZapisow.napis}
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
-                    {withCount(left, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}
-                  </span>
-                )}
-                {plakietkaRozmowy}
-                {statusChip ? (
-                  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${statusChip.cls}`}>
-                    {statusChip.label}
-                  </span>
-                ) : !full && (
-                  <span className="text-xs font-bold text-primary-700">Dołącz →</span>
-                )}
-              </div>
-            </div>
           </>
-        ) : null}
+        ) : (
+          <>
+            {max > 0 && (stanZapisow ? (
+              <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${stanZapisow.klasy}`}>{stanZapisow.napis}</span>
+            ) : (
+              <span className={`text-[14px] font-semibold ${wolneKolor}`}>
+                {left} {left === 1 || (left % 10 >= 2 && left % 10 <= 4 && (left % 100 < 12 || left % 100 > 14)) ? 'wolne' : 'wolnych'}
+              </span>
+            ))}
+            {max > 0 && (
+              <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">{taken}/{max} graczy</span>
+            )}
+            <span className="text-xs text-slate-500 dark:text-slate-400">{free ? 'za darmo' : priceLabel}</span>
+          </>
+        )}
       </div>
     </Link>
   );

@@ -63,7 +63,7 @@ export default function WylaczAlertClient() {
   // w skrzynce na zawsze, więc drugie kliknięcie w ten sam link jest normalne.
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-800">
-      <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-950">
+      <span className="mx-auto flex h-11 w-11 items-center justify-center rounded bg-primary-50 dark:bg-primary-950">
         <BellOff className="h-5 w-5 text-primary-700" aria-hidden />
       </span>
       <p className="mt-3 text-base font-bold text-ink">Gotowe, nie damy już znać</p>
