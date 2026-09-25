@@ -11,6 +11,9 @@
 -- ostatniego zapytania, więc zaznacz sekcję A i uruchom (Run selected),
 -- potem to samo z sekcją B. Wynik: przycisk „Export" → CSV.
 --
+-- Twoje konta (organizator z tej listy dostaje sygnał „moje konto"): edytuj
+-- listę `moje` w obu sekcjach, jeśli dochodzi kolejne.
+--
 -- Kolumna `sygnaly` zbiera poszlaki testowości. To nie wyrok: mecz z pustą
 -- listą sygnałów też może być testowy, a z sygnałem może być prawdziwy.
 -- ============================================================
@@ -19,8 +22,19 @@
 -- ── A. KTO ZAKŁADAŁ MECZE (jeden wiersz na organizatora) ───────────────
 -- Najszybsza droga do decyzji: dane z generatora zwykle siedzą na kilku
 -- kontach, więc często wystarczy powiedzieć „wszystko od tych kont".
+WITH moje(email) AS (VALUES ('franekks@gmail.com'), ('franciszekpudelko@gmail.com')),
+testowi AS (
+  -- Wpisy kont testowych na mecz: @example.com (test1..10, gracz01..60)
+  -- i @seed.bojo (seed-events.sql).
+  SELECT ep.event_id, count(*) AS ile
+  FROM event_participants ep
+  JOIN profiles pp ON pp.id = ep.user_id
+  WHERE pp.email LIKE '%@example.com' OR pp.email LIKE '%@seed.bojo'
+  GROUP BY ep.event_id
+)
 SELECT
   coalesce(p.email, '(brak e-maila w profilu)')              AS email,
+  (p.email IN (SELECT email FROM moje))                      AS moje_konto,
   coalesce(p.display_name, min(e.organizer_name))            AS nazwa,
   count(*)                                                   AS meczow,
   count(*) FILTER (WHERE e.visibility = 'public')            AS publicznych,
@@ -29,24 +43,30 @@ SELECT
                      AND e.event_date >= CURRENT_DATE
                      AND e.status = 'active')                AS widac_na_liscie,
   count(*) FILTER (WHERE e.description LIKE '[%')            AS z_markerem,
+  count(*) FILTER (WHERE t.ile > 0)                          AS z_testowymi_graczami,
   min(e.created_at)::date                                    AS pierwszy_zalozony,
   max(e.created_at)::date                                    AS ostatni_zalozony,
   e.organizer_id
 FROM events e
 LEFT JOIN profiles p ON p.id = e.organizer_id
+LEFT JOIN testowi t ON t.event_id = e.id
 GROUP BY e.organizer_id, p.email, p.display_name
 ORDER BY widac_na_liscie DESC, meczow DESC;
 
 
 -- ── B. MECZE PO KOLEI (publiczne i nadchodzące na górze) ───────────────
-WITH uczestnicy AS (
+WITH moje(email) AS (VALUES ('franekks@gmail.com'), ('franciszekpudelko@gmail.com')),
+uczestnicy AS (
   SELECT
-    event_id,
-    count(*)                                    AS wpisow,
-    count(*) FILTER (WHERE user_id IS NOT NULL) AS kont,
-    count(DISTINCT user_id)                     AS roznych_kont
-  FROM event_participants
-  GROUP BY event_id
+    ep.event_id,
+    count(*)                                            AS wpisow,
+    count(DISTINCT ep.user_id)                          AS roznych_kont,
+    count(*) FILTER (WHERE pp.email LIKE '%@example.com'
+                        OR pp.email LIKE '%@seed.bojo') AS testowych,
+    count(*) FILTER (WHERE pp.email IN (SELECT email FROM moje)) AS moich
+  FROM event_participants ep
+  LEFT JOIN profiles pp ON pp.id = ep.user_id
+  GROUP BY ep.event_id
 ),
 tytuly AS (
   SELECT lower(coalesce(title, '')) AS t, count(*) AS ile
@@ -64,6 +84,7 @@ SELECT
   coalesce(e.custom_location_name, e.field_name)             AS miejsce,
   coalesce(p.email, e.organizer_name)                        AS organizator,
   coalesce(u.wpisow, 0)                                      AS wpisow,
+  coalesce(u.testowych, 0)                                   AS testowych_graczy,
   e.max_players                                              AS miejsc,
   e.created_at::date                                         AS zalozony,
   concat_ws(', ',
@@ -71,6 +92,10 @@ SELECT
     CASE WHEN p.email LIKE '%@seed.bojo'                  THEN 'konto @seed.bojo' END,
     CASE WHEN p.email LIKE '%@example.com'                THEN 'konto @example.com' END,
     CASE WHEN p.id IS NULL                                THEN 'organizator bez profilu' END,
+    CASE WHEN p.email IN (SELECT email FROM moje)         THEN 'moje konto organizuje' END,
+    CASE WHEN u.testowych > 0                             THEN 'testowi gracze ' || u.testowych || '/' || u.wpisow END,
+    CASE WHEN u.wpisow > 0
+          AND u.testowych + u.moich = u.wpisow            THEN 'zapisani tylko testowi i moi' END,
     CASE WHEN (coalesce(e.title, '') || ' ' || coalesce(e.description, ''))
               ~* '(test|demo|lorem|przyk[łl]ad|asdf|qwe|xxx|sample|dummy)'
                                                           THEN 'słowo testowe' END,
