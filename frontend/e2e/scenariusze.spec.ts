@@ -367,6 +367,24 @@ async function otworzMecz(page: Page, id: string) {
 }
 
 test.describe('dołączanie do meczu', () => {
+  // W-1 (docs/faza1-przejscie-e2e-plan.md). JEDYNY test w repo, który wchodzi
+  // jak człowiek z linku na WhatsAppie: bez konta i BEZ zgody na cookies —
+  // każdy inny test ustawia ją przed wejściem albo klika szybciej niż w 6 s.
+  // Baner (`z-50`) wyskakiwał po 6 sekundach nad paskiem „Dołącz bez konta”
+  // (`z-30`) i przykrywał go w całości. Ten test ma takim zostać: nie
+  // dopisuj tu `bojo_cookie_consent_v1`.
+  test('pierwsza wizyta z linku: po 7 s „Dołącz bez konta” da się kliknąć', async ({ page }) => {
+    await otworzMecz(page, MECZ.wolneMiejsca);
+    await page.waitForTimeout(7_000);
+    const dolacz = page.getByRole('button', { name: /dołącz bez konta/i });
+    await expect(dolacz).toBeVisible();
+    // `trial` sprawdza wszystko, co sprawdza prawdziwy klik (widoczny,
+    // stabilny, NIC GO NIE PRZYKRYWA), ale niczego nie zapisuje — więc test
+    // nie potrzebuje `zeSprzataniem()`.
+    await dolacz.click({ trial: true, timeout: 5_000 });
+    await expect(page.getByRole('dialog', { name: 'Informacja o cookies' })).toHaveCount(0);
+  });
+
   test('wolne miejsca — wchodzi do składu i komunikat to potwierdza', async ({ page }) => {
     await zaloguj(page, KONTA.gracz);
     await otworzMecz(page, MECZ.wolneMiejsca);

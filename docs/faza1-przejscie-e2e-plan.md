@@ -1,6 +1,7 @@
 # Faza 1, runda 8: przejście całej ścieżki na żywym stosie — plan
 
-> **Status: DO DECYZJI WŁAŚCICIELA (2026-09-25). Nic z tego nie jest wdrożone.**
+> **Status (2026-09-25): decyzje podjęte — D-1 tak, D-2 wariant A, D-3 tak (patrz §8).
+> PR-D (W-1, W-2, W-3) wdrożony. PR-E, PR-F i PR-G czekają.**
 > Ósma runda przejścia ścieżki organizatora i gracza. Poprzednie: `O`/`E`/`P`/`R`/`S`
 > w [przeplyw-organizatora.md](./przeplyw-organizatora.md) i `F` w
 > [faza1-organizator-plan.md](./faza1-organizator-plan.md) (wdrożone w PR-A/B/C).
@@ -271,15 +272,21 @@ nie jest w sytuacji polskiego gracza.
   (lato, w Polsce już 2 lipca 00:30) i `2026-12-01T23:30:00Z` (zima, 2 grudnia 00:30);
   `czyPrzedStartemWPolsce` — ten sam dzień przed/po godzinie, dzień wcześniej/później,
   brak godziny.
+- **Dopisane przy wdrożeniu:** `src/__tests__/kartaMeczuSsr.test.tsx` renderuje
+  `EventBrowseCard` przez `renderToString` (czyli tak jak serwer) i sprawdza, że HTML
+  nie zawiera „Dzisiaj”/„za N h” i jest identyczny o 16:00 i o 17:30. To jest właściwy
+  test dla strony głównej: sekcję „Możesz dołączyć już dziś” pobiera **serwer**, więc
+  atrapa `page.route()` (działa tylko w przeglądarce) nigdy jej nie wypełni i test e2e
+  na `/` przechodziłby z niewłaściwego powodu. Pada bez poprawki, przechodzi z nią.
 - **Nowy test klikalności** `e2e/hydracja.klikalnosc.spec.ts` z
   `test.use({ timezoneId: 'Europe/Warsaw', locale: 'pl-PL' })`: dla każdej trasy z listy
   `TRASY` (wyciągnąć ją z `wizualne.spec.ts` do `e2e/trasy.ts` i importować w obu
   plikach, żeby „dodajesz trasę → dopisz do TRASY” zostało jedną listą) otwiera stronę
   i oczekuje **zero** `pageerror` pasujących do `/Minified React error #(418|423|425)/`.
-  Dla `/` z atrapą PostgREST zwracającą **jeden** mecz jutro o 18:00 (inaczej sekcja
-  się nie renderuje i test przechodzi z niewłaściwego powodu — ta sama pułapka, przed
-  którą ostrzega AGENTS.md przy atrapach). Globalnej strefy w `playwright.config.ts`
-  **nie** zmieniamy: przestawiłaby daty na wszystkich wzorcach zrzutów naraz.
+  Ogólna osłona wszystkich tras (jeden projekt, `telefon`); strony głównej z meczami nie
+  pokrywa — patrz punkt wyżej. `TRASY` i `pustaBaza()` przeniesione do `e2e/wspolne.ts`.
+  Globalnej strefy w `playwright.config.ts` **nie** zmieniamy: przestawiłaby daty na
+  wszystkich wzorcach zrzutów naraz.
 
 **Dokumentacja:** **AGENTS.md, „Pułapki, które już nas ugryzły”** — nowy akapit:
 „Serwer renderuje w UTC, gracz jest w Warszawie. Wszystko, co zależy od «teraz» albo od
@@ -665,7 +672,8 @@ Nie wchodzi do CI (tam jest prawdziwy stos). Służy agentom i ludziom bez Docke
 
 ## 8. Decyzje dla właściciela
 
-Wszystko inne w tym planie ma jedno rozwiązanie. Otwarte są trzy pytania:
+**Rozstrzygnięte 2026-09-25: D-1 — tak, D-2 — wariant A, D-3 — tak.** Poniżej
+pytania w brzmieniu, w jakim były zadane.
 
 - **D-1 (W-8).** Czy na zaproszeniu do ekipy ma stać droga „Zapisz się na ten mecz bez
   konta”? Rekomendacja: **tak** — ekipa zyskuje gracza na czwartek, a konto zakłada się

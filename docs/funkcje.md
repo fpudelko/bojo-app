@@ -179,6 +179,18 @@ albo dołączyło normalnie, po zalogowaniu), pokazuje się ten sam skrócony ek
 pola hasła — nie ma czego przejmować, więc zostaje samo logowanie. W żadnym z tych
 przypadków nie powstaje drugi wiersz w składzie i nie leci czerwony błąd.
 
+**Baner cookies nie staje na drodze do zapisu — od 2026-09-25 (W-1,
+[faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md)).** `CookieBanner`
+(`fixed bottom-0 z-50`) pojawia się po 6 s albo po przewinięciu o 300 px. Nad paskiem
+„Dołącz bez konta →” (`z-30`) przykrywał go w całości — gracz z linku widział wtedy
+wyłącznie „OK, rozumiem”. Dziś `useCookieBannerVisible()` (`lib/cookieConsent.ts`)
+nie pokazuje banera na ekranach, które montują `<HideBottomNav/>`, czyli mają własny
+dolny pasek akcji: kreator, pasek „Dołącz” i pasek gościa „Mój zapis”. Czas liczy się
+dalej, więc baner pokazuje się na pierwszym ekranie bez takiego paska. Baner tylko
+informuje (cookies są wyłącznie niezbędne), więc opóźnienie niczego prawnie nie zmienia.
+Pilnują tego `__tests__/banerCookies.test.tsx` i scenariusz „pierwsza wizyta z linku”
+w `e2e/scenariusze.spec.ts` — jedyny test w repo bez ustawionej zgody na cookies.
+
 **Mechanika.** Funkcja RPC `dolacz_do_meczu_jako_goscie()` (migracja `082`, poprawiona
 migracją `083` — INSERT…RETURNING z jawnym prefiksem tabeli) w Supabase, wołana z
 `frontend/src/lib/events.ts` (`joinEventAsGuest()`, zwraca `claimToken` i `isReserve`;
@@ -2774,14 +2786,24 @@ tej luki nie zamykało (wyzwalacz w praktyce nigdy nie wstawiał wiersza — pat
 `lib/auth.tsx` robi to niezawodnie dla świeżych kont.
 
 **Modal wyboru roli po rejestracji** (`components/onboarding/PostSignupRoleModal.tsx`,
-montowany globalnie w `layout.tsx`) pokazuje się raz, tylko po organicznej rejestracji
-(konto młodsze niż 10 minut, cel logowania jeden z `/`, `/wydarzenia`, `/moje-gry`,
-`/mapa` — czyli bez konkretnego kontekstu w rodzaju dołączania do meczu albo przejęcia
-wpisu gościa, sprawdzane przez `ostatniZamierzonyCel()` w `lib/powrotPoLogowaniu.ts`).
-Proponuje „Jestem organizatorem" (`/grupy/nowe`, wizualnie pierwsze) albo „Jestem
-graczem" (`/grupy` albo `/wydarzenia`). Zamknięcie krzyżykiem też oznacza wpis jako
-widziany (`localStorage`, klucz `bojo:onboarding-rola:<uid>`) — nie wraca przy kolejnym
-logowaniu.
+montowany globalnie w `layout.tsx`) pokazuje się raz, tylko po organicznej rejestracji.
+Regułę liczy czysta funkcja `czyPokazacWyborRoli()` (test: `__tests__/wyborRoli.test.ts`):
+konto młodsze niż 10 minut, **cel logowania** (`ostatniZamierzonyCel()` w
+`lib/powrotPoLogowaniu.ts`) pusty albo jeden z `/`, `/wydarzenia`, `/moje-gry`, `/mapa`
+**oraz strona, na której człowiek właśnie stoi, też z tej listy**. Proponuje „Jestem
+organizatorem" (`/wydarzenia/nowe`, wizualnie pierwsze; „Załóż grupę” drobnym tekstem
+pod spodem) albo „Jestem graczem" (`/grupy` albo `/wydarzenia`). Zamknięcie krzyżykiem
+też oznacza wpis jako widziany (`localStorage`, klucz `bojo:onboarding-rola:<uid>`) — nie
+wraca przy kolejnym logowaniu.
+
+**Dlaczego także bieżąca strona — od 2026-09-25 (W-2,
+[faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md)).** Cel logowania siedzi
+w `sessionStorage`, a ten jest osobny dla każdej karty. Gdy logowanie kończyło się
+w INNEJ karcie (link logowania z maila, aplikacja pocztowa otwierająca przeglądarkę),
+cel był pusty, czyli „neutralny”, i okno wyskakiwało nad kreatorem u organizatora,
+który przyszedł z „Zorganizuj mecz”, oraz nad otwartym oknem zapisu u gracza
+(`?dolacz=1`). `pathname` jest w zależnościach efektu celowo: organiczna rejestracja
+zaczyna się na `/logowanie` (nieneutralne), a kończy przejściem na `/moje-gry`.
 
 ---
 
@@ -4438,6 +4460,21 @@ bo dzieli ją jeszcze nagłówek i `PustyStanMeczow`.
 
 Pusty stan `PustyStanMeczow` uprzedza tym samym tonem, że otwartych gier bywa mało
 i szybszą drogą jest własny mecz plus link do znajomych.
+
+### „Możesz dołączyć już dziś” liczy czas polski, karta nie zależy od „teraz” w HTML
+
+Od 2026-09-25 (W-3, [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md)).
+`LandingOpenGames.tsx` jest komponentem serwerowym, a serwer (Vercel) stoi na UTC.
+Filtr „mecz jeszcze się nie zaczął” idzie przez `czyPrzedStartemWPolsce()`
+(`lib/czasPolski.ts`), nie przez `isEventJoinable()` — to drugie liczyło w strefie
+procesu i latem pokazywało mecz przez dwie godziny po starcie.
+
+`EventBrowseCard` renderuje się tu na serwerze. Etykiety względne („Dzisiaj”, „Jutro”,
+„za 2 h”) liczy dopiero po montażu (`usePoMontazu()`), wcześniej pokazuje datę
+bezwzględną. Bez tego tekst z serwera (UTC) różnił się od pierwszego renderu
+w Warszawie, React zgłaszał błąd hydracji i renderował całą stronę główną od nowa.
+Pilnują: `__tests__/kartaMeczuSsr.test.tsx` (HTML karty nie zależy od godziny)
+i `e2e/hydracja.klikalnosc.spec.ts` (wszystkie `TRASY` w strefie Europe/Warsaw).
 
 ---
 

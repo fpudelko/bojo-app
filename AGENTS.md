@@ -199,10 +199,22 @@ widok „Google zablokowane w tej przeglądarce" — przez podstawiony `User-Age
 Facebooka, bo w zwykłej przeglądarce nie da się go zobaczyć.
 
 Na końcu `wizualne.spec.ts` siedzi **przemiał po wszystkich trasach** — lista
-`TRASY` z każdym adresem, który da się otworzyć bez bazy. Pojedyncze scenariusze
+`TRASY` (od 2026-09-25 w `e2e/wspolne.ts`, bo tej samej listy używa test hydracji)
+z każdym adresem, który da się otworzyć bez bazy. Pojedyncze scenariusze
 pilnują miejsc, o których ktoś pomyślał; ta lista pilnuje całej aplikacji, więc
 zmiana w nagłówku, stopce czy odstępach pokazuje się wszędzie tam, gdzie realnie
-ją widać. **Dodajesz trasę w `src/app` → dopisz ją do `TRASY`.**
+ją widać. **Dodajesz trasę w `src/app` → dopisz ją do `TRASY` w `e2e/wspolne.ts`.**
+
+**Każdy test startuje z „posprzątaną” przeglądarką, a gracz z linku — nie.**
+Testy klikalności i zrzutów ustawiają zgodę na cookies przed wejściem, scenariusze
+odklikują okno wyboru roli, a przeglądarka w CI chodzi w UTC, jak serwer. Przez to
+trzy rzeczy psuły pierwszy kontakt bez śladu w żadnej bramce: baner cookies zasłaniał
+„Dołącz bez konta”, okno roli wyskakiwało nad kreatorem, a strona główna wywracała
+hydrację w polskiej strefie (W-1…W-3,
+[docs/faza1-przejscie-e2e-plan.md](./docs/faza1-przejscie-e2e-plan.md)). Scenariusz
+„pierwsza wizyta z linku” w `scenariusze.spec.ts` jest jedynym testem bez ustawionej
+zgody — **nie dopisuj mu jej**. `hydracja.klikalnosc.spec.ts` jest jedynym w strefie
+Europe/Warsaw.
 
 Dwie pułapki przy pisaniu nowych zrzutów:
 
@@ -415,6 +427,13 @@ dopiero na Vercelu. Zamiast hooka czytaj `window.location.search` w `useEffect` 
 montażu (patrz `backHref` w `boisko/[id]/VenueDetailClient.tsx`) albo opakuj
 w `<Suspense>`. Samo `/boisko/[id]` nie jest już prerenderowane (patrz wyżej), ale
 `/boiska/[sport]` nadal jest.
+
+**Serwer renderuje w UTC, gracz jest w Warszawie.** Wszystko, co w komponencie
+renderowanym na serwerze zależy od „teraz” albo od strefy („Dzisiaj”, „za 2 h”, „czy
+mecz już się zaczął”), liczy się przez `lib/czasPolski.ts` albo dopiero po montażu
+(`usePoMontazu()`). Inaczej HTML z serwera różni się od pierwszego renderu w przeglądarce,
+React zgłasza #418/#423 i renderuje CAŁĄ stronę od nowa — tak było ze stroną główną
+(W-3). Lokalnie się nie powtórzy, jeśli maszyna i przeglądarka stoją w tej samej strefie.
 
 **`truncate` w kontenerze flex wymaga `min-w-0`.** Bez tego element odmawia się skurczyć
 poniżej szerokości treści i rozpycha całą kartę w bok, zamiast obciąć tekst.

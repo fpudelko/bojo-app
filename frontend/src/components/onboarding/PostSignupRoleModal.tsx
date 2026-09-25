@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
 import { useAuth, displayName } from '@/lib/auth';
 import { ostatniZamierzonyCel } from '@/lib/powrotPoLogowaniu';
@@ -24,6 +24,32 @@ import { useJestWidget } from '@/lib/widget';
 const CELE_NEUTRALNE = new Set(['/', '/wydarzenia', '/moje-gry', '/mapa']);
 const SWIEZOSC_MS = 10 * 60 * 1000;
 
+/**
+ * Czy pokazać okno wyboru roli. Czysta funkcja, żeby reguła miała test
+ * (`__tests__/wyborRoli.test.ts`).
+ *
+ * NEUTRALNA MUSI BYĆ TAKŻE STRONA, NA KTÓREJ CZŁOWIEK STOI — nie tylko
+ * zapamiętany cel. Cel siedzi w `sessionStorage`, a ten jest osobny dla każdej
+ * karty. Gdy logowanie kończy się w INNEJ karcie (link logowania z maila,
+ * aplikacja pocztowa otwierająca przeglądarkę), cel jest `null`, czyli
+ * „neutralny” — i okno wyskakiwało nad kreatorem u organizatora, który
+ * przyszedł z „Zorganizuj mecz”, oraz nad otwartym oknem zapisu u gracza
+ * (`?dolacz=1`), z zielonym „Jestem organizatorem” wyprowadzającym go z meczu
+ * (W-2, docs/faza1-przejscie-e2e-plan.md). Strona, na której się stoi, jest
+ * pewniejszym sygnałem intencji niż pamięć jednej karty.
+ */
+export function czyPokazacWyborRoli(o: {
+  sciezka: string;
+  cel: string | null;
+  wiekKontaMs: number;
+  widziano: boolean;
+  widget: boolean;
+}): boolean {
+  if (o.widget || o.widziano || o.wiekKontaMs >= SWIEZOSC_MS) return false;
+  const celNeutralny = o.cel === null || CELE_NEUTRALNE.has(o.cel);
+  return celNeutralny && CELE_NEUTRALNE.has(o.sciezka);
+}
+
 function kluczWidziano(uid: string) {
   return `bojo:onboarding-rola:${uid}`;
 }
@@ -31,29 +57,30 @@ function kluczWidziano(uid: string) {
 export default function PostSignupRoleModal() {
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const jestWidget = useJestWidget();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    // Sześć warunków, sześć powodów NIEPOKAZANIA modala — każdy czytelny
-    // z samego warunku, więc nie logujemy ich. Do 2026-09-09 stało tu sześć
-    // `console.debug`, w tym jeden wypisujący nazwę zalogowanego do konsoli
-    // przeglądarki: ta sama klasa, którą runda `P-11` zdjęła
+    // Powody NIEPOKAZANIA okna są czytelne z samej reguły
+    // (`czyPokazacWyborRoli`), więc nie logujemy ich. Do 2026-09-09 stało tu
+    // sześć `console.debug`, w tym jeden wypisujący nazwę zalogowanego do
+    // konsoli przeglądarki: ta sama klasa, którą runda `P-11` zdjęła
     // z `lib/powrotPoLogowaniu.ts`.
-    if (jestWidget) return;
     if (!user) return;
     if (typeof localStorage === 'undefined') return;
-    if (localStorage.getItem(kluczWidziano(user.id))) return;
-
-    const wiekMs = Date.now() - new Date(user.created_at).getTime();
-    if (wiekMs >= SWIEZOSC_MS) return;
-
-    const cel = ostatniZamierzonyCel();
-    const neutralny = cel === null || CELE_NEUTRALNE.has(cel);
-    if (!neutralny) return;
-
-    setOpen(true);
-  }, [user, jestWidget]);
+    // `pathname` w zależnościach NIE jest ozdobą. Organiczna rejestracja
+    // zaczyna się na `/logowanie` (nieneutralne), a kończy
+    // `router.push('/moje-gry')` — efekt policzony tylko raz, na
+    // `/logowanie`, nie pokazałby okna nigdy.
+    if (czyPokazacWyborRoli({
+      sciezka: pathname ?? '',
+      cel: ostatniZamierzonyCel(),
+      wiekKontaMs: Date.now() - new Date(user.created_at).getTime(),
+      widziano: !!localStorage.getItem(kluczWidziano(user.id)),
+      widget: jestWidget,
+    })) setOpen(true);
+  }, [user, jestWidget, pathname]);
 
   const zamknij = useCallback(() => {
     if (user) localStorage.setItem(kluczWidziano(user.id), '1');

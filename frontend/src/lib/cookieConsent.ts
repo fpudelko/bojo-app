@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useBottomNavHidden } from './bottomNavVisibility';
 
 // Shared between CookieBanner and the landing StickyCta FAB: the FAB needs
 // to know when the banner is on screen so it can get out of its way in the
@@ -26,6 +27,14 @@ export function dismissCookieConsent(): void {
 export function useCookieBannerVisible(): boolean {
   const [dismissed, setDismissed] = useState(true);
   const [revealed, setRevealed] = useState(false);
+  // Ekran z WŁASNYM dolnym paskiem akcji (kreator, „Dołącz bez konta”,
+  // „Mój zapis”) deklaruje to przez <HideBottomNav/>. Baner stał tam
+  // `z-50` nad paskiem `z-30` i przykrywał go w całości: gracz z linku po
+  // 6 sekundach widział zamiast „Dołącz bez konta” wyłącznie „OK, rozumiem”
+  // (W-1, docs/faza1-przejscie-e2e-plan.md). Baner tylko INFORMUJE (zgody nie
+  // zbiera, cookies są wyłącznie niezbędne), więc może poczekać: `revealed`
+  // liczy się dalej, a baner pokaże się na pierwszym ekranie bez paska.
+  const ekranZPaskiemAkcji = useBottomNavHidden();
 
   useEffect(() => {
     setDismissed(hasCookieConsent());
@@ -48,7 +57,7 @@ export function useCookieBannerVisible(): boolean {
     };
   }, [dismissed, revealed]);
 
-  return !dismissed && revealed;
+  return !dismissed && revealed && !ekranZPaskiemAkcji;
 }
 
 function onCookieConsentDismissed(callback: () => void): () => void {

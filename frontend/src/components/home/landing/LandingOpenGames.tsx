@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { getPublicEvents } from '@/lib/events';
-import { isEventJoinable } from '@/lib/eventDates';
+import { czyPrzedStartemWPolsce } from '@/lib/czasPolski';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 
 /**
@@ -25,7 +25,10 @@ export default async function LandingOpenGames() {
   const openEvents = events.filter((e) => {
     if (e.status === 'cancelled') return false;
     const taken = e.participantsCount ?? 0;
-    return isEventJoinable(e) && taken < e.maxPlayers;
+    // Czas POLSKI, nie strefa procesu: to jest komponent serwerowy, a serwer
+    // stoi na UTC — `isEventJoinable()` pokazywało tu latem mecz przez dwie
+    // godziny po jego starcie (W-3, docs/faza1-przejscie-e2e-plan.md).
+    return czyPrzedStartemWPolsce(e.date, e.time) && taken < e.maxPlayers;
   });
 
   if (openEvents.length === 0) return null;
