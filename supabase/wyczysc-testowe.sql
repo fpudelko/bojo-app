@@ -34,6 +34,9 @@
 --   • Twoich własnych meczów bez markera — nawet jeśli powstały przy okazji
 --     klikania. Te musisz przejrzeć okiem; zapytanie na dole je wypisuje.
 --
+-- MECZE BEZ MARKERA (Lovable, klikanie z własnych kont, audyty): patrz
+-- `wyczysc-mecze-prod.sql`, który decyduje po KONCIE organizatora.
+--
 -- NAJPIERW PODGLĄD. Sekcja 1 tylko liczy. Uruchom ją, zobacz liczby, i dopiero
 -- potem odkomentuj sekcję 2.
 -- ============================================================
