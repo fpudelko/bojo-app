@@ -3,14 +3,12 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { obliczRozliczenie } from '@/lib/kalkulatorKosztow';
+import { zl } from '@/lib/kwota';
 import { KALKULATOR_HINT_KARTA, KALKULATOR_HINT_BEZ_ZNIZKI } from '@/content/kalkulator';
 
 const inputCls =
   'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100';
 
-function zl(grosze: number): string {
-  return `${(grosze / 100).toFixed(2)} zł`;
-}
 
 /**
  * Kalkulator kosztów boiska — jedyna strona SEO/GEO, która nie potrzebuje ani

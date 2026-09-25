@@ -191,6 +191,16 @@ informuje (cookies są wyłącznie niezbędne), więc opóźnienie niczego prawn
 Pilnują tego `__tests__/banerCookies.test.tsx` i scenariusz „pierwsza wizyta z linku”
 w `e2e/scenariusze.spec.ts` — jedyny test w repo bez ustawionej zgody na cookies.
 
+**Gość wie, ile, jak i komu zapłacić — od 2026-09-25 (W-4, migracja `163`).** Okno
+zapisu gościa przy meczu płatnym pokazuje kwotę („Koszt · 20,00 zł”, jak okno dla
+zalogowanego), a przy wybranym BLIK-u mówi, gdzie pojawi się numer: „godzinę przed
+meczem pod linkiem do swojego zapisu (przyjdzie też mailem)”. Wcześniej stała tam linia
+„BLIK na numer:”, która nie renderowała się nigdy, bo niezalogowanemu RLS numeru nie
+oddaje. Strona wpisu `/gracz/przejmij/[token]` (tu prowadzi „Mój zapis →” i przycisk
+„Sprawdź skład” z każdego maila) ma kartę „Twoja płatność” — tę samą co gracz z kontem
+na stronie meczu: kwota po zniżce, sposób, numer BLIK od godziny przed startem, status
+wpłaty (gdy organizator go pokazuje). Rezerwa i poczekalnia karty nie widzą.
+
 **Mechanika.** Funkcja RPC `dolacz_do_meczu_jako_goscie()` (migracja `082`, poprawiona
 migracją `083` — INSERT…RETURNING z jawnym prefiksem tabeli) w Supabase, wołana z
 `frontend/src/lib/events.ts` (`joinEventAsGuest()`, zwraca `claimToken` i `isReserve`;

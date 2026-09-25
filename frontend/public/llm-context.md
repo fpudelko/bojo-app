@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-25 · migracja `162` · 62 tabel
+**Stan na:** 2026-09-25 · migracja `163` · 62 tabel
 
 ---
 
@@ -453,6 +453,26 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-25 (2) — Gracz bez konta widzi numer BLIK i status swojej wpłaty
+
+PROBLEM: w meczu płatnym gracz, który zapisał się w Bojo bez konta (imię i e-mail),
+nie miał skąd wziąć numeru BLIK organizatora ani sprawdzić, czy organizator odhaczył
+jego wpłatę. Okno zapisu pytało „Jak zapłacisz?”, ale nie pokazywało kwoty. Gracz
+z kontem widział to wszystko na karcie „Twoja płatność”, więc rozliczenie działało
+wyłącznie dla części składu, a organizator i tak rozsyłał numer na czacie.
+
+ROZWIĄZANIE BOJO: strona zapisu gracza bez konta (link „Mój zapis” i przycisk
+„Sprawdź skład” w każdym mailu) ma kartę „Twoja płatność”: kwota do zapłaty, sposób,
+numer BLIK od godziny przed meczem i status „Opłacone / Jeszcze nieopłacone”, jeśli
+organizator go pokazuje. Okno zapisu pokazuje kwotę i mówi, gdzie pojawi się numer
+BLIK. Bojo podaje wszędzie kwotę w jednej formie, np. „20,00 zł”.
+
+MECHANIKA: migracja `163` rozszerza `podejrzyj_wpis_goscia()` o pola płatności
+i numer BLIK (uprawnieniem jest token wpisu, reguła odsłonięcia jak dla konta);
+komponent `TwojaPlatnosc.tsx` wspólny dla strony meczu i strony wpisu; `zl()`
+w `lib/kwota.ts`. Szczegóły → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md),
+W-4 i W-5.
+
 ### 2026-09-25 — Pierwsza wizyta z linku: nic nie zasłania zapisu na mecz
 
 PROBLEM: gracz, który pierwszy raz otwierał link do meczu Bojo, po 6 sekundach
@@ -668,25 +688,3 @@ nie wyprzedzał tego, co widać. Wyzwalacz łapie `INSERT OR UPDATE`, bo zapis g
 upsert. Migracja niesie backfill dla głosów zebranych od `123`. Progu indeksacji ani
 `oblicz_seo_tier()` nie rusza: indeks przez to wyłącznie rośnie. Test:
 `kworumPotwierdzen.test.ts`.
-
-### 2026-09-22 — Licznik drużyn w turnieju mówi, ile jest PRZYJĘTYCH
-
-PROBLEM: publiczny licznik na stronie turnieju wliczał zgłoszenia czekające na decyzję
-organizatora, więc kapitan czytał „6 z 8 drużyn" i nie miał jak odróżnić turnieju prawie
-pełnego od takiego, w którym przyjęta jest jedna drużyna, a pięć czeka. W skrajnym
-przypadku turniej wyglądał na zamknięty, choć organizator nie przyjął jeszcze nikogo,
-i kapitan rezygnował ze zgłoszenia. Osobno: organizator nie miał gdzie podać, od ilu
-drużyn w ogóle warto grać.
-
-ROZWIĄZANIE BOJO: licznik i pasek zapełnienia liczą wyłącznie drużyny przyjęte, a
-zgłoszenia czekające dostały własny wiersz pod paskiem („Dodatkowo 3 zgłoszenia czekają
-na decyzję organizatora"). `max_druzyn` znaczy teraz jednoznacznie limit PRZYJĘTYCH,
-więc bramka zgłoszeń liczy tak samo: licznik nigdy nie obieca miejsca, którego formularz
-odmówi. Kreator turnieju dostał opcjonalne pole „Minimum", pokazywane kapitanom jako
-informacja („Organizator planuje turniej od 4 drużyn"), bez werdyktu, czy turniej się
-odbędzie: tę decyzję podejmuje organizator, nie Bojo.
-
-MECHANIKA: `zajmujeMiejsce()` i `liczCzekajaceZgloszenia()` w `lib/turniejEtykiety.ts`,
-wspólne dla strony turnieju, kafelka listy i pulpitu organizatora (`lib/turniejPulpit.ts`).
-Kolumna `turnieje.min_druzyn` (migracja `157`) jest NULLowalna: NULL znaczy „organizator
-nie podał" i jest innym stanem niż zero.

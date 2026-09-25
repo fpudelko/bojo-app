@@ -42,6 +42,8 @@ import { eventLocation, zWielkiejLitery, linkDojazdu } from '@/lib/utils';
 import { PASEK_KOMPLET } from '@/lib/komplet';
 import { eventUrl, shareEvent, udostepnijOdwolanie, udostepnijPrzywrocenie, udostepnijSklad } from '@/lib/eventShare';
 import { KORZYSCI_KONTA } from '@/content/kontoGoscia';
+import TwojaPlatnosc from '@/components/events/TwojaPlatnosc';
+import { zl } from '@/lib/kwota';
 import { pobierzIcs } from '@/lib/kalendarz';
 import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce, terminOferty } from '@/lib/kolejkaRezerwy';
@@ -1085,7 +1087,7 @@ export default function EventDetailClient() {
   const showTeams = event.teamMode !== 'brak';
   const gkCount = regulars.filter((p) => p.isGoalkeeper).length;
   const gkFull = gkCount >= (event.maxGoalkeepers ?? 2);
-  const costPln = event.costGrosze > 0 ? (event.costGrosze / 100).toFixed(2) : null;
+  const costPln = event.costGrosze > 0 ? zl(event.costGrosze) : null;
   const goalsMap: Record<string, number> = {};
   for (const g of playerGoals) goalsMap[g.participantId] = g.goals;
   const teamA = regulars.filter((p) => p.team === 'A');
@@ -2526,7 +2528,7 @@ export default function EventDetailClient() {
           </h2>
           <div className="flex items-center justify-between text-sm mb-3">
             <span className="text-slate-500">Koszt / os.</span>
-            <span className="font-semibold text-ink">{(event.costGrosze / 100).toFixed(2)} PLN</span>
+            <span className="font-semibold text-ink">{zl(event.costGrosze)}</span>
           </div>
           <div className="flex items-center justify-between text-sm mb-3">
             <span className="text-slate-500">Opłaconych</span>
@@ -2544,8 +2546,8 @@ export default function EventDetailClient() {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-500">Zebrano</span>
                 <span className="font-semibold text-ink">
-                  {(collected / 100).toFixed(2)} PLN
-                  {' '}<span className="text-slate-400 font-normal">z {(expected / 100).toFixed(2)} PLN</span>
+                  {zl(collected)}
+                  {' '}<span className="text-slate-400 font-normal">z {zl(expected)}</span>
                 </span>
               </div>
             );
@@ -2587,7 +2589,7 @@ export default function EventDetailClient() {
                     </p>
                   </div>
                   <span className="shrink-0 text-xs text-slate-400">
-                    {price.discountUnspecified ? '' : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
+                    {price.discountUnspecified ? '' : zl(price.priceGrosze)}
                   </span>
                 </div>
               </div>
@@ -2615,7 +2617,7 @@ export default function EventDetailClient() {
                       <span className="text-xs text-slate-400">
                         {price.discountUnspecified
                           ? 'Zniżka z karty, ustal kwotę'
-                          : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
+                          : zl(price.priceGrosze)}
                         {p.paymentMethod && <> · {PAYMENT_METHOD_LABELS[p.paymentMethod]}</>}
                       </span>
                     </div>
@@ -2708,65 +2710,25 @@ export default function EventDetailClient() {
           kto już zapłacił. */}
       {event.costGrosze > 0 && !isOwner && !canManagePayments
         && myConfirmed && !myConfirmed.isReserve && (() => {
-          const price = priceForParticipant(
-            event.costGrosze, event.sportsCardDiscountGrosze, myConfirmed.hasSportsCard,
-          );
+          // Reguła odsłonięcia numeru BLIK jak wszędzie (`canSeeBlikPhone`);
+          // karta dostaje już wynik. Ta sama karta stoi na stronie wpisu gościa
+          // (`/gracz/przejmij/[token]`, W-4, docs/faza1-przejscie-e2e-plan.md).
+          const widacBlik = canSeeBlikPhone({
+            isOrganizer: false,
+            isInSquad: true,
+            minutesToStart: minutesUntilStart(event.date, event.time),
+          });
           return (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-              <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
-                <Banknote className="w-4 h-4" /> Twoja płatność
-              </h2>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Do zapłaty</span>
-                <span className="font-semibold text-ink">
-                  {price.discountUnspecified
-                    ? 'Zniżka z karty, ustal kwotę z organizatorem'
-                    : `${(price.priceGrosze / 100).toFixed(2)} PLN`}
-                </span>
-              </div>
-              {myConfirmed.hasSportsCard && !price.discountUnspecified && price.priceGrosze < event.costGrosze && (
-                <p className="mt-1 text-right text-xs text-slate-400">
-                  <span className="line-through">{(event.costGrosze / 100).toFixed(2)} PLN</span>
-                  {' '}· zniżka z karty sportowej
-                </p>
-              )}
-              {myConfirmed.paymentMethod && (
-                <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Sposób</span>
-                  <span className="text-ink">{PAYMENT_METHOD_LABELS[myConfirmed.paymentMethod]}</span>
-                </div>
-              )}
-              {/* Numer do BLIKA tuż przy kwocie, a nie tylko w nagłówku meczu:
-                  „ile" i „na co przelać" to jedna czynność. Widoczność rządzi
-                  się tą samą regułą co wszędzie (`canSeeBlikPhone`). */}
-              {myConfirmed.paymentMethod === 'blik' && event.blikPhone && (
-                <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Numer BLIK</span>
-                  {canSeeBlikPhone({
-                    isOrganizer: false,
-                    isInSquad: true,
-                    minutesToStart: minutesUntilStart(event.date, event.time),
-                  }) ? (
-                    <span className="font-semibold text-ink">{event.blikPhone}</span>
-                  ) : (
-                    <span className="text-slate-400">zobaczysz na godzinę przed meczem</span>
-                  )}
-                </div>
-              )}
-              {event.showPaymentStatus && (
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  {myConfirmed.hasPaid ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                      <Check className="w-3.5 h-3.5" strokeWidth={2.25} /> Opłacone
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                      <Clock className="w-3.5 h-3.5" strokeWidth={2.25} /> Jeszcze nieopłacone
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+            <TwojaPlatnosc
+              kosztGrosze={event.costGrosze}
+              znizkaKartyGrosze={event.sportsCardDiscountGrosze}
+              kartaSportowa={myConfirmed.hasSportsCard}
+              metoda={myConfirmed.paymentMethod}
+              blikTelefon={widacBlik ? event.blikPhone : null}
+              blikPozniej={!!event.blikPhone && !widacBlik}
+              pokazStatus={event.showPaymentStatus}
+              oplacone={myConfirmed.hasPaid}
+            />
           );
         })()}
 
@@ -5241,11 +5203,11 @@ export default function EventDetailClient() {
                     <span className="text-slate-500">Koszt</span>
                     {price.discountApplied ? (
                       <span className="flex items-center gap-1.5">
-                        <span className="text-slate-400 line-through">{costPln} zł</span>
-                        <span className="font-semibold text-green-700">{(price.priceGrosze / 100).toFixed(2)} zł</span>
+                        <span className="text-slate-400 line-through">{costPln}</span>
+                        <span className="font-semibold text-green-700">{zl(price.priceGrosze)}</span>
                       </span>
                     ) : (
-                      <span className="font-semibold text-ink">{costPln ? `${costPln} zł` : 'Za darmo'}</span>
+                      <span className="font-semibold text-ink">{costPln ?? 'Za darmo'}</span>
                     )}
                   </div>
                   {price.discountUnspecified && (
@@ -5421,11 +5383,26 @@ export default function EventDetailClient() {
                     </button>
                   ))}
                 </div>
-                {guestPaymentMethod === 'blik' && event.blikPhone && (
+                {/* Gość bez konta numeru BLIK tu NIE zobaczy: RLS na
+                    `event_blik` (120) nie oddaje go anonimowi. Dawna linia
+                    „BLIK na numer:” nie renderowała się więc nigdy i gość
+                    wybierający BLIK nie dostawał ani słowa. Numer pokazuje
+                    strona jego wpisu, na tej samej zasadzie co kontu
+                    (migracja 163, W-4, docs/faza1-przejscie-e2e-plan.md). */}
+                {guestPaymentMethod === 'blik' && (
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    BLIK na numer: <span className="font-semibold text-ink">{event.blikPhone}</span>
+                    Numer do BLIKA zobaczysz godzinę przed meczem pod linkiem do swojego zapisu (przyjdzie też mailem).
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Kwota WPROST, jak w oknie dla zalogowanego („Koszt”). Wcześniej
+                gość wybierał sposób płatności, nie widząc, ile zapłaci. */}
+            {event.costGrosze > 0 && (
+              <div className="mb-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm dark:bg-slate-700/50">
+                <span className="text-slate-500 dark:text-slate-400">Koszt</span>
+                <span className="font-semibold text-ink">{zl(event.costGrosze)}</span>
               </div>
             )}
 

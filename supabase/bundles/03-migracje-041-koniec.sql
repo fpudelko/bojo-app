@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 118 migracji: 041_join_code.sql → 160_rozliczenie_bez_organizatora.sql
+-- Zawiera 121 migracji: 041_join_code.sql → 163_gosc_widzi_swoja_platnosc.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -15236,3 +15236,248 @@ $$;
 
 REVOKE ALL ON FUNCTION wyslij_przypomnienia() FROM public;
 REVOKE ALL ON FUNCTION wyslij_przypomnienia() FROM anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 161_turniej_media_na_r2.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 161_turniej_media_na_r2.sql — galeria i sponsorzy turnieju przenoszą się
+-- z bucketu Supabase Storage `turniej-media` (założony w migracji `159`,
+-- ale NIGDY realnie nie utworzony w Dashboardzie) na Cloudflare R2.
+-- ============================================================================
+-- PO CO. Decyzja właściciela z 2026-09-23: R2 zamiast Supabase Storage dla
+-- tego jednego bucketu (zero opłat za transfer, osobny limit od reszty
+-- Storage). Reszta modułu (`covers`, `avatars`) zostaje na Supabase Storage
+-- bez zmian — to dotyczy WYŁĄCZNIE galerii/sponsorów turnieju.
+--
+-- Tabele `turniej_zdjecia`/`turniej_sponsorzy` i ich RLS (migracja `159`)
+-- ZOSTAJĄ bez zmian — kolumny `sciezka`/`sciezka_logo` trzymają teraz klucz
+-- obiektu w R2 zamiast ścieżki w Supabase Storage, ale to ten sam tekst,
+-- baza nie widzi różnicy.
+--
+-- Kasujemy wyłącznie polityki `storage.objects`, które i tak nigdy nie miały
+-- czego pilnować (bucket nigdy nie powstał) — autoryzację zapisu przejął
+-- serwerowy endpoint `/api/turniej-media/*` (Next.js, weryfikuje token
+-- Supabase i woła TĘ SAMĄ funkcję `czy_zarzadza_turniejem()`, zanim wyda
+-- podpisany URL do R2). Odczyt jest publiczny wprost pod adresem R2, poza
+-- bazą — patrz docs/domena.md#turniej-media-cloudflare-r2.
+-- ============================================================================
+
+DROP POLICY IF EXISTS "Media turnieju sa publiczne" ON storage.objects;
+DROP POLICY IF EXISTS "Media turnieju wgrywa zarzadzajacy" ON storage.objects;
+DROP POLICY IF EXISTS "Media turnieju kasuje zarzadzajacy" ON storage.objects;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 162_zgloszenia_turniej_wyglad.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 162: Organizator może poprosić Bojo o inny wygląd strony turnieju wprost
+-- z panelu (kolory, układ, dodatkowy element) — bez wychodzenia na osobny
+-- formularz kontaktowy i bez zgadywania, którego turnieju prośba dotyczy.
+--
+-- `zgloszenia_bledow` (migracja 099) ma już dokładnie ten kształt: jedna
+-- tabela, jedno miejsce, w które patrzy administrator, `rodzaj` odróżnia
+-- czytanie. Nowy rodzaj 'turniej_wyglad' dokłada się do tego wzorca zamiast
+-- zakładać osobną tabelę — ten sam pomysł co `obiekt` (zgłoszenie związane
+-- z konkretnym wierszem, tam `fields`, tu `turnieje`).
+--
+-- Migracja da się puścić drugi raz: DROP CONSTRAINT/DROP FUNCTION IF EXISTS
+-- i ADD COLUMN IF NOT EXISTS.
+
+ALTER TABLE zgloszenia_bledow DROP CONSTRAINT IF EXISTS zgloszenia_bledow_rodzaj_check;
+ALTER TABLE zgloszenia_bledow ADD CONSTRAINT zgloszenia_bledow_rodzaj_check
+  CHECK (rodzaj IN ('uzytkownik', 'awaria', 'obiekt', 'turniej_wyglad'));
+
+-- Wypełnione wyłącznie dla `rodzaj = 'turniej_wyglad'`. `ON DELETE CASCADE`:
+-- zgłoszenie o skasowanym turnieju nie ma po co zostawać (ten sam wzorzec
+-- co `field_id` wyżej w 099).
+ALTER TABLE zgloszenia_bledow ADD COLUMN IF NOT EXISTS turniej_id UUID REFERENCES turnieje(id) ON DELETE CASCADE;
+
+CREATE INDEX IF NOT EXISTS zgloszenia_bledow_turniej_idx
+  ON zgloszenia_bledow (turniej_id) WHERE turniej_id IS NOT NULL;
+
+-- Stara sygnatura (8 parametrów) znika PRZED utworzeniem nowej — inaczej
+-- Postgres trzyma obie jako przeciążone funkcje i wywołanie bez
+-- `p_turniej_id` mogłoby trafić w starą wersję zamiast w tę niżej.
+DROP FUNCTION IF EXISTS public.zapisz_zgloszenie_bledu(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, UUID);
+
+/**
+ * Zapisuje zgłoszenie. Jak w 099, plus `p_turniej_id` dla nowego rodzaju.
+ * SECURITY DEFINER, bo tabela nie ma polityki INSERT — to jedyne wejście.
+ */
+CREATE OR REPLACE FUNCTION public.zapisz_zgloszenie_bledu(
+  p_rodzaj       TEXT,
+  p_opis         TEXT,
+  p_odcisk       TEXT DEFAULT NULL,
+  p_slad         TEXT DEFAULT NULL,
+  p_adres        TEXT DEFAULT NULL,
+  p_przegladarka TEXT DEFAULT NULL,
+  p_wersja       TEXT DEFAULT NULL,
+  p_field_id     UUID DEFAULT NULL,
+  p_turniej_id   UUID DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_id UUID;
+  v_opis TEXT := left(coalesce(p_opis, ''), 2000);
+  v_slad TEXT := left(p_slad, 4000);
+BEGIN
+  IF p_rodzaj NOT IN ('uzytkownik', 'awaria', 'obiekt', 'turniej_wyglad') THEN
+    RAISE EXCEPTION 'Nieznany rodzaj zgłoszenia: %', p_rodzaj;
+  END IF;
+
+  IF v_opis = '' THEN
+    RAISE EXCEPTION 'Puste zgłoszenie';
+  END IF;
+
+  IF p_rodzaj = 'awaria' AND p_odcisk IS NOT NULL THEN
+    INSERT INTO zgloszenia_bledow
+      (rodzaj, odcisk, opis, slad, adres, przegladarka, wersja, user_id)
+    VALUES
+      ('awaria', p_odcisk, v_opis, v_slad, p_adres, p_przegladarka, p_wersja, auth.uid())
+    ON CONFLICT (odcisk) WHERE odcisk IS NOT NULL DO UPDATE
+      SET liczba      = zgloszenia_bledow.liczba + 1,
+          ostatni_raz = now(),
+          adres       = COALESCE(EXCLUDED.adres, zgloszenia_bledow.adres),
+          status      = CASE WHEN zgloszenia_bledow.status = 'zamkniete'
+                             THEN 'nowe' ELSE zgloszenia_bledow.status END
+      RETURNING id INTO v_id;
+    RETURN v_id;
+  END IF;
+
+  INSERT INTO zgloszenia_bledow
+    (rodzaj, opis, slad, adres, przegladarka, wersja, user_id, field_id, turniej_id)
+  VALUES
+    (p_rodzaj, v_opis, v_slad, p_adres, p_przegladarka, p_wersja, auth.uid(),
+     CASE WHEN p_rodzaj = 'obiekt' THEN p_field_id ELSE NULL END,
+     CASE WHEN p_rodzaj = 'turniej_wyglad' THEN p_turniej_id ELSE NULL END)
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.zapisz_zgloszenie_bledu(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, UUID, UUID) FROM PUBLIC;
+-- `anon` też: tak jak przy awarii, zgłoszenie z niezalogowanej przeglądarki
+-- ma trafić do nas, nie zniknąć.
+GRANT EXECUTE ON FUNCTION public.zapisz_zgloszenie_bledu(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, UUID, UUID)
+  TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 163_gosc_widzi_swoja_platnosc.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 163: Gość bez konta widzi swoją płatność: sposób, status i numer BLIK
+-- (W-4, docs/faza1-przejscie-e2e-plan.md).
+--
+-- DLACZEGO. Gracz z kontem ma na stronie meczu kartę „Twoja płatność”: kwotę
+-- po zniżce kartowej, wybrany sposób, numer BLIK (godzinę przed meczem) i to,
+-- czy organizator odhaczył wpłatę. Gość bez konta, czyli dokładnie ten, kogo
+-- organizator przyprowadza linkiem „zapisujesz się bez zakładania konta”,
+-- widział na stronie swojego wpisu (`/gracz/przejmij/[token]`) samą kwotę.
+-- Numeru BLIK nie miał skąd wziąć: RLS na `event_blik` (120) słusznie nie
+-- oddaje go anonimowi, a ta funkcja go nie zwracała. Organizator, który wpisał
+-- numer w kreatorze, zakładał, że zobaczą go wszyscy z jego linku.
+--
+-- UPRAWNIENIEM JEST TOKEN WPISU — ten sam model co przy wypisaniu (128) i przy
+-- ofercie zwolnionego miejsca (137). Reguła odsłonięcia numeru jest LUSTREM
+-- `canSeeBlikPhone()` i `BLIK_PHONE_REVEAL_MINUTES = 60` z
+-- `frontend/src/lib/payments.ts`: numer widzi osoba W SKŁADZIE (nie rezerwa,
+-- nie czekający na akceptację, nie obserwujący), meczu nieodwołanego,
+-- płatnego i przyjmującego BLIK, od godziny przed startem. Pilnuje tego
+-- `frontend/src/__tests__/platnoscGoscia.test.ts`, czytający ten plik.
+--
+-- KSZTAŁT WYNIKU SIĘ ZMIENIA, więc DROP + CREATE (CREATE OR REPLACE nie pozwala
+-- zmienić RETURNS TABLE) — wzorzec z 128 i 137. Pierwsze 15 kolumn jest bez
+-- zmian względem 137, więc frontend sprzed tej migracji czyta wynik jak dotąd,
+-- a frontend po niej ma wartości zapasowe na czas, zanim migracja dojdzie.
+-- Idempotentna: drugie uruchomienie robi dokładnie to samo.
+
+DROP FUNCTION IF EXISTS podejrzyj_wpis_goscia(uuid);
+CREATE FUNCTION podejrzyj_wpis_goscia(p_token uuid)
+RETURNS TABLE (
+  imie                   text,
+  event_id               uuid,
+  tytul                  text,
+  data_meczu             date,
+  godzina                time,
+  miejsce                text,
+  juz_przejety           boolean,
+  status_meczu           text,
+  na_rezerwie            boolean,
+  czeka_na_akceptacje    boolean,
+  koszt_grosze           integer,
+  w_skladzie             integer,
+  max_graczy             integer,
+  mozna_zmieniac         boolean,
+  oferta_do              timestamptz,
+  -- Nowe od 163.
+  metody_platnosci       text[],
+  metoda_platnosci       text,
+  karta_sportowa         boolean,
+  znizka_karty_grosze    integer,
+  pokaz_status_platnosci boolean,
+  oplacone               boolean,
+  -- Numer wyłącznie po spełnieniu reguły odsłonięcia; inaczej NULL.
+  blik_telefon           text,
+  -- „Numer będzie, ale jeszcze nie teraz” — żeby strona mogła powiedzieć,
+  -- KIEDY się pojawi, zamiast milczeć.
+  blik_pozniej           boolean
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH w AS (
+    SELECT p.*, e.id AS e_id, e.title, e.sport, e.event_date, e.event_time,
+           e.field_name, e.custom_location_name, e.custom_address, e.status AS e_status,
+           e.cost_grosz, e.max_players, e.reserve_claim_minutes,
+           e.accepted_payment_methods, e.sports_card_discount_grosz, e.show_payment_status,
+           b.blik_phone,
+           (NOT coalesce(p.is_reserve, false) AND NOT coalesce(p.pending_approval, false)
+             AND coalesce(p.rsvp, 'yes') <> 'maybe'
+             AND e.status <> 'cancelled' AND coalesce(e.cost_grosz, 0) > 0
+             AND 'blik' = ANY (coalesce(e.accepted_payment_methods, '{}'))
+             AND b.blik_phone IS NOT NULL) AS blik_dotyczy,
+           ((e.event_date + e.event_time) - interval '60 minutes'
+             <= (now() AT TIME ZONE 'Europe/Warsaw')) AS blik_juz
+      FROM event_participants p
+      JOIN events e ON e.id = p.event_id
+      LEFT JOIN event_blik b ON b.event_id = e.id
+     WHERE p.claim_token = p_token
+  )
+  SELECT w.name, w.e_id, coalesce(w.title, w.sport), w.event_date, w.event_time,
+         coalesce(w.field_name, w.custom_location_name, w.custom_address, 'Boisko'),
+         (w.claimed_at IS NOT NULL OR w.user_id IS NOT NULL),
+         w.e_status,
+         coalesce(w.is_reserve, false),
+         coalesce(w.pending_approval, false),
+         coalesce(w.cost_grosz, 0),
+         (SELECT count(*)::int FROM event_participants x
+           WHERE x.event_id = w.e_id AND x.pending_approval IS NOT TRUE
+             AND x.rsvp <> 'maybe' AND x.is_reserve IS NOT TRUE),
+         w.max_players,
+         (w.claimed_at IS NULL AND w.user_id IS NULL AND w.is_guest
+          AND (w.event_date + w.event_time) > (now() AT TIME ZONE 'Europe/Warsaw')),
+         CASE WHEN w.claim_offered_at IS NULL THEN NULL
+              ELSE w.claim_offered_at
+                   + (coalesce(w.reserve_claim_minutes, 180) || ' minutes')::interval
+         END,
+         coalesce(w.accepted_payment_methods, '{}'),
+         w.payment_method,
+         coalesce(w.has_sports_card, false),
+         w.sports_card_discount_grosz,
+         coalesce(w.show_payment_status, false),
+         coalesce(w.has_paid, false),
+         CASE WHEN w.blik_dotyczy AND w.blik_juz THEN w.blik_phone END,
+         (w.blik_dotyczy AND NOT w.blik_juz)
+    FROM w;
+$$;
+
+REVOKE ALL ON FUNCTION podejrzyj_wpis_goscia(uuid) FROM public;
+GRANT EXECUTE ON FUNCTION podejrzyj_wpis_goscia(uuid) TO anon, authenticated;

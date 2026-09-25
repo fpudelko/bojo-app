@@ -309,4 +309,54 @@ SELECT _m_oczekuj('drugie przyjęcie tej samej oferty już nie przechodzi',
      SELECT 1 FROM podejrzyj_wpis_goscia(:'token_oferty_claim_token'::uuid)
       WHERE oferta_do IS NOT NULL) s), 0);
 
+-- 6. Płatność gościa pod linkiem do wpisu (migracja `163`, W-4 w
+--    docs/faza1-przejscie-e2e-plan.md). Mail „Sprawdź skład" prowadzi na
+--    `/gracz/przejmij/[token]` — i to jest jedyne miejsce, gdzie gość bez konta
+--    może zobaczyć numer BLIK. Reguła ta sama co dla konta: w składzie, mecz
+--    płatny z BLIK-iem, od godziny przed startem.
+\set M_PLATNY '''ffffffff-0000-4000-8000-0000000000b1'''
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title,
+                    cost_grosz, accepted_payment_methods, show_payment_status)
+VALUES (:M_PLATNY::uuid, :M_ORG::uuid, 'Ola Organizatorka', 'piłka nożna', 'Hala Poczta',
+        dzis_pl() + 1, '20:00', 10, 'public', 'Mecz płatny', 2000, '{gotowka,blik}', true);
+INSERT INTO event_blik (event_id, blik_phone) VALUES (:M_PLATNY::uuid, '600 123 456');
+INSERT INTO event_participants (event_id, name, is_guest, guest_email, is_reserve, payment_method, has_paid) VALUES
+  (:M_PLATNY::uuid, 'Płacący Gość', true, 'placacy@example.com', false, 'blik', true),
+  (:M_PLATNY::uuid, 'Gość Rezerwowy', true, 'placacy-rez@example.com', true, 'blik', false);
+SELECT claim_token FROM event_participants
+ WHERE event_id = :M_PLATNY::uuid AND guest_email = 'placacy@example.com' \gset sklad_
+SELECT claim_token FROM event_participants
+ WHERE event_id = :M_PLATNY::uuid AND guest_email = 'placacy-rez@example.com' \gset rez_
+
+SET ROLE anon;
+SELECT _m_oczekuj('jutro: numeru BLIK jeszcze nie ma, ale strona wie, że będzie',
+  (SELECT count(*) FROM podejrzyj_wpis_goscia(:'sklad_claim_token'::uuid)
+    WHERE blik_telefon IS NULL AND blik_pozniej), 1);
+SELECT _m_oczekuj('gość widzi swój sposób, status wpłaty i metody organizatora',
+  (SELECT count(*) FROM podejrzyj_wpis_goscia(:'sklad_claim_token'::uuid)
+    WHERE metoda_platnosci = 'blik' AND oplacone AND pokaz_status_platnosci
+      AND metody_platnosci = '{gotowka,blik}'), 1);
+RESET ROLE;
+
+UPDATE events
+   SET event_date = (now() AT TIME ZONE 'Europe/Warsaw')::date,
+       event_time = ((now() AT TIME ZONE 'Europe/Warsaw') + interval '30 minutes')::time
+ WHERE id = :M_PLATNY::uuid
+   -- Tuż przed północą „za 30 minut" to już jutro — wtedy data z góry się
+   -- nie zgadza, więc przesuwamy tylko w bezpiecznym oknie dnia.
+   AND (now() AT TIME ZONE 'Europe/Warsaw')::time < '23:25';
+
+SET ROLE anon;
+SELECT _m_oczekuj('godzinę przed meczem gość w składzie widzi numer BLIK',
+  (SELECT count(*) FROM podejrzyj_wpis_goscia(:'sklad_claim_token'::uuid)
+    WHERE blik_telefon = '600 123 456' AND NOT blik_pozniej
+       OR (now() AT TIME ZONE 'Europe/Warsaw')::time >= '23:25'), 1);
+SELECT _m_oczekuj('rezerwowy numeru nie widzi i nie dostaje obietnicy „później"',
+  (SELECT count(*) FROM podejrzyj_wpis_goscia(:'rez_claim_token'::uuid)
+    WHERE blik_telefon IS NULL AND NOT blik_pozniej), 1);
+SELECT _m_oczekuj('zmyślony token nie dostaje nic, także nowych kolumn',
+  (SELECT count(*) FROM podejrzyj_wpis_goscia('dddddddd-0000-4000-8000-00000000dead'::uuid)), 0);
+RESET ROLE;
+
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ POCZTA: wszystkie asercje przeszły.'; END $$;

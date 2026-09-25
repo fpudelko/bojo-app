@@ -14,6 +14,7 @@ import { withCount } from './plural';
 import { PAYMENT_METHOD_LABELS, SPORTS_CARD_LABELS } from './payments';
 import { KROK_KREATORA } from './eventWizard';
 import type { PaymentMethod, SportsCardProvider, Visibility } from '@/types';
+import { zl } from './kwota';
 
 export interface WierszPodsumowania {
   klucz: 'co' | 'kiedy' | 'gdzie' | 'sklad' | 'koszt' | 'widocznosc';
@@ -150,7 +151,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
   if (!(koszt > 0)) {
     wartoscKosztu = 'Za darmo';
   } else {
-    const czesci = [`${koszt.toFixed(2).replace('.', ',')} zł od osoby`];
+    const czesci = [`${zl(Math.round(koszt * 100))} od osoby`];
     if (v.acceptedPaymentMethods.length > 0) {
       czesci.push(v.acceptedPaymentMethods.map((m) => PAYMENT_METHOD_LABELS[m]).join(', '));
     } else {
@@ -165,7 +166,7 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
       // nie brak danych do uzupełnienia.
       const kwota = parseFloat(v.cardDiscountPln || '0');
       czesci.push(kwota > 0
-        ? `zniżka ${kwota.toFixed(2).replace('.', ',')} zł (${karty})`
+        ? `zniżka ${zl(Math.round(kwota * 100))} (${karty})`
         : `zniżka z kartą, do ustalenia (${karty})`);
     }
     wartoscKosztu = czesci.join(' · ');

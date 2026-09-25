@@ -627,6 +627,23 @@ Powód: `validatePayments()` nie wymaga ani jednej metody, więc dało się opub
 z ceną i bez informacji, jak ją uregulować. Pusty zestaw daje ostrzeżenie, nie blokadę —
 płatność można ustalić poza aplikacją.
 
+**Gość bez konta widzi swoją płatność na tych samych warunkach co konto — od migracji
+`163` (W-4, [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md)).** Karta
+„Twoja płatność” (`components/events/TwojaPlatnosc.tsx`) stoi dziś w dwóch miejscach:
+na stronie meczu dla gracza z kontem i na stronie wpisu gościa
+(`/gracz/przejmij/[token]`). Uprawnieniem gościa jest token wpisu (ten sam model co
+wypisanie w `128` i oferta rezerwy w `137`), a numer BLIK odsłania **baza**
+(`podejrzyj_wpis_goscia()`), bo `event_blik` jest za RLS i anonim go nie przeczyta.
+Reguła jest jedna, w dwóch kopiach: `canSeeBlikPhone()` dla konta i warunek w SQL dla
+gościa — w składzie, mecz płatny z BLIK-iem, od 60 minut przed startem. Rozjazd łapie
+`platnoscGoscia.test.ts`. Karta dostaje wynik reguły (`blikTelefon` albo `blikPozniej`),
+nie liczy go sama.
+
+**Kwota w interfejsie ma jedną formę: `zl()` z `lib/kwota.ts` („20,00 zł”)** — od
+2026-09-25 (W-5). Wcześniej panel „Podział kosztów” mówił „20.00 PLN”, okno zapisu
+„20.00 zł”, a wiadomość na czat „20,00 zł”. Plakietka „20 zł / os.” na kartach meczu
+zostaje jako skrót; pola formularzy są liczbami.
+
 **Zawsze licz cenę przez `priceForParticipant()`** — nigdy nie odejmuj ręcznie. Funkcja
 zwraca trzy pola i wszystkie trzy trzeba obsłużyć w UI:
 

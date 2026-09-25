@@ -38,6 +38,7 @@ import { validatePayments } from '@/lib/eventWizard';
 import { nazwaZAdresu } from '@/lib/utils';
 import { FOCUS_SPORTS, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
 import type { Visibility, TeamMode, PaymentMethod, SportsCardProvider, EventCreate, EventItem, EventParticipant } from '@/types';
+import { zl } from '@/lib/kwota';
 
 const SPORTS = FOCUS_SPORTS;
 const EMPTY_LOCATION: LocationResult = { venue: null, lat: null, lng: null, address: '' };
@@ -679,7 +680,7 @@ export default function EditEventPage() {
             {parseFloat(costPln || '0') > 0 && (
               <p className="mt-1 text-xs text-slate-500">
                 Przy komplecie ({maxPlayers} os.) to{' '}
-                <span className="font-semibold">{(parseFloat(costPln) * maxPlayers).toFixed(2)} zł</span>
+                <span className="font-semibold">{zl(Math.round(parseFloat(costPln) * maxPlayers * 100))}</span>
                 {' '}za cały obiekt.
               </p>
             )}

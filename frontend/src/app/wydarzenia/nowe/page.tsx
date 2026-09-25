@@ -40,6 +40,7 @@ import { createRecurringEvent, dayOfWeekFromDate, dayOfWeekLabelFromDate } from 
 import type { Group } from '@/types';
 import type { Visibility, PaymentMethod, SportsCardProvider } from '@/types';
 import { withCount } from '@/lib/plural';
+import { zl } from '@/lib/kwota';
 
 // NAZWY MÓWIĄ, O CO PYTAMY — i to nie jest kosmetyka.
 //
@@ -1099,8 +1100,8 @@ function NewEventForm() {
                       {parseFloat(costPln || '0') > 0 && (
                         <p className="mt-1 text-xs text-slate-500">
                           {kosztZaObiekt
-                            ? <>Przy {maxPlayers} miejscach wychodzi <span className="font-semibold">{costPln} zł od osoby</span>.</>
-                            : <>Przy komplecie ({maxPlayers} os.) to <span className="font-semibold">{(parseFloat(costPln) * maxPlayers).toFixed(2)} zł</span> za cały obiekt.</>}
+                            ? <>Przy {maxPlayers} miejscach wychodzi <span className="font-semibold">{zl(Math.round(parseFloat(costPln) * 100))} od osoby</span>.</>
+                            : <>Przy komplecie ({maxPlayers} os.) to <span className="font-semibold">{zl(Math.round(parseFloat(costPln) * maxPlayers * 100))}</span> za cały obiekt.</>}
                         </p>
                       )}
                     </div>
