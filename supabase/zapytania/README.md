@@ -13,6 +13,11 @@ Editora, gdy aplikacja zaczyna mówić „Could not find the '…' column of '�
 schema cache" albo „column … does not exist". Wypisuje, których plików
 z `supabase/migrations/` brakuje w tej bazie, brakujące na górze.
 
+**`przeglad-meczow.sql`** — materiał do decyzji, które mecze na produkcji są
+testowe (również te sprzed markerów `[TEST]`, których `wyczysc-testowe.sql` nie
+widzi). Sekcja A: mecze per organizator, sekcja B: lista meczów z kolumną
+poszlak `sygnaly`. Niczego nie zmienia.
+
 ## Jednorazowy setup
 
 ### 1. Rola tylko do odczytu
