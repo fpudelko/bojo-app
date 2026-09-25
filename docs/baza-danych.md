@@ -361,6 +361,13 @@ tego skryptu nie uruchamia. Dziś lista jest **odwrócona** (wymienia pięć kol
 ukrytych, resztę wylicza z katalogu) i skrypt ma własną bramkę sprawdzającą, że rola
 API przeczyta wszystko, czego potrzebuje `getEvent()`.
 
+**`scripts/stos-bez-dockera.sh` tej pułapki nie ma** (od 2026-09-25): nie nadaje
+`GRANT ALL`, tylko puszcza atrapę z `ALTER DEFAULT PRIVILEGES` (`shim.sql`) PRZED
+migracjami. Granty powstają więc tak jak na produkcji, a `127` i `145` odbierają swoje
+kolumny w swojej kolejce — bez odtwarzania czegokolwiek w skrypcie. Nowa kolumna
+w `event_participants` bez jawnego grantu będzie tam nieczytelna dokładnie tak, jak
+na żywo.
+
 Pomijasz to celowo tylko wtedy, gdy kolumna ma być NIECZYTELNA przez API — tak jak
 `guest_email`, `guest_phone`, `phone`, `claim_token` i `confirmation_token`.
 Kosztowało to migrację `138`; asercja w `supabase/test/rls.sql` pilnuje, żeby się nie

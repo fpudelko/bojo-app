@@ -236,6 +236,25 @@ Przechodzą przejścia realnego gracza na realnej bazie: dołączenie, rezerwa,
 dwa tryby miejsc dla bramkarzy, prośby o akceptację, płatności, obserwowanie,
 okno na telefonie.
 
+**Bez Dockera (środowisko agenta, laptop bez Dockera) — od 2026-09-25:**
+
+```bash
+./scripts/stos-bez-dockera.sh              # ~20 s pierwszy raz, ~4 s potem
+cd frontend && set -a && . /tmp/bojo-stos/env && set +a
+npm run build && npm run scenariusze
+```
+
+Ten sam stos z gotowych binarek: Postgres z systemu, GoTrue `v2.180.0`
+i PostgREST `v12.2.3` (przypięte z sumą SHA-256), brama Node pod `:54321`.
+Bez Realtime, Storage, funkcji brzegowych i Google. **Dane domyślnie te co
+w CI** (konta + `seed_wizualne.sql`), bo scenariusze liczą na tę bazę co do
+wiersza; `--wszystkie-seedy` dokłada seedy scenariuszowe do klikania ręką
+i wtedy scenariusze zielone nie będą. Na takim stosie bramka
+`bramka-scenariuszy.mjs` mówi „zachowanie bez regresji”. Kilka zrzutów
+różni się od wzorców (awatary z internetu, fonty emoji), więc **wzorców
+z tego stosu nie przyjmuj**. `stop`, `status`, `od-nowa` → nagłówek skryptu.
+To narzędzie, nie bramka: do CI nie wchodzi.
+
 **Zegar NIE jest zamrożony, a daty w seedzie NIE są na sztywno** — stało tu
 odwrotnie i było to nieprawdą w obie strony. `seed_wizualne.sql` liczy
 `CURRENT_DATE + 3`, `+ 4` …, czyli stałe ODSTĘPY od dnia uruchomienia, a

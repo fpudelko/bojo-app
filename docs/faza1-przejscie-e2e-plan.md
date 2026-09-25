@@ -1,7 +1,7 @@
 # Faza 1, runda 8: przejście całej ścieżki na żywym stosie — plan
 
 > **Status (2026-09-25): decyzje podjęte — D-1 tak, D-2 wariant A, D-3 tak (patrz §8).
-> PR-D (W-1…W-3), PR-E (W-4, W-5, migracja `163`) i PR-F (W-6…W-8) wdrożone. PR-G czeka.**
+> PR-D (W-1…W-3), PR-E (W-4, W-5, migracja `163`), PR-F (W-6…W-8) i PR-G (W-9) wdrożone.**
 > Ósma runda przejścia ścieżki organizatora i gracza. Poprzednie: `O`/`E`/`P`/`R`/`S`
 > w [przeplyw-organizatora.md](./przeplyw-organizatora.md) i `F` w
 > [faza1-organizator-plan.md](./faza1-organizator-plan.md) (wdrożone w PR-A/B/C).
@@ -634,6 +634,27 @@ mówi to wprost na starcie. Wersje binarek przypięte w skrypcie.
 
 Nie wchodzi do CI (tam jest prawdziwy stos). Służy agentom i ludziom bez Dockera.
 **Decyzja D-3** — bez niej PR-G nie powstaje; PR-D/E/F od niego nie zależą.
+
+**Wdrożone 2026-09-25** (`scripts/stos-bez-dockera.sh` + `stos-bez-dockera-proxy.mjs`).
+Dwie rzeczy wyszły inaczej niż w planie:
+
+- **Domyślne dane są te co w CI, nie „seedy jak w `baza-testowa.sh`”.** Pierwsze
+  uruchomienie scenariuszy na komplecie seedów dało 12 czerwonych, żadnej z winy
+  kodu: `test1` należał do ekip z `seed_test_groups` („bez grup — zachęta” nie miała
+  jak się pokazać), dzwonek i prośby organizatora miały więcej pozycji. Scenariusze
+  liczą na bazę z `stos-lokalny.sh` co do wiersza. Komplet seedów został pod
+  `--wszystkie-seedy`, do klikania ręką; tryb zapisuje się przy bazie i zmiana
+  wymaga `od-nowa`.
+- **Bez `GRANT ALL`.** Granty robią domyślne uprawnienia z `shim.sql` przed
+  migracjami, więc ograniczenia kolumnowe `127`/`145` zostają jak na produkcji bez
+  odtwarzania ich w skrypcie (pułapka opisana w
+  [baza-danych.md](./baza-danych.md)).
+
+Wynik na tym stosie: wszystkie asercje zachowania zielone,
+`bramka-scenariuszy.mjs` na raporcie JSON: „zachowanie bez regresji”. Trzy scenariusze
+różnią się wyłącznie zrzutem: awatary z randomuser.me (przeglądarka bez internetu),
+ikony sportów (brak fontów emoji) i dymek powiadomienia w innym momencie przy jednym
+workerze.
 
 ---
 
