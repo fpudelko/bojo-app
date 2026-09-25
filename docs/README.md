@@ -19,6 +19,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Na jakie zapytania Bojo ma odpowiadać? Co jest zepsute w SEO i co robimy dalej? | [seo-geo-strategia.md](./seo-geo-strategia.md) |
 | Co wyszło z rewizji przed startem? | [rewizja-2026-08.md](./rewizja-2026-08.md) |
 | Co działa, czego brakuje i co robić poza kodem na etapie GTM? | [analiza-gtm-2026-09.md](./analiza-gtm-2026-09.md) |
+| Kto jeszcze umawia mecze, rezerwuje boiska, robi turnieje? Czym Bojo się od nich różni? | [konkurencja-2026-09.md](./konkurencja-2026-09.md) |
 | Gdzie organizator się zacina przy tworzeniu meczu? Co zostaje bez zmian i dlaczego? | [przeplyw-organizatora.md](./przeplyw-organizatora.md) |
 | Co dokładnie poprawić w fazie 1 (organizator), w jakiej kolejności i jak? | [faza1-organizator-plan.md](./faza1-organizator-plan.md) |
 | Co wyszło z przejścia całej ścieżki na żywym stosie (runda 8, `W-n`)? Co czeka na decyzję? | [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md) |
