@@ -5,6 +5,7 @@ import { track } from './analytics';
 import { eventDisplayTitle } from './eventTitle';
 import { kanonicznyOrigin } from './powrotPoLogowaniu';
 import type { DaneDoUdostepnienia } from './eventShare';
+import type { PaymentMethod } from '@/types';
 
 /**
  * Przejęcie wpisu gościa (migracja `066`).
@@ -43,6 +44,21 @@ export interface PodgladWpisuGoscia {
    *  `sync_reserve_claim()` filtrowało `user_id IS NOT NULL`, bo oferta szła
    *  wyłącznie przez `notifications`. */
   ofertaDo: string | null;
+  /** Płatność gościa (migracja `163`, W-4). Do `163` gość bez konta widział
+   *  pod linkiem wyłącznie kwotę — ani sposobu, ani statusu, ani numeru BLIK.
+   *  Każde pole ma wartość zapasową: między deployem frontu a migracją strona
+   *  pokazuje to, co dotąd, a nie pustki. */
+  metodyPlatnosci: PaymentMethod[];
+  metodaPlatnosci: PaymentMethod | null;
+  kartaSportowa: boolean;
+  znizkaKartyGrosze: number | null;
+  pokazStatusPlatnosci: boolean;
+  oplacone: boolean;
+  /** Numer BLIK — wyłącznie gdy baza uznała, że wolno go pokazać (ta sama
+   *  reguła co `canSeeBlikPhone()`). `null` = nie pokazujemy. */
+  blikTelefon: string | null;
+  /** Numer będzie, ale dopiero godzinę przed meczem. */
+  blikPozniej: boolean;
 }
 
 /** Co pokazać klikającemu, zanim się zaloguje. Zwraca null dla nieznanego tokenu. */
@@ -70,6 +86,14 @@ export async function podejrzyjWpisGoscia(token: string): Promise<PodgladWpisuGo
     // między deployem a ręcznym puszczeniem migracji, nie docelowy.
     moznaZmieniac: row.mozna_zmieniac ?? !row.juz_przejety,
     ofertaDo: row.oferta_do ?? null,
+    metodyPlatnosci: (row.metody_platnosci ?? []) as PaymentMethod[],
+    metodaPlatnosci: (row.metoda_platnosci ?? null) as PaymentMethod | null,
+    kartaSportowa: row.karta_sportowa ?? false,
+    znizkaKartyGrosze: row.znizka_karty_grosze ?? null,
+    pokazStatusPlatnosci: row.pokaz_status_platnosci ?? false,
+    oplacone: row.oplacone ?? false,
+    blikTelefon: row.blik_telefon ?? null,
+    blikPozniej: row.blik_pozniej ?? false,
   };
 }
 

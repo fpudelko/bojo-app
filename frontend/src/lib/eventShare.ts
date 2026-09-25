@@ -15,6 +15,7 @@ import { plural, withCount } from './plural';
 import { momentZapisu } from './events';
 import { kolejkaRezerwy } from './kolejkaRezerwy';
 import type { EventItem, EventParticipant } from '@/types';
+import { zl } from './kwota';
 
 /**
  * Kanoniczny adres meczu.
@@ -100,7 +101,7 @@ function liniaMiejscICeny(
     return stan.reserveEnabled ? 'Komplet, wejdź na rezerwę' : 'Komplet';
   })();
   const cena = e.costGrosze > 0
-    ? `${(e.costGrosze / 100).toFixed(2).replace('.', ',')} zł od osoby`
+    ? `${zl(e.costGrosze)} od osoby`
     : 'za darmo';
   return `${opisMiejsc} · ${cena}`;
 }

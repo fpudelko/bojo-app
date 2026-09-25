@@ -10,6 +10,8 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
 import { KORZYSCI_KONTA } from '@/content/kontoGoscia';
+import TwojaPlatnosc from '@/components/events/TwojaPlatnosc';
+import { zl } from '@/lib/kwota';
 import {
   podejrzyjWpisGoscia, przejmijWpisGoscia, wypiszWpisGoscia,
   przyjmijOferteGoscia, odpuscOferteGoscia, type PodgladWpisuGoscia,
@@ -310,10 +312,38 @@ export default function PrzejmijClient({ token }: { token: string }) {
         {podglad.kosztGrosze > 0 && (
           <p className="flex items-center gap-1.5">
             <Wallet className="h-3.5 w-3.5 text-slate-400" />
-            {(podglad.kosztGrosze / 100).toFixed(2).replace('.', ',')} zł od osoby
+            {zl(podglad.kosztGrosze)} od osoby
           </p>
         )}
       </div>
+
+      {/* TWOJA PŁATNOŚĆ — ta sama karta co na stronie meczu u gracza z kontem.
+          Do migracji `163` gość widział tu samą kwotę: ani sposobu, ani statusu
+          wpłaty, ani numeru BLIK, którego nie miał skąd wziąć (RLS na
+          `event_blik` nie oddaje go anonimowi). Tu trafia z maila „Sprawdź
+          skład”, więc to jest jedyne miejsce, gdzie może go zobaczyć
+          (W-4, docs/faza1-przejscie-e2e-plan.md). Rezerwa i poczekalnia nie
+          płacą — jak na stronie meczu. */}
+      {podglad.kosztGrosze > 0 && !podglad.naRezerwie && !podglad.czekaNaAkceptacje
+        && podglad.statusMeczu !== 'cancelled' && (
+        <div className="mt-4">
+          {podglad.blikPozniej && podglad.metodaPlatnosci === 'blik' && (
+            <p className="mb-2 text-xs text-slate-500">
+              Wróć tu przed meczem po numer BLIK: link do tej strony masz też w mailu.
+            </p>
+          )}
+          <TwojaPlatnosc
+            kosztGrosze={podglad.kosztGrosze}
+            znizkaKartyGrosze={podglad.znizkaKartyGrosze}
+            kartaSportowa={podglad.kartaSportowa}
+            metoda={podglad.metodaPlatnosci}
+            blikTelefon={podglad.blikTelefon}
+            blikPozniej={podglad.blikPozniej}
+            pokazStatus={podglad.pokazStatusPlatnosci}
+            oplacone={podglad.oplacone}
+          />
+        </div>
+      )}
 
       {blad && (
         <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

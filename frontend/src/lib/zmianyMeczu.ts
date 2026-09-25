@@ -19,6 +19,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { withCount } from './plural';
 import type { EventParticipant, PaymentMethod, SportsCardProvider, Visibility } from '@/types';
+import { zl } from './kwota';
 
 /**
  * Pola meczu, które porównujemy. Węższe niż `EventItem` i niż `EventCreate` —
@@ -108,7 +109,7 @@ function terminTekst(date: string, time: string): string {
 
 function kosztTekst(grosze: number): string {
   if (!grosze) return 'za darmo';
-  return `${(grosze / 100).toFixed(2)} zł od osoby`;
+  return `${zl(grosze)} od osoby`;
 }
 
 function widocznoscTekst(v: Visibility): string {

@@ -13,13 +13,13 @@ import { eventDisplayTitle } from './eventTitle';
 import { priceForParticipant, winienWplate } from './payments';
 import { withCount } from './plural';
 import type { EventItem, EventParticipant } from '@/types';
+import { zl } from './kwota';
 
 export type DaneDoRozliczenia = Pick<
   EventItem,
   'sport' | 'title' | 'maxPlayers' | 'date' | 'costGrosze' | 'sportsCardDiscountGrosze'
 > & Partial<Pick<EventItem, 'blikPhone' | 'acceptedPaymentMethods'>>;
 
-const zl = (grosze: number) => `${(grosze / 100).toFixed(2).replace('.', ',')} zł`;
 
 /**
  * Tekst rozliczenia: ile kosztuje, kto jeszcze nie oddał, gdzie wysłać BLIK.

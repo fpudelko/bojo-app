@@ -64,7 +64,7 @@ describe('policzZmiany', () => {
 
   it('koszt opisuje kwotę od osoby, a zero nazywa po imieniu', () => {
     const z = policzZmiany(bazowy, { ...bazowy, costGrosze: 0 });
-    expect(z[0].przed).toBe('20.00 zł od osoby');
+    expect(z[0].przed).toBe('20,00 zł od osoby');
     expect(z[0].po).toBe('za darmo');
   });
 

@@ -1,7 +1,7 @@
 # Faza 1, runda 8: przejście całej ścieżki na żywym stosie — plan
 
 > **Status (2026-09-25): decyzje podjęte — D-1 tak, D-2 wariant A, D-3 tak (patrz §8).
-> PR-D (W-1, W-2, W-3) wdrożony. PR-E, PR-F i PR-G czekają.**
+> PR-D (W-1, W-2, W-3) i PR-E (W-4, W-5, migracja `163`) wdrożone. PR-F i PR-G czekają.**
 > Ósma runda przejścia ścieżki organizatora i gracza. Poprzednie: `O`/`E`/`P`/`R`/`S`
 > w [przeplyw-organizatora.md](./przeplyw-organizatora.md) i `F` w
 > [faza1-organizator-plan.md](./faza1-organizator-plan.md) (wdrożone w PR-A/B/C).
@@ -446,7 +446,7 @@ na tych samych warunkach. Rezerwowy i czekający na akceptację — nie (tak jak
 4. **`app/gracz/przejmij/[token]/PrzejmijClient.tsx`** — pod kartą meczu, gdy
    `kosztGrosze > 0 && !naRezerwie && !czekaNaAkceptacje && statusMeczu === 'active'
    && !juzPrzejety`: `<TwojaPlatnosc … />`. Zdanie nad kartą przy `blikPozniej`:
-   „Numer do BLIKA pojawi się tutaj godzinę przed meczem. Link masz też w mailu.”
+   „Wróć tu przed meczem po numer BLIK: link do tej strony masz też w mailu.” (sam termin „godzinę przed meczem” mówi już karta)
 5. **Okno zapisu gościa** (`EventDetailClient.tsx`, `joinAsGuestDialogOpen`), przy
    `event.costGrosze > 0`, pod wyborem metody — ten sam wiersz co w oknie zalogowanego:
    „Koszt · 20,00 zł”; przy wybranym BLIK-u zamiast dzisiejszego warunkowego
