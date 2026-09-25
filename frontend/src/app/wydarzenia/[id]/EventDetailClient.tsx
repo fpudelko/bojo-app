@@ -1344,7 +1344,7 @@ export default function EventDetailClient() {
 
       // ZAPAMIĘTUJEMY TOKEN NA URZĄDZENIU. Bez tego jedynym miejscem, w którym
       // gość widzi swój link, jest okno stojące właśnie na ekranie — kto je
-      // zamknie („Pomijam, potwierdzę później"), traci go bezpowrotnie i przy
+      // zamknie („Nie teraz, zostaję bez konta"), traci go bezpowrotnie i przy
       // następnym wejściu na stronę meczu jest dla Bojo kimś obcym, mimo że
       // stoi w składzie. Stąd też brał się brak jakiejkolwiek drogi do
       // wypisania się.
@@ -1357,14 +1357,11 @@ export default function EventDetailClient() {
       // Konto już istnieje — to samo pole hasła od razu loguje, zamiast próbować
       // rejestracji, która i tak skończyłaby się błędem „konto już istnieje".
       setAccountEmailTaken(result.hasAccount);
+      // BEZ dymka (toastu). Okno, które właśnie wstaje, mówi to samo
+      // nagłówkiem („Świetnie! Jesteś w składzie.”, „Zapisano! Jesteś na
+      // liście rezerwowej.”…), a dymek przez kilka sekund zasłaniał jego
+      // dolny przycisk (W-6, docs/faza1-przejscie-e2e-plan.md).
       setShowAccountPrompt(true);
-      toast(result.alreadyJoined
-        ? 'Ten zapis już istniał, nic nie dublujemy.'
-        : result.pendingApproval
-          ? 'Prośba wysłana, czeka na akceptację organizatora'
-          : result.isReserve
-            ? 'Komplet, jesteś na liście rezerwowej'
-            : 'Dołączyłeś do meczu!');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Nie udało się zapisać';
       // Furtka zgodności: dopóki migracja 088 nie jest wgrana ręcznie w Supabase,
@@ -4366,7 +4363,7 @@ export default function EventDetailClient() {
                   <button
                     onClick={() => {
                       const powrot = `${window.location.pathname}?dolacz=1`;
-                      window.location.href = `/logowanie?next=${encodeURIComponent(powrot)}`;
+                      window.location.href = `/logowanie?next=${encodeURIComponent(powrot)}&powod=dolacz`;
                     }}
                     className="flex h-12 items-center justify-center rounded-2xl bg-slate-700 text-[15px] font-bold text-white transition active:scale-[0.99] px-4"
                   >
@@ -5472,8 +5469,13 @@ export default function EventDetailClient() {
               {newUserHasAccount
                 ? 'Ten e-mail ma już konto w Bojo. Zaloguj się, żeby zobaczyć więcej szczegółów, przypiszemy ten zapis do Ciebie.'
                 : newUserAlreadyJoined
-                  ? 'Twój zapis jest już na liście. Ostatni krok, 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.'
-                  : 'Ostatni krok, 15 sekund, żeby nie stracić powiadomień o kolejnych meczach.'}
+                  ? 'Twój zapis jest już na liście. Konto nie jest potrzebne, a jeśli chcesz, zajmie 15 sekund i daje:'
+                  : newUserPending
+                    ? 'Prośba dotarła do organizatora. Konto nie jest potrzebne, a jeśli chcesz, zajmie 15 sekund i daje:'
+                    // „Ostatni krok” mówiło, że zapis nie jest skończony, choć
+                    // był — rodziło to pytania „czy mnie zapisało?” do
+                    // organizatora (W-6, docs/faza1-przejscie-e2e-plan.md).
+                    : 'Zapis gotowy, organizator Cię widzi. Konto nie jest potrzebne, a jeśli chcesz, zajmie 15 sekund i daje:'}
             </p>
 
             {/* Trzy wartości — tylko dla osób BEZ konta. Właściciela konta nie ma sensu
@@ -5551,7 +5553,7 @@ export default function EventDetailClient() {
               disabled={accountBusy}
               className="mt-3 w-full text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 disabled:opacity-50"
             >
-              {newUserHasAccount ? 'Pomiń i zobacz skład bez logowania' : 'Pomijam, potwierdzę później'}
+              {newUserHasAccount ? 'Pomiń i zobacz skład bez logowania' : 'Nie teraz, zostaję bez konta'}
             </button>
 
             {/* Fallback link — tylko dla ścieżki zakładania konta; ekran dla właściciela

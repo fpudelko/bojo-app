@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Mail, Lock, User as UserIcon, ArrowLeft, CheckCircle2, Copy, Check } from 'lucide-react';
-import { useAuth } from '@/lib/auth';
+import { useAuth, BLAD_ZLE_DANE } from '@/lib/auth';
 import { isPelneImie } from '@/lib/profileName';
 
 function GoogleIcon() {
@@ -105,6 +105,10 @@ interface Props {
 /** Zdanie pod nagłówkiem logowania, zależne od tego, skąd ktoś przyszedł. */
 const POWODY: Record<string, string> = {
   alert: 'Zaloguj się, żeby dostawać powiadomienia o nowych meczach, alert przypiszemy do Twojego konta.',
+  // Brama kreatora: organizator z outreachu zwykle konta jeszcze NIE MA, a ten
+  // ekran otwiera się w trybie logowania (W-7, docs/faza1-przejscie-e2e-plan.md).
+  kreator: 'Pierwszy raz? Najszybciej przez Google. E-mailem: „Załóż je” pod formularzem. Po zalogowaniu wracasz prosto do kreatora.',
+  dolacz: 'Po zalogowaniu wrócisz do meczu z otwartym oknem zapisu.',
 };
 
 export default function AuthForm({ next, onSuccess, initialMode, powod }: Props) {
@@ -119,12 +123,15 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [inApp, setInApp] = useState<boolean | null>(null);
+  // Złe dane w trybie logowania: najczęściej nowy organizator, który wpisał
+  // e-mail i NOWE hasło, zamiast założyć konto (W-7).
+  const [podpowiedzRejestracji, setPodpowiedzRejestracji] = useState(false);
 
   useEffect(() => { setInApp(isInAppBrowser()); }, []);
 
   const dest = next || '/moje-gry';
 
-  const switchMode = (m: Mode) => { setMode(m); setError(null); setInfo(null); setPassword(''); };
+  const switchMode = (m: Mode) => { setMode(m); setError(null); setInfo(null); setPassword(''); setPodpowiedzRejestracji(false); };
 
   const handleGoogle = async () => {
     setError(null);
@@ -136,6 +143,7 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
     e.preventDefault();
     setError(null);
     setInfo(null);
+    setPodpowiedzRejestracji(false);
     if (!email.trim()) { setError('Podaj adres e-mail.'); return; }
     // Imię i nazwisko sprawdzamy PRZED `setBusy`, żeby nie trzeba było go
     // odkręcać przy wyjściu. Wymóg jest tu, a nie tylko w atrybucie `required`,
@@ -166,7 +174,9 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
         setInfo('Jeśli konto istnieje, wysłaliśmy link do ustawienia nowego hasła.');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Coś poszło nie tak. Spróbuj ponownie.');
+      const komunikat = err instanceof Error ? err.message : 'Coś poszło nie tak. Spróbuj ponownie.';
+      setError(komunikat);
+      if (mode === 'signin' && komunikat === BLAD_ZLE_DANE) setPodpowiedzRejestracji(true);
     } finally { setBusy(false); }
   };
 
@@ -246,6 +256,19 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
           </div>
         )}
         {error && <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {/* Samo „Nieprawidłowy e-mail lub hasło” zostawiało nowego
+            organizatora bez drogi dalej: konta jeszcze nie ma, a „Załóż je”
+            stoi pod formularzem. Adres zostaje w polu (switchMode czyści
+            wyłącznie hasło). */}
+        {podpowiedzRejestracji && (
+          <button
+            type="button"
+            onClick={() => switchMode('signup')}
+            className="w-full rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-left text-sm font-semibold text-primary-800 hover:bg-primary-100"
+          >
+            Pierwszy raz tutaj? Załóż konto na ten adres
+          </button>
+        )}
         {info && <p className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-sm text-green-700">{info}</p>}
         <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 py-3 text-sm font-semibold text-white transition-all hover:bg-primary-800 active:scale-[0.98] disabled:opacity-60">
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Loader2, MapPin, Users } from 'lucide-react';
@@ -17,7 +18,7 @@ interface DaneGrupy {
   coverImageUrl?: string; memberCount: number; createdAt: string;
 }
 interface DaneMeczu {
-  date: string; time: string; fieldName?: string; maxPlayers: number; participantsCount: number;
+  id: string; date: string; time: string; fieldName?: string; maxPlayers: number; participantsCount: number;
 }
 
 /**
@@ -100,6 +101,19 @@ export default function ZaproszenieClient({
             {nextEvent.maxPlayers > 0 && (
               <p className="mt-1 text-xs text-slate-400">{nextEvent.participantsCount}/{nextEvent.maxPlayers} miejsc</p>
             )}
+            {/* Droga do SAMEGO meczu, bez konta (W-8, decyzja właściciela D-1,
+                docs/faza1-przejscie-e2e-plan.md). W meczu organizator mówi
+                „zapisujesz się bez konta”, a zaproszenie do ekipy wymagało
+                konta, zanim ktokolwiek dowiedział się, jak zagrać w czwartek.
+                `/wydarzenia/{id}` to kanoniczny link meczu i działa także dla
+                meczu prywatnego. Formularz konta niżej zostaje głównym
+                wezwaniem strony: konto = członkostwo w ekipie. */}
+            <Link
+              href={`/wydarzenia/${nextEvent.id}`}
+              className="mt-3 flex h-11 w-full items-center justify-center rounded-xl border border-primary-200 bg-white text-sm font-semibold text-primary-800 transition hover:bg-primary-50"
+            >
+              Zapisz się na ten mecz bez konta →
+            </Link>
           </div>
         )}
 

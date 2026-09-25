@@ -1,7 +1,7 @@
 # Faza 1, runda 8: przejście całej ścieżki na żywym stosie — plan
 
 > **Status (2026-09-25): decyzje podjęte — D-1 tak, D-2 wariant A, D-3 tak (patrz §8).
-> PR-D (W-1, W-2, W-3) i PR-E (W-4, W-5, migracja `163`) wdrożone. PR-F i PR-G czekają.**
+> PR-D (W-1…W-3), PR-E (W-4, W-5, migracja `163`) i PR-F (W-6…W-8) wdrożone. PR-G czeka.**
 > Ósma runda przejścia ścieżki organizatora i gracza. Poprzednie: `O`/`E`/`P`/`R`/`S`
 > w [przeplyw-organizatora.md](./przeplyw-organizatora.md) i `F` w
 > [faza1-organizator-plan.md](./faza1-organizator-plan.md) (wdrożone w PR-A/B/C).
@@ -540,7 +540,7 @@ Warianty dla `newUserHasAccount` bez zmian. Bez długiego myślnika (sekcja 11
 `check:docs`). Żaden test e2e nie opiera się na zmienianych zdaniach (sprawdzone
 `grep`).
 
-**Testy.** Jeden nowy przypadek w `scenariusze.spec.ts` („gość z linku”, projekt
+**Wdrożenie (2026-09-25): scenariusza e2e NIE dołożono** — zapis gościa zmienia licznik meczu dzielonego przez oba równoległe projekty scenariuszy (pułapka `zeSprzataniem()` z AGENTS.md), a zmiana to wyłącznie tekst. Pierwotny zamiar: **Testy.** Jeden nowy przypadek w `scenariusze.spec.ts` („gość z linku”, projekt
 telefon i komputer): po „Zapisz się” widać „Zapis gotowy” i **nie** widać „Ostatni krok”;
 sprzątanie przez `zeSprzataniem()` → wypisanie tokenem (`wypisz_wpis_goscia`) albo
 „Nie mogę grać” na `/gracz/przejmij/[token]`.

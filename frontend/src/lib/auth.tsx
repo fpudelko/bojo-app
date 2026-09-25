@@ -54,10 +54,15 @@ function syncSessionHint(hasSession: boolean) {
   document.cookie = hasSession ? setHintCookie(secure) : clearHintCookie(secure);
 }
 
+/** Komunikat złych danych logowania. Stała, bo `AuthForm` rozpoznaje po nim
+ *  kogoś, kto najpewniej NIE MA jeszcze konta, i podpowiada rejestrację
+ *  na ten sam adres (W-7, docs/faza1-przejscie-e2e-plan.md). */
+export const BLAD_ZLE_DANE = 'Nieprawidłowy e-mail lub hasło.';
+
 /** Translate common Supabase auth errors into friendly Polish copy. */
 function mapAuthError(message: string): string {
   const m = message.toLowerCase();
-  if (m.includes('invalid login credentials')) return 'Nieprawidłowy e-mail lub hasło.';
+  if (m.includes('invalid login credentials')) return BLAD_ZLE_DANE;
   if (m.includes('email not confirmed')) return 'Potwierdź e-mail, zanim się zalogujesz, sprawdź skrzynkę (także spam).';
   if (m.includes('user already registered') || m.includes('already been registered')) return 'Konto z tym adresem już istnieje. Zaloguj się hasłem lub przez Google.';
   if (m.includes('password should be at least')) return 'Hasło musi mieć co najmniej 6 znaków.';

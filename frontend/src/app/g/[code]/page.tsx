@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createClient } from '@supabase/supabase-js';
 import ZaproszenieClient from './ZaproszenieClient';
+import { liczZajeteMiejsca } from '@/lib/zajeteMiejsca';
+import { terazWPolsce } from '@/lib/czasPolski';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,11 +20,12 @@ async function nacytajZaproszenie(rawCode: string) {
     .maybeSingle();
   if (!group) return null;
 
-  const dzis = new Date().toISOString().slice(0, 10);
+  // Dzień w Polsce, nie w UTC: serwer stoi na UTC (W-3/W-8).
+  const dzis = terazWPolsce().data;
   const [{ data: nextRows }, { count: totalMatches }] = await Promise.all([
     supabaseAdmin
       .from('events')
-      .select('event_date, event_time, field_name, max_players, event_participants(id, is_reserve, pending_approval)')
+      .select('id, event_date, event_time, field_name, max_players, event_participants(id, is_reserve, pending_approval, rsvp)')
       .eq('group_id', group.id)
       .neq('status', 'cancelled')
       .gte('event_date', dzis)
@@ -40,14 +43,13 @@ async function nacytajZaproszenie(rawCode: string) {
   const nextRow = nextRows?.[0];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const nextEvent = nextRow ? {
+    id: nextRow.id as string,
     date: nextRow.event_date as string,
     time: (nextRow.event_time as string).slice(0, 5),
     fieldName: (nextRow.field_name as string) ?? undefined,
     maxPlayers: nextRow.max_players as number,
-    participantsCount: Array.isArray(nextRow.event_participants)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ? (nextRow.event_participants as any[]).filter((p) => !p.is_reserve && !p.pending_approval).length
-      : 0,
+    // Obserwujący nie grają — do W-8 licznik ich doliczał.
+    participantsCount: liczZajeteMiejsca(nextRow.event_participants),
   } : undefined;
 
   return {
