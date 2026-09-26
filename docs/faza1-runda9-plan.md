@@ -1,7 +1,7 @@
 # Faza 1, runda 9: życie meczu po publikacji — plan
 
-> **Status (2026-09-26): plan do decyzji właściciela (§7). Nic z tego nie jest
-> jeszcze wdrożone.** Dziewiąta runda przejścia ścieżki organizatora i gracza,
+> **Status (2026-09-26): decyzje podjęte (§7): D-4 — gry cykliczne usuwamy całkowicie
+> (osobny PR-L), D-5 tak, D-6 A, D-7 A, D-8 A. Nic z tego nie jest jeszcze wdrożone.** Dziewiąta runda przejścia ścieżki organizatora i gracza,
 > pierwsza na `scripts/stos-bez-dockera.sh` (PR-G). Poprzednia:
 > [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md) (`W-1…W-9`).
 > Ustalenia tej rundy mają numery `X-n`.
@@ -114,8 +114,14 @@ zrobioną. Workflow już nigdy tego nie naprawi, bo dla niego wszystko poszło.
    - z `131`: `CREATE OR REPLACE FUNCTION odmien_nie_oddalo(integer)`,
    - z `117`: `CREATE OR REPLACE FUNCTION dopnij_subskrypcje_push(...)` z
      `REVOKE`/`GRANT` jak w oryginale,
-   - (decyzja D-4) z `073`/`092`: trzy funkcje serii i wyzwalacz — dla pełnej
-     zgodności, żeby strażnik startował od zera różnic.
+   - **funkcji serii NIE odtwarza** (decyzja D-4: gry cykliczne nie mają być
+     aktywne i znikają całkowicie w PR-L). Zamiast tego `DROP TRIGGER IF EXISTS
+     trg_powiadom_o_nowym_terminie_serii ON events` i `DROP FUNCTION IF EXISTS`
+     dla `powiadom_o_nowym_terminie_serii()`, `utworz_nalezne_terminy_serii()`,
+     `utworz_termin_serii(...)` — na produkcji to no-op (tych obiektów tam nie
+     ma), na bazie z repo znikają, więc strażnik startuje od zera różnic.
+     `DROP FUNCTION` skaner traktuje jako bezpieczne (AGENTS.md: ręczne są
+     wyłącznie `DROP TABLE/SCHEMA/COLUMN/TYPE` i pokrewne).
 
    Skaner `ryzyko-migracji.mjs` zakwalifikuje ją jako **bezpieczną** (kolumna,
    indeks, funkcja), więc przy merge'u trafia na produkcję sama. Na świeżej bazie
@@ -376,6 +382,47 @@ Wariant B: tylko zapadka (nic nie przybywa, stare zostają). Wariant C: nic.
 
 ---
 
+## 5a. PR-L — gry cykliczne usunięte całkowicie (decyzja D-4)
+
+Flaga `SHOW_RECURRING` jest wyłączona od 2026-08-16, a na produkcji funkcje
+generujące terminy serii nawet nie istnieją, więc funkcja jest martwa w obie
+strony. Właściciel: „gry cykliczne nie mają być aktywne, można je usunąć
+całkowicie”.
+
+**Front (26 plików dotyka dziś `recurring`/`cykliczn`):**
+- kasowane: `app/cykliczne/**` (lista, nowa, szczegóły, edycja),
+  `components/events/RecurringSettingsDialog.tsx`, `lib/recurring.ts`,
+  `lib/series.ts` i ich testy,
+- czyszczone: flaga `SHOW_RECURRING` w `lib/features.ts`, wejścia w
+  `Header.tsx`, `SiteFooter.tsx`, `DashboardSections.tsx`, przełącznik w
+  kreatorze (`wydarzenia/nowe`) i edycji, gałęzie w `EventDetailClient.tsx`,
+  `moje-gry`, `NajblizszyMeczGrupy.tsx`, `EventDateTimeField.tsx`, `komplet.ts`,
+  `blik.ts`, `eventFeatures.ts`, `events.ts`, typ w `types/index.ts`,
+  `robots.ts`, `sitemap.ts`, typy powiadomień serii w `ikonyPowiadomien.ts` i
+  `ustawieniaPowiadomien.ts` (razem z `typyPowiadomien.test.ts`),
+- `/cykliczne` i `/cykliczne/[id]` → `redirect('/moje-gry')` przez jeden
+  release (stare zakładki i linki z maili nie kończą się 404), potem usunięte.
+
+**Baza — dwie migracje, bo podział po ryzyku:**
+- `166_gry_cykliczne_odpiecie.sql` (bezpieczna, idzie sama): usuwa
+  `events.recurring_event_id` z polityk/funkcji, które go czytają, i odpina
+  wyzwalacze; mecze powstałe z serii zostają zwykłymi meczami.
+- `167_gry_cykliczne_usuniecie.sql` (**ręczna**, `DROP TABLE`/`DROP COLUMN`):
+  `DROP TABLE recurring_event_invites, recurring_events`,
+  `ALTER TABLE events DROP COLUMN recurring_event_id`,
+  `ALTER TABLE player_stats DROP COLUMN recurring_event_id` (jeśli nieużywana).
+  Przed nią zapytanie agregujące na produkcji: ile serii i ile meczów z
+  `recurring_event_id` istnieje (liczby w opisie PR-a). Wymaga kliknięcia w
+  Actions → Migracje — napisane wprost w opisie i w odpowiedzi.
+
+**Dokumentacja:** `docs/funkcje.md` (tabela flag), `AGENTS.md` (akapit o
+`SHOW_RECURRING`), `docs/baza-danych.md`, `docs/llm-context.md` + sync,
+`frontend/public/llms.txt` (trasy).
+
+Kolejność: po PR-H (który już kasuje funkcje serii), niezależnie od I/J/K.
+
+---
+
 ## 6. Zasady wspólne dla PR-H…K
 
 - **Mobile-first**: style bazowe dla 320–375 px, rozszerzenia wyłącznie
@@ -395,20 +442,27 @@ Wariant B: tylko zapadka (nic nie przybywa, stare zostają). Wariant C: nic.
 
 ## 7. Decyzje dla właściciela
 
+**Rozstrzygnięte 2026-09-26.** Poniżej pytania w brzmieniu, w jakim były zadane,
+z odpowiedzią.
+
 - **D-4 (X-0, zakres `164`).** (A) odtworzyć **wszystkie** brakujące obiekty,
   także trzy funkcje serii i wyzwalacz (flaga i tak wyłączona, strażnik startuje od
   zera różnic) czy (B) tylko `126`, `131`, `117`. **Rekomendacja: A.**
+  → **Decyzja: ani A, ani B. Gry cykliczne nie mają być aktywne i można je usunąć
+  całkowicie.** `164` odtwarza tylko `126`, `131`, `117`, a funkcje serii
+  kasuje po stronie repo (§2). Resztę gier cyklicznych usuwa PR-L (§5a).
 - **D-5 (X-0, strażniki).** Czy dokładamy (1) porównanie odcisku schematu w
   workflow „Migracje” (czerwone przy braku) i (2) codzienne zadanie „Zdrowie
   produkcji” sprawdzające `pg_cron` (czerwone przy błędzie)? **Rekomendacja: oba.**
   Bez nich ta klasa awarii znowu będzie cicha: przypomnienia nie wychodziły dwa
-  tygodnie i nikt tego nie zauważył.
+  tygodnie i nikt tego nie zauważył. → **Decyzja: tak, oba.**
 - **D-6 (X-2).** (A) przyciski pod imieniem na telefonie czy (B) menu „⋯”.
-  **Rekomendacja: A.**
+  **Rekomendacja: A.** → **Decyzja: A.**
 - **D-7 (X-7).** (A) zapadka + migracja przepisująca szablony, (B) tylko zapadka,
-  (C) nic. **Rekomendacja: A, jako osobny PR-K po H/I/J.**
+  (C) nic. **Rekomendacja: A, jako osobny PR-K po H/I/J.** → **Decyzja: A.**
 - **D-8 (X-10).** Toast na telefonie (A) u góry ekranu czy (B) na dole, ale nad
   arkuszem (wymaga wiedzy o otwartym arkuszu w każdym miejscu). **Rekomendacja: A.**
+  → **Decyzja: A.**
 
 ---
 
@@ -441,6 +495,13 @@ wypisanie nie mówi „Uczestnik usunięty”. Bez migracji.
 Imiona w składzie całe na 320–390 px (akcje pod imieniem), „Zmień termin” liczy
 adresatów tak jak odwołanie, toast u góry na telefonie, pięć drobnych zdań.
 Bez migracji.
+
+### PR-L: Gry cykliczne usunięte
+
+Funkcja była wyłączona od 16 sierpnia, na produkcji nie działała nawet w bazie.
+Znikają trasy `/cykliczne`, przełącznik w kreatorze, kod i tabele. Mecze
+powstałe z serii zostają zwykłymi meczami. Migracja `167` jest RĘCZNA
+(kasuje tabele): wymaga kliknięcia w Actions → Migracje po merge'u.
 
 ### PR-K: Powiadomienia i maile bez długiego myślnika
 
