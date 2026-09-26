@@ -82,10 +82,38 @@ Bieżący stan i terminy odczytów: `docs/gsc-dziennik.md`.
 
 Każdy z dowodem. Nie ruszać bez pomiaru przed i po (dziennik).
 
-1. **`endDate` meczu bez godziny końca.** `eventJsonLd()` emituje `endDate` tylko przy
-   `end_time`. Google ma je na liście zalecanych, więc to naturalny kandydat na
-   następne „Brakujące pole”. Nie wymyślać godziny końca: albo pole w kreatorze, albo
-   świadome pominięcie.
+1. **`endDate` meczu bez godziny końca — ZBADANE 2026-09-26 (mail GSC z 10:31), NIE jest
+   błędem kodu.** `eventJsonLd()` emituje `endDate` tylko przy `end_time`, a
+   sprawdzenie produkcyjnej bazy pokazało: **0 publicznych meczów przyszłych** bez
+   `end_time`, **11 publicznych meczów przeszłych** bez niego. Wszystkie 11 mają
+   `created_at` między 2026-06-21 a 2026-08-10 — sprzed `EventDateTimeField.tsx`
+   (2026-09-13, PR #370), czyli sprzed funkcji liczącej koniec z czasu startu i
+   długości gry. Nie jest to defekt aktualnego kodu: powstały, zanim ta funkcja
+   w ogóle istniała. Wszystkie są dziś `noindex,follow` (miniony mecz,
+   `metadataDlaMeczu()`), więc Google i tak nie ma ich indeksować — zgłoszenie
+   najpewniej pochodzi z pierwszego przetworzenia tych starych stron przy
+   odkrywaniu długiego ogona katalogu (patrz „Wykryte strony” w 7a.2), nie z
+   niedawnej zmiany. Builder odtworzony na dwóch meczach z poprzedniego zgłoszenia
+   (`f1e98fe0…`, `4ca4de66…`, oba stworzone PO 2026-09-13) emituje `endDate`
+   poprawnie u obu — to nie te dwa mecze.
+
+   **Jeden prawdziwy, wąski przypadek pozostaje nieobsłużony:** `addMinutes()`
+   w `EventDateTimeField.tsx` zwraca `null` (czyli brak `end_time`), gdy start +
+   czas gry przekracza północ (np. 22:30 + 90 min). To ŚWIADOME, udokumentowane
+   w kodzie ograniczenie, nie przeoczenie: `end_time` to kolumna `TIME` bez daty,
+   powiązana niejawnie z `event_date`, więc koniec po północy wymagałby przejścia
+   na kolejny dzień, którego dzisiejszy model nie ma jak zapisać bez zmiany schematu
+   i bez przejrzenia WSZYSTKICH konsumentów `end_time` (eksport do kalendarza,
+   `lib/bookings.ts`, wykrywanie kolizji rezerwacji, cykliczne mecze) — z tego
+   REPO nie robimy tego przy okazji jednego niekrytycznego ostrzeżenia. Odtwarza
+   się to tylko dla meczów zaczynających się na tyle późno, że standardowy czas gry
+   (30–180 min) sięga za północ; dziś w bazie nie ma na to przykładu wśród
+   przyszłych meczów.
+
+   **Backfill 11 starych meczów guessed-durą (np. +90 min) świadomie ODŁOŻONY** —
+   wymaga zgody właściciela: zmyślenie czasu zakończenia rozegranego meczu jest
+   nieprawdą w danych, nawet jeśli nieszkodliwą (`docs/gsc-dziennik.md`, wpis
+   2026-09-26).
 2. **Data meczu bez strefy czasowej** (`2027-01-07T18:00:00`). Google przyjmie strefę
    miejsca, więc to nie błąd, ale jawne `+01:00`/`+02:00` (Europe/Warsaw, z uwzględnieniem
    zmiany czasu) usuwa zgadywanie. Jest `lib/czasPolski.ts`.

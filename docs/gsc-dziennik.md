@@ -19,6 +19,37 @@ i tam zostają.
 
 ## Wpisy
 
+### 2026-09-26 (2) — „Brakujące pole endDate”: zbadane, nie jest błędem kodu
+
+Źródło: mail GSC 10:31 (skrzynka bojopolska@gmail.com, konektor Gmail podłączony
+tego dnia), „Wydarzenia — problemy (1)”: „Brakujące pole „endDate””, bez listy
+przykładowych adresów.
+
+Sprawdzenie produkcyjnej bazy (tylko SELECT): **0 publicznych meczów przyszłych**
+bez `end_time`; **11 publicznych meczów przeszłych** bez niego, wszystkie
+`created_at` 2026-06-21…2026-08-10 — sprzed funkcji liczącej koniec z czasu startu
+(`EventDateTimeField.tsx`, PR #370, 2026-09-13). Wszystkie 11 mają dziś
+`noindex,follow` (miniony mecz). Odtworzenie z buildera (`jsonld-z-buildera.mjs`)
+na dwóch meczach z poprzedniego zgłoszenia (2026-09-23) potwierdza: oba mają
+`end_time` i poprawnie wystawiają `endDate` — to nie one.
+
+Werdykt: **kod jest poprawny dla całych dzisiejszych danych.** Zgłoszenie
+najpewniej pochodzi z pierwszego przetworzenia starych stron przy odkrywaniu
+długiego ogona katalogu, nie z regresji. Jedyny realny, nieobsłużony przypadek:
+mecz zaczynający się na tyle późno, że czas gry przekracza północ — `addMinutes()`
+świadomie zwraca wtedy brak `end_time` (szczegóły i uzasadnienie:
+`.claude/skills/gsc/references/mapa-seo-bojo.md`, punkt 1). Nie dotyczy dziś
+żadnego meczu w bazie.
+
+Decyzja: **nie backfillować** 11 starych meczów zgadywaną godziną końca —
+to byłaby nieprawda w danych o rozegranym meczu. Nie klikać „Sprawdź poprawkę”
+bez adresów przykładów (mail ich nie podał): jeśli Google poda w przyszłości
+adres AKTYWNEGO/przyszłego meczu z tym problemem, to będzie sygnał, że
+przypadek „po północy” jednak wystąpił naprawdę — wtedy wraca jako zadanie do
+zaprojektowania (nie prostej łatki), bo dotyka `end_time` w całym repo.
+
+Ponowny odczyt: przy następnym mailu o tym samym raporcie, z adresami przykładów.
+
 ### 2026-09-26 — Sitemapa i huby katalogu na adresach kanonicznych obiektów
 
 Źródło: analiza kodu i produkcyjnej bazy przy budowie skilli GSC (nie mail z GSC).
