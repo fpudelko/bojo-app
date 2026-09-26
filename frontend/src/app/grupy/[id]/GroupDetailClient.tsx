@@ -32,7 +32,7 @@ import {
 import { getGroupPosts, nieprzeczytane, kluczTablicaWidziano } from '@/lib/groupPosts';
 import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWidziano } from '@/lib/comments';
 import { linkDoGrupy, udostepnijGrupe } from '@/lib/groupShare';
-import { sportEmoji, sportLabel } from '@/lib/sports';
+import { sportLabel } from '@/lib/sports';
 import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
 import type { Group, GroupMember, EventItem, GroupPermissions } from '@/types';
 
@@ -377,7 +377,7 @@ export default function GroupDetailClient() {
       <div className="flex min-h-screen flex-col bg-canvas">
         <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
-          <div className="h-24 animate-pulse rounded-2xl border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800" />
+          <div className="h-24 animate-pulse border-y border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800" />
         </main>
       </div>
     );
@@ -447,7 +447,7 @@ export default function GroupDetailClient() {
             elementem na górze), bez tej niespójności. */}
         <div className={`${rozmowaPelnoekranowa ? '' : 'sticky top-0 z-[1010]'} -mx-4 -mt-5 bg-canvas md:static md:mx-0 md:mt-0 md:bg-transparent`}>
           <div className="relative space-y-1 px-4 pb-1 pt-2 md:px-0 md:pb-0 md:pt-0">
-            <div className="flex items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-2 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-center gap-1.5 border-b border-slate-200 py-1.5 dark:border-slate-700">
               <button
                 onClick={wstecz}
                 aria-label="Wróć"
@@ -455,14 +455,14 @@ export default function GroupDetailClient() {
               >
                 <ArrowLeft className="h-4 w-4" />
               </button>
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary-700 to-primary-900 text-base">
-                {group.coverImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+              {/* Okładka tylko, gdy ekipa ją ma — bez zastępczego emoji sportu
+                  na gradiencie (redesign 2026-09: bez ikon dekoracyjnych). */}
+              {group.coverImageUrl && (
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-white">{group.sport ? sportEmoji(group.sport) : '👥'}</span>
-                )}
-              </span>
+                </span>
+              )}
               {/* Nazwa jako przycisk — rozwija listę pozostałych ekip zamiast
                   być czystym tytułem. Wyłącznie gdy jest co przełączać (druga
                   ekipa w liście); jednej ekipy nie ma sensu robić klikalną. */}
@@ -508,14 +508,6 @@ export default function GroupDetailClient() {
                       onClick={() => { setPrzelacznikOtwarty(false); router.push(`/grupy/${g.id}`); }}
                       className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
                     >
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary-700 to-primary-900 text-sm">
-                        {g.coverImageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={g.coverImageUrl} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="text-white">{g.sport ? sportEmoji(g.sport) : '👥'}</span>
-                        )}
-                      </span>
                       <span className="min-w-0 flex-1 truncate font-semibold text-ink">{g.name}</span>
                     </button>
                   ))}
@@ -562,7 +554,7 @@ export default function GroupDetailClient() {
         </div>
 
         {legacyBezKodu && !member && (
-          <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/70 p-4">
+          <div className="-mx-4 border-y-2 border-amber-200 bg-amber-50/70 px-4 py-4">
             <p className="text-sm font-semibold text-ink">Zaproszenie do ekipy „{group.name}”</p>
             <p className="mt-1 text-sm text-slate-600">
               Ten link jest nieaktualny, poproś kogoś z ekipy o nowy.
@@ -641,7 +633,7 @@ export default function GroupDetailClient() {
         ))}
 
         {tab === 'sklad' && member && perms.canInvite && (
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-white px-3 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="-mx-4 flex items-center gap-2 border-y border-slate-200 px-4 py-2 dark:border-slate-700">
             <button
               onClick={() => setInviteOpen(true)}
               className="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm font-semibold text-primary-700 hover:text-primary-800 dark:hover:text-primary-400"
@@ -670,7 +662,7 @@ export default function GroupDetailClient() {
             mecz, nie duże grono w ekipie. Widoczne wyłącznie dla założyciela:
             to on decyduje, kogo dodawać, i to jemu ma się to pytanie zadać. */}
         {tab === 'sklad' && perms.isFounder && memberCount > 30 && (
-          <div className="flex items-start gap-2.5 rounded-2xl border border-blue-100 bg-blue-50/60 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+          <div className="-mx-4 flex items-start gap-2.5 border-y border-blue-100 bg-blue-50/60 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               Nie musisz dodawać do ekipy jak najwięcej osób. Jeśli zrobisz mecz
@@ -701,7 +693,7 @@ export default function GroupDetailClient() {
         ))}
 
         {!member && !legacyBezKodu && (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+          <div className="border-y border-dashed border-slate-200 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
             {kodZUrl ? (
               <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Dołączam do ekipy…</span>
             ) : (
