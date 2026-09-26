@@ -15,11 +15,8 @@ export default function LandingMisja() {
   return (
     <section className="bg-white px-4 py-16 sm:py-20">
       <div className="mx-auto max-w-2xl">
-        <div className="text-center mb-8 sm:mb-10">
-          <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">
-            {LANDING_MISJA.nadtytul}
-          </span>
-          <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
             {LANDING_MISJA.tytul}
           </h2>
         </div>

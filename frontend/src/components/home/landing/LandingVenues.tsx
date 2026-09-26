@@ -32,10 +32,7 @@ export default async function LandingVenues() {
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">
-              Boiska w okolicy
-            </span>
-            <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
               Boiska, na których się gra
             </h2>
           </div>

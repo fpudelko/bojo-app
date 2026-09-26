@@ -16,7 +16,7 @@ import WczesnyEtapBadge from '../landing/WczesnyEtapBadge';
  */
 export default function PustyStanMeczow() {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center dark:border-slate-700 dark:bg-slate-800/40">
+    <div className="border-y border-dashed border-slate-200 py-8 text-center dark:border-slate-700 dark:bg-slate-800/40">
       <p className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Nie masz zaplanowanych gier</p>
       <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
         Wrzuć własny mecz albo dołącz do otwartej gry w okolicy.

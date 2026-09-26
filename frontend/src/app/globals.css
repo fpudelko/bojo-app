@@ -200,76 +200,9 @@ a {
   color: #0f172a;
 }
 
-/* Hero atmosphere — brand green with amber glow + dot grid.
-   Pure CSS (no images). Paleta robocza: #15663E + #F5A623. */
-.hero-surface {
-  background-color: #0b3420;
-  background-image:
-    radial-gradient(60rem 40rem at 78% -10%, rgba(245, 166, 35, 0.28), transparent 60%),
-    radial-gradient(50rem 40rem at 0% 110%, rgba(21, 102, 62, 0.7), transparent 55%),
-    linear-gradient(160deg, #104d2e 0%, #15663E 45%, #0b3420 100%);
-}
-.hero-dots {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.10) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: linear-gradient(to bottom, black, transparent 85%);
-  -webkit-mask-image: linear-gradient(to bottom, black, transparent 85%);
-}
-
-/* Landing hero: deep, cool green so the amber CTA is the only warm accent
-   above the fold. The old .hero-surface keeps its amber glow for the
-   logged-in dashboard header, where there is no competing CTA. */
-.hero-surface-deep {
-  background-color: #08301D;
-  background-image:
-    radial-gradient(55rem 38rem at 6% 106%, rgba(34, 163, 97, 0.30), transparent 62%),
-    radial-gradient(42rem 34rem at 94% 2%, rgba(21, 102, 62, 0.55), transparent 64%),
-    linear-gradient(168deg, #0F5537 0%, #0B3E28 52%, #07291A 100%);
-}
-
-/* Hero text block on mobile: exactly one screen tall (minus the fixed header
-   and a strip left for the phone to peek), with its content bottom-aligned.
-   That puts the breathing room ABOVE the badge — between the logo and the
-   headline — instead of stranding it under the trust row. Written as a class
-   rather than Tailwind arbitrary values so the vh → svh fallback order is
-   guaranteed; svh keeps Chrome's collapsing address bar from stealing height. */
-.hero-first-screen {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  min-height: calc(100vh - 8rem);
-  min-height: calc(100svh - 8rem);
-}
-
-/* Ten sam pomysł na komputerze, tylko rozciągnięty w drugą stronę: kolumna
-   tekstu ma wysokość (prawie) jednego ekranu, a wolna przestrzeń rozdziela
-   się na odstępy MIĘDZY elementami zamiast zostawać martwym polem pod rzędem
-   „Za darmo / Google lub e-mail / Bez instalacji".
-
-   `justify-content: space-between` na kolumnie z pięcioma dziećmi (plakietka,
-   h1, lead, CTA, TrustRow) rozdziela nadmiarową wysokość na cztery odstępy
-   RÓWNO — a istniejące `mt-*` w LandingHero.tsx zostają jako podłoga: na
-   niskim oknie (mało miejsca) odstępy nie schodzą poniżej tych wartości,
-   `space-between` po prostu nie ma czego dokładać.
-
-   `padding-top` odtwarza dokładnie ten odstęp, który wcześniej dawało
-   `items-center` na wierszu (kolumna 378 px wyśrodkowana w 656 px telefonu →
-   139 px nad plakietką) — plakietka ma zostać dokładnie tam, gdzie jest, więc
-   ten margines jest stały, nie rozciąga się razem z resztą. Wiersz jest dziś
-   wyrównany do góry (`md:items-start`), bo inaczej rosnąca kolumna
-   przesuwałaby makietę telefonu w dół — telefon też ma zostać na miejscu.
-
-   14.5rem = 4rem nagłówka + 5rem górnego oddechu wiersza + 4rem dolnej
-   wyściółki sekcji + 1.5rem zapasu, więc rząd zaufania ląduje blisko dołu
-   ekranu, ale go nie dotyka. */
-@media (min-width: 768px) {
-  .hero-first-screen {
-    justify-content: space-between;
-    padding-top: 8.6875rem;
-    min-height: calc(100vh - 14.5rem);
-    min-height: calc(100svh - 14.5rem);
-  }
-}
+/* Klasy ciemnego hero (.hero-surface, .hero-dots, .hero-surface-deep,
+   .hero-first-screen) usunięte w redesignie 2026-09 — landing ma jasny pas,
+   patrz LandingHero.tsx. */
 
 @media (prefers-reduced-motion: reduce) {
   *,
