@@ -21,12 +21,33 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # JAK LICZY „REPO"
 #
-# Stawia GOŁY, EFEMERYCZNY Postgres i puszcza na nim WSZYSTKIE migracje od
-# zera przez `scripts/baza-testowa.sh --zostaw` — dokładnie ten sam kod, który
-# już dziś sprawdza to samo w CI („Migracje od zera"), więc nie duplikujemy
-# osobnej ścieżki bootstrapu Postgresa, która mogłaby się z tamtą rozjechać.
-# Seedy i asercje z `baza-testowa.sh` nic tu nie szkodzą (nie zmieniają
-# SCHEMATU) i nie są tu sednem — sednem jest sama baza po migracjach.
+# Stawia GOŁY, EFEMERYCZNY Postgres i puszcza na nim WYŁĄCZNIE migracje od
+# zera — NIE przez `scripts/baza-testowa.sh` (bootstrap Postgresa jest tu
+# świadomie zduplikowany, nie wywołany). Powód: `baza-testowa.sh` wgrywa też
+# `supabase/test/shim.sql` (który dokłada w `public` pięć OPAKOWAŃ na funkcje
+# pgcrypto — `gen_random_uuid`, `gen_random_bytes`, `crypt`, `gen_salt`,
+# `digest` — bo goły Postgres nie ma `extensions` w `search_path`; prawdziwy
+# Supabase ma i tych opakowań nigdy nie tworzy) oraz WSZYSTKIE
+# `supabase/test/*.sql` (funkcje pomocnicze asercji, `_p_oczekuj` i podobne,
+# których żadne środowisko Supabase nigdy nie widzi). Referencja budowana
+# przez `--zostaw` porównywana z dev/produkcją zgłaszała te ~19 funkcji jako
+# fałszywe „BRAKI" — złapane na PR #439, zanim trafiło to na produkcję: obie
+# strony testu lokalnego (referencja vs referencja) miały ten sam fałszywy
+# nadmiar i różnica się znosiła, dopóki nie porównano z bazą, która
+# faktycznie nigdy nie widziała `shim.sql` ani `test/*.sql`.
+#
+# Referencja tutaj więc: `shim.sql` (bo migracje zakładają `auth`/`extensions`/
+# `storage` i rolę `authenticated` — bez tego nie da się ich w ogóle
+# zastosować), potem WYŁĄCZNIE migracje — bez seedów, bez `supabase/test/*.sql`
+# — i `DROP FUNCTION` na pięciu opakowaniach z `public` na samym końcu, PO
+# migracjach, nie przed nimi. Kolejność ma znaczenie: migracja `036` woła
+# `gen_random_bytes()` bez kwalifikacji schematu, licząc na to opakowanie
+# (na prawdziwym Supabase `extensions` jest w `search_path` bazy, więc
+# wywołanie bez kwalifikacji też się rozwiązuje, tylko inną drogą) — usunięte
+# przed migracjami, wywala `036` błędem „function … does not exist”.
+# Opakowania nie zmieniają schematu, który zakładają PÓŹNIEJSZE migracje, więc
+# zdjęcie ich po fakcie, tuż przed odciskiem, daje ten sam wynik bez wywrócenia
+# `036`.
 #
 # „ODCISK" to lista obiektów w schemacie `public`: funkcje (z sygnaturą
 # i md5 ciała po zdjęciu komentarzy/białych znaków — ten sam pomysł co
@@ -86,25 +107,69 @@ odcisk() { # odcisk <adres>
   psql "$1" -v ON_ERROR_STOP=1 --single-transaction -tA -c "SET TRANSACTION READ ONLY" -c "$ZAPYTANIE"
 }
 
-# ── Stawiamy referencję: repo, migracje od zera, bez seedów w naszych rękach —
-#    seedy `baza-testowa.sh` i tak wgrywa, ale nie zmieniają schematu.
+# ── Stawiamy referencję: goły Postgres, `shim.sql` bez opakowań pgcrypto,
+#    WYŁĄCZNIE migracje. Bootstrap Postgresa jest tu świadomie zduplikowany
+#    z `scripts/baza-testowa.sh` (ten sam JAKO/BIN/lokalizacja UTF-8) —
+#    `baza-testowa.sh` NIE jest wołany, bo wgrywa też seedy i `test/*.sql`
+#    (patrz komentarz na początku pliku).
+JAKO=""
+if [[ "$(id -u)" -eq 0 ]] && id postgres >/dev/null 2>&1; then
+  JAKO="postgres"
+fi
 PORT_REF="${PGPORT_ODCISK:-55499}"
-LOG_REF="$(mktemp)"
-echo "→ Stawiam bazę z repo do porównania (port $PORT_REF)…"
-if ! PGPORT_TEST="$PORT_REF" "$KATALOG/scripts/baza-testowa.sh" --zostaw >"$LOG_REF" 2>&1; then
-  echo "✗ Baza z repo (migracje od zera) nie stanęła — to jest awaria repo, nie porównania:" >&2
-  cat "$LOG_REF" >&2
+DANE_REF="$(mktemp -d)"
+[[ -n "$JAKO" ]] && chown "$JAKO" "$DANE_REF"
+BIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)"
+
+if [[ -z "$BIN" ]]; then
+  echo "✗ Brak serwera PostgreSQL (initdb). Zainstaluj postgresql." >&2
   exit 1
 fi
-REF_URL="postgresql://postgres@localhost:$PORT_REF/bojo"
+
+jako() { if [[ -n "$JAKO" ]]; then setpriv --reuid="$JAKO" --regid="$JAKO" --clear-groups "$@"; else "$@"; fi; }
 
 posprzataj_ref() {
-  local pid
-  pid="$(pgrep -f "postgres -D .*-p $PORT_REF " || true)"
-  [ -n "$pid" ] && kill "$pid" 2>/dev/null || true
-  rm -f "$LOG_REF"
+  if [[ -n "$JAKO" ]]; then
+    setpriv --reuid="$JAKO" --regid="$JAKO" --clear-groups "$BIN/pg_ctl" -D "$DANE_REF" -m immediate stop >/dev/null 2>&1 || true
+  else
+    "$BIN/pg_ctl" -D "$DANE_REF" -m immediate stop >/dev/null 2>&1 || true
+  fi
+  rm -rf "$DANE_REF"
 }
 trap posprzataj_ref EXIT
+
+echo "→ Stawiam bazę z repo do porównania (port $PORT_REF)…"
+LOKALIZACJA=C.UTF-8
+locale -a 2>/dev/null | grep -qix "c.utf8\|c.utf-8" || LOKALIZACJA=C
+jako "$BIN/initdb" -D "$DANE_REF" -U postgres --auth=trust \
+  --encoding=UTF8 --locale="$LOKALIZACJA" >/dev/null
+jako "$BIN/pg_ctl" -D "$DANE_REF" -o "-p $PORT_REF -k $DANE_REF -c listen_addresses=localhost" -l "$DANE_REF/log" -w start >/dev/null
+REF_URL="postgresql://postgres@localhost:$PORT_REF/bojo"
+env PGHOST=localhost PGPORT="$PORT_REF" PGUSER=postgres createdb bojo
+
+psql -q -v ON_ERROR_STOP=1 -d "$REF_URL" -f "$KATALOG/supabase/test/shim.sql"
+
+echo "→ Migracje (referencja)…"
+for plik in "$KATALOG"/supabase/migrations/*.sql; do
+  if ! psql -q -v ON_ERROR_STOP=1 -d "$REF_URL" -f "$plik" 2>"$DANE_REF/blad"; then
+    echo "✗ MIGRACJA PADŁA (referencja): $(basename "$plik")" >&2
+    sed 's/^/    /' "$DANE_REF/blad" >&2
+    exit 1
+  fi
+done
+
+# Te pięć istnieje tylko jako obejście braku `extensions` w `search_path` na
+# gołym Postgresie (patrz komentarz na początku pliku) — prawdziwy Supabase
+# ich nie ma, więc w odcisku referencji też nie mogą zostać. Zdjęte TERAZ,
+# po migracjach: usunięte wcześniej wywalają migrację `036`, która woła
+# `gen_random_bytes()` bez kwalifikacji schematu.
+psql -q -v ON_ERROR_STOP=1 -d "$REF_URL" -c "
+  DROP FUNCTION public.gen_random_uuid();
+  DROP FUNCTION public.gen_random_bytes(int);
+  DROP FUNCTION public.crypt(text, text);
+  DROP FUNCTION public.gen_salt(text);
+  DROP FUNCTION public.digest(text, text);
+"
 
 echo "→ Liczę odcisk repo…"
 odcisk "$REF_URL" | sort > /tmp/odcisk-repo.txt
