@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-25 · migracja `163` · 62 tabel
+**Stan na:** 2026-09-26 · migracja `164` · 62 tabel
 
 ---
 
@@ -453,6 +453,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-26 — Przypomnienia o meczu i szukanie boiska bez ogonków znowu działają
+
+PROBLEM: przypomnienie „jutro grasz" i prośba „domknij mecz" dzień po nie wychodziły
+na produkcji ANI RAZU przez dwa tygodnie (2026-09-12…2026-09-26) — zadanie w bazie
+padało codziennie, bo brakowało jednej wewnętrznej funkcji. Osobno: szukanie obiektu
+po nazwie miasta bez polskich znaków („lodz", „poznan") nie działało wcale albo prawie
+wcale, bo brakowało kolumny, na której się ono opiera. Przyczyna obu: jednorazowe
+uzupełnienie dziennika migracji (backfill) rozpoznaje wyłącznie TABELE, więc migracja,
+która dokłada samą funkcję albo kolumnę, mogła zostać uznana za zastosowaną, choć
+nigdy realnie nie poszła.
+
+ROZWIĄZANIE BOJO: migracja odtwarza brakujące obiekty. Przypomnienia i szukanie działają
+znowu tak, jak działały wcześniej — to naprawa rozjazdu, nie nowa funkcja. Dwa nowe
+automatyczne sprawdzenia pilnują, żeby taka cisza nie powtórzyła się bez wiedzy zespołu:
+jedno porównuje bazę z repozytorium po każdej zmianie schematu, drugie codziennie
+sprawdza, czy zaplanowane zadania w bazie faktycznie przechodzą.
+
+MECHANIKA: migracja `164`, `scripts/odcisk-schematu.sh`,
+`.github/workflows/zdrowie-produkcji.yml`. Szczegóły →
+[faza1-runda9-plan.md](./faza1-runda9-plan.md), X-0.
+
 ### 2026-09-25 (3) — Zapis bez konta nie udaje, że nie jest skończony; zaproszenie do ekipy prowadzi do meczu
 
 PROBLEM: po zapisie na mecz bez konta Bojo pisało „Ostatni krok, 15 sekund”, więc gracz
@@ -654,30 +675,3 @@ przeliczanie kosztu obiektu na faktyczny skład — `event_participants` to list
 zapisanych przez Bojo, nie lista ludzi na boisku, więc liczba wierszy w bazie nie mówi,
 ile osób realnie grało. Testy: `payments.test.ts`, `settlementShare.test.ts`,
 `events.test.ts`, `supabase/test/przypomnienia.sql`.
-
-### 2026-09-23 — Podgląd linku turnieju pokazuje turniej, nie notatkę z zaplecza
-
-PROBLEM: organizator nie pokazuje ludziom aplikacji, tylko wysyła LINK, a podgląd tego
-linku w komunikatorze był w trzech miejscach nieprawdziwy. Opis brał pole `turnieje.opis`
-wprost, więc dla turniejów seedowych na WhatsAppie wyświetlała się wewnętrzna notatka
-„[TUR] SPRAWDŹ: plakietka Na żywo na karcie meczu…". Licznik drużyn na obrazku pokazywał
-zero przy turnieju, w którym były cztery drużyny. Znaczników Twittera nie było wcale, więc
-część komunikatorów pokazywała globalny opis marki zamiast turnieju. Osobno: nagłówek
-strony turnieju liczył wszystkie zgłoszenia, a pulpit organizatora tylko przyjęte, czyli
-kapitan i organizator widzieli dwie różne liczby o tym samym.
-
-ROZWIĄZANIE BOJO: opis linku powstaje z DANYCH turnieju (sport, liczba drużyn, wpisowe,
-start, miejsce), a pole „Opis" dochodzi jako drugie zdanie i tylko wtedy, gdy nie jest
-notatką techniczną. Licznik na obrazku liczy to samo co strona i jest zielony, bo
-policzalny stan ma w Bojo zarezerwowaną zieleń. Znaczniki Twittera powielają
-OpenGraph. Turniej bez podanego miejsca mówi o tym wprost szarym wierszem zamiast
-pomijać temat. Zegar meczu, którego nikt nie zakończył, przestaje pokazywać liczbę po
-przekroczeniu dwukrotności regulaminowego czasu. Nazwa drużyny na liście jest
-odnośnikiem do ekranu drużyny, a skład rozwija osobny przycisk.
-
-MECHANIKA: `lib/turniejOpis.ts` (`opisTurnieju()`, `opisNadajeSie()`), metadane
-w `app/turnieje/[id]/turniejMeta.ts`, obrazek w `app/turnieje/[id]/opengraph-image.tsx`.
-Przyczyną zera na obrazku był `select('*')` na `turniej_druzyny`: tabela ma grant
-KOLUMNOWY (migracja `145` nie wypuszcza anonowi telefonu i maila kapitana), więc gwiazdka
-kończyła się odmową dostępu, a `count ?? 0` zamieniało błąd w ciche zero. Zegar:
-`czasGry()` w `lib/turniejWynik.ts`.

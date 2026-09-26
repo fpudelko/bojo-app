@@ -289,4 +289,48 @@ SELECT _p_oczekuj('po dwóch uruchomieniach liczba powiadomień bez zmian',
     WHERE type IN ('przypomnienie_o_meczu', 'po_meczu_do_domkniecia')
       AND event_id IN (:JUTRO::uuid, :WCZORA::uuid, :CZYSTY::uuid)), 3);
 
+-- --- Rozjazd produkcji (migracja 164) ---------------------------------------
+-- Dokładnie ten stan, w jakim była produkcja 2026-09-12…2026-09-26: dziennik
+-- `schema_migracje` miał wpis dla `131`, ale `odmien_nie_oddalo()`, którą ta
+-- migracja zakłada, nie istniała (backfill widzi wyłącznie tabele — patrz
+-- nagłówek migracji `164`). `wyslij_przypomnienia()` przy tym istniała
+-- (CREATE FUNCTION nie sprawdza ciała PL/pgSQL przy tworzeniu) i PADAŁA
+-- dopiero przy WYWOŁANIU — czyli codziennie, w zadaniu `pg_cron`.
+--
+-- Test nie wierzy na słowo, że `164` naprawia dokładnie ten przypadek —
+-- odtwarza usterkę wprost (kasuje to, czego brakowało na produkcji) i sprawdza,
+-- że ponowne wczytanie `164` ją leczy.
+SELECT _p_sekcja('rozjazd produkcji (migracja 164)');
+
+DROP FUNCTION odmien_nie_oddalo(integer);
+DROP INDEX IF EXISTS fields_szukaj_norm_trgm;
+ALTER TABLE fields DROP COLUMN szukaj_norm;
+
+DO $$
+BEGIN
+  PERFORM wyslij_przypomnienia();
+  RAISE EXCEPTION 'PRZYPOMNIENIA: wyslij_przypomnienia() miało rzucić bez odmien_nie_oddalo(), a przeszło';
+EXCEPTION
+  WHEN undefined_function THEN
+    RAISE NOTICE '  ✓ bez odmien_nie_oddalo() wyslij_przypomnienia() faktycznie pada (tak jak na produkcji)';
+END $$;
+
+-- `\ir`, nie `\i`: rozwiązuje ścieżkę względem KATALOGU TEGO PLIKU
+-- (`supabase/test/`), nie względem katalogu roboczego wołającego psql —
+-- działa więc identycznie z `baza-testowa.sh` i z ręcznym odpaleniem.
+\ir ../migrations/164_naprawa_rozjazdu_produkcji.sql
+
+SELECT _p_oczekuj('po 164: fields.szukaj_norm znowu istnieje',
+  (SELECT count(*) FROM information_schema.columns
+    WHERE table_name = 'fields' AND column_name = 'szukaj_norm'), 1);
+
+SELECT _p_oczekuj('po 164: odmien_nie_oddalo() znowu istnieje',
+  (SELECT count(*) FROM pg_proc WHERE proname = 'odmien_nie_oddalo'), 1);
+
+-- Brak wyjątku = przeszło. Liczba nowo wysłanych powiadomień nie jest tu
+-- sednem (te mecze mają już swoje z przebiegów wyżej) — sednem jest to, że
+-- funkcja w ogóle ZWRACA, a nie rzuca.
+SELECT _p_oczekuj('po 164: wyslij_przypomnienia() nie rzuca',
+  (SELECT wyslij_przypomnienia())::bigint, 0);
+
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ Przypomnienia: wszystkie asercje przeszły.'; END $$;

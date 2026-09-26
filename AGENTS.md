@@ -416,6 +416,28 @@ jednostce. Dlatego **migracja ma dać się puścić drugi raz** i naprawić stan
 zapisem i mówią, którego pliku migracji brakuje. Szczegóły →
 [docs/baza-danych.md](./docs/baza-danych.md#-migracja-przerwana-w-połowie-zostaje-w-połowie).
 
+**Trzecia wersja: dziennik mówi „zastosowana", a obiektu nie ma — bo backfill
+nie widzi migracji bez tabeli.** `--oznacz-do` zgaduje, dokąd doszła wcześniejsza
+ręczna historia, patrząc WYŁĄCZNIE na tabele (`supabase/migrations/README.md`).
+Migracja, która dokłada samą funkcję albo kolumnę, jest dla tej sondy niewidoczna
+— może zostać zaliczona, mimo że nigdy realnie nie poszła. Dokładnie to
+zdarzyło się na produkcji: `131` (funkcja `odmien_nie_oddalo()`) i `126`
+(kolumna `fields.szukaj_norm`) miały wpis w dzienniku, a obiektów w bazie nie
+było — `bojo-przypomnienia` padało codziennie przez dwa tygodnie (naprawione
+migracją `164`). Workflow „Migracje" porównuje teraz bazę z repo po KAŻDYM
+przebiegu (krok „Zgodność schematu z repo", `scripts/odcisk-schematu.sh`) —
+ten sam pomysł co strażnik zadań `pg_cron` niżej, tylko po stronie schematu,
+nie wykonania.
+
+**Zadania `pg_cron` na produkcji mają własnego strażnika — `zdrowie-produkcji.yml`.**
+Migracja, która poszła bez błędu, nie znaczy, że funkcja, którą uruchamia CRON,
+faktycznie działa przy wywołaniu — `wyslij_przypomnienia()` istniała na
+produkcji (CREATE FUNCTION nie sprawdza ciała PL/pgSQL), a mimo to padała za
+każdym razem, gdy cron ją wołał. Ten workflow sprawdza codziennie, czy ostatni
+przebieg KAŻDEGO aktywnego zadania w `cron.job_run_details` zakończył się
+`succeeded` — bez tego jedynym sygnałem awarii jest brak telefonu u
+organizatora, czyli w praktyce żaden.
+
 **Do UPDATE-ów używaj `zaktualizujJedenWiersz()`, do dużych list `pobierzWszystkie()`**
 (`frontend/src/lib/zapytania.ts`). Oba istnieją po to, żeby cisza opisana w dwóch
 pułapkach niżej zamieniła się w wyjątek. Nowy kod, który omija te helpery, odtwarza

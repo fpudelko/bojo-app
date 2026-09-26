@@ -1,7 +1,8 @@
 # Faza 1, runda 9: życie meczu po publikacji — plan
 
 > **Status (2026-09-26): decyzje podjęte (§7): D-4 — gry cykliczne usuwamy całkowicie
-> (osobny PR-L), D-5 tak, D-6 A, D-7 A, D-8 A. Nic z tego nie jest jeszcze wdrożone.** Dziewiąta runda przejścia ścieżki organizatora i gracza,
+> (osobny PR-L), D-5 tak, D-6 A, D-7 A, D-8 A. PR-H wdrożony. PR-I/J/L/K czekają.**
+> Dziewiąta runda przejścia ścieżki organizatora i gracza,
 > pierwsza na `scripts/stos-bez-dockera.sh` (PR-G). Poprzednia:
 > [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md) (`W-1…W-9`).
 > Ustalenia tej rundy mają numery `X-n`.

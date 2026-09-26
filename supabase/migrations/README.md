@@ -171,6 +171,24 @@ przebiegu: od razu puszcza to, co z dziennika wyszło jako brakujące. Bez tego
 trzeba klikać Run workflow dwa razy, a podsumowanie pokazuje wtedy sam dziennik,
 czyli nie odpowiada na pytanie, które się naprawdę zadaje: czy poszło.
 
+**Po backfillu dziennik może dalej kłamać — sonda widzi WYŁĄCZNIE tabele.**
+Zdarzyło się naprawdę (migracja `164`, 2026-09-26): backfill na produkcji
+zaliczył `131` (jest tabela z sąsiedniego pliku), a funkcja `odmien_nie_oddalo()`,
+którą TA migracja zakłada, nigdy realnie nie powstała. Skutek: zadanie
+`bojo-przypomnienia` padało w bazie **codziennie przez dwa tygodnie**, zanim
+ktoś zapytał wprost — żadne CI tego nie widziało, bo żadne nie porównuje bazy
+z repo PO backfillu, tylko przed nim. Workflow „Migracje" robi to teraz sam,
+jako krok „Zgodność schematu z repo" po każdym przebiegu
+(`scripts/odcisk-schematu.sh`) — ale jeśli kiedykolwiek robisz backfill ręcznie,
+z pominięciem workflowu, puść ten skrypt osobno od razu potem:
+
+```bash
+DB_URL=<adres bazy po backfillu> ./scripts/odcisk-schematu.sh
+```
+
+Brak wypisanych braków = dziennik i baza mówią to samo. Backfill BEZ tego
+kroku jest wyłącznie stawianiem hipotezy, nie potwierdzeniem.
+
 ## Dziennik — `schema_migracje`
 
 ```sql
