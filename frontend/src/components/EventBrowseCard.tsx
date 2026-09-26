@@ -189,7 +189,7 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
     <Link
       href={`/wydarzenia/${event.id}`}
       className={`grid grid-cols-[4.5rem_minmax(0,1fr)_auto] gap-3 border-b border-slate-200 py-3.5 transition-colors dark:border-slate-700 ${
-        gram ? '-mx-2 rounded bg-primary-50/70 px-2 dark:bg-primary-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+        gram ? '-mx-2 rounded bg-primary-50/40 px-2 dark:bg-primary-950/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
       } ${past ? 'opacity-60' : ''}`}
     >
       {/* KIEDY */}

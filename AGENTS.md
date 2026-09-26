@@ -703,8 +703,8 @@ ponownie i zacommituj wynik.
   zarezerwowane, wyłączne odczytanie, żeby budować podświadome skojarzenie:
   - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: plakietka
     z liczbą nieprzeczytanych na zakładce Rozmowy w dolnej nawigacji i na zakładce
-    Rozmowa/Tablica, ikona wiadomości na karcie meczu/ekipy, chmurka na ikonie ekipy
-    (karta na `/grupy`), plakietka na ikonie wiadomości obok dzwonka w nagłówku
+    Rozmowa/Tablica, ikona wiadomości na karcie meczu/ekipy, chmurka przy nazwie ekipy
+    (wiersz na `/grupy`; do redesignu 2026-09 na rogu ikony), plakietka na ikonie wiadomości obok dzwonka w nagłówku
     (`NotificationBell.tsx` — dzwonek jest dziś DWA: chmurka dla wiadomości, dzwonek
     dla reszty, migracja `119`). Nigdy nic innego.
 
@@ -719,8 +719,9 @@ ponownie i zacommituj wynik.
       naprawdę zadaje przed dotknięciem: ILE tego jest (zgłoszone wprost).
       Geometria plakietki jest ta sama co zielonej z liczbą meczów — kształt mówi
       „policzalna rzecz", kolor mówi jaka.
-    - **Chmurka** tam, gdzie liczby nie ma albo nie niesie nic — ikona ekipy na
-      `/grupy`, ikona wiadomości w nagłówku.
+    - **Chmurka** tam, gdzie liczby nie ma albo nie niesie nic — przy nazwie ekipy
+      na `/grupy` (do redesignu 2026-09 na rogu ikony ekipy), ikona wiadomości
+      w nagłówku.
     - **Kropka** zostaje dla niebieskiego i pomarańczowego, czyli dla rzeczy
       z natury niepoliczalnych („coś nowego jest w pobliżu" nie ma sensownej liczby).
   - **Niebieski (`blue-*`)** — „wymaga akceptacji uczestnictwa": prośba o dołączenie,
@@ -740,7 +741,7 @@ ponownie i zacommituj wynik.
     na nowo.** Trzeciego znaczenia nie dokładamy.
   - **Pomarańczowy (`orange-*`)** — zawsze i wyłącznie „nowość, o której jeszcze nie
     wiesz" (bez konkretnej wiadomości do przeczytania ani decyzji do podjęcia): kropka
-    na ikonie ekipy, gdy pojawił się nowy mecz od ostatniej wizyty na `/grupy/[id]`
+    przy nazwie ekipy na `/grupy`, gdy pojawił się nowy mecz od ostatniej wizyty na `/grupy/[id]`
     (`kluczGrupyWidziano` w `lib/groups.ts`), kropka przy „Szukaj" na dolnej
     nawigacji, gdy w promieniu 5 km pojawiło się nowe wydarzenie
     (`KLUCZ_WYDARZENIA_WIDZIANO` w `lib/events.ts`). Nigdy nic innego.

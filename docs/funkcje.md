@@ -74,9 +74,43 @@ najbardziej.
 - **Profil** (`app/profil/page.tsx` i komponenty ustawień): zgrupowane sekcje
   pełnej szerokości zamiast ośmiu osobnych kart.
 
+**Druga tura (ten sam PR, 7 commitów „Redesign N/7”):**
+
+1. **Strona meczu, resztki:** bloki stanu (rezerwa, oferta miejsca, obserwujesz,
+   oczekujesz na akceptację, prośby, „Mecz gotowy”, odwołanie, zapisy zamknięte,
+   „Po meczu”) jako pasy pełnej szerokości z `data-blok-meczu` (kotwica
+   scenariuszy); drużyny, wynik, rozliczenia, płatność, ustawienia jako płaskie
+   sekcje. Emoji w treści na tekst: „2 gole”, „BR”, „karta”, „Bramkarz”.
+2. **`/moje-gry`:** wejścia „Stałe gierki”/„Turnieje” jako wiersze, szkielety
+   ładowania jako linie, sekcje meczów bez odstępów. Duże emoji ze stanów pustych
+   usunięte w całej aplikacji (13 miejsc).
+3. **Ekipy:** `/grupy` jako lista wierszy (nazwa, członkowie, obiekt | termin,
+   „brakuje N”/„komplet”), bez ikony sportu i paska. Chmurka wiadomości
+   i pomarańczowa kropka stoją **przy nazwie ekipy**, nie na rogu ikony (ikony już
+   nie ma). Nagłówek `/grupy/[id]` bez ramki i bez zastępczego emoji.
+4. **Rozmowy:** inicjał w kwadracie zamiast ⚽ i ikony ekipy (rozmowa prywatna
+   zielona), nagłówek rozmowy bez gradientu.
+5. **Kreator i edycja:** podsumowanie i przypomnienia bez kart. Bursztynowe
+   przyciski główne (`bg-accent-500 text-primary-950`) zielone w całej aplikacji,
+   także wariant `accent` w `Button`. Taktyka zostaje przy bursztynie (kolor
+   zaznaczenia na boisku).
+6. **Strona główna:** jasny pas zamiast ciemnego gradientu (nagłówek nie jest już
+   przezroczysty nad hero), bez `LandingStats` (kafle z liczbami) i `LandingValues`
+   (lista funkcji), bez małych napisów nad sekcjami, nagłówki sekcji do lewej.
+   Klasy `.hero-*` usunięte z `globals.css`.
+7. **Reszta:** strona boiska z neutralnymi plakietkami udogodnień (bez emoji,
+   bez niebieskiego i pomarańczowego, które znaczą co innego), emoji sportów
+   zdjęte z treści (nagłówki, listy, formularze, profil gracza, katalog, widget),
+   logowanie, onboarding, alerty, zaproszenie do ekipy.
+
+**Emoji zostają świadomie tam, gdzie pełnią funkcję:** wybór sportu (`SportChip`,
+decyzja z 2026-09-14 z testami: stały kwadrat 44 px, rząd nie skacze), znaczniki
+na mapie, teksty do udostępnienia na czat (`lib/eventShare.ts`) i obrazki podglądu
+linku (`opengraph-image`). Nietknięte: turnieje (za flagą), panel admina, stare
+komponenty map z listy martwego kodu w AGENTS.md.
+
 Znaczenia kolorów z AGENTS.md (różowy, niebieski, pomarańczowy, szary) nie zmieniły
-się. Nietknięte świadomie: strona główna dla niezalogowanych (gradient, bursztynowy
-przycisk) i kreator; to kolejne kroki, jeśli kierunek się sprawdzi.
+się.
 
 ## Gdzie jest spis tras
 

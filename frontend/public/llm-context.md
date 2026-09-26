@@ -467,14 +467,19 @@ z godziną i ceną dużym krojem, pod nim miejsce jako wiersz z nawigacją, licz
 i skład od razu jako lista. Przycisk zapisu brzmi „Dołącz · 15 zł” (zielony, dawniej
 bursztynowy „Dołącz →”). Lista meczów to wiersze: godzina i dzień, nazwa i miejsce,
 liczba wolnych miejsc i cena, bez ikon sportu i bez paska postępu. Profil to
-zgrupowane sekcje zamiast ośmiu osobnych kart. Znaczenia kolorów (różowy = wiadomości,
+zgrupowane sekcje zamiast ośmiu osobnych kart. Ekipy (`/grupy`) i rozmowy (`/rozmowy`)
+to listy wierszy bez ikon; strona główna dla niezalogowanych ma jasny pas zamiast
+ciemnego gradientu i mniej sekcji. Główne przyciski w całym Bojo są zielone, nie
+bursztynowe. Emoji zostały tylko w wyborze sportu, na mapie i w tekstach do
+udostępnienia. Znaczenia kolorów (różowy = wiadomości,
 niebieski = wymaga akceptacji / komplet, pomarańczowy = nowość, szary = zapisy
 zamknięte) się nie zmieniły.
 
 MECHANIKA: tokeny w `frontend/tailwind.config.ts` (paleta `slate` nadpisana,
 `borderRadius`, `boxShadow`), font z paczki `geist` w `app/layout.tsx`,
 `app/wydarzenia/[id]/EventDetailClient.tsx`, `components/EventBrowseCard.tsx`,
-`app/profil/page.tsx`. Szczegóły → [funkcje.md](./funkcje.md#wygląd-redesign-2026-09).
+`app/profil/page.tsx`, `app/grupy/GroupsClient.tsx`, `app/rozmowy/RozmowyClient.tsx`,
+`components/home/landing/LandingHero.tsx`. Szczegóły → [funkcje.md](./funkcje.md#wygląd-redesign-2026-09).
 
 ### 2026-09-25 (3) — Zapis bez konta nie udaje, że nie jest skończony; zaproszenie do ekipy prowadzi do meczu
 
