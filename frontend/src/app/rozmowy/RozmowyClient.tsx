@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { clsx } from 'clsx';
-import { ChevronRight, LogIn, MessageCircle, Search, Users as UsersIcon, X } from 'lucide-react';
+import { ChevronRight, LogIn, MessageCircle, Search, X } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import MobileIdentityRow from '@/components/layout/MobileIdentityRow';
 import { useAuth } from '@/lib/auth';
@@ -129,7 +129,7 @@ export default function RozmowyClient() {
         {authLoading || ladowanie ? (
           <div className="mt-4 space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />
+              <div key={i} className="h-16 animate-pulse border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800" />
             ))}
           </div>
         ) : !user ? (
@@ -171,18 +171,24 @@ export default function RozmowyClient() {
             Nic nie pasuje do „{szukane}".
           </p>
         ) : (
-          <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-700">
+          <ul className="mt-3 divide-y divide-slate-200 dark:divide-slate-700">
             {wpisyPrzefiltrowane.map((w) => (
               <li key={`${w.typ}-${w.id}`}>
                 <Link href={w.href} className="flex min-h-[44px] items-center gap-3 py-3 active:opacity-70">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-slate-100 text-xl dark:bg-slate-700" aria-hidden="true">
-                    {w.typ === 'mecz' ? '⚽' : w.typ === 'dm' ? (
-                      /* Inicjał jak w bąbelkach czatu — rozmowa prywatna to
-                         OSOBA, a nie „rzecz" z ikoną kategorii. */
-                      <span className="flex h-full w-full items-center justify-center rounded bg-primary-100 text-base font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                        {w.tytul.charAt(0).toUpperCase()}
-                      </span>
-                    ) : <UsersIcon className="h-5 w-5 text-slate-500 dark:text-slate-300" />}
+                  {/* Inicjał zamiast ikony kategorii (redesign 2026-09: bez emoji
+                      i ikon dekoracyjnych). Rozmowa prywatna to OSOBA, więc jej
+                      inicjał jest zielony jak w bąbelkach czatu; mecz i ekipa
+                      dostają szary kwadrat z pierwszą literą nazwy. */}
+                  <span
+                    className={clsx(
+                      'flex h-10 w-10 shrink-0 items-center justify-center rounded text-[15px] font-semibold',
+                      w.typ === 'dm'
+                        ? 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-300'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+                    )}
+                    aria-hidden="true"
+                  >
+                    {w.tytul.charAt(0).toUpperCase()}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline gap-2">

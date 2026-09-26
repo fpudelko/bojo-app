@@ -11,7 +11,6 @@ import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMI
 import { useAuth } from '@/lib/auth';
 import { getGroup, getMyGroupPermissions } from '@/lib/groups';
 import { kluczTablicaWidziano } from '@/lib/groupPosts';
-import { sportEmoji } from '@/lib/sports';
 import type { Group, GroupPermissions } from '@/types';
 
 /**
@@ -121,7 +120,7 @@ export default function RozmowaGrupyClient() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
               ) : (
-                <span className="text-white">{group.sport ? sportEmoji(group.sport) : '👥'}</span>
+                <span>{group.name.charAt(0).toUpperCase()}</span>
               )}
             />
             {/* Ten sam zabieg co na stronie ekipy: `min-h-0 flex-1` jest

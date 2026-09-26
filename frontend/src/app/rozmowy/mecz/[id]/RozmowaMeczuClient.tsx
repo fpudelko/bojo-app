@@ -13,7 +13,6 @@ import { getEvent, getMyActiveEventIds } from '@/lib/events';
 import { kluczRozmowyWidziano } from '@/lib/comments';
 import { eventDisplayTitle } from '@/lib/eventTitle';
 import { matchWhenLabel } from '@/lib/eventDates';
-import { sportEmoji } from '@/lib/sports';
 import type { EventItem } from '@/types';
 
 /**
@@ -118,7 +117,7 @@ export default function RozmowaMeczuClient() {
               tytul={eventDisplayTitle(event)}
               podtytul={`Otwórz mecz · ${matchWhenLabel(event.date, event.time)}`}
               href={`/wydarzenia/${event.id}`}
-              awatar={<span className="text-white">{sportEmoji(event.sport)}</span>}
+              awatar={<span>{eventDisplayTitle(event).charAt(0).toUpperCase()}</span>}
             />
             {/* Bez własnego odstępu na dole: pod czatem stoi teraz pasek
                 nawigacji (odjęty od wysokości przez `--bottom-nav-h`), a on

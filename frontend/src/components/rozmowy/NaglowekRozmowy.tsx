@@ -50,7 +50,7 @@ export default function NaglowekRozmowy({
         href={href}
         className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 transition hover:bg-slate-100 dark:hover:bg-slate-800"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary-700 to-primary-900 text-base">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded bg-slate-100 text-[15px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
           {awatar}
         </span>
         <span className="min-w-0 flex-1">
