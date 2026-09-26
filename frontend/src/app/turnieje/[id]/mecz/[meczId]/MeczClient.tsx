@@ -467,7 +467,6 @@ export default function MeczClient() {
                       onClick={() => zapytajOZawodnika(druzynaId, 'gol')}
                       className="flex min-h-[96px] w-full flex-col items-center justify-center gap-1 rounded-2xl bg-primary-50 dark:bg-primary-950 px-2 py-3 active:bg-primary-100 dark:active:bg-primary-900"
                     >
-                      <span className="text-2xl">⚽</span>
                       <span className="text-sm font-bold text-primary-700 dark:text-primary-300">GOL</span>
                       <span className="line-clamp-2 text-center text-xs text-slate-500 dark:text-slate-400">
                         {nazwaDruzyny(druzynaId)}

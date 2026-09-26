@@ -234,7 +234,6 @@ export default function DmRozmowaClient() {
             </p>
           ) : wiadomosci.length === 0 ? (
             <div className="py-16 text-center">
-              <p className="text-3xl" aria-hidden="true">👋</p>
               <p className="mt-2 text-sm font-semibold text-ink">To początek rozmowy</p>
               <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500 dark:text-slate-400">
                 Napisz pierwszą wiadomość, widzi ją tylko {drugaNazwa ?? 'ta osoba'}.

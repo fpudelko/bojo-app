@@ -16,7 +16,7 @@ export default function GreetingBar() {
   return (
     <div className="flex items-center justify-between px-4 pt-6 pb-2">
       <p className="font-display text-xl font-bold text-ink sm:text-2xl">
-        {name ? `Cześć, ${name} 👋` : 'Cześć! 👋'}
+        {name ? `Cześć, ${name}` : 'Cześć!'}
       </p>
       <div className="flex shrink-0 items-center gap-1.5">
         <NotificationBell />

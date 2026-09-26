@@ -134,7 +134,6 @@ export default function RozmowyClient() {
           </div>
         ) : !user ? (
           <div className="mt-10 text-center">
-            <p className="text-3xl" aria-hidden="true">💬</p>
             <p className="mt-2 text-sm font-semibold text-ink">Rozmowy są dla zalogowanych</p>
             <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500 dark:text-slate-400">
               Zaloguj się, żeby zobaczyć rozmowy ze swoich meczów i ekip.
@@ -148,7 +147,6 @@ export default function RozmowyClient() {
           </div>
         ) : wpisy.length === 0 ? (
           <div className="mt-10 text-center">
-            <p className="text-3xl" aria-hidden="true">💬</p>
             <p className="mt-2 text-sm font-semibold text-ink">Jeszcze cicho</p>
             <p className="mx-auto mt-1 max-w-xs text-sm text-slate-500 dark:text-slate-400">
               Rozmowy z Twoich meczów i ekip pojawią się tutaj, razem, od najnowszej.

@@ -530,7 +530,6 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
       {/* Błąd — osobno od pustego stanu */}
       {!loading && loadError && (
         <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
-          <span className="text-4xl">⚠️</span>
           <p className="text-base font-semibold text-ink">Nie udało się wczytać meczów</p>
           <p className="text-sm text-slate-500 dark:text-slate-400">Sprawdź połączenie i spróbuj jeszcze raz.</p>
           <button
@@ -597,7 +596,6 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
       {/* Pusto */}
       {pustaLista && (
         <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
-          <span className="mb-4 text-5xl">⚽</span>
           <p className="text-base font-bold text-slate-700 dark:text-slate-300">
             {ukryteKomplety > 0
               ? (ukryteKomplety === 1 ? 'Jedyny mecz w okolicy ma komplet' : 'Wszystkie mecze w okolicy mają komplet')

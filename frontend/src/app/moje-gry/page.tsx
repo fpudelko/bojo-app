@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogIn, Users, ChevronRight } from 'lucide-react';
+import { LogIn, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
@@ -196,9 +196,6 @@ function MojeGryContent() {
         <Header showMobileWordmark />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50">
-              <Users className="w-7 h-7 text-primary-700" />
-            </div>
             <h1 className="font-display text-2xl font-bold text-ink mb-2">Twoje mecze</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Zaloguj się, aby zobaczyć swoje mecze.</p>
             <Button onClick={() => { window.location.href = `/logowanie?next=${encodeURIComponent(window.location.pathname)}`; }} className="inline-flex items-center gap-2">
@@ -213,7 +210,7 @@ function MojeGryContent() {
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
       <Header showMobileWordmark />
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8 space-y-6" {...gestSwipe}>
+      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-4 space-y-5" {...gestSwipe}>
 
         {/* Bez nagłówka "Twoje mecze" i przycisku "+ Nowy mecz" — mecz
             tworzy się z FAB-a w dolnej nawigacji, dostępnego z każdego ekranu. */}
@@ -222,9 +219,9 @@ function MojeGryContent() {
         {SHOW_RECURRING && (
           <Link
             href="/cykliczne"
-            className="flex items-center justify-between rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
+            className="flex items-center justify-between -mx-4 border-y border-slate-200 px-4 py-3.5 transition-colors hover:bg-slate-50 group dark:border-slate-700 dark:hover:bg-slate-800"
           >
-            <span className="text-sm font-semibold text-ink">🔁 Stałe gierki</span>
+            <span className="text-sm font-semibold text-ink">Stałe gierki</span>
             <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
           </Link>
         )}
@@ -233,9 +230,9 @@ function MojeGryContent() {
         {SHOW_TURNIEJE && (
           <Link
             href="/turnieje"
-            className="flex items-center justify-between rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
+            className="flex items-center justify-between -mx-4 border-y border-slate-200 px-4 py-3.5 transition-colors hover:bg-slate-50 group dark:border-slate-700 dark:hover:bg-slate-800"
           >
-            <span className="text-sm font-semibold text-ink">🏆 Turnieje</span>
+            <span className="text-sm font-semibold text-ink">Turnieje</span>
             <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
           </Link>
         )}
@@ -268,9 +265,12 @@ function MojeGryContent() {
         {/* Tab content */}
         {tab === 'invites' ? (
           invitesLoading ? (
-            <div className="space-y-3">
+            <div>
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-[76px] bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 animate-pulse" />
+                <div key={i} className="flex h-[76px] items-center gap-4 border-b border-slate-200 dark:border-slate-700">
+                  <div className="h-3 w-12 animate-pulse bg-slate-100 dark:bg-slate-700" />
+                  <div className="h-3 flex-1 animate-pulse bg-slate-100 dark:bg-slate-700" />
+                </div>
               ))}
             </div>
           ) : (
@@ -280,8 +280,7 @@ function MojeGryContent() {
                 statusFor={inviteStatusFor}
                 emptyMessage={
                   <div className="py-12 text-center">
-                    <p className="text-4xl">✉️</p>
-                    <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Brak zaproszeń</p>
+                    <p className="text-[15px] font-semibold text-ink">Brak zaproszeń</p>
                     <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                       Gdy ktoś zaprosi Cię na mecz, znajdziesz to tutaj.
                     </p>
@@ -291,14 +290,16 @@ function MojeGryContent() {
             </section>
           )
         ) : loading ? (
-          <div className="space-y-3">
+          <div>
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-[76px] bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 animate-pulse" />
+              <div key={i} className="flex h-[76px] items-center gap-4 border-b border-slate-200 dark:border-slate-700">
+                  <div className="h-3 w-12 animate-pulse bg-slate-100 dark:bg-slate-700" />
+                  <div className="h-3 flex-1 animate-pulse bg-slate-100 dark:bg-slate-700" />
+                </div>
             ))}
           </div>
         ) : loadError ? (
           <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-            <span className="text-4xl">⚠️</span>
             <p className="text-base font-semibold text-ink">Nie udało się załadować meczy</p>
             <button onClick={() => { setLoading(true); setLoadError(false); getMyParticipatedEvents(user!.id).then(setItems).catch(() => setLoadError(true)).finally(() => setLoading(false)); }} className="text-sm font-semibold text-primary-700 hover:text-primary-800">Spróbuj ponownie</button>
           </div>
@@ -367,8 +368,7 @@ function MojeGryContent() {
             // bez ikony, jedyna taka na tym ekranie. Zgłoszone wprost z sesji
             // QA jako niespójność między zakładkami.
             <div className="py-12 text-center">
-              <p className="text-4xl">👀</p>
-              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Nie obserwujesz żadnych meczów</p>
+              <p className="text-[15px] font-semibold text-ink">Nie obserwujesz żadnych meczów</p>
               <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 Obserwuj mecz, żeby widzieć go tutaj bez zajmowania miejsca w składzie.
               </p>
@@ -383,8 +383,7 @@ function MojeGryContent() {
         ) : (
           history.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-4xl">🗓️</p>
-              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Brak historii meczów</p>
+              <p className="text-[15px] font-semibold text-ink">Brak historii meczów</p>
               <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 Rozegrane mecze pojawią się tutaj.
               </p>

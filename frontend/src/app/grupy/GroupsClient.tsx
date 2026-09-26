@@ -188,7 +188,6 @@ export default function GroupsPage() {
           </div>
         ) : groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
-            <span className="text-5xl">👥</span>
             <p className="text-base font-semibold text-ink">Nie masz jeszcze ekipy</p>
             <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
               Ekipa to stała paczka, z którą grasz. Terminy, skład i rozliczenia w jednym miejscu,

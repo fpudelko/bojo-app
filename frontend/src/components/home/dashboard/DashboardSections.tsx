@@ -111,7 +111,7 @@ export function MyMatchesSection({ items, title = 'Twoje najbliższe mecze', sub
   return (
     <div>
       <SectionHeader title={title} subtitle={subtitle} href={href ?? undefined} count={items.length} />
-      <div className="space-y-3">
+      <div>
         {shown.map(({ event, relation }) => (
           <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent?.[event.id]} odznakiOrganizatora />
         ))}
@@ -142,12 +142,12 @@ export function NastepneEdycjeSection({ pozycje }: {
         title="Kolejne stałe gierki"
         subtitle="Terminy, które powstaną same, jeszcze ich nie ma"
       />
-      <div className="space-y-3">
+      <div>
         {pozycje.map((p) => (
           <Link
             key={p.serieId}
             href={`/cykliczne/${p.serieId}`}
-            className="flex items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-3.5 transition-colors hover:border-slate-400 dark:border-slate-600 dark:bg-slate-800/40"
+            className="flex items-center gap-3 border-b border-dashed border-slate-300 py-3.5 transition-colors hover:bg-slate-50 dark:border-slate-600"
           >
             <Repeat className="h-4 w-4 shrink-0 text-slate-400" />
             <div className="min-w-0 flex-1">
@@ -191,7 +191,7 @@ export function DoRozliczeniaSection({ items, limit = null }: {
         count={items.length}
         subtitle="Twoje rozegrane mecze, w których ktoś jeszcze nie oddał pieniędzy"
       />
-      <div className="space-y-3">
+      <div>
         {shown.map(({ event, relation }) => (
           <EventBrowseCard key={event.id} event={event} relation={relation} />
         ))}
@@ -230,7 +230,7 @@ export function GroupGamesSection({ events, statusFor }: {
         href="/grupy"
         count={fresh.length}
       />
-      <div className="space-y-3">
+      <div>
         {fresh.slice(0, 3).map((e) => (
           <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />
         ))}
