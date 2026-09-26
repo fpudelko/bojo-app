@@ -13,6 +13,7 @@ import ZachetaInstalacji from '@/components/ZachetaInstalacji';
 import { BottomNavVisibilityProvider } from '@/lib/bottomNavVisibility';
 import { SledzenieHistorii } from '@/lib/historia';
 import { siteJsonLd } from '@/lib/structuredData';
+import { WERSJA_IKON } from './manifest';
 import {
   TYTUL_DOMYSLNY, OPIS_DOMYSLNY, HASLO_PODGLADU,
 } from '@/content/metaWyszukiwarki';
@@ -129,7 +130,7 @@ export const metadata: Metadata = {
   // strony zamiast logo. Wygenerowany z tego samego SVG przez
   // `scripts/generuj-ikony.mjs`.
   icons: {
-    apple: [{ url: '/ikony/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    apple: [{ url: `/ikony/apple-touch-icon.png?v=${WERSJA_IKON}`, sizes: '180x180', type: 'image/png' }],
   },
   // Pasek stanu na iOS w trybie standalone. `default` daje ciemny tekst na
   // jasnym tle — czytelne przy naszym jasnym interfejsie.

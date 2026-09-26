@@ -20,8 +20,11 @@
  *  - `maskowalna-*.png` — Android przycina ikonę do kształtu wybranego przez
  *    producenta (koło, kwadrat, kropla). Obcina do 20% z każdej strony, więc
  *    logo wypełniające kadr straciłoby rogi razem z zaokrągleniem. Wariant
- *    maskowalny ma pełne zielone tło i samo B pomniejszone do strefy
- *    bezpiecznej. Bez tego ikona na Androidzie wygląda na przyciętą.
+ *    maskowalny ma pełne zielone tło, linię boiska i B z kołem pomniejszone
+ *    do strefy bezpiecznej. Bez tego ikona na Androidzie wygląda na przyciętą.
+ *
+ * Po każdej zmianie obrazka podbij `WERSJA_IKON` w `app/manifest.ts`.
+ * Zainstalowana apka nie pobierze nowego pliku spod tego samego adresu.
  */
 
 import { chromium } from '@playwright/test';
@@ -65,13 +68,23 @@ function svgZwykle() {
   </svg>`;
 }
 
-/** Wariant maskowalny: pełne tło + litera w strefie bezpiecznej (~60% kadru), bez linii boiska. */
+/**
+ * Wariant maskowalny: pełne tło, a litera z kołem pomniejszone do strefy
+ * bezpiecznej (~60% kadru). To TEN plik widać na ekranie głównym Androida,
+ * więc linia boiska musi tu być — bez niej zainstalowana apka pokazywała
+ * gołe B. Linia idzie od krawędzi do krawędzi poza skalowaniem: launcher
+ * i tak przytnie ją do swojego kształtu, jak linię boiska wychodzącą z kadru.
+ */
 function svgMaskowalne() {
-  const skala = 0.62;
+  // Najciaśniejsza maska Androida zostawia koło o promieniu ~36 ze 110
+  // jednostek; koło boiska z obrysem przy tej skali ma ~26, więc nic nie ginie.
+  const skala = 0.8;
   const przesun = (110 - 110 * skala) / 2;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 110">
     <rect width="110" height="110" fill="${ZIELEN}"/>
+    <line x1="0" y1="55" x2="110" y2="55" stroke="${LINIA_BOISKA}" stroke-width="3"/>
     <g transform="translate(${przesun} ${przesun}) scale(${skala})">
+      <circle cx="57" cy="55" r="31" stroke="${LINIA_BOISKA}" stroke-width="${(3 / skala).toFixed(2)}" fill="none"/>
       ${svgLitera(ZIELEN)}
     </g>
   </svg>`;
