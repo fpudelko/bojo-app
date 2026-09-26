@@ -5,7 +5,7 @@ import { MapPin, Target, Circle, Trophy, Sun, Zap, Dumbbell, Activity } from 'lu
 import Header from '@/components/layout/Header';
 import SiteFooter from '@/components/layout/SiteFooter';
 import { supabase } from '@/lib/supabase';
-import { slugify } from '@/lib/utils';
+import { slugBoiska } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
 import { KATALOG_SPORT_MAP, FOCUS_SPORT_BY_SLUG } from '@/lib/sports';
 import { WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
@@ -121,7 +121,7 @@ export default async function SportMiastoPage(
 
   const jsonLd = venueListJsonLd(
     `Boiska do ${entry.label}, ${miasto}${strona > 1 ? `, strona ${strona}` : ''}`,
-    fields.map((field) => ({ name: field.name, slug: slugify(field.name) })),
+    fields.map((field) => ({ name: field.name, slug: slugBoiska(field.name, field.id) })),
   );
 
   // Hub województwa: wojewodztwo obiektów w tym mieście jest jedno (miasto
@@ -173,7 +173,7 @@ export default async function SportMiastoPage(
             {fields.map((field) => (
               <li key={field.id}>
                 <Link
-                  href={`/boisko/${slugify(field.name)}`}
+                  href={`/boisko/${slugBoiska(field.name, field.id)}`}
                   className="flex items-start gap-4 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md hover:border-primary-200 transition-all"
                 >
                   <div className="flex-1 min-w-0">

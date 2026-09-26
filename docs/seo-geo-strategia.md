@@ -1159,6 +1159,7 @@ tego mieć, bo nie ma ludzi, którzy tam grają.
 | `ItemList` na hubach | ~~listuje obiekty z `noindex` (D11)~~ | **NAPRAWIONE 2026-08-25** (runda 2, Partia 1): `.in('seo_tier', [1, 2])` w `lib/hubKatalogu.ts` — istniejący próg tieringu (migracja 112), NIE próg z odrzuconego 4c. Test: `hubKatalogu.test.ts` |
 | `SportsEvent` | poprawny, ale strona nie ma `noindex` dla prywatnych (P1) | patrz P1 |
 | `SportsEvent` — pola zalecane | Search Console 2026-09-23: brak `description`, `image`, `performer`, `offers.validFrom`, `offers.availability` (5 ostrzeżeń niekrytycznych, 2 mecze) | **NAPRAWIONE 2026-09-24** w `eventJsonLd()` (`lib/structuredData.ts`): opis organizatora albo zdanie z faktów meczu; obrazek = karta `/wydarzenia/[id]/opengraph-image`; `performer` = `PerformingGroup` „Skład meczu: …” (bez nazwisk graczy, świadomie); `validFrom` = `events.created_at`; `availability` = `SoldOut` przy komplecie, zamkniętych zapisach lub odwołaniu, `LimitedAvailability` przy ≤ 2 wolnych, inaczej `InStock`. Zajęte miejsca liczy `policzZajeteMiejsca()` (`app/wydarzenia/[id]/eventMeta.ts`) tak samo jak karta OG. Test: `structuredData.test.ts`. Po deployu: w Search Console „Sprawdź poprawkę” |
+| Adresy obiektów w sitemapach i hubach | ~~`sitemap-boiska/[plik]` i trzy huby `/boiska/…` budowały adres z samej nazwy (`slugify(name)`), czyli klucza historycznego, który przekierowuje (307) na adres kanoniczny; 32 096 wpisów sitemapy dawało 10 608 różnych adresów, 21 488 obiektów (67% Tier 1+2) nie miało w sitemapie własnego adresu, a „boisko-pilkarskie” stało tam 10 048 razy~~ | **NAPRAWIONE 2026-09-26**: `slugBoiska(name, id)` w sitemapie, linkach i `ItemList` hubów; strażnik `linkiObiektuKanoniczne.test.ts`. Liczby z produkcyjnej bazy (zapytanie przybliża `slugify` w SQL). Skutek w GSC do obserwacji: *Mapy witryn* → „Wykryte strony” bez zmian co do liczby wpisów, ale każdy wpis to osobny obiekt; *Strony* → „Strona zawiera przekierowanie” najpierw może urosnąć (Google dochodzi do starych adresów), potem spada; „Zindeksowane” powinno rosnąć w miarę, jak Google odkrywa 21 tys. obiektów, które wcześniej znał tylko z linków „pobliskie” |
 | `BreadcrumbList` na `/boisko/[id]` | prowadzi do hubu, do którego nie ma widocznego linku (D7) | rozwiązuje `<nav>` z 3f |
 | `SoftwareApplication.featureList` | mówi o zniżkach z kart i o liście rezerwowej — zgodne z produktem | zostaje |
 
@@ -1661,6 +1662,20 @@ to kwestia progu czy interpretacji: różnica rzędu wielkości jest jednoznaczn
   kanoniczne, nie wyciek ani duplikacja treści.
 - **„Zeskanowano, jeszcze nie zindeksowano" (85)** — dokładnie kategoria, którą
   śledzi R1; przy 0,5% udziału to normalny zapas kolejki przy tej skali, nie sygnał.
+
+**SPROSTOWANIE (2026-09-26, analiza przy budowie skilli GSC): przekierowania NIE były
+wyłącznie zamierzone.** Mechanizm „klucz historyczny → przekierowanie na adres kanoniczny”
+jest zamierzony dla STARYCH LINKÓW, ale sitemapa boisk i trzy huby katalogu same
+generowały takie adresy: `sitemap-boiska/[plik]/route.ts` i `/boiska/…` budowały adres
+przez `slugify(name)` zamiast `slugBoiska(name, id)`. Z 32 096 wpisów sitemapy
+zostawało 10 608 różnych adresów, każdy przez przekierowanie 307, a 21 488 obiektów
+nie miało w sitemapie własnego adresu. Naprawione tego samego dnia (tabela 5d).
+„Alternatywna strona z prawidłowym tagiem kanonicznym” (233) ma najpewniej inne,
+niezależne źródło (HIPOTEZA, niezweryfikowana): strona meczu linkuje obiekt po surowym
+identyfikatorze (`/boisko/<uuid>`, `EventDetailClient.tsx`), a ta wersja adresu
+renderuje się z `canonical` na adres ze slugiem, co jest zamierzone i nieszkodliwe.
+Rozstrzyga eksport przykładowych adresów tego powodu z raportu *Strony*: same UUID
+potwierdzają hipotezę, adresy z samą nazwą jej przeczą.
 
 **Jedna pozycja BEZ wyjaśnienia w kodzie: „Duplikat, użytkownik nie oznaczył strony
 kanonicznej" (54).** To nie pasuje do żadnego ze zidentyfikowanych mechanizmów —

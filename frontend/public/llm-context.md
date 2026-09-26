@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-25 · migracja `163` · 62 tabel
+**Stan na:** 2026-09-26 · migracja `163` · 62 tabel
 
 ---
 
@@ -346,8 +346,10 @@ zdjęcie i nadchodzące mecze na tym obiekcie.
 
 **Mechanika.** Tabela `fields` (migracja `001`). Aktywna mapa to komponent
 `VenueExplorer.tsx` na trasie `/mapa`, oparty o Leaflet i OpenStreetMap. Strona
-pojedynczego boiska odpowiada zarówno pod adresem slugowym (`/boisko/nazwa-boiska`),
-jak i po surowym identyfikatorze. Dane zbierają skrypty `scraper/` (OpenStreetMap +
+pojedynczego boiska ma adres kanoniczny z nazwą i końcówką identyfikatora
+(`/boisko/boisko-pilkarskie-741e4f384561`), bo nazwy obiektów z OpenStreetMap powtarzają
+się tysiące razy. Adres z samej nazwy (stare linki) przekierowuje na adres kanoniczny,
+a adres z surowym identyfikatorem pokazuje stronę z tagiem `canonical`. Dane zbierają skrypty `scraper/` (OpenStreetMap +
 Google Places + Claude), uruchamiane ręcznie z GitHub Actions.
 
 **Dane kontaktowe obiektów są domyślnie ukryte** i egzekwuje to sama baza (migracja
@@ -452,6 +454,26 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-09-26 — Lista boisk w mieście otwiera boisko, które kliknięto
+
+PROBLEM: huby katalogu Bojo (`/boiska/[sport]`, `/boiska/[sport]/[miasto]`,
+`/boiska/woj/[wojewodztwo]`) i sitemapy boisk budowały adres obiektu z samej nazwy.
+Nazwy z importu OpenStreetMap powtarzają się tysiące razy („Boisko piłkarskie" ponad
+10 tys. razy), a adres z samej nazwy prowadzi przez przekierowanie do jednego,
+przypadkowego obiektu o tej nazwie. Kliknięcie obiektu na liście miasta mogło otworzyć
+boisko z innej miejscowości, a z 32 tys. wpisów w sitemapach boisk wyszukiwarka
+dostawała około 10,6 tys. różnych adresów, każdy przez przekierowanie.
+
+ROZWIĄZANIE BOJO: każdy link do strony obiektu i każdy wpis sitemapy boisk używa adresu
+kanonicznego: nazwa plus końcówka identyfikatora obiektu
+(`/boisko/boisko-pilkarskie-741e4f384561`). Adres z samej nazwy nadal działa dla starych
+linków i przekierowuje na adres kanoniczny.
+
+MECHANIKA: `slugBoiska(name, id)` z `lib/utils.ts` w `app/sitemap-boiska/[plik]/route.ts`
+i w trzech hubach `app/boiska/…` (link i `ItemList` w JSON-LD). Test
+`linkiObiektuKanoniczne.test.ts` odrzuca budowanie adresu obiektu przez `slugify(name)`.
+Wykryte przy analizie Search Console → [seo-geo-strategia.md](./seo-geo-strategia.md).
 
 ### 2026-09-25 (3) — Zapis bez konta nie udaje, że nie jest skończony; zaproszenie do ekipy prowadzi do meczu
 
@@ -654,30 +676,3 @@ przeliczanie kosztu obiektu na faktyczny skład — `event_participants` to list
 zapisanych przez Bojo, nie lista ludzi na boisku, więc liczba wierszy w bazie nie mówi,
 ile osób realnie grało. Testy: `payments.test.ts`, `settlementShare.test.ts`,
 `events.test.ts`, `supabase/test/przypomnienia.sql`.
-
-### 2026-09-23 — Podgląd linku turnieju pokazuje turniej, nie notatkę z zaplecza
-
-PROBLEM: organizator nie pokazuje ludziom aplikacji, tylko wysyła LINK, a podgląd tego
-linku w komunikatorze był w trzech miejscach nieprawdziwy. Opis brał pole `turnieje.opis`
-wprost, więc dla turniejów seedowych na WhatsAppie wyświetlała się wewnętrzna notatka
-„[TUR] SPRAWDŹ: plakietka Na żywo na karcie meczu…". Licznik drużyn na obrazku pokazywał
-zero przy turnieju, w którym były cztery drużyny. Znaczników Twittera nie było wcale, więc
-część komunikatorów pokazywała globalny opis marki zamiast turnieju. Osobno: nagłówek
-strony turnieju liczył wszystkie zgłoszenia, a pulpit organizatora tylko przyjęte, czyli
-kapitan i organizator widzieli dwie różne liczby o tym samym.
-
-ROZWIĄZANIE BOJO: opis linku powstaje z DANYCH turnieju (sport, liczba drużyn, wpisowe,
-start, miejsce), a pole „Opis" dochodzi jako drugie zdanie i tylko wtedy, gdy nie jest
-notatką techniczną. Licznik na obrazku liczy to samo co strona i jest zielony, bo
-policzalny stan ma w Bojo zarezerwowaną zieleń. Znaczniki Twittera powielają
-OpenGraph. Turniej bez podanego miejsca mówi o tym wprost szarym wierszem zamiast
-pomijać temat. Zegar meczu, którego nikt nie zakończył, przestaje pokazywać liczbę po
-przekroczeniu dwukrotności regulaminowego czasu. Nazwa drużyny na liście jest
-odnośnikiem do ekranu drużyny, a skład rozwija osobny przycisk.
-
-MECHANIKA: `lib/turniejOpis.ts` (`opisTurnieju()`, `opisNadajeSie()`), metadane
-w `app/turnieje/[id]/turniejMeta.ts`, obrazek w `app/turnieje/[id]/opengraph-image.tsx`.
-Przyczyną zera na obrazku był `select('*')` na `turniej_druzyny`: tabela ma grant
-KOLUMNOWY (migracja `145` nie wypuszcza anonowi telefonu i maila kapitana), więc gwiazdka
-kończyła się odmową dostępu, a `count ?? 0` zamieniało błąd w ciche zero. Zegar:
-`czasGry()` w `lib/turniejWynik.ts`.

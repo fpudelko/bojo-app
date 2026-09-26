@@ -1988,7 +1988,10 @@ GitHub Actions, tym samym mechanizmem co import). Rozkład na produkcji: **3 605
 `sitemap.ts` (strony statyczne, huby sportów, `/[sport]/[miasto]`, 16 hubów wojewódzkich
 `/boiska/woj/[wojewodztwo]`) + 16× `sitemap-boiska/[plik]/route.ts` (po jednym na
 województwo, tylko boiska — Tier 3 ma `noindex`, więc wpis w sitemapie byłby sprzeczną
-instrukcją dla Googlebota), zebrane w `sitemap-index.xml/route.ts`. `robots.ts` wskazuje
+instrukcją dla Googlebota), zebrane w `sitemap-index.xml/route.ts`. Każdy wpis to adres
+KANONICZNY obiektu (`slugBoiska(name, id)`: nazwa + końcówka identyfikatora), ten sam co
+`canonical` strony i linki w hubach; adres z samej nazwy jest wyłącznie kluczem
+historycznym dla starych linków i przekierowuje (patrz `linkiObiektuKanoniczne.test.ts`). `robots.ts` wskazuje
 na ten indeks, nie na goły `sitemap.xml`.
 
 ### Faza 1 — fact-dense opis obiektu
