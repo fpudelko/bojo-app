@@ -10,7 +10,6 @@ import { pl } from 'date-fns/locale';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/lib/auth';
 import { getPublicPlayer, getPlayerStats, getPlayerHistory, type PublicPlayer } from '@/lib/players';
-import { sportEmoji } from '@/lib/sports';
 import type { PlayerAggregateStats, PlayerHistoryItem } from '@/types';
 import { withCount } from '@/lib/plural';
 import { useWstecz } from '@/lib/historia';
@@ -199,8 +198,7 @@ export default function PublicPlayerPage() {
                         href={`/wydarzenia/${h.eventId}`}
                         className="flex items-center gap-3 py-3 -mx-2 px-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                       >
-                        <span className="text-2xl shrink-0" aria-hidden="true">{sportEmoji(h.sport)}</span>
-                        <div className="flex-1 min-w-0">
+                                                <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-ink truncate">
                             {h.title || h.fieldName}
                           </p>

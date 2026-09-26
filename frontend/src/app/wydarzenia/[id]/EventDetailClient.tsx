@@ -68,7 +68,7 @@ import type {
   EventItem, EventParticipant, MatchResult, PlayerGoal,
   PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
-import { sportEmoji, sportLabel } from '@/lib/sports';
+import { sportLabel } from '@/lib/sports';
 import { przejmijWpisGoscia, udostepnijZaproszenieGoscia, pobierzTokenGoscia, linkPrzejeciaWpisu } from '@/lib/guestClaim';
 import { zapamietajWpisGoscia, mojWpisGoscia, zapomnijWpisGoscia } from '@/lib/mojWpisGoscia';
 import { tekstRozliczenia } from '@/lib/settlementShare';
@@ -5041,7 +5041,7 @@ export default function EventDetailClient() {
               {joinAsReserve ? 'Zapisać się na listę rezerwową?' : 'Zapisać się na mecz?'}
             </h3>
             <p className="text-sm text-slate-500 mb-4">
-              {sportEmoji(event.sport)} {eventDisplayTitle(event)}
+              {eventDisplayTitle(event)}
               {eventLoc.primary ? ` · ${eventLoc.primary}` : ''}
             </p>
 
@@ -5253,7 +5253,7 @@ export default function EventDetailClient() {
               Dołącz do meczu bez logowania
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              {sportEmoji(event.sport)} {eventDisplayTitle(event)}
+              {eventDisplayTitle(event)}
               {eventLoc.primary ? ` · ${eventLoc.primary}` : ''}
             </p>
 

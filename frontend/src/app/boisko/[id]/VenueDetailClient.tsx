@@ -7,7 +7,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import Link from 'next/link';
 import { MapPin, Phone, Globe, ArrowLeft, Mail, Building2, Clock as ClockIcon, Calendar, Clock, Eye, EyeOff, Map as MapIcon, Bell } from 'lucide-react';
-import { sportEmoji, sportColor } from '@/lib/sports';
+import { sportColor } from '@/lib/sports';
 import Header from '@/components/layout/Header';
 import SiteFooter from '@/components/layout/SiteFooter';
 import Button from '@/components/ui/Button';
@@ -521,13 +521,13 @@ export default function VenueDetailClient({
                   {field.address}
                 </p>
                 {showBookingForField(field) && field.bookingType === 'internal' && (
-                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded bg-blue-100 text-blue-700 font-medium">
-                    📅 Rezerwacja online
+                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded bg-primary-50 text-primary-700 font-medium">
+                    Rezerwacja online
                   </span>
                 )}
                 {showBookingForField(field) && field.bookingType === 'external' && (
-                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded bg-orange-100 text-orange-700 font-medium">
-                    🔗 Rezerwuj zewnętrznie
+                  <span className="inline-block mt-1.5 text-xs px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-medium">
+                    Rezerwuj zewnętrznie
                   </span>
                 )}
               </div>
@@ -545,8 +545,7 @@ export default function VenueDetailClient({
                     style={{ background: sportColor(s) + '18', color: sportColor(s) }}
                     className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded font-medium"
                   >
-                    <span role="img" aria-hidden>{sportEmoji(s)}</span>
-                    {s}
+                                        {s}
                   </span>
               ))}
               {field.surface && (
@@ -589,13 +588,13 @@ export default function VenueDetailClient({
             {/* Facilities chips */}
             {(field.lit !== undefined || field.fee !== undefined || field.hasChangingRooms || field.hasShower || field.hasToilets || field.capacity) && (
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {field.lit === true && <span className="text-xs px-2 py-0.5 rounded bg-yellow-50 text-yellow-700 border border-yellow-200">💡 Oświetlenie</span>}
-                {field.fee === false && <span className="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">✓ Bezpłatne</span>}
-                {field.fee === true && <span className="text-xs px-2 py-0.5 rounded bg-orange-50 text-orange-700 border border-orange-200">💳 Płatne</span>}
-                {field.hasChangingRooms && <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">👕 Szatnia</span>}
-                {field.hasShower && <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">🚿 Prysznic</span>}
-                {field.hasToilets && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200">🚻 Toaleta</span>}
-                {field.capacity && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200">👥 maks. {field.capacity} os.</span>}
+                {field.lit === true && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">Oświetlenie</span>}
+                {field.fee === false && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">Bezpłatne</span>}
+                {field.fee === true && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">Płatne</span>}
+                {field.hasChangingRooms && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">Szatnia</span>}
+                {field.hasShower && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">Prysznic</span>}
+                {field.hasToilets && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">Toaleta</span>}
+                {field.capacity && <span className="text-xs px-2 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">maks. {field.capacity} os.</span>}
               </div>
             )}
 
@@ -830,7 +829,7 @@ export default function VenueDetailClient({
               </>
             ) : (
               <p className="text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3">
-                📞 Kontakt telefoniczny
+                Kontakt telefoniczny
               </p>
             )}
           </div>

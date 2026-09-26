@@ -8,7 +8,6 @@ import { SHOW_GAME_ALERTS } from '@/lib/features';
 import {
   getMojeAlerty, ustawAktywnoscAlertu, deleteMyAlert, nazwaAlertu, opisAlertu,
 } from '@/lib/alerts';
-import { sportEmoji } from '@/lib/sports';
 import AlertSetupDialog from '@/components/home/AlertSetupDialog';
 import type { GameAlert } from '@/types';
 
@@ -110,14 +109,6 @@ export default function MojeAlerty() {
                     onClick={() => setOkno({ alert: a })}
                     className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                   >
-                    <span aria-hidden className="text-lg leading-none">
-                      {/* Emoji tylko przy JEDNYM sporcie. Przy dwóch pierwsze
-                          z nich kłamałoby o drugim, a sklejanie kilku emoji
-                          w jednej linii rozpycha wiersz i przestaje się czytać
-                          — stadion znaczy tu „więcej niż jeden sport albo
-                          dowolny", a dokładną listę niesie nazwa obok. */}
-                      {a.sports.length === 1 ? sportEmoji(a.sports[0]) : '🏟️'}
-                    </span>
                     <span className="min-w-0">
                       <span className={`block truncate text-sm font-medium ${a.isActive ? 'text-ink' : 'text-slate-400'}`}>
                         {nazwaAlertu(a)}

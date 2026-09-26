@@ -16,7 +16,7 @@ import { track } from '@/lib/analytics';
 import { createEvent, DOMYSLNE_MINUTY_REZERWY } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
-import { FOCUS_SPORTS, FOCUS_SPORT_BY_SLUG, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
+import { FOCUS_SPORTS, FOCUS_SPORT_BY_SLUG, sportLabel, GK_SPORTS } from '@/lib/sports';
 import { validateStep1, validateStep2, validateStep, validatePayments, isPast, KROK_KREATORA, czyMeczPlatny } from '@/lib/eventWizard';
 import { jutroLokalnie } from '@/lib/eventDates';
 import { SHOW_RECURRING } from '@/lib/features';
@@ -538,8 +538,7 @@ function NewEventForm() {
                           : 'border-slate-200 text-slate-600',
                       ].join(' ')}
                     >
-                      <span>{sportEmoji(s)}</span>
-                      <span>{sportLabel(s)}</span>
+                                            <span>{sportLabel(s)}</span>
                     </div>
                   ))}
                 </div>
@@ -920,8 +919,7 @@ function NewEventForm() {
                           : 'bg-white text-slate-700 border-slate-200 hover:border-primary-400',
                       ].join(' ')}
                     >
-                      <span>{sportEmoji(s)}</span>
-                      <span>{sportLabel(s)}</span>
+                                            <span>{sportLabel(s)}</span>
                     </button>
                   ))}
                 </div>
@@ -938,7 +936,7 @@ function NewEventForm() {
                     aria-label="Wybierz sport"
                   >
                     {SPORTS.map((s) => (
-                      <option key={s} value={s}>{sportEmoji(s)} {sportLabel(s)}</option>
+                      <option key={s} value={s}>{sportLabel(s)}</option>
                     ))}
                   </select>
                 </div>

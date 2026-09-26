@@ -414,13 +414,13 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
         )}
         {games > 0 && (
           <p className="text-[11px] text-slate-400">
-            👥 {games} {gamesWord(games)} / tydzień
+            {games} {gamesWord(games)} / tydzień
           </p>
         )}
         <div className="flex flex-wrap items-center gap-1">
           {hasGameToday && (
             <span className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-100 rounded-full px-1.5 py-0.5">
-              📅 Dziś
+              Dziś
             </span>
           )}
           {field.bookingEnabled && (

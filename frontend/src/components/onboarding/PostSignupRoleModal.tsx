@@ -135,7 +135,7 @@ export default function PostSignupRoleModal() {
             onClick={() => wybierz('/wydarzenia/nowe')}
             className="w-full rounded-xl border-2 border-primary-600 bg-primary-50 p-4 text-left"
           >
-            <span className="block text-sm font-semibold text-primary-800">🏆 Jestem organizatorem</span>
+            <span className="block text-sm font-semibold text-primary-800">Jestem organizatorem</span>
             <span className="mt-0.5 block text-xs text-primary-700">
               Wystaw pierwszy mecz i wyślij ekipie link, dwie minuty
             </span>
@@ -156,7 +156,7 @@ export default function PostSignupRoleModal() {
           </p>
 
           <div className="rounded-xl border border-slate-200 p-4">
-            <span className="block text-sm font-semibold text-ink">⚽ Jestem graczem</span>
+            <span className="block text-sm font-semibold text-ink">Jestem graczem</span>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"

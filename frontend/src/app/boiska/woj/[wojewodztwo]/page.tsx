@@ -7,7 +7,7 @@ import SiteFooter from '@/components/layout/SiteFooter';
 import { slugify } from '@/lib/utils';
 import { venueListJsonLd } from '@/lib/structuredData';
 import { WOJEWODZTWA, WOJEWODZTWO_LABEL, type Wojewodztwo } from '@/lib/wojewodztwa';
-import { sportEmoji, HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
+import { HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
 import { wstepHubuWojewodztwa } from '@/content/boiska';
 import { obiektyHubuWojewodztwa, metadanePaginacjiHuba } from '@/lib/hubKatalogu';
 import type { Field } from '@/types';
@@ -148,7 +148,7 @@ export default async function WojewodztwoPage(
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {field.sport.map((s) => (
                         <span key={s} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-primary-50 text-primary-700">
-                          <span role="img" aria-hidden>{sportEmoji(s)}</span> {s}
+                          {s}
                         </span>
                       ))}
                     </div>

@@ -9,7 +9,6 @@ import Card from '@/components/ui/Card';
 import { useAuth, displayName } from '@/lib/auth';
 import { getFields } from '@/lib/api';
 import type { Field } from '@/types';
-import { sportEmoji } from '@/lib/sports';
 
 
 export default function MyVenuesPage() {
@@ -123,7 +122,7 @@ export default function MyVenuesPage() {
                           key={s}
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs font-medium"
                         >
-                          {sportEmoji(s)} {s}
+                          {s}
                         </span>
                       ))}
                     </div>

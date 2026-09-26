@@ -36,7 +36,7 @@ import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { defaultEventTitle } from '@/lib/eventTitle';
 import { validatePayments } from '@/lib/eventWizard';
 import { nazwaZAdresu } from '@/lib/utils';
-import { FOCUS_SPORTS, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
+import { FOCUS_SPORTS, sportLabel, GK_SPORTS } from '@/lib/sports';
 import type { Visibility, TeamMode, PaymentMethod, SportsCardProvider, EventCreate, EventItem, EventParticipant } from '@/types';
 import { zl } from '@/lib/kwota';
 
@@ -535,8 +535,7 @@ export default function EditEventPage() {
                       : 'bg-white text-slate-700 border-slate-200 hover:border-primary-400',
                   ].join(' ')}
                 >
-                  <span>{sportEmoji(s)}</span>
-                  <span>{sportLabel(s)}</span>
+                                    <span>{sportLabel(s)}</span>
                 </button>
               ))}
             </div>
@@ -551,7 +550,7 @@ export default function EditEventPage() {
                 aria-label="Wybierz sport"
               >
                 {(SPORTS.includes(sport as typeof SPORTS[number]) ? SPORTS : [sport, ...SPORTS]).map((s) => (
-                  <option key={s} value={s}>{sportEmoji(s)} {sportLabel(s)}</option>
+                  <option key={s} value={s}>{sportLabel(s)}</option>
                 ))}
               </select>
             </div>

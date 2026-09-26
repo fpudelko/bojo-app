@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { createGroup, setGroupCover } from '@/lib/groups';
 import { useToast } from '@/lib/toast';
 import { useWstecz } from '@/lib/historia';
-import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
+import { FOCUS_SPORTS, sportLabel } from '@/lib/sports';
 
 export default function NewGroupPage() {
   const router = useRouter();
@@ -114,7 +114,7 @@ export default function NewGroupPage() {
                     sport === s ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800',
                   ].join(' ')}
                 >
-                  <span>{sportEmoji(s)}</span> {sportLabel(s)}
+                  {sportLabel(s)}
                 </button>
               ))}
             </div>

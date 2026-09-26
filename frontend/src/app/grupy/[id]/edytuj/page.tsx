@@ -20,7 +20,7 @@ import { linkDoGrupy } from '@/lib/groupShare';
 import { useToast } from '@/lib/toast';
 import { useWstecz } from '@/lib/historia';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
-import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
+import { FOCUS_SPORTS, sportLabel } from '@/lib/sports';
 import type { Group, GroupMember, GroupPermissions } from '@/types';
 
 type UstawieniaTab = 'ogolne' | 'zaproszenia' | 'uprawnienia';
@@ -281,7 +281,7 @@ export default function EditGroupPage() {
                     sport === s ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800',
                   ].join(' ')}
                 >
-                  <span>{sportEmoji(s)}</span> {sportLabel(s)}
+                  {sportLabel(s)}
                 </button>
               ))}
             </div>

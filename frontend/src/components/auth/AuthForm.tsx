@@ -52,7 +52,7 @@ function GoogleBlockedSection() {
       <div className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-semibold text-slate-400 cursor-not-allowed select-none">
         <GoogleIcon />
         <span>Kontynuuj z Google</span>
-        <span className="text-base leading-none">🔒</span>
+        <Lock className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="mt-2.5 rounded-xl border border-amber-100 bg-amber-50 px-3.5 py-3">
         <p className="text-xs font-semibold text-amber-800 mb-1">Google jest zablokowane w tej przeglądarce</p>
