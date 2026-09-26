@@ -12,6 +12,7 @@
 //   7. frontend/public/llm-context.md is byte-identical to its source in docs/
 //   8. llm-context.md still has every required section, changelog capped at 10
 //   9. llm-context.md's "Stan na" marker — every field of it, not just the migration
+//  12. every repo path and relative link cited in .claude/skills/**/*.md exists
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -322,6 +323,49 @@ for (const rel of walk('frontend/src')) {
   });
 }
 if (emDashViolations === 0) console.log(`  sprawdzono ${emDashFilesScanned} plików, zero długich myślników w treści`);
+
+// ---------------------------------------------------------------------------
+section('12. ścieżki i linki w skillach (.claude/skills) żywe');
+// Skille to dokumentacja dla agentów: mówią „popraw `frontend/src/lib/structuredData.ts`”
+// albo „uruchom `scripts/gsc-okazje.mjs`”. Gdy plik się przeniesie, skill dalej to
+// mówi, pewnym tonem, i agent szuka w próżni. Sprawdzamy dwie rzeczy: ścieżki
+// z repo w `backtickach` (od katalogu głównego) oraz ścieżki względne skilla
+// (`references/…`, `scripts/…`, `../inny-skill/…`) i linki markdown.
+function* walkMd(dir) {
+  if (!existsSync(join(ROOT, dir))) return;
+  for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+    const rel = join(dir, entry.name);
+    if (entry.isDirectory()) yield* walkMd(rel);
+    else if (entry.name.endsWith('.md')) yield rel;
+  }
+}
+const Z_REPO = /^(frontend|scripts|docs|supabase|\.claude|\.github)\//;
+const Z_SKILLA = /^(references|scripts|evals|\.\.)\//;
+let skillPaths = 0;
+for (const rel of walkMd('.claude/skills')) {
+  const text = read(rel);
+  const skillDir = rel.split('/').slice(0, 3).join('/'); // .claude/skills/<skill>
+  const kandydaci = [
+    ...[...text.matchAll(/`([^`\s]+)`/g)].map((m) => m[1]),
+    ...[...text.matchAll(/\]\(([^)\s#]+)(?:#[^)]*)?\)/g)].map((m) => m[1]).filter((l) => !/^https?:/.test(l)),
+  ];
+  for (let p of kandydaci) {
+    p = p.replace(/[.,:;)]+$/, '').replace(/:\d+$/, '');
+    if (/[<>*{}…]|\$/.test(p)) continue; // placeholders and globs
+    let cel = null;
+    if (Z_REPO.test(p)) cel = p;
+    else if (Z_SKILLA.test(p)) cel = join(p.startsWith('../') ? join(skillDir, 'references') : skillDir, p);
+    else if (p.startsWith('./') || p.endsWith('.md')) cel = join(dirname(rel), p);
+    if (!cel) continue;
+    skillPaths++;
+    // A path cited from a references/ file may be relative to the skill root.
+    const alternatywa = join(skillDir, p);
+    if (!existsSync(join(ROOT, cel)) && !existsSync(join(ROOT, alternatywa)) && !existsSync(join(ROOT, dirname(rel), p))) {
+      fail(`${rel}: ścieżka \`${p}\` nie istnieje`);
+    }
+  }
+}
+console.log(`  sprawdzono ${skillPaths} ścieżek w skillach`);
 
 // ---------------------------------------------------------------------------
 console.log('');

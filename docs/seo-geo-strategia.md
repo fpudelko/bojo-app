@@ -1736,6 +1736,13 @@ emitowane w kodzie. Zbyt wcześnie, żeby to czytać jako problem — Google zwy
 potrzebuje więcej czasu i autorytetu domeny, zanim zacznie renderować rich snippets,
 nie tylko poprawnego JSON-LD.
 
+**SPROSTOWANIE (2026-09-26, research do skilli GSC):** to nie jest kwestia czasu.
+Wynik HowTo Google wycofał we wrześniu 2023, a FAQ od sierpnia 2023 pokazywał tylko
+witrynom rządowym i medycznym i w 2026 wycofał go całkowicie (raport, test wyników
+rozszerzonych, API). Pusta tabela „Wygląd w wynikach wyszukiwania” nie zapełni się
+FAQ ani HowTo nigdy. Znaczniki mogą zostać (nie szkodzą, bywają czytane przez modele).
+Aktualny stan funkcji Google: `.claude/skills/gsc/references/nowosci-google.md`.
+
 **Wniosek na termin 2026-09-15: zamknięty, pozytywnie.** Problemem była wyłącznie
 brakująca sitemapa (ustalenie z 29.08); po zgłoszeniu Google ocenił katalog jedną
 zbiorczą decyzją, nie stopniowo, i zaakceptował zdecydowaną większość. Drugi termin,
@@ -1787,6 +1794,14 @@ typu strony i sprawdza:
 To jest bramka, która **cofnęłaby dzisiejszy stan** i której brak sprawił, że Fazy 1
 i 2b zostały odhaczone jako zrobione. Testy zrzutów ekranu tego nie łapią, bo Playwright
 wykonuje JavaScript — czyli patrzy na aplikację z tej strony, z której problemu nie widać.
+
+**Odczyt Search Console — zautomatyzowany 2026-09-26** skillami `.claude/skills/gsc*`:
+`gsc-eksport.mjs` rozpoznaje każdy eksport GSC i daje werdykty dla Bojo (przyczyny
+z raportu Strony, udział R1), `gsc-okazje.mjs` liczy okazje w Skuteczności (luka CTR
+względem krzywej Bojo, blisko TOP 3, eksperyment A/B na szablonie obiektów),
+`sprawdz-jsonld.mjs` sprawdza JSON-LD wobec wymagań Google, a `gsc-api.mjs` pobiera
+dane z API bez limitu 1000 wierszy (wymaga klucza konta serwisowego). Odczyty i zmiany
+trafiają do [gsc-dziennik.md](./gsc-dziennik.md).
 
 Pomiar w modelach zostaje ręczny: 40 promptów, raz na sześć tygodni, wynik dopisywany
 do tabeli w tym dokumencie. Automatyzacja przez API kosztuje i wymaga kluczy — nie
