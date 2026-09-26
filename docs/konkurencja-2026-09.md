@@ -1,186 +1,261 @@
 # Przegląd konkurencji — wrzesień 2026
 
-**Stan na:** 2026-09-25. Zakres: aplikacje do umawiania meczów (gierek), rezerwacji
-obiektów i organizacji turniejów/lig, działające w Polsce, plus kilka zagranicznych
-wzorców, które warto znać.
+**Stan na:** 2026-09-26. Druga wersja, przepisana pod pytanie o **kanały pozyskania**:
+współpraca z obiektami (wolne godziny, rezerwacje), pewność, że gracz przyjdzie,
+turnieje, współpraca z istniejącymi rozgrywkami, reklamy. Dla każdego konkurenta:
+**co pokrywa, czy mu wyszło, jak bardzo i dlaczego.**
 
-Ten dokument **nie zmienia osi strategii**. [wizja.md](./wizja.md) mówi, że Bojo zaczyna
-od organizacji gry, a rezerwacje przychodzą później; [analiza-gtm-2026-09.md](./analiza-gtm-2026-09.md)
-(„Poziom 5") mówi, że realnym konkurentem dziś są Messenger i WhatsApp, nie aplikacje.
-Oba wnioski stoją. Ten plik odpowiada na węższe pytanie: **kto jeszcze robi to samo co
-Bojo i co z tego wynika dla produktu, copy i turniejów.** Poprzednie rozpoznanie
-(sierpień 2026) → [seo-geo-strategia.md](./seo-geo-strategia.md#tło-konkurencyjne--poza-osią-strategii).
+Dokument nie zmienia osi strategii ([wizja.md](./wizja.md): najpierw organizacja gry,
+rezerwacje później; [analiza-gtm-2026-09.md](./analiza-gtm-2026-09.md): głównym
+konkurentem jest Messenger). Poprzednie rozpoznanie →
+[seo-geo-strategia.md](./seo-geo-strategia.md#tło-konkurencyjne--poza-osią-strategii).
 
 ## Jak powstał i czego nie wie
 
-- Źródło: wyszukiwarka (wyniki ustawione pod rynek amerykański), opisy ze sklepów
-  z aplikacjami, artykuły prasowe. **Stron samych konkurentów nie dało się otworzyć**
-  (proxy środowiska agenta blokuje te domeny), więc opisy funkcji pochodzą z ich
-  własnych opisów w sklepach i z prasy, nie z klikania w produkt.
-- **Liczby użytkowników to deklaracje** z prasy albo od samych firm, często sprzed lat.
-  Traktuj je jako rząd wielkości, nie pomiar.
-- Nikt nie zakładał kont ani nie przechodził ścieżek. Zanim cokolwiek z tego pójdzie do
-  copy („jako jedyni…"), sprawdź ręką na telefonie.
-
-## Mapa pola w jednym zdaniu na kategorię
-
-| Kategoria | Kto | Stan pola |
-|---|---|---|
-| **Umawianie gierek** (to, co Bojo robi dziś) | Orlikfy, GRAMY, amator.app, LocalPlay, Meet and Play | **Zatłoczone.** Pięć polskich produktów z tą samą obietnicą; żaden nie ma pozycji dominującej. |
-| **Rezerwacja obiektów** | BallSquad, Playmore, Playtomic, Kluby.org, systemy gminne (Orlik+, e-Rezerwacja) | **Podzielone po typie obiektu:** BallSquad = obiekty publiczne i szkolne, Playmore/Playtomic/Kluby.org = korty (tenis, padel, squash). |
-| **Turnieje i ligi** | FC.APP, 4league, Playarena, Tournify, Challonge, Winner, Competize, Tourney, tg-app, Gampre, ligowe.pl, Tenisime, Piłka Lokalna | **Bardzo zatłoczone** w wersji „generator drabinki"; puste w wersji „turniej zrośnięty z graczami, którzy już grają razem". |
-| **Zarządzanie drużyną** | Spond, SportEasy, Heja (Teamer znika 5.10.2026) | Klubowe i młodzieżowe, nie gierkowe. Obok pola Bojo, nie na nim. |
+- Źródło: wyszukiwarka (wyniki pod rynek amerykański), sklepy z aplikacjami, prasa,
+  strony pomocy i regulaminy. **Stron konkurentów nie dało się otworzyć** (proxy
+  środowiska agenta blokuje domeny), więc wszystko jest z drugiej ręki.
+- **Liczby to deklaracje firm lub prasy**, często z okresu startu. Ocena „jak bardzo
+  wyszło" jest sądem na podstawie tych deklaracji, nie pomiarem.
+- Brak danych ≠ porażka. Gdzie nie znalazłem liczb, piszę „brak danych", nie „nie wyszło".
+- **Poprawka do wersji 1:** LocalPlay miał **10 tys.** kont po dwóch tygodniach
+  (MamStartup), nie 100 tys.
 
 ---
 
-## 1. Umawianie meczów — bezpośrednia konkurencja
+## Skala oceny „jak bardzo wyszło"
 
-| Aplikacja | Co robi | Skala / zasięg | Czym różni się od Bojo |
-|---|---|---|---|
-| **Orlikfy** | Mapa gier w okolicy, filtry, tworzenie wydarzenia, zarządzanie składem, powiadomienie o nowej grze w okolicy | Kraków od połowy 2024, ok. 3,5 tys. użytkowników (prasa), plan wejścia do dużych miast; iOS + Android | **Najbliższy bliźniak obietnicy** („gry na orliku w pobliżu" + alert). Nastawiony na piłkę na orliku. Aplikacja do instalacji. |
-| **GRAMY** (gramyapp.pl) | Gierki: siatkówka, piłka, koszykówka, futsal, ręczna. Drużyna zaprasza cały skład jednym kliknięciem. **Lista rezerwowa: pierwszy z rezerwy dostaje powiadomienie i ma 30 minut na potwierdzenie.** Ocena rzetelności gracza, punkty (bonus za wskoczenie w ostatniej chwili), poziom gry, cena | brak danych | **Najbliższy bliźniak funkcji.** Kolejka z oknem na decyzję i „ekipa zaprasza skład" to dokładnie mechanika Bojo. Dokłada to, czego Bojo nie ma: ocenę rzetelności i grywalizację. |
-| **amator.app** | Tworzenie meczu w minutę, dołączanie jednym kliknięciem, **automatyczny czat przy każdym meczu** („zamiast Messengera"), historia meczów i wyników, społeczność graczy | Warszawa, Kraków, Gdańsk, „cała Polska"; darmowa; LLM-y polecają ją na pytanie o aplikację do meczów ([seo-geo-strategia.md](./seo-geo-strategia.md)) | Tylko piłka nożna. Ta sama argumentacja co Bojo („zamiast komunikatora"). |
-| **LocalPlay** | Wydarzenia i mapa, drużyny, **turnieje i zapisy na nie**, profile i statystyki graczy z całej Polski, miejsce dla szkółek i obiektów | Deklarowane 100 tys. użytkowników dwa tygodnie po starcie (prasa sprzed lat); inwestor ICEO Ventures; wiele dyscyplin, nawet e-sport i planszówki | Najszerszy zakres (gierki + turnieje + obiekty). Najmocniejszy ślad medialny (INNPoland, rp.pl). |
-| **Meet and Play** | Wybór sportu/boiska/godziny, tworzenie spotkania z preferowanym wiekiem graczy, czat, **ranking i nagrody za aktywność** | brak danych; piłka, koszykówka, tenis stołowy | Grywalizacja zamiast rozliczeń. |
-| Playarena (aplikacja Nike Football) | Narzędzie kapitana drużyny w lidze Playarena: skład, powiadomienia o meczach ligowych | Ligi w ok. 90 miastach | Służy lidze, nie gierce. Patrz §3. |
+| Ocena | Znaczy |
+|---|---|
+| ●●●●● | Lider kategorii, miliony użytkowników albo przychód w milionach |
+| ●●●●○ | Trwały biznes: setki tysięcy graczy albo stabilny model przez lata |
+| ●●●○○ | Działa i żyje, ale skala regionalna/niszowa |
+| ●●○○○ | Wczesna trakcja, tysiące użytkowników, model niejasny |
+| ●○○○○ | Głośny start bez widocznej kontynuacji albo brak dowodów trakcji |
+| ✕ | Zamknięty |
 
-### Zagraniczne wzorce (nie działają w Polsce, ale pokazują, dokąd idzie kategoria)
+## Macierz: kto pokrywa które kanały
 
-- **Capo** (Wielka Brytania, start 2025) — cotygodniowa gierka ze znajomymi: jedno
-  kliknięcie „gram/nie gram", **automatyczny awans z listy rezerwowej**, zaproszenia
-  warstwowe (stali gracze mają pierwszeństwo), **płatność pobierana przy zapisie
-  z automatyczną wypłatą dla organizatora**, dobór wyrównanych składów algorytmem
-  (forma, bilans, gole), statystyki w stylu fantasy, profile gracza pisane przez AI.
-  To niemal lista funkcji Bojo plus płatności w aplikacji i balans składów.
-- **Footy Addicts** (UK), **Plei** (USA) — płatne gry prowadzone przez operatora:
-  gracz kupuje miejsce w meczu, operator dba o boisko i komplet. Inny model
-  (operator, nie organizator-amator).
-- **Teamer** (UK, grupa Pitchero) **zamyka się 5 października 2026**, bez eksportu
-  danych. Sygnał, że kategoria „narzędzie do drużyny" konsoliduje się u graczy
-  z modelem przychodowym, a darmowe narzędzie bez modelu po latach znika.
+`✓` pokrywa i to jest rdzeń, `~` pokrywa częściowo, `–` nie pokrywa.
 
-## 2. Rezerwacja obiektów
-
-| Aplikacja | Co robi | Zasięg | Znaczenie dla Bojo |
-|---|---|---|---|
-| **BallSquad** | SaaS dla obiektów + marketplace: wyszukanie i rezerwacja boiska, hali, sali (także szkolnych i konferencyjnych), rezerwacje jednorazowe i długoterminowe, **płatność online z podziałem kosztu między uczestników**, profil gracza z ulubionymi sportami, **tworzenie wydarzenia dla ludzi z okolicy** | Warszawa, Kraków (komunikat w BIP miasta), Poznań, Wrocław, Gdynia, Sosnowiec, Radom, Ruda Śląska, Świętochłowice, Lubań; od 2018, inwestor Brave VC, pożyczka BGK | Jedyny, który **od strony obiektów wchodzi w pole Bojo** — podział kosztu i wydarzenia to już organizacja meczu. Siła: umowy z gminami i szkołami, czyli właśnie hale zimą. |
-| **Playmore** (dawniej Reservise) | Rezerwacje kortów, zajęć, karnetów; system dla klubu (grafik, płatności, automatyka obiektu, „regularne granie") | Setki klubów rakietowych; w rejestrze KNF jako dostawca płatności | Rakiety, nie gry zespołowe. LLM-y polecają go na pytanie o rezerwację zamiast Bojo. |
-| **Playtomic** | Rezerwacja kortów (padel, tenis, pickleball), **otwarte mecze do dobrania graczy**, grupy, poziomy | Globalnie ok. 6 tys. klubów, 1,5 mln aktywnych graczy/mies., 63 kraje; w Polsce duże kluby padlowe (Interpadel, Warsaw Padel Club, Padel PL Wrocław); zbiórka crowdfundingowa 5,1 mln € (XI 2025) | Pokazuje model docelowy wizji Bojo (rezerwacja + dobieranie graczy) — ale dla sportów, gdzie gra się we czwórkę na korcie klubowym. |
-| **Kluby.org** | Rezerwacje kortów online, turnieje | Wiele klubów tenisowych i padlowych | Jak Playmore. |
-| **Systemy gminne i MOSiR** | Orlik+ (Ozimek, Wieliczka i in.), e-Rezerwacja Sportowy Rzeszów, rezerwacje boisk szkolnych w Gdyni, Kalety, Czarnków, Chorzów | Rozproszone, każdy na swoim adresie | Nie konkurent, tylko **dane**: to tam jest odpowiedź „jak wynająć orlik w X". Katalog obiektów Bojo mógłby do nich odsyłać. |
-
-## 3. Turnieje i ligi
-
-| Aplikacja | Dla kogo | Uwagi |
-|---|---|---|
-| **FC.APP** | Akademie i drużyny młodzieżowe, organizatorzy turniejów piłkarskich | ~10 tys. użytkowników z ok. 3,5 tys. drużyn (Lech Poznań, Górnik Łęczna); generator turnieju: liga, każdy z każdym, puchar, grupy; „turniej w 5 minut, za darmo"; zbierała kapitał na Emiteo. Najmocniejsza marka turniejowa w polskiej piłce. |
-| **4league** | Ligi i puchary amatorskie, grupy społecznościowe, federacje (plan Pro) | Tabele i terminarz z automatu, **relacja na żywo** (gole, kartki, zmiany), profile graczy ze statystykami, XP i osiągnięcia, **każda liga publiczna do obserwowania**. Darmowe dla grup społecznościowych. LLM-y polecają ją na pytanie o aplikację do meczów. |
-| **Playarena** | Ligi piłkarskie w ok. 90 miastach, sezon 2025/26 | Operator lig, nie narzędzie — gracz płaci za udział w rozgrywkach. |
-| **ligowe.pl**, **Piłka Lokalna** | Organizatorzy lig amatorskich; kibice lig okręgowych | ligowe.pl = system do prowadzenia ligi; Piłka Lokalna = wyniki i tabele od III ligi po ligi osiedlowe. |
-| **Tournify** | Turnieje drużynowe (piłka, kosz, siatka), zapisy, terminarz, wyniki na żywo | Darmowe do 128 drużyn; Pro 19 €/mies. |
-| **Challonge**, **Competize**, **Winner**, **Tourney**, **tg-app.pl**, **Gampre** | Generatory drabinek i tabel, dowolny sport | Szybkie „wpisz drużyny, dostań drabinkę". Bez graczy z kontami, bez historii. |
-| **Tenisime**, **tenis4U** | Tenis: turnieje, ligi, sparingi, ranking ELO, mapa kortów | Pokazuje, że w jednej dyscyplinie da się złożyć gierkę + turniej + ranking w jednym produkcie za darmo. |
+| Kto | Wynik | Obiekty / wolne godziny | Pewność przyjścia | Turnieje | Ligi | Główny kanał wzrostu |
+|---|---|---|---|---|---|---|
+| **Playtomic** | ●●●●● | ✓ SaaS klubu + otwarte mecze na każdym wolnym slocie | ✓ płatność z góry przy rezerwacji | ~ | ~ | Obiekty: klub wdraża system, gracze przychodzą z nim |
+| **Spond** | ●●●●● | – | ~ obecności, płatności klubowe | – | – | Kluby: jeden trener wciąga całą drużynę i rodziców |
+| **Plei** (USA) | ●●●●○ | ✓ **sprzedaje obiektom zapełnienie martwych godzin** | ✓ płatne z góry + 5 $ kary za niestawienie się | ~ | – | Obiekty + niska cena („gra za 6 $") + partnerstwa z markami (LaLiga) |
+| **Footy Addicts** (UK) | ●●●●○ | ~ gospodarz sam rezerwuje obiekt | ✓ płatne z góry + wskaźnik rzetelności | ~ | ✓ własne ligi 7-osobowe z karami | Płatne gry z gospodarzami, 100 tys. graczy |
+| **Playarena** | ●●●●○ | – | ✓ **opłata weryfikacyjna** przeciw „drużynom widmo" | ~ | ✓ rdzeń: ligi w ~90 miastach | Operator lig, marka od lat, aplikacja od Nike dla kapitanów |
+| **FC.APP** | ●●●○○ | – | – | ✓ rdzeń | ~ | B2B: akademie i kluby młodzieżowe; 1,5 mln zł z crowdfundingu |
+| **BallSquad** | ●●●○○ | ✓ rdzeń: obiekty publiczne i szkolne | ~ płatność online | – | – | **Umowy z gminami** — komunikaty w BIP, na stronach MOSiR |
+| **4league** | brak danych | – | – | ✓ | ✓ publiczne ligi z relacją na żywo | Ligi społecznościowe, darmowe; polecane przez LLM-y |
+| **Orlikfy** | ●●○○○ | – | – | – | – | Organicznie, miasto po mieście (Częstochowa „sama”) |
+| **GRAMY** | brak danych | – | ✓ 30 min na potwierdzenie z rezerwy, ocena rzetelności | – | – | brak danych |
+| **amator.app** | brak danych | – | – | – | – | brak danych; polecana przez LLM-y |
+| **Meet and Play** | ●○○○○ | – | ~ punkty, rankingi | – | – | Social media: „27 tys. osób polubiło pomysł" przed startem |
+| **LocalPlay** | ●○○○○ | ~ plan wynajmu obiektów | – | ~ zapisy na turnieje | – | Prasa (INNPoland, rp.pl), 200 tys. zł od ICEO Ventures |
+| **Capo** (UK) | za wcześnie | – | ✓ auto-awans z rezerwy, płatność przy zapisie | – | ~ tabele | Treści SEO (porównania „najlepsze aplikacje 2026") |
+| **Teamer** (UK) | ✕ | – | ~ | – | – | zamknięty 5.10.2026 |
+| **Bojo dziś** | — | ~ katalog 17 tys. stron; rezerwacje zbudowane i schowane | ~ BLIK, oznaczanie nieobecności; SMS schowany | ~ zbudowane i schowane | – | SEO katalogu (116 kliknięć/tydz.), ręczny outreach |
 
 ---
 
-## Co z tego wynika dla Bojo
+## Kto i dlaczego — pojedynczo
 
-### 1. „Lista rezerwowa z czasem na decyzję" nie jest już wyróżnikiem
+### Wygrali
 
-GRAMY ma dokładnie tę mechanikę (30 minut na potwierdzenie), Capo ma automatyczny
-awans. Bojo nadal ma rzeczy, których w opisach konkurentów nie widać:
+**Playtomic ●●●●●** — 6–6,7 tys. klubów, 1,5 mln aktywnych graczy miesięcznie, 63 kraje.
+*Dlaczego:* **wszedł przez obiekt, nie przez gracza.** Klub dostaje system do prowadzenia
+grafiku i płatności, a otwarte mecze tworzą się same na każdym wolnym slocie
+w kalendarzu klubu. Gracz przychodzi, bo tam jest kort, a nie dlatego, że ktoś go
+przekonał do aplikacji. Pieniądze płyną przez system (prowizja od rezerwacji + opłata
+gracza), więc niestawienie się kosztuje. *Ograniczenie:* padel i rakiety, czyli sport
+na 4 osoby w komercyjnym klubie. W grach zespołowych na orlikach tego modelu nikt nie
+powtórzył.
 
-- **zapis z linku bez instalacji i bez konta** (wszyscy polscy konkurenci to
-  aplikacje ze sklepu; to jest realna przewaga wobec grupy na Messengerze, gdzie
-  link otwiera się jednym kliknięciem),
-- **tryby miejsc dla bramkarzy** (osobny limit / wspólna pula),
-- **rozliczenie po polsku**: BLIK na numer organizatora, zniżka z kartą sportową,
-  „wszyscy oddali" (Capo robi płatność w aplikacji, ale w UK; BallSquad dzieli koszt,
-  ale tylko przy rezerwacji w swoim obiekcie),
-- **katalog obiektów z informacją, kto tam gra i kiedy** (tego nie mają ani Mapy
-  Google, ani Orlikfy w wersji mapy gier),
-- wiele sportów w jednym miejscu (Orlikfy i amator.app to głównie piłka).
+**Plei ●●●●○** (USA) — prawie 600 tys. graczy, 38 regionów, ponad 5 tys. gier miesięcznie,
+50 pracowników, **bez funduszu** (tylko 118 tys. $ z crowdfundingu w 2020).
+*Dlaczego:* **dokładnie model „wolnych godzin"**: obiekt pokazuje, które godziny
+stoją puste, a Plei robi resztę — promuje, zbiera zapisy, pilnuje zasad, płaci obiektowi
+za każdą godzinę. Deklarują ponad 3,3 mln $ wypłacone obiektom. Gra jest płatna z góry,
+a niestawienie się to brak zwrotu i 5 $ kary. Wzrost napędza cena (kampania „2026 za 6 $",
+pół średniej krajowej) i partnerstwa z markami. **To najważniejszy dowód w tym dokumencie:
+model „zapełniamy obiektowi martwe godziny" działa w piłce zespołowej.**
 
-**Wniosek dla copy:** nie pisać „jako jedyni masz rezerwę z kolejką". Pisać o skutku:
-link, który działa bez instalacji, i rozliczenie, które się samo liczy.
+**Footy Addicts ●●●●○** (UK) — 100 tys. graczy, ok. 400 gier tygodniowo, deklarowane
+3,3 mln $ przychodu rocznie, 23 pracowników.
+*Dlaczego:* każdy może zostać gospodarzem, gospodarz sam rezerwuje obiekt, gracze płacą
+w aplikacji, Footy Addicts bierze procent. Gospodarz gra za darmo, więc ma motywację.
+Organizator może oznaczyć „nie przyszedł" i spada wtedy wskaźnik rzetelności widoczny
+dla innych. *Ale:* opinie wciąż skarżą się na rezygnacje w ostatniej chwili — wskaźnik
+rzetelności pomaga, nie rozwiązuje. Dołożyli też własne ligi z karą za walkower
+(równowartość opłaty za mecz obu drużyn).
 
-Brak auto-awansu z rezerwy jest w Bojo **świadomą decyzją** (AGENTS.md). Capo i GRAMY
-robią to inaczej — to informacja, nie argument za zmianą. Jeśli rozmowa kiedyś wróci,
-wraca z tym porównaniem, a nie z hasłem „konkurencja ma".
+**Spond ●●●●●** — ponad 3 mln aktywnych miesięcznie, 1,5 mln w samej Wielkiej Brytanii.
+*Dlaczego:* darmowy dla organizatora, zarabia na **prowizji od płatności** (składki,
+opłaty drużynowe) i partnerstwach z markami. Wchodzi przez klub, który wciąga wszystkich
+członków naraz. *Dla Bojo:* obok pola (kluby, młodzież), ale pokazuje, że darmowe
+narzędzie przeżywa, gdy przez nie płyną pieniądze.
 
-### 2. Czego konkurenci mają, a Bojo nie — do rozważenia, nie do wdrożenia
+**Playarena ●●●●○** — ligi piłkarskie w ok. 90 miastach, 19 sezonów.
+*Dlaczego:* jest **operatorem**, nie narzędziem — sprzedaje udział w lidze. Problem
+„drużyn widmo" rozwiązała **opłatą weryfikacyjną** przed sezonem i drugą w połowie,
+bo, jak piszą wprost, to „jedyny skuteczny sposób potwierdzenia zamiaru gry".
+Aplikacja Nike Football dla kapitanów to przykład, że marka dostarcza lidze narzędzie
+do zbierania składu — czyli dokładnie miejsce, w które mogłoby wejść Bojo.
 
-| Funkcja | Kto ma | Komentarz |
+### Działają, skala średnia
+
+**FC.APP ●●●○○** — 10–12 tys. użytkowników z ok. 3,5 tys. drużyn, 1,5 mln zł zebrane
+na Emiteo (2022), druga emisja w 2024.
+*Dlaczego wyszło:* wąska nisza z realnym bólem — **turnieje dzieci i młodzieży**, gdzie
+organizatorem jest akademia, która robi turniej co miesiąc. Klient B2B, powtarzalny.
+*Dlaczego nie bardziej:* nisza ma sufit; dwie emisje crowdfundingowe zamiast funduszu.
+
+**BallSquad ●●●○○** — od 2018, „setki obiektów" i „tysiące użytkowników" (deklaracja),
+kilkanaście miast, inwestor Brave VC, pożyczka BGK.
+*Dlaczego wyszło:* znalazł klienta, który płaci i ma problem — **gminę ze szkolnymi
+salami i orlikami**, którą ktoś musi wynajmować. Wejście przez urząd daje komunikaty
+w BIP i na stronach MOSiR, czyli darmowy zasięg lokalny.
+*Dlaczego nie bardziej:* sprzedaż do gmin jest powolna (przetargi, pojedyncze umowy);
+po ośmiu latach wciąż „setki", nie tysiące obiektów. Strona gracza (squad, wydarzenia)
+nie stała się niczym, o czym się mówi.
+
+### Wczesne albo niewidoczne
+
+**Orlikfy ●●○○○** — start sierpień 2024 w Krakowie, ok. 3,5 tys. użytkowników.
+*Co działa:* rozprzestrzenia się organicznie (Częstochowa bez marketingu), skupienie na
+jednym scenariuszu (orlik). *Dlaczego nie więcej:* brak podaży, której nie ma gdzie
+indziej (nie ma obiektów, nie ma pieniędzy w obiegu), więc każdy nowy gracz musi zostać
+przekonany osobno. Model zarabiania nieopisany publicznie.
+
+**GRAMY, amator.app — brak danych.** Funkcjami najbliżej Bojo (GRAMY: 30 minut na
+potwierdzenie z rezerwy, ocena rzetelności; amator.app: czat przy meczu, historia).
+Nie znalazłem prasy, liczb ani finansowania. amator.app jest wysoko w odpowiedziach
+modeli językowych, co samo w sobie jest kanałem.
+
+**Meet and Play ●○○○○** — „27 tys. osób polubiło pomysł" przed startem.
+*Dlaczego ocena niska:* polubienia posta to nie użytkownicy; nie znalazłem żadnej
+liczby po starcie. Klasyczny przypadek, w którym zasięg w social mediach nie zamienił się
+w gry.
+
+**LocalPlay ●○○○○** — 200 tys. zł od ICEO Ventures, 10 tys. kont i ponad 1000 wydarzeń
+w dwa tygodnie po starcie (ok. 2020–2021), dobra prasa.
+*Dlaczego nie wyszło (na ile widać):* start był głośny, ale ostatnie publiczne sygnały to
+plany **tokenizacji sportowców i obiektów** — dryf od „umówmy mecz" do blockchaina.
+Zakres od piłki po planszówki i e-sport, czyli wszystko naraz. Nie znalazłem nowszych
+liczb. Lekcja: szybki napływ kont z prasy nie zbudował powtarzalnych gier.
+
+### Zamknięty
+
+**Teamer ✕** (UK, grupa Pitchero) — zamyka się 5 października 2026, bez eksportu danych,
+rejestracje już wyłączone. Powód według właściciela: nie są w stanie zapewnić
+„długoterminowych inwestycji potrzebnych do utrzymania". *Lekcja:* narzędzie do
+zarządzania drużyną bez przepływu pieniędzy po latach przegrywa u właściciela
+z produktami, które zarabiają.
+
+---
+
+## Wzorce: co odróżnia tych, którym wyszło
+
+### 1. Każdy, komu wyszło, trzyma podaż albo pieniądze
+
+| Kto wygrał | Co trzyma |
+|---|---|
+| Playtomic | kalendarz kortów klubu |
+| Plei | martwe godziny obiektów |
+| Footy Addicts | płatność za miejsce w meczu |
+| Playarena | opłatę za ligę |
+| Spond | płatności klubowe |
+| BallSquad (średnio) | wynajem sal gminnych |
+| FC.APP (średnio) | turnieje akademii |
+
+Aplikacje „znajdź ludzi do gry", które **nie trzymają ani obiektu, ani pieniędzy**
+(LocalPlay, Meet and Play, Orlikfy, Teamer), w najlepszym razie rosną powoli, a w gorszym
+dryfują albo znikają. Bojo dziś jest w tej drugiej grupie — ale ma zbudowane (schowane)
+oba klucze: rezerwacje i rozliczenia.
+
+### 2. Pewność przyjścia załatwiają pieniądze, nie numer telefonu
+
+Nikt z tej listy nie używa numeru telefonu jako mechanizmu stawiennictwa. Działa:
+
+- **płatność z góry** (Playtomic, Plei, Footy Addicts),
+- **kara za niestawienie się** (Plei 5 $, Footy Addicts: walkower = opłata obu drużyn),
+- **opłata weryfikacyjna** (Playarena, wprost przeciw drużynom widmo),
+- **wskaźnik rzetelności** widoczny dla organizatorów (Footy Addicts, GRAMY) —
+  pomaga, ale według opinii Footy Addicts sam nie wystarcza.
+
+### 3. Obiekt płaci za zapełnienie, nie za oprogramowanie
+
+Plei i Playtomic zarabiają na tym, że **przyprowadzają ludzi w godziny, które inaczej
+stoją puste**. BallSquad sprzedaje gminie oprogramowanie do wynajmu — i rośnie wolniej.
+Dla Bojo: rozmowa z halą o „wolnych godzinach" ma mocny precedens; rozmowa o „systemie
+rezerwacji z prowizją" wchodzi w pole, na którym BallSquad jest od ośmiu lat.
+
+### 4. Turnieje wygrywa ten, kto ma powtarzalnego organizatora
+
+FC.APP wygrał, bo akademia robi turniej co miesiąc. Generatory drabinek (Challonge,
+Tournify, tg-app, Gampre…) nie budują nic trwałego, bo organizator jednorazowego turnieju
+znika po weekendzie. Footy Addicts i Playarena zarabiają na ligach, które **same prowadzą**.
+
+### 5. Ligi: nikt nie zastąpił operatora, ale marki dają narzędzia kapitanom
+
+Playarena ma aplikację od Nike dla kapitanów. Nikt z listy nie próbuje zastąpić systemu
+ligowego od środka — wchodzi się obok (narzędzie dla kapitana, gra poza ligą) albo
+zostaje się operatorem.
+
+### 6. Reklamy: żadnego udokumentowanego przypadku wzrostu
+
+W materiałach nie znalazłem polskiego produktu z tej kategorii, który urósł na płatnych
+reklamach. Udokumentowane kanały to: **obiekty** (Playtomic, Plei), **gminy i ich
+komunikaty** (BallSquad), **prasa** (LocalPlay — dała konta, nie gry), **cena**
+(Plei „za 6 $"), **marki** (Plei × LaLiga, Playarena × Nike), **organiczne rozlewanie
+się miasto po mieście** (Orlikfy). Meet and Play to przykład, że zasięg w social
+mediach nie przekłada się na gry.
+
+---
+
+## Co to znaczy dla pięciu kanałów Bojo
+
+| Kanał | Precedens | Werdykt |
 |---|---|---|
-| Ocena rzetelności gracza (czy przychodzi) | GRAMY | Bojo ma już oznaczanie nieobecności ([funkcje.md](./funkcje.md#oznaczanie-nieobecności)) — wskaźnik jest o krok. Ryzyko: ocena ludzi w małej ekipie potrafi zniechęcić. |
-| Wyrównane składy z algorytmu | Capo | Bojo ma losowanie drużyn; algorytm potrzebuje historii wyników, której przy starcie nie ma. |
-| Grywalizacja (punkty, rankingi, XP) | Meet and Play, GRAMY, 4league | Wizja mówi o „historii, statystykach i rywalizacji" — to ten kierunek, ale później. |
-| Relacja meczu na żywo, obserwowanie ligi | 4league, Tournify | Moduł turniejowy Bojo ma zdarzenia meczu (migracja `147`) — to już jest. |
-| Płatność w aplikacji | Capo, BallSquad, Playmore, Playtomic | Wymaga podmiotu prawnego i operatora płatności ([analiza-gtm-2026-09.md](./analiza-gtm-2026-09.md)). Nie teraz. |
+| **Wolne godziny w halach** | Plei (600 tys. graczy, 3,3 mln $ dla obiektów), otwarte mecze Playtomic | **Najmocniej poparty kanał.** Nikt w Polsce nie robi tego dla gier zespołowych. |
+| **Rezerwacje z prowizją** | BallSquad (8 lat, „setki obiektów"), Playtomic (tylko rakiety) | Później. Pole zajęte i wolne w sprzedaży. Wraca, gdy hale zobaczą, że Bojo je zapełnia. |
+| **Pewność przyjścia** | Płatność z góry + kara u wszystkich, którym wyszło | Płatność z góry przy grach w halach. Numer telefonu opcjonalny. |
+| **Turnieje** | FC.APP (powtarzalny organizator), Footy Addicts/Playarena (operator) | Jako **wydarzenie z halą-partnerem** albo dla organizatora, który robi to regularnie. Nie jako generator drabinek. |
+| **Istniejące ligi** | Nike × Playarena | Narzędzie dla kapitana na treningi, sparingi i szukanie brakującego zawodnika. Nie zastępować ligi. |
+| **Reklamy** | brak | Tylko reklama konkretnej gry w konkretnej hali, z miarą „koszt organizatora/gracza, który zagrał". |
 
-### 3. Turnieje: nie wchodzić w wojnę generatorów drabinek
+Kolejność działań i szczegóły kanałów zostały omówione w rozmowie z właścicielem
+(2026-09-26); jeśli trafią do repo, to jako osobny plan, nie tutaj.
 
-Generatorów drabinki jest kilkanaście, darmowych. FC.APP ma młodzieżową piłkę, 4league
-ligi publiczne z relacją na żywo, Playarena ligi płatne w 90 miastach. Moduł turniejowy
-Bojo (flaga `SHOW_TURNIEJE`, [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md))
-ma sens tylko tam, gdzie reszta jest słaba:
-
-- **zawodnicy mają konta i historię** — skład prowadzi do profilu, gole liczą się
-  do statystyk gracza, turniej wyrasta z ekip, które już grają razem w Bojo;
-- **jednorazowy turniej lokalny** (osiedlowy, firmowy, charytatywny), nie liga
-  sezonowa — organizator zaprasza linkiem, drużyny zapisują się bez instalacji.
-
-Odmrażając flagę, pozycjonować „turniej dla ludzi, którzy już grają razem", nie
-„stwórz drabinkę w 5 minut" (to jest dokładnie hasło FC.APP).
-
-### 4. BallSquad to nie przyszły, tylko obecny sąsiad — i właśnie wchodzi w zimę
-
-BallSquad ma podział kosztu między uczestników i tworzenie wydarzeń, a jego mocną
-stroną są hale szkolne i gminne, czyli dokładnie to, gdzie gra się od listopada.
-[analiza-gtm-2026-09.md](./analiza-gtm-2026-09.md) („Poziom 6") uznaje zimę za sezon
-najsilniejszej przewagi Bojo (rozliczenia płatnych obiektów). **To ten sam sezon
-i ten sam argument u BallSquadu.** Różnica, której trzeba pilnować: w Bojo rozlicza
-się dowolny obiekt, także wynajęty telefonicznie; w BallSquadzie tylko obiekt, który
-jest w ich systemie.
-
-### 5. Kolejność zagrożeń na dziś
-
-1. Messenger / WhatsApp / grupy FB — bez zmian ([analiza-gtm-2026-09.md](./analiza-gtm-2026-09.md)).
-2. **GRAMY i Orlikfy** — ta sama obietnica, ten sam typ użytkownika; Orlikfy rośnie
-   miasto po mieście, jak Bojo.
-3. **BallSquad** — zimą, w halach.
-4. amator.app, LocalPlay, Meet and Play — obecne w wynikach wyszukiwania i w odpowiedziach
-   modeli językowych; wpływają na to, czy Bojo w ogóle trafia do zestawienia.
-5. Aplikacje rakietowe i turniejowe — obok pola, do obserwowania.
-
-## Do sprawdzenia ręcznie (czego ten przegląd nie rozstrzyga)
-
-- Zainstalować GRAMY, Orlikfy i amator.app, przejść ścieżkę „zbieram 10 osób na
-  czwartek" i porównać liczbę kroków z Bojo.
-- Sprawdzić, czy BallSquad pozwala założyć wydarzenie **bez** rezerwacji w swoim obiekcie.
-- Sprawdzić, czy któraś z polskich gierkowych aplikacji ma zapis z linku bez instalacji
-  (web). Jeśli tak — punkt 1 traci najmocniejszy argument.
-- Polski SERP dla „aplikacja do organizowania meczów": kto jest w pierwszej dziesiątce.
+---
 
 ## Źródła
 
-- Orlikfy: [App Store](https://apps.apple.com/pl/app/orlikfy-gry-na-orliku/id6503027981), [MamBiznes — rozmowa z założycielami](https://mambiznes.pl/porady/od-hobby-do-biznesu-rozmowa-z-zalozycielami-startupu-orlikfy-ktory-ulatwia-organizowanie-gier-orlikowych/), [KR24](https://kr24.pl/krakow/wirtualna-rewolucja-na-orlikach-krakowianie-stworzyli-aplikacje-orlikfy/)
-- GRAMY: [app.gramyapp.pl](https://app.gramyapp.pl/)
-- amator.app: [amator.app](https://amator.app/en/), [Google Play](https://play.google.com/store/apps/details?id=com.gamehunter.app)
-- LocalPlay: [INNPoland](https://innpoland.pl/166875,polska-aplikacja-localplay-idealny-pomysl-dla-fanow-pilki-noznej-na-zywo), [MamStartup — ICEO Ventures](https://mamstartup.pl/iceo-ventures-inwestuje-w-sportech-localplay-pomoze-polakom-wrocic-do-formy/), [localplay.app](https://localplay.app/pl)
-- Meet and Play: [meet-and-play.com](https://meet-and-play.com/)
-- Capo: [caposport.com](https://caposport.com/), [przegląd aplikacji 2026](https://caposport.com/guides/best-5-a-side-apps-2026)
-- Teamer: [Teamer Shutdown FAQs](https://help.teamer.net/knowledge/teamer-shutdown-faqs)
-- Footy Addicts: [footyaddicts.com](https://footyaddicts.com/); Plei: [plei.com](https://www.plei.com/)
-- BallSquad: [ballsquad.io](https://www.ballsquad.io/), [BIP Kraków](https://bip.krakow.pl/?news_id=132768), [MOSiR Ruda Śląska](https://mosir.rsl.pl/aktualnosci/zarezerwuj-boisko-z-aplikacja-ballsquad), [Brave VC](https://brave.vc/en/new-investment-ballsquad), [BGK](https://www.bgk.pl/produkty/pozyczki-unijne-2014-2020/historie-klientow/ballsquad-aplikacja-do-zarzadzania-i-rezerwacji-obiektow/)
-- Playmore: [playmore.pl](https://playmore.pl/), [Cashless — KNF](https://www.cashless.pl/18857-reservise-playmore)
-- Playtomic: [Global Padel Report 2026](https://playtomic.com/global-padel-report), [Crowdcube XI 2025](https://www.crowdcube.com/companies/playtomic/pitches/qrMYkb), [Interpadel Warszawa](https://playtomic.com/clubs/interpadel-warszawa)
-- Kluby.org: [kluby.org](https://kluby.org/)
-- Systemy gminne: [Orlik+ Wieliczka](https://orlik.wieliczka.eu/), [e-Rezerwacja Rzeszów](https://sportowyrzeszow.pl/e-rezerwacja), [Gdynia](https://www.gdynia.pl/sport-i-zdrowie,7717/zarezerwuj-boisko-jednym-kliknieciem,549555)
-- FC.APP: [fcapp.eu](https://fcapp.eu/en/), [Emiteo](https://emiteo.pl/fcapp-s-a/), [Konspekty Piłka Nożna](https://www.konspektypilkanozna.pl/aplikacja-do-organizowania-sparingow-i-turniejow-fcapp/)
+**Wygrali**
+- Playtomic: [Global Padel Report 2026](https://playtomic.com/global-padel-report), [Crowdcube XI 2025](https://www.crowdcube.com/companies/playtomic/pitches/qrMYkb), [Open Matches — Playtomic Manager](https://helpmanager.playtomic.com/hc/en-gb/articles/20535035123473-How-to-configure-Open-Matches-at-your-Club), [nowy model rozliczeń](https://helpmanager.playtomic.com/hc/en-gb/articles/26436916409361-Introducing-Playtomic-s-New-Billing-Model), [Interpadel Warszawa](https://playtomic.com/clubs/interpadel-warszawa)
+- Plei: [współpraca z obiektami](https://www.plei.com/facility), [Refresh Miami](https://refreshmiami.com/news/plei-is-building-the-worlds-largest-pickup-soccer-app-one-game-at-a-time/), [„2026 za 6 $” — PR Newswire](https://www.prnewswire.com/news-releases/plei-launches-2026-for-6-movement-creating-the-largest-grassroots-pickup-soccer-initiative-in-north-america-this-summer-302805066.html), [Republic](https://republic.com/plei), [regulamin](https://www.plei.com/terms/terms-conditions)
+- Footy Addicts: [footyaddicts.com](https://footyaddicts.com/), [Growjo](https://growjo.com/company/Footy_Addicts), [oznaczanie niestawienia się](https://footyaddicts.uservoice.com/knowledgebase/articles/454546-mark-players-as-no-shows-how-does-it-work), [pobieranie opłat](https://footyaddicts.uservoice.com/knowledgebase/articles/194593-collect-money-for-my-game), [zasady lig](https://leagues.footyaddicts.com/rules/), [Trustpilot](https://www.trustpilot.com/review/footyaddicts.com)
+- Spond: [spond.com](https://www.spond.com/en-us/), [koszty płatności](https://help.spond.com/app/en/articles/118091-payments-costs-in-the-spond-app), [wywiad z CEO — TechRound](https://techround.co.uk/interviews/a-chat-with-trine-falnes-spond/)
+- Playarena: [aplikacja Nike](https://playarena.pl/lnp/nikeApp), [Playarena Premium — opłata weryfikacyjna](https://playarena.pl/og/news/5298), [zapisy sezon 19](https://www.playarena.pl/og/news/9615)
+
+**Działają, skala średnia**
+- FC.APP: [fcapp.eu](https://fcapp.eu/en/), [Emiteo — studium przypadku](https://emiteo.pl/blog/post/fcapp-case-study), [Emiteo](https://emiteo.pl/fcapp-s-a/)
+- BallSquad: [ballsquad.io](https://www.ballsquad.io/), [miasta](https://www.ballsquad.io/cities), [BIP Kraków](https://bip.krakow.pl/?news_id=132768), [Kraków.pl](https://www.krakow.pl/aktualnosci/243240,202,komunikat,z_aplikacja_ballsquad_latwiej_wynajmiesz_sale_i_boisko.html), [MOSiR Ruda Śląska](https://mosir.rsl.pl/aktualnosci/zarezerwuj-boisko-z-aplikacja-ballsquad), [Brave VC](https://brave.vc/en/new-investment-ballsquad), [BGK](https://www.bgk.pl/produkty/pozyczki-unijne-2014-2020/historie-klientow/ballsquad-aplikacja-do-zarzadzania-i-rezerwacji-obiektow/)
 - 4league: [4league.app](https://4league.app/pl/index.html)
-- Playarena: [playarena.pl](https://playarena.pl/lnp/nikeApp)
-- ligowe.pl: [ligowe.pl](https://ligowe.pl/); Piłka Lokalna: [App Store](https://apps.apple.com/us/app/pi%C5%82ka-lokalna/id6757909863)
-- Tournify i inne generatory: [Score7 — porównanie 2026](https://kb.score7.io/blog/comparisons/best-free-tournament-software-2026/), [tg-app.pl](https://tg-app.pl/), [Gampre](https://www.gampre.pl/stworz-turniej/), [Competize](https://apps.apple.com/pl/app/competize-turnieje-ligi/id595756807?l=pl), [Winner](https://apps.apple.com/pl/app/winner-organizatora-ligi/id1453673502?l=pl), [Tourney](https://apps.apple.com/pl/app/tourney-tw%C3%B3rca-turniej%C3%B3w/id6450659011?l=pl)
-- Tenisime: [tenisime.pl](https://www.tenisime.pl/)
-- Spond / SportEasy / Heja: [Spond](https://www.spond.com/en-us/), [SportEasy](https://play.google.com/store/apps/details?id=com.sporteasy.android)
+
+**Wczesne albo niewidoczne**
+- Orlikfy: [MamBiznes](https://mambiznes.pl/porady/od-hobby-do-biznesu-rozmowa-z-zalozycielami-startupu-orlikfy-ktory-ulatwia-organizowanie-gier-orlikowych/), [KR24](https://kr24.pl/krakow/wirtualna-rewolucja-na-orlikach-krakowianie-stworzyli-aplikacje-orlikfy/), [App Store](https://apps.apple.com/pl/app/orlikfy-gry-na-orliku/id6503027981)
+- GRAMY: [app.gramyapp.pl](https://app.gramyapp.pl/)
+- amator.app: [amator.app](https://amator.app/en/)
+- Meet and Play: [meet-and-play.com](https://meet-and-play.com/)
+- LocalPlay: [MamStartup — ICEO Ventures](https://mamstartup.pl/iceo-ventures-inwestuje-w-sportech-localplay-pomoze-polakom-wrocic-do-formy/), [INNPoland](https://innpoland.pl/166875,polska-aplikacja-localplay-idealny-pomysl-dla-fanow-pilki-noznej-na-zywo), [Marketing i Biznes — tokenizacja](https://marketingibiznes.pl/start-up-zone/ceo-localplay-chcemy-rozpoczac-tokenizacje-sportowcow-druzyn-i-obiektow-12-trudnych-pytan-do-startupow/)
+- Capo: [caposport.com](https://caposport.com/), [przegląd aplikacji 2026](https://caposport.com/guides/best-5-a-side-apps-2026)
+
+**Zamknięty**
+- Teamer: [Teamer Shutdown FAQs](https://help.teamer.net/knowledge/teamer-shutdown-faqs), [ClubZap](https://clubzap.com/gb/blog/teamer-is-shutting-down-what-it-means-for-your-club-and-what-to-do-next/)
+
+**Pozostałe (rakiety, generatory, systemy gminne)**
+- Playmore: [playmore.pl](https://playmore.pl/), [Cashless — KNF](https://www.cashless.pl/18857-reservise-playmore); Kluby.org: [kluby.org](https://kluby.org/)
+- Generatory turniejów: [Score7 — porównanie 2026](https://kb.score7.io/blog/comparisons/best-free-tournament-software-2026/), [tg-app.pl](https://tg-app.pl/), [Gampre](https://www.gampre.pl/stworz-turniej/); Tenisime: [tenisime.pl](https://www.tenisime.pl/)
+- Systemy gminne: [Orlik+ Wieliczka](https://orlik.wieliczka.eu/), [e-Rezerwacja Rzeszów](https://sportowyrzeszow.pl/e-rezerwacja), [Gdynia](https://www.gdynia.pl/sport-i-zdrowie,7717/zarezerwuj-boisko-jednym-kliknieciem,549555)
