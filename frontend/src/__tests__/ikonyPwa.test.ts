@@ -47,6 +47,22 @@ describe('ikony PWA', () => {
     expect(bezSpacji(zFavicon!)).toBe(bezSpacji(zLogo!));
   });
 
+  // Na ekranie głównym Androida widać wariant MASKOWALNY, nie zwykły. Po zmianie
+  // logo na „Boisko" maskowalny został bez linii boiska i zainstalowana apka
+  // pokazywała gołe B, choć favicon i ikona iOS miały już nowe logo.
+  it('wariant maskowalny rysuje linię i koło boiska', () => {
+    const cialo = skrypt.match(/function svgMaskowalne\(\)[\s\S]*?\n}/)?.[0];
+    expect(cialo, 'nie znaleziono svgMaskowalne()').toBeTruthy();
+    expect(cialo).toContain('<line');
+    expect(cialo).toContain('<circle cx="57" cy="55" r="31"');
+  });
+
+  it('adresy ikon w manifeście niosą wersję, żeby zainstalowana apka pobrała nowe', () => {
+    for (const ikona of manifest().icons ?? []) {
+      expect(ikona.src).toMatch(/\?v=/);
+    }
+  });
+
   it('zieleń w generatorze zgadza się z logo i manifestem', () => {
     expect(skrypt).toContain('#15663E');
     expect(logo).toContain('#15663E');
@@ -84,7 +100,7 @@ describe('manifest', () => {
 
   it('wszystkie pliki ikon istnieją w public/', () => {
     for (const ikona of manifest().icons ?? []) {
-      const sciezka = path.join(KATALOG, 'public', ikona.src);
+      const sciezka = path.join(KATALOG, 'public', ikona.src.split('?')[0]);
       expect(() => readFileSync(sciezka), `brak pliku ${ikona.src}`).not.toThrow();
     }
   });
