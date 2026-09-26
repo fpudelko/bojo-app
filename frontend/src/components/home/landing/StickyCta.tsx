@@ -64,7 +64,7 @@ export default function StickyCta() {
         href={LANDING_CTA.primary.href}
         tabIndex={visible ? 0 : -1}
         aria-label={LANDING_CTA.primary.label}
-        className="flex h-14 w-14 items-center justify-center rounded bg-accent-500 text-primary-950 shadow-lg shadow-black/25 transition-colors hover:bg-accent-400 active:scale-[0.96] motion-reduce:active:scale-100"
+        className="flex h-14 w-14 items-center justify-center rounded bg-primary-700 text-white shadow-lg shadow-black/25 transition-colors hover:bg-primary-800 active:scale-[0.96] motion-reduce:active:scale-100"
       >
         <Plus className="h-6 w-6" aria-hidden="true" />
       </Link>

@@ -52,7 +52,7 @@ export default function LandingValues() {
             </p>
             <Link
               href={LANDING_CTA.primary.href}
-              className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-4 py-2.5 text-sm font-bold text-primary-950 transition-colors hover:bg-accent-400"
+              className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-800"
             >
               {LANDING_CTA.primary.label} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>

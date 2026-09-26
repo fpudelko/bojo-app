@@ -57,7 +57,7 @@ export default function PodsumowanieMeczu({
   };
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+    <section className="border-y border-slate-200 py-4 dark:border-slate-700">
       <h2 className="text-sm font-semibold text-ink">Tak zobaczą to gracze</h2>
 
       <dl className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">

@@ -24,7 +24,7 @@ export default function PustyStanMeczow() {
       <div className="flex flex-col justify-center gap-2 sm:flex-row">
         <Link
           href="/wydarzenia/nowe"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-500 px-4 py-2 text-sm font-bold text-primary-950 hover:bg-accent-400"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-bold text-white hover:bg-primary-800"
         >
           Stwórz mecz
         </Link>

@@ -584,7 +584,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
               </p>
               <Link
                 href="/wydarzenia/nowe"
-                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950 sm:w-auto"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 py-3 text-sm font-bold text-white sm:w-auto"
               >
                 <Plus className="h-4 w-4" /> Zorganizuj mecz
               </Link>
@@ -666,7 +666,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
             <>
               <Link
                 href="/grupy"
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950"
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary-700 px-5 py-3 text-sm font-bold text-white"
               >
                 <Users className="h-4 w-4" /> Dołącz do ekipy
               </Link>
@@ -677,7 +677,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
           ) : (
             <Link
               href="/wydarzenia/nowe"
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary-700 px-5 py-3 text-sm font-bold text-white"
             >
               <Plus className="h-4 w-4" /> Stwórz mecz
             </Link>
@@ -813,7 +813,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
           >
             <SlidersHorizontal className="h-4 w-4" />
             {liczbaFiltrow > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded bg-accent-500 px-1 text-[10px] font-extrabold leading-none text-primary-950 ring-2 ring-white dark:ring-slate-900">
+              <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded bg-primary-700 px-1 text-[10px] font-extrabold leading-none text-white ring-2 ring-white dark:ring-slate-900">
                 {liczbaFiltrow}
               </span>
             )}

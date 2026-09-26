@@ -488,7 +488,7 @@ function NewEventForm() {
             <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Mecz publiczny trafia na listę otwartych gier w Bojo</li>
           </ul>
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+          <div className="mt-6 border-y border-slate-200 py-5 dark:border-slate-700">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
                 <Lock className="w-4 h-4 text-primary-700" aria-hidden="true" />
@@ -1175,7 +1175,7 @@ function NewEventForm() {
                 </div>
                 {organizerParticipates && GK_SPORTS.includes(sport) && goalkeepersEnabled && (
                   <div className="mt-2 flex gap-2">
-                    {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([role, label]) => (
+                    {([['field', 'Zawodnik z pola'], ['gk', 'Bramkarz']] as const).map(([role, label]) => (
                       <button
                         key={role}
                         type="button"

@@ -562,7 +562,7 @@ function SearchToolbar({
         >
           <SlidersHorizontal className="h-4 w-4" />
           {liczbaFiltrow > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-extrabold leading-none text-primary-950 ring-2 ring-white">
+            <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-primary-700 px-1 text-[10px] font-extrabold leading-none text-white ring-2 ring-white">
               {liczbaFiltrow}
             </span>
           )}

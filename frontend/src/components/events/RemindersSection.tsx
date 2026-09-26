@@ -95,7 +95,7 @@ export default function RemindersSection({ eventId }: Props) {
   if (loading) return null;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <div className="border-t border-slate-200 pt-5 dark:border-slate-700">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-slate-900 flex items-center gap-2">
           <Bell className="w-4 h-4" /> Przypomnienia
