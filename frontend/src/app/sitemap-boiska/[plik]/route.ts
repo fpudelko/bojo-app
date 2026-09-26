@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { slugify } from '@/lib/utils';
+import { slugBoiska } from '@/lib/utils';
 import { pobierzWszystkie } from '@/lib/zapytania';
 import { WOJEWODZTWA } from '@/lib/wojewodztwa';
 import { priorytetDlaTier } from '@/lib/sitemapTier';
@@ -61,7 +61,14 @@ export async function GET(
   const urls = wiersze
     .filter((f) => f.name)
     .map((f) => {
-      const loc = `${base}/boisko/${slugify(f.name)}`;
+      // Adres KANONICZNY (nazwa + końcówka identyfikatora), ten sam co
+      // `canonical` strony obiektu. Do 2026-09-26 stał tu `slugify(f.name)`,
+      // czyli klucz historyczny: strona obiektu przekierowuje z niego (307) na
+      // adres kanoniczny, a nazwy rodzajowe z importu OSM zlewały tysiące
+      // obiektów w jeden adres („boisko-pilkarskie": ponad 10 tys. wpisów).
+      // Z 32 tys. wpisów zostawało ~10,6 tys. różnych adresów, a każdy
+      // prowadził przez przekierowanie.
+      const loc = `${base}/boisko/${slugBoiska(f.name, f.id)}`;
       const priority = priorytetDlaTier(f.seo_tier);
       return `<url><loc>${loc}</loc><changefreq>monthly</changefreq><priority>${priority}</priority></url>`;
     })

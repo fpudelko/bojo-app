@@ -17,6 +17,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Chcę, żeby model zakwestionował ten produkt — co mu wkleić? | [prompt-rewizja.md](./prompt-rewizja.md) |
 | Chcę wdrożyć naprawy i quick winy SEO/GEO — co uruchomić? | [prompt-seo-geo.md](./prompt-seo-geo.md) |
 | Na jakie zapytania Bojo ma odpowiadać? Co jest zepsute w SEO i co robimy dalej? | [seo-geo-strategia.md](./seo-geo-strategia.md) |
+| Co pokazało Search Console, co zmieniliśmy pod Google i kiedy sprawdzić efekt? | [gsc-dziennik.md](./gsc-dziennik.md) (skille `.claude/skills/gsc*`) |
 | Co wyszło z rewizji przed startem? | [rewizja-2026-08.md](./rewizja-2026-08.md) |
 | Co działa, czego brakuje i co robić poza kodem na etapie GTM? | [analiza-gtm-2026-09.md](./analiza-gtm-2026-09.md) |
 | Gdzie organizator się zacina przy tworzeniu meczu? Co zostaje bez zmian i dlaczego? | [przeplyw-organizatora.md](./przeplyw-organizatora.md) |

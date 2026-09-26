@@ -346,8 +346,10 @@ zdjęcie i nadchodzące mecze na tym obiekcie.
 
 **Mechanika.** Tabela `fields` (migracja `001`). Aktywna mapa to komponent
 `VenueExplorer.tsx` na trasie `/mapa`, oparty o Leaflet i OpenStreetMap. Strona
-pojedynczego boiska odpowiada zarówno pod adresem slugowym (`/boisko/nazwa-boiska`),
-jak i po surowym identyfikatorze. Dane zbierają skrypty `scraper/` (OpenStreetMap +
+pojedynczego boiska ma adres kanoniczny z nazwą i końcówką identyfikatora
+(`/boisko/boisko-pilkarskie-741e4f384561`), bo nazwy obiektów z OpenStreetMap powtarzają
+się tysiące razy. Adres z samej nazwy (stare linki) przekierowuje na adres kanoniczny,
+a adres z surowym identyfikatorem pokazuje stronę z tagiem `canonical`. Dane zbierają skrypty `scraper/` (OpenStreetMap +
 Google Places + Claude), uruchamiane ręcznie z GitHub Actions.
 
 **Dane kontaktowe obiektów są domyślnie ukryte** i egzekwuje to sama baza (migracja
@@ -453,7 +455,7 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-09-26 — Przypomnienia o meczu i szukanie boiska bez ogonków znowu działają
+### 2026-09-26 (2) — Przypomnienia o meczu i szukanie boiska bez ogonków znowu działają
 
 PROBLEM: przypomnienie „jutro grasz" i prośba „domknij mecz" dzień po nie wychodziły
 na produkcji ANI RAZU przez dwa tygodnie (2026-09-12…2026-09-26) — zadanie w bazie
@@ -473,6 +475,26 @@ sprawdza, czy zaplanowane zadania w bazie faktycznie przechodzą.
 MECHANIKA: migracja `164`, `scripts/odcisk-schematu.sh`,
 `.github/workflows/zdrowie-produkcji.yml`. Szczegóły →
 [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-0.
+
+### 2026-09-26 — Lista boisk w mieście otwiera boisko, które kliknięto
+
+PROBLEM: huby katalogu Bojo (`/boiska/[sport]`, `/boiska/[sport]/[miasto]`,
+`/boiska/woj/[wojewodztwo]`) i sitemapy boisk budowały adres obiektu z samej nazwy.
+Nazwy z importu OpenStreetMap powtarzają się tysiące razy („Boisko piłkarskie" ponad
+10 tys. razy), a adres z samej nazwy prowadzi przez przekierowanie do jednego,
+przypadkowego obiektu o tej nazwie. Kliknięcie obiektu na liście miasta mogło otworzyć
+boisko z innej miejscowości, a z 32 tys. wpisów w sitemapach boisk wyszukiwarka
+dostawała około 10,6 tys. różnych adresów, każdy przez przekierowanie.
+
+ROZWIĄZANIE BOJO: każdy link do strony obiektu i każdy wpis sitemapy boisk używa adresu
+kanonicznego: nazwa plus końcówka identyfikatora obiektu
+(`/boisko/boisko-pilkarskie-741e4f384561`). Adres z samej nazwy nadal działa dla starych
+linków i przekierowuje na adres kanoniczny.
+
+MECHANIKA: `slugBoiska(name, id)` z `lib/utils.ts` w `app/sitemap-boiska/[plik]/route.ts`
+i w trzech hubach `app/boiska/…` (link i `ItemList` w JSON-LD). Test
+`linkiObiektuKanoniczne.test.ts` odrzuca budowanie adresu obiektu przez `slugify(name)`.
+Wykryte przy analizie Search Console → [seo-geo-strategia.md](./seo-geo-strategia.md).
 
 ### 2026-09-25 (3) — Zapis bez konta nie udaje, że nie jest skończony; zaproszenie do ekipy prowadzi do meczu
 
@@ -652,26 +674,3 @@ w `lib/eventShare.ts`, wspólne z `eventShareText()` przez `liniaMiejscICeny()`
 i `zdanieBezKonta()`. `odbiorcyPowtorki()` w `lib/playerInvites.ts` filtruje skład do
 osób z kontem, bez organizatora i bez rezerwy; mecz przypięty do grupy pomija
 zaproszenia (wyzwalacz `072` już powiadamia całą grupę). Bez migracji.
-
-### 2026-09-23 — Organizator nie jest dłużnikiem samego siebie w rozliczeniu
-
-PROBLEM: organizator grający we własnym meczu miał w bazie taki sam wiersz jak każdy
-inny uczestnik (`has_paid = false`, dopóki nikt go nie odhaczył). Panel „Podział
-kosztów", wiadomość „Wyślij rozliczenie ekipie" i przypomnienie dzień po meczu liczyły
-go razem z resztą: organizator widział własne imię w „Zaległościach" na czacie całej
-ekipy i dostawał przypomnienie „odhacz wpłaty" o samym sobie.
-
-ROZWIĄZANIE BOJO: organizator płaci za obiekt i zbiera od reszty, więc jego wiersz
-w składzie nigdy nie jest zaległością. Panel kosztów pokazuje go osobno, bez
-przełącznika wpłaty („Ty · płacisz za obiekt"), a rozliczenie na czacie i przypomnienie
-po meczu pomijają go w liczeniu.
-
-MECHANIKA: `winienWplate()` w `lib/payments.ts`, jedna reguła używana przez panel
-kosztów i kartę „Po meczu" w `EventDetailClient.tsx`, przez `tekstRozliczenia()`
-w `lib/settlementShare.ts` (parametr `organizerId`, wymagany) i przez `toEvent()`
-w `lib/events.ts` (`unpaidCount` na `/moje-gry`). Migracja `160` jest lustrem tej
-reguły w `wyslij_przypomnienia()` (blok C). Rozważane i odrzucone przy tej okazji:
-przeliczanie kosztu obiektu na faktyczny skład — `event_participants` to lista ludzi
-zapisanych przez Bojo, nie lista ludzi na boisku, więc liczba wierszy w bazie nie mówi,
-ile osób realnie grało. Testy: `payments.test.ts`, `settlementShare.test.ts`,
-`events.test.ts`, `supabase/test/przypomnienia.sql`.

@@ -485,6 +485,15 @@ Nie „naprawiaj" tego.
 
 **`/gracze` to `redirect('/wydarzenia')`** — nie ma listy graczy, mimo że trasa istnieje.
 
+**Link do strony obiektu buduj przez `slugBoiska(name, id)`, nigdy `slugify(name)`.**
+Sama nazwa to klucz historyczny: strona obiektu przekierowuje z niego na adres
+kanoniczny, a nazwy z importu OSM powtarzają się tysiące razy („boisko-pilkarskie”
+ponad 10 tys. razy), więc adres z samej nazwy trafia w PRZYPADKOWY obiekt. Do
+2026-09-26 tak budowały adresy sitemapa boisk i trzy huby `/boiska/…`: z 32 tys.
+wpisów sitemapy wychodziło ~10,6 tys. różnych adresów, każdy przez przekierowanie,
+a kliknięcie na liście miasta otwierało boisko z innej miejscowości. Pilnuje tego
+`linkiObiektuKanoniczne.test.ts`.
+
 **Martwy kod:** `components/map/MapView.tsx`, `LeafletMapImpl.tsx`, `EventsMapView.tsx`,
 `EventsMapImpl.tsx` — nic ich nie importuje. Aktywna mapa to `VenueExplorer.tsx`
 (strona `/mapa`) i pickery lokalizacji.
