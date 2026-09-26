@@ -440,8 +440,9 @@ test.describe('dołączanie do meczu', () => {
       // Sprawdzamy OBA miejsca, w których to zdanie pada — chmurka i karta
       // rozjeżdżały się już wcześniej i każde z nich może się zepsuć osobno.
       await expect(chmurka(page).getByText(/liście rezerwowej/i)).toBeVisible();
-      const karta = tresc(page).getByText(/jesteś na liście rezerwowej/i)
-        .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+      // Bloki stanu na stronie meczu nie mają już karty (redesign 2026-09):
+      // kotwica po `data-blok-meczu`, nie po klasie zaokrąglenia.
+      const karta = tresc(page).locator('[data-blok-meczu]').filter({ hasText: /jesteś na liście rezerwowej/i });
       await expect(karta).toBeVisible();
       await expect(tresc(page).getByText(/nie masz miejsca w składzie/i)).toBeVisible();
       await bezChmurki(page);
@@ -509,8 +510,7 @@ test.describe('organizator', () => {
     await otworzMecz(page, MECZ.doAkceptacji);
     await uspokoj(page);
     // Sekcja próśb — bez dat, więc nadaje się na wzorzec.
-    const prosby = page.getByText(/czeka na akceptację|prośby o dołączenie/i).first()
-      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    const prosby = page.locator('[data-blok-meczu]').filter({ hasText: /czeka na akceptację|prośby o dołączenie/i }).first();
     await zaslonPaskamiDolnymi(page, () => expect(prosby).toHaveScreenshot('prosby-organizator.png'));
   });
 
@@ -601,8 +601,7 @@ test.describe('mecz w stanie szczególnym', () => {
     await otworzMecz(page, MECZ.odwolany);
     await uspokoj(page);
 
-    const baner = tresc(page).getByText('Mecz odwołany', { exact: true })
-      .locator('xpath=ancestor::div[contains(@class,"rounded-xl")][1]');
+    const baner = tresc(page).locator('[data-blok-meczu]').filter({ hasText: 'Mecz odwołany' });
     await expect(baner).toBeVisible();
     await expect(tresc(page).getByText(/został odwołany przez organizatora/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /^Dołącz/ })).toHaveCount(0);
@@ -828,8 +827,7 @@ test.describe('prośba o dołączenie', () => {
     // który chodzi po tej samej bazie równolegle (patrz `zeSprzataniem`).
     await zeSprzataniem(async () => {
       await expect(chmurka(page).getByText(/wysłano prośbę o dołączenie/i)).toBeVisible();
-      const kafel = tresc(page).getByText('Oczekujesz na akceptację', { exact: true })
-        .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+      const kafel = tresc(page).locator('[data-blok-meczu]').filter({ hasText: 'Oczekujesz na akceptację' });
       await expect(kafel).toBeVisible();
       // „Skąd będę wiedział, że zaakceptował?" — to zdanie jest odpowiedzią
       // i ma zostać na ekranie.

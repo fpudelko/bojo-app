@@ -266,7 +266,7 @@ function ParticipantsList({
                 )}
               </span>
               {golyMap[p.id] > 0 && (
-                <span className="shrink-0 text-xs font-semibold text-slate-500">⚽ {golyMap[p.id]}</span>
+                <span className="shrink-0 text-xs font-semibold text-slate-500">{withCount(golyMap[p.id], 'gol', 'gole', 'goli')}</span>
               )}
               {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} />}
             </PlayerLink>
@@ -307,7 +307,7 @@ function ParticipantsList({
                     )}
                   </span>
                   {golyMap[p.id] > 0 && (
-                    <span className="shrink-0 text-xs font-semibold text-slate-500">⚽ {golyMap[p.id]}</span>
+                    <span className="shrink-0 text-xs font-semibold text-slate-500">{withCount(golyMap[p.id], 'gol', 'gole', 'goli')}</span>
                   )}
                   {/* Rola także na rezerwie: od migracji `075` kolejka biegnie
                       osobno dla bramkarzy i zawodników z pola, więc sam numer
@@ -367,7 +367,7 @@ function PublishedTeamsCard({
   golyMap: Record<string, number>;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+    <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Składy</p>
       <div className="grid grid-cols-2 gap-4">
         {[{ key: 'A' as const, players: teamA },
@@ -384,8 +384,8 @@ function PublishedTeamsCard({
                     <PlayerLink key={p.id} p={p} className="flex items-center gap-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                       <PlayerAvatar p={p} />
                       <span className="text-sm font-medium text-ink truncate">{p.name}</span>
-                      {golyMap[p.id] > 0 && <span className="text-[10px] font-semibold text-slate-500">⚽{golyMap[p.id]}</span>}
-                      {p.isGoalkeeper && <span className="text-[10px]">🧤</span>}
+                      {golyMap[p.id] > 0 && <span className="text-[10px] font-semibold text-slate-500">{withCount(golyMap[p.id], 'gol', 'gole', 'goli')}</span>}
+                      {p.isGoalkeeper && <span className="text-[10px] font-semibold text-slate-500">BR</span>}
                       {p.isCaptain && <OznaczenieKapitana />}
                     </PlayerLink>
                   ))}
@@ -1161,7 +1161,7 @@ export default function EventDetailClient() {
     try {
       await acceptReserveClaim(myClaimOffer.id);
       await load();
-      toast('Jesteś w składzie! ⚽');
+      toast('Jesteś w składzie!');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1295,7 +1295,7 @@ export default function EventDetailClient() {
           ? 'Komplet bramkarzy, jesteś na liście rezerwowej'
           : 'Komplet w polu, jesteś na liście rezerwowej');
       } else {
-        toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz! 🧤' : 'Dołączyłeś do meczu!');
+        toast(asGoalkeeper ? 'Dołączyłeś jako bramkarz!' : 'Dołączyłeś do meczu!');
       }
       // Moment, w którym proponujemy dodanie Bojo do ekranu głównego: człowiek
       // WŁAŚNIE zapisał się na mecz, więc obietnica „przypomnimy Ci o nim"
@@ -2404,7 +2404,7 @@ export default function EventDetailClient() {
     <>
       {/* Published teams — visible to all participants (separate from roster) */}
       {showTeams && event.teamsPublished && !isOwner && !canManageSquad && (
-        <div className="px-4">
+        <div>
           <PublishedTeamsCard teamA={teamA} teamB={teamB} unassigned={unassigned} golyMap={golyMap} />
         </div>
       )}
@@ -2415,7 +2415,7 @@ export default function EventDetailClient() {
           Sam odczyt już utworzonego składu (wyżej i w TeamsPanel niżej) tego
           warunku nie ma. */}
       {!showTeams && !eventStarted && (isOwner || canManageSquad) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-slate-800">Podział na drużyny: Niebiescy vs Czerwoni</p>
           </div>
@@ -2454,7 +2454,7 @@ export default function EventDetailClient() {
           Uczestnik odwrotnie: może zaproponować i poprzeć, ale nie tknie
           realnego składu. Po opublikowaniu składów temat jest zamknięty. */}
       {showTeams && !eventStarted && (
-        <div className="px-4">
+        <div>
           <TeamProposals
             proposals={proposals}
             participants={regulars}
@@ -2480,7 +2480,7 @@ export default function EventDetailClient() {
     <div id="wynik-meczu">
       {/* Pre-match "result coming" note — only the organizer enters results */}
       {(isOwner || canManageSquad) && event.trackResults && !resultsAvailable && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 flex items-center gap-3 text-sm text-slate-500">
           <Trophy className="w-4 h-4 shrink-0" />
           Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
         </div>
@@ -2489,7 +2489,7 @@ export default function EventDetailClient() {
           zakładka „Wynik" jest pustym ekranem dla każdego, kto nie zarządza
           meczem, dopóki mecz się nie zacznie (zgłoszone wprost). */}
       {!(isOwner || canManageSquad) && event.trackResults && !resultsAvailable && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 flex items-center gap-3 text-sm text-slate-500">
           <Trophy className="w-4 h-4 shrink-0" />
           Wynik pojawi się tutaj po zakończeniu meczu ({event.date} {event.time?.slice(0, 5)})
         </div>
@@ -2522,7 +2522,7 @@ export default function EventDetailClient() {
           kosztów zwykle dzieje się po meczu, więc chowanie go wtedy, gdy organizator
           faktycznie się rozlicza z ekipą, było błędem. */}
       {event.costGrosze > 0 && (isOwner || canManagePayments) && (
-        <div id="podzial-kosztow" className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div id="podzial-kosztow" className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
           <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
             <Banknote className="w-4 h-4" /> Podział kosztów
           </h2>
@@ -2611,7 +2611,7 @@ export default function EventDetailClient() {
                       <span className="flex items-center gap-1.5 text-sm text-ink">
                         <span className="truncate">{p.name}</span>
                         {p.hasSportsCard && (
-                          <span title={p.sportsCardProvider ? sportsCardLabel(p.sportsCardProvider, event.sportsCardOtherName) : 'Karta sportowa'} className="text-xs shrink-0">💳</span>
+                          <span title={p.sportsCardProvider ? sportsCardLabel(p.sportsCardProvider, event.sportsCardOtherName) : 'Karta sportowa'} className="shrink-0 rounded bg-slate-100 px-1 text-[10px] font-semibold text-slate-600">karta</span>
                         )}
                       </span>
                       <span className="text-xs text-slate-400">
@@ -2752,7 +2752,7 @@ export default function EventDetailClient() {
           płatności" — tak samo jak wcześniej stał i w nagłówku, i w karcie. */}
       {event.costGrosze > 0
         && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
           <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
             <Banknote className="w-4 h-4" /> Jak zapłacić
           </h2>
@@ -2884,7 +2884,7 @@ export default function EventDetailClient() {
 
         {/* ── CANCELLED BANNER ── */}
         {tab !== 'rozmowa' && isCancelled && (
-          <div className="mx-3 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <div data-blok-meczu className="flex items-center gap-3 border-y border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/60 dark:bg-red-950/30">
             <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-700">Mecz odwołany</p>
@@ -2919,7 +2919,7 @@ export default function EventDetailClient() {
             wiedzieć — inaczej wyśle koledze link do meczu, do którego kolega
             nie wejdzie. */}
         {tab !== 'rozmowa' && !isCancelled && event.zapisyZamkniete && (
-          <div className="mx-3 flex items-center gap-3 bg-slate-100 border border-slate-200 rounded-xl px-4 py-3">
+          <div data-blok-meczu className="flex items-center gap-3 border-y border-slate-200 bg-slate-100 px-4 py-3 dark:border-slate-700">
             <Lock className="w-5 h-5 text-slate-500 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-700">Zapisy zamknięte</p>
@@ -2967,7 +2967,7 @@ export default function EventDetailClient() {
             Układ mobile-first: główna akcja pełnej szerokości, dwie poboczne
             w siatce 2×1, która mieści się już na 320 px. */}
         {tab !== 'rozmowa' && swiezoUtworzony && isOwner && !isCancelled && (
-          <div className="mx-4 rounded-2xl border border-primary-200 bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-950">
+          <div data-blok-meczu className="border-y border-primary-200 bg-primary-50 px-4 py-4 dark:border-primary-800 dark:bg-primary-950">
             <div className="flex items-start gap-2">
               <p className="min-w-0 flex-1 font-semibold text-ink">Mecz gotowy</p>
               <button
@@ -3060,8 +3060,8 @@ export default function EventDetailClient() {
             pending requests — so it's clear the feature is there and working,
             rather than the whole card vanishing (which read as "broken/missing"). */}
         {(isOwner || canManageSquad) && event.requireApproval && (
-          <div className="px-4">
-            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 shadow-sm">
+          <div>
+            <div data-blok-meczu className="border-y border-blue-200 bg-blue-50/60 px-4 py-4">
               <div className="flex items-center gap-2 mb-3">
                 <UserPlus className="w-4 h-4 text-blue-600" />
                 <p className="text-sm font-semibold text-blue-800">
@@ -3076,7 +3076,7 @@ export default function EventDetailClient() {
               )}
               <ul className="space-y-2">
                 {pendingRequests.map((p) => (
-                  <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 border border-blue-100">
+                  <li key={p.id} className="flex items-center gap-3 border-t border-blue-100 py-2.5 first:border-t-0">
                     {p.avatarUrl ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={p.avatarUrl} alt="" className="h-9 w-9 rounded object-cover shrink-0" />
@@ -3087,7 +3087,7 @@ export default function EventDetailClient() {
                     )}
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-medium text-ink truncate">{p.name}</span>
-                      {p.isGoalkeeper && <span className="text-[11px] text-slate-500">Bramkarz 🧤</span>}
+                      {p.isGoalkeeper && <span className="text-[11px] text-slate-500">Bramkarz</span>}
                     </span>
                     <div className="flex gap-1.5 shrink-0">
                       <button
@@ -3448,7 +3448,7 @@ export default function EventDetailClient() {
             Renderuje się tylko organizatorowi/delegatowi i tylko wtedy, gdy
             faktycznie ma coś do powiedzenia. */}
         {!eventStarted && (
-          <div className="px-4">
+          <div>
             <CzyGramyPanel
               event={event}
               participants={participants}
@@ -3706,7 +3706,7 @@ export default function EventDetailClient() {
                           </span>
                         )}
                         {golyMap[p.id] > 0 && (
-                          <span className="text-xs font-semibold text-slate-500 shrink-0">⚽ {golyMap[p.id]}</span>
+                          <span className="text-xs font-semibold text-slate-500 shrink-0">{withCount(golyMap[p.id], 'gol', 'gole', 'goli')}</span>
                         )}
                       </span>
                       {/* "Brought by" line — who added this guest (visible to everyone) */}
@@ -4014,8 +4014,8 @@ export default function EventDetailClient() {
 
         {/* ── OCZEKUJESZ NA AKCEPTACJĘ — gdy wysłałeś prośbę o dołączenie ── */}
         {user && myPendingRequest && !eventStarted && (
-          <div className="px-4">
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3.5">
+          <div>
+            <div data-blok-meczu className="border-y border-blue-200 bg-blue-50 px-4 py-3.5">
               <div className="flex items-center gap-2.5">
                 <Clock className="w-5 h-5 text-blue-600 shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -4045,8 +4045,8 @@ export default function EventDetailClient() {
             albo wchodzić i sprawdzać — czyli dokładnie to, co aplikacja miała
             zdjąć z głowy. */}
         {amIReserve && !myClaimOffer && !eventStarted && (
-          <div className="px-4">
-            <div className="rounded-2xl border border-slate-300 bg-slate-100 p-4">
+          <div>
+            <div data-blok-meczu className="border-y border-slate-300 bg-slate-100 px-4 py-4">
               <div className="flex items-start gap-2.5">
                 <Clock className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" strokeWidth={2.25} />
                 <div className="min-w-0">
@@ -4094,8 +4094,8 @@ export default function EventDetailClient() {
 
         {/* ── OFERTA MIEJSCA Z REZERWY — tylko dla osoby, której dotyczy ── */}
         {myClaimOffer && !eventStarted && (
-          <div className="px-4">
-            <div className="rounded-2xl border-2 border-green-300 bg-green-50 p-4">
+          <div>
+            <div data-blok-meczu className="border-y-2 border-green-300 bg-green-50 px-4 py-4">
               <p className="text-sm font-bold text-green-900">Zwolniło się miejsce, jesteś następny!</p>
               <p className="mt-0.5 text-xs text-green-800">
                 {claimDeadline
@@ -4130,10 +4130,10 @@ export default function EventDetailClient() {
             Odwołanie dołożone przy okazji: ta sama martwa ścieżka istniała tu
             już wcześniej, tylko z drugiego powodu. */}
         {user && myMaybe && !eventStarted && !isCancelled && !event.zapisyZamkniete && (
-          <div className="px-4">
+          <div>
             {/* Stacked, not side-by-side: on a phone the two buttons next to
                 a two-line paragraph wrapped into a mess. */}
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4">
+            <div data-blok-meczu className="border-y border-amber-200 bg-amber-50 px-4 py-4 dark:border-amber-800 dark:bg-amber-950/30">
               <div className="flex items-start gap-2.5">
                 <Eye className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" strokeWidth={2.25} />
                 <div className="min-w-0">
@@ -4446,8 +4446,8 @@ export default function EventDetailClient() {
 
         {/* ── MECZ JUŻ TRWA / PO MECZU — komunikat zamiast przycisku dołączania ── */}
         {!(user && myParticipation) && eventStarted && (
-          <div className="px-4">
-            <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3.5 text-sm font-medium text-slate-500 dark:text-slate-400">
+          <div>
+            <div data-blok-meczu className="flex items-center justify-center gap-2 border-y border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3.5 text-sm font-medium text-slate-500 dark:text-slate-400">
               <Clock className="w-4 h-4 shrink-0" />
               {event.status === 'cancelled'
                 ? 'Mecz został odwołany'
@@ -4522,7 +4522,7 @@ export default function EventDetailClient() {
             fizyczne usunięcie i zarządzanie listą delegatów to wyłącznie
             prawdziwy organizator, nie admin ani żaden delegat. */}
         {tab === 'ustawienia' && canManageEvent && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
+          <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}
               className="w-full flex items-center gap-2"
@@ -4675,7 +4675,7 @@ export default function EventDetailClient() {
             z uczestnictwa, które strona ma już wczytane — zero dodatkowego
             zapytania o skład. */}
         {(isOwner || canManageSquad) && (
-          <div className="px-4">
+          <div>
             <EventInvitesStatus
               eventId={event.id}
               joinedUserIds={new Set(participants.map((p) => p.userId).filter((id): id is string => !!id))}
@@ -5091,7 +5091,7 @@ export default function EventDetailClient() {
                         : 'border-slate-200 text-slate-600 hover:border-slate-300',
                     ].join(' ')}
                   >
-                    ⚽ Zawodnik
+                    Zawodnik
                   </button>
                   <button
                     onClick={() => setJoinRole('goalkeeper')}
@@ -5102,7 +5102,7 @@ export default function EventDetailClient() {
                         : 'border-slate-200 text-slate-600 hover:border-slate-300',
                     ].join(' ')}
                   >
-                    🧤 Bramkarz
+                    Bramkarz
                   </button>
                 </div>
                 {joinRole === 'goalkeeper' && gkFull && !joinAsReserve && (
@@ -5338,7 +5338,7 @@ export default function EventDetailClient() {
                         : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-slate-300',
                     ].join(' ')}
                   >
-                    ⚽ Zawodnik
+                    Zawodnik
                   </button>
                   <button
                     onClick={() => setGuestRole('goalkeeper')}
@@ -5350,7 +5350,7 @@ export default function EventDetailClient() {
                         : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-slate-300',
                     ].join(' ')}
                   >
-                    🧤 Bramkarz
+                    Bramkarz
                   </button>
                 </div>
                 {guestRole === 'goalkeeper' && gkFull && (
@@ -5749,7 +5749,7 @@ export default function EventDetailClient() {
                           : 'border-slate-200 text-slate-600 hover:border-slate-300',
                       ].join(' ')}
                     >
-                      ⚽ Zawodnik
+                      Zawodnik
                     </button>
                     <button
                       type="button"
@@ -5761,7 +5761,7 @@ export default function EventDetailClient() {
                           : 'border-slate-200 text-slate-600 hover:border-slate-300',
                       ].join(' ')}
                     >
-                      🧤 Bramkarz
+                      Bramkarz
                     </button>
                   </div>
                 </div>

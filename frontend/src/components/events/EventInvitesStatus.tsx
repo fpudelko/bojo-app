@@ -43,7 +43,7 @@ export default function EventInvitesStatus({ eventId, joinedUserIds }: {
   ));
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
         <Users className="h-4 w-4" /> Zaproszeni ({invites.length})
       </h2>

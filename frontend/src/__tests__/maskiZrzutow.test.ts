@@ -105,10 +105,13 @@ describe('maski zrzutów', () => {
     // (`getByRole` w pustym zakresie po prostu nic nie znajdzie i test padnie
     // na czymś zupełnie innym). Dlatego wchodzi do tego samego rejestru.
     // `data-licznik-miejsc` tak samo: zaczep licznika miejsc na stronie meczu,
-    // odkąd licznik nie ma już karty z `rounded-2xl` (redesign 2026-09).
+    // odkąd licznik nie ma już karty z `rounded-2xl` (redesign 2026-09);
+    // `data-blok-meczu` z tego samego powodu dla bloków stanu (rezerwa,
+    // prośby, odwołanie, oczekiwanie na akceptację).
     const wszystkie = new Set(pliki.flatMap((p) => maskowaneAtrybuty(readFileSync(p, 'utf8'))));
     expect(Array.from(wszystkie).sort())
       .toEqual([
+        'data-blok-meczu',
         'data-licznik-miejsc',
         'data-pasek-dolny',
         'data-pole-daty',

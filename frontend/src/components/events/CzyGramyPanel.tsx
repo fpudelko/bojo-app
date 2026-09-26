@@ -42,7 +42,7 @@ export default function CzyGramyPanel({ event, participants, canManage }: {
   if (werdykt.stan === 'brak-progu') return null;
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
       <div className="flex items-center gap-2">
         {werdykt.stan === 'gramy' ? (
           <>

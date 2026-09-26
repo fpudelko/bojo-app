@@ -158,7 +158,7 @@ export default function TeamProposals({
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
           <div className="flex items-center justify-between gap-3 mb-1">
             <h2 className="font-semibold text-ink flex items-center gap-2">
               <Users className="w-4 h-4 text-slate-400" />

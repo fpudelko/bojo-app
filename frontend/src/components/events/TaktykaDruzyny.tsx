@@ -434,7 +434,7 @@ export default function TaktykaDruzyny({
                 }`}
               >
                 {g.name}
-                {g.isGoalkeeper && ' 🧤'}
+                {g.isGoalkeeper && ' (BR)'}
               </button>
             ))}
           </div>

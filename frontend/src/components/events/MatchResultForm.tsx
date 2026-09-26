@@ -245,7 +245,7 @@ export default function MatchResultForm({
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
       <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-4">
         <Trophy className="w-4 h-4" /> Wynik meczu
       </h2>

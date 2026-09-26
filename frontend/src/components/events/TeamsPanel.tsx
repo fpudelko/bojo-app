@@ -387,7 +387,7 @@ export default function TeamsPanel({
   return (
     // `data-bez-swipe`: cały panel to przeciąganie graczy między drużynami
     // (@dnd-kit) — swipe przełączający zakładki zabrałby to gestowi.
-    <div data-bez-swipe className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+    <div data-bez-swipe className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2.5">
