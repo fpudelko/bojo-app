@@ -23,6 +23,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Gdzie organizator się zacina przy tworzeniu meczu? Co zostaje bez zmian i dlaczego? | [przeplyw-organizatora.md](./przeplyw-organizatora.md) |
 | Co dokładnie poprawić w fazie 1 (organizator), w jakiej kolejności i jak? | [faza1-organizator-plan.md](./faza1-organizator-plan.md) |
 | Co wyszło z przejścia całej ścieżki na żywym stosie (runda 8, `W-n`)? Co czeka na decyzję? | [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md) |
+| Co wyszło z rundy 9 (życie meczu po publikacji, rozjazd produkcji z repo, `X-n`)? Co czeka na decyzję? | [faza1-runda9-plan.md](./faza1-runda9-plan.md) |
 | Co planujemy w module turniejowym i dlaczego? | [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) |
 | Jak dokładnie wdrożyć moduł turniejowy — schemat, sygnatury, ekrany? | [turnieje-plan-srednie-klocki.md](./turnieje-plan-srednie-klocki.md) |
 | Kto używa turnieju, kiedy i czego wtedy szuka? Co blokuje odmrożenie flagi? | [turnieje-scenariusze-ux.md](./turnieje-scenariusze-ux.md) |

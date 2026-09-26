@@ -1,0 +1,124 @@
+name: Zdrowie produkcji
+
+# Sprawdza codziennie, czy zaplanowane zadania bazy (`pg_cron`) na produkcji
+# faktycznie przechodzą — nie tylko czy ISTNIEJĄ.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PO CO TO ISTNIEJE
+#
+# `bojo-przypomnienia` (codziennie 16:00 UTC, `wyslij_przypomnienia()`) padało
+# na produkcji KAŻDEGO dnia od 2026-09-12 do 2026-09-26 — 14 przebiegów, 14
+# błędów (naprawione migracją `164`, patrz jej nagłówek). Nic w tym repo tego
+# nie widziało: workflow „Migracje" sprawdza, czy PLIKI migracji poszły, nie
+# czy zadanie w bazie DZIAŁA po fakcie. Jedynym sygnałem był brak telefonu
+# u organizatora — czyli w praktyce żaden, dopóki ktoś nie zapytał wprost.
+#
+# Ten workflow pyta wprost, codziennie, o WSZYSTKIE zadania `pg_cron`, nie
+# tylko o `bojo-przypomnienia` — nowe zadanie dostaje tę ochronę za darmo,
+# bez dopisywania go tutaj po nazwie.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# BEZPIECZEŃSTWO — TYLKO ODCZYT
+#
+# Łączy się rolą z prawem DDL (`SUPABASE_DB_URL_PROD`, ta sama co workflow
+# „Migracje"), bo `cron.job_run_details` leży w schemacie `cron`, do którego
+# rola tylko-do-odczytu (`claude_ro`, `supabase/zapytania/README.md`) nie ma
+# dostępu z pudełka. Zapytanie jest mimo to CZYSTYM ODCZYTEM — transakcja
+# wymuszona jako READ ONLY, ten sam bezpiecznik co w `sql.yml`.
+#
+# Wymagany sekret: SUPABASE_DB_URL_PROD (już istnieje dla workflowu „Migracje").
+# Bez niego zadanie kończy się ZIELONO z adnotacją — ten sam wzorzec co
+# w `migracje.yml`, z tego samego powodu: czerwony znaczek, który nic nie
+# znaczy (bo produkcja bywa jeszcze nieskonfigurowana), uczy ignorować czerwone
+# znaczki.
+
+on:
+  schedule:
+    # Godzinę po `bojo-przypomnienia` (16:00 UTC) — to zadanie ma zdążyć się
+    # wykonać (albo padnąć) i zostawić ślad w `cron.job_run_details`, zanim
+    # zapytamy o wynik.
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+
+jobs:
+  zdrowie:
+    name: pg_cron na produkcji
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sprawdź zadania pg_cron
+        env:
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DB_URL_PROD:-}" ]; then
+            echo "SUPABASE_DB_URL_PROD nie jest ustawiony — pomijam." | tee /tmp/wynik.txt
+            exit 0
+          fi
+
+          ADRES="$(DB_URL="$DB_URL_PROD" ./scripts/sprawdz-adres-bazy.sh SUPABASE_DB_URL_PROD)"
+
+          # Jedno zapytanie: dla każdego AKTYWNEGO zadania ostatni przebieg
+          # z ostatnich 26 h (godzina zapasu na wahania czasu uruchomienia)
+          # i to, czy PRZESZEDŁ. Werdykt liczymy w bashu z wyniku psql.
+          psql "$ADRES" \
+            -v ON_ERROR_STOP=1 \
+            --single-transaction \
+            --pset=pager=off \
+            -c 'SET TRANSACTION READ ONLY' \
+            -tA -F' | ' -c "
+              SELECT j.jobname,
+                     d.status,
+                     (d.start_time AT TIME ZONE 'UTC')::text,
+                     left(coalesce(d.return_message, ''), 200)
+                FROM cron.job j
+                JOIN LATERAL (
+                  SELECT * FROM cron.job_run_details x
+                   WHERE x.jobid = j.jobid
+                   ORDER BY x.start_time DESC
+                   LIMIT 1
+                ) d ON true
+               WHERE j.active
+                 AND d.start_time > now() - interval '26 hours'
+               ORDER BY j.jobname;
+            " | tee /tmp/zadania.txt
+
+          if [ ! -s /tmp/zadania.txt ]; then
+            echo "Brak aktywnych zadań pg_cron z przebiegiem w ostatnich 26 h — nic do sprawdzenia." | tee /tmp/wynik.txt
+            exit 0
+          fi
+
+          PADAJACE="$(awk -F' \\| ' '$2 != "succeeded"' /tmp/zadania.txt || true)"
+
+          {
+            echo "Ostatni przebieg każdego aktywnego zadania (26 h wstecz):"
+            echo ""
+            cat /tmp/zadania.txt
+          } > /tmp/wynik.txt
+
+          if [ -n "$PADAJACE" ]; then
+            {
+              echo ""
+              echo "✗ PADAJĄCE ZADANIA:"
+              echo "$PADAJACE"
+            } >> /tmp/wynik.txt
+            cat /tmp/wynik.txt
+            exit 1
+          fi
+
+          echo "✓ Wszystkie zadania pg_cron z ostatnich 26 h przeszły." >> /tmp/wynik.txt
+          cat /tmp/wynik.txt
+
+      - name: Podsumowanie
+        if: always()
+        run: |
+          {
+            echo "### Zdrowie produkcji — pg_cron"
+            echo ""
+            echo '```'
+            cat /tmp/wynik.txt 2>/dev/null || echo "(brak wyniku — przebieg padł wcześniej)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
