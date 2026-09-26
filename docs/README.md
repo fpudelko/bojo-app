@@ -16,6 +16,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Jak opisać Bojo modelowi, który nie ma dostępu do repo? | [llm-context.md](./llm-context.md) |
 | Chcę, żeby model zakwestionował ten produkt — co mu wkleić? | [prompt-rewizja.md](./prompt-rewizja.md) |
 | Chcę wdrożyć naprawy i quick winy SEO/GEO — co uruchomić? | [prompt-seo-geo.md](./prompt-seo-geo.md) |
+| Chcę, żeby model przebudował UI/UX pod społeczność — co mu dać? | [prompt-redesign.md](./prompt-redesign.md) |
 | Na jakie zapytania Bojo ma odpowiadać? Co jest zepsute w SEO i co robimy dalej? | [seo-geo-strategia.md](./seo-geo-strategia.md) |
 | Co pokazało Search Console, co zmieniliśmy pod Google i kiedy sprawdzić efekt? | [gsc-dziennik.md](./gsc-dziennik.md) (skille `.claude/skills/gsc*`) |
 | Co wyszło z rewizji przed startem? | [rewizja-2026-08.md](./rewizja-2026-08.md) |
