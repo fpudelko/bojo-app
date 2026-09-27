@@ -72,6 +72,9 @@ export default function PostSignupRoleModal() {
       if (!user) return;
       if (typeof localStorage === 'undefined') return;
 
+      // Sprawdź czy modalna już widziana — jeśli tak, nic nie rób
+      if (localStorage.getItem(kluczWidziano(user.id))) return;
+
       // Jeśli użytkownik ma już aktywność (zorganizowany mecz, udział w meczu,
       // członkostwo w grupie), nie pokazuj modalki — już wie, jaką ma rolę.
       try {
@@ -81,15 +84,12 @@ export default function PostSignupRoleModal() {
         // Jeśli nie da się sprawdzić aktywności, stosujemy regułę bez tej części
       }
 
-      // `pathname` w zależnościach NIE jest ozdobą. Organiczna rejestracja
-      // zaczyna się na `/logowanie` (nieneutralne), a kończy
-      // `router.push('/moje-gry')` — efekt policzony tylko raz, na
-      // `/logowanie`, nie pokazałby okna nigdy.
+      // Aplikuj standardową regułę do świeżych kont
       if (czyPokazacWyborRoli({
         sciezka: pathname ?? '',
         cel: ostatniZamierzonyCel(),
         wiekKontaMs: Date.now() - new Date(user.created_at).getTime(),
-        widziano: !!localStorage.getItem(kluczWidziano(user.id)),
+        widziano: false, // Już wiemy że nie widziano (sprawdziliśmy wyżej)
         widget: jestWidget,
       })) setOpen(true);
     };
