@@ -51,7 +51,7 @@ export default function NajblizszyMeczGrupy({
         ostatni, nowaData, czas, user.id, displayName(user),
         true, false, ostatni.endTime?.slice(0, 5),
       );
-      toast('Nowy termin utworzony, cała ekipa dostanie powiadomienie w aplikacji.');
+      toast('Nowy termin utworzony, cała grupa dostanie powiadomienie w aplikacji.');
       // `?utworzono=1` — panel „Mecz gotowy — wyślij link", tak samo jak po
       // kreatorze (audyt 2026-09-12, ustalenie `S-6`). Ekipa dostaje
       // powiadomienie w aplikacji, ale goście bez konta i osoby spoza grupy

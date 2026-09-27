@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
     const detale = [data.sport, data.city].filter(Boolean).join(' · ');
     const description = data.description?.trim()
-      || (detale ? `Stała ekipa w Bojo: ${detale}.` : 'Stała ekipa w Bojo: mecze, skład i historia w jednym miejscu.');
+      || (detale ? `Grupa w Bojo: ${detale}.` : 'Grupa w Bojo: mecze, skład i historia w jednym miejscu.');
 
     return {
       title: `${data.name}: grupa w Bojo`,
