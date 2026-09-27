@@ -2732,6 +2732,28 @@ export default function EventDetailClient() {
           );
         })()}
 
+      {/* Y-2a. Gość zapisany w Rozliczeniach — właściwa karta płatności zamiast
+          wyłącznie „Jak zapłacić" (wcześniej gość nie widział, ile ma zapłacić).
+          Warunki: musi być gość, nie w rezerwie, nie czekający na akceptację,
+          a mecz kosztuje. To jest drugiego typu `TwojaPlatnosc` — z danymi gościa
+          zamiast uczestnika z kontem. */}
+      {event.costGrosze > 0 && !isOwner && !canManagePayments && !myConfirmed
+        && wpisGoscia && !wpisGoscia.naRezerwie && !wpisGoscia.czekaNaAkceptacje && (() => {
+          const widacBlik = wpisGoscia.blikTelefon !== null;
+          return (
+            <TwojaPlatnosc
+              kosztGrosze={wpisGoscia.kosztGrosze}
+              znizkaKartyGrosze={wpisGoscia.znizkaKartyGrosze ?? undefined}
+              kartaSportowa={wpisGoscia.kartaSportowa}
+              metoda={wpisGoscia.metodaPlatnosci}
+              blikTelefon={widacBlik ? wpisGoscia.blikTelefon : null}
+              blikPozniej={wpisGoscia.blikPozniej}
+              pokazStatus={wpisGoscia.pokazStatusPlatnosci}
+              oplacone={wpisGoscia.oplacone}
+            />
+          );
+        })()}
+
       {/* ── JAK ZAPŁACIĆ ── co organizator PRZYJMUJE.
           Zeszło tu 2026-09-13 z nagłówka meczu, gdzie stało szarym akapitem nad
           licznikiem miejsc („Gotówka · Karty sportowe: …") i było jednym z dwóch
@@ -2774,7 +2796,9 @@ export default function EventDetailClient() {
                   minutesToStart: minutesUntilStart(event.date, event.time),
                 }) ? (
                   <span className="font-semibold text-ink">{event.blikPhone}</span>
-                ) : myParticipation ? (
+                ) : wpisGoscia?.blikTelefon ? (
+                  <span className="font-semibold text-ink">{wpisGoscia.blikTelefon}</span>
+                ) : myParticipation || (wpisGoscia && !wpisGoscia.naRezerwie) ? (
                   <span className="text-slate-400">zobaczysz na godzinę przed meczem</span>
                 ) : (
                   <span className="text-slate-400">numer do BLIKA zobaczysz, jeśli dołączysz do składu</span>
@@ -3646,19 +3670,32 @@ export default function EventDetailClient() {
                     zwłaszcza po meczu, gdy skład jest zwinięty do samej listy
                     (`ParticipantsList` niżej). Jedna linia nad składem, licząca
                     i skład, i rezerwę — gość na rezerwie też może przejąć wpis. */}
-                {(isOrganizer || canManageSquad) && niePrzejeciGoscie.length > 0 && (
-                  <p className="mb-3 rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-800">
-                    {withCount(niePrzejeciGoscie.length, 'gość', 'goście', 'gości')} bez konta{' '}
-                    {/* X-11: zdanie liczyło skład i rezerwę razem, ale mówiło
-                        wyłącznie „w składzie" — gość na rezerwie nie jest
-                        w składzie, dopóki nie zwolni się miejsce. */}
-                    {niePrzejeciGoscie.some((p) => p.isReserve) ? 'w składzie i na rezerwie' : 'w składzie'}:
-                    kliknij „Zaproś do Bojo" przy imieniu. Po założeniu konta dołączą do ekipy
-                    i dostaną powiadomienie o kolejnym meczu.
-                    {' '}<span className="font-semibold">Bez konta i bez adresu e-mail nie dowiedzą się
-                    o odwołaniu meczu ani o zmianie terminu.</span>
-                  </p>
-                )}
+                {(isOrganizer || canManageSquad) && niePrzejeciGoscie.length > 0 && (() => {
+                  const gosciBezeMaila = niePrzejeciGoscie.filter((p) => !p.maGuestEmail);
+                  const wszyscyMaile = gosciBezeMaila.length === 0;
+                  return (
+                    <p className="mb-3 rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-800">
+                      {withCount(niePrzejeciGoscie.length, 'gość', 'goście', 'gości')} bez konta{' '}
+                      {/* X-11: zdanie liczyło skład i rezerwę razem, ale mówiło
+                          wyłącznie „w składzie" — gość na rezerwie nie jest
+                          w składzie, dopóki nie zwolni się miejsce. */}
+                      {niePrzejeciGoscie.some((p) => p.isReserve) ? 'w składzie i na rezerwie' : 'w składzie'}:
+                      kliknij „Zaproś do Bojo" przy imieniu. Po założeniu konta dołączą do ekipy
+                      i dostaną powiadomienie o kolejnym meczu.
+                      {' '}<span className="font-semibold">
+                        {wszyscyMaile ? (
+                          <>Wszyscy dostaną wiadomość o odwołaniu meczu i zmianie terminu.</>
+                        ) : (
+                          <>
+                            {withCount(gosciBezeMaila.length, 'gość', 'goście', 'gości')}{' '}
+                            bez e-maila ({gosciBezeMaila.map((p) => p.name).join(', ')}) nie dowiedzą się
+                            o odwołaniu meczu ani o zmianie terminu.
+                          </>
+                        )}
+                      </span>
+                    </p>
+                  );
+                })()}
                 {/* Organizator dostaje tu listę z kontrolkami zamiast osobnej
                     karty „Skład". Dwie sekcje mówiące to samo — licznik na
                     górze i lista niżej — kazały szukać, w której z nich
@@ -5225,10 +5262,11 @@ export default function EventDetailClient() {
                     {event.blikPhone ? (
                       <>BLIK na numer: <span className="font-semibold text-ink">{event.blikPhone}</span></>
                     ) : (
-                      // Numer należy do organizatora i od migracji `120` czyta go
-                      // wyłącznie skład (RLS na `event_blik`). Zapisujący widzi go
-                      // od razu po zapisaniu, na karcie „Twoja płatność".
-                      <>Numer do BLIKA zobaczysz po zapisaniu się.</>
+                      // Y-3: Numer należy do organizatora i od migracji `120` czyta go
+                      // wyłącznie skład (RLS na `event_blik`). Wariant A (decyzja D-9):
+                      // tekst mówi prawdę — numer jest widoczny na godzinę przed meczem
+                      // (reguła migracji `163`), nie od razu po zapisaniu.
+                      <>Numer do BLIKA zobaczysz na godzinę przed meczem, w zakładce Rozliczenia.</>
                     )}
                   </p>
                 )}
@@ -5337,10 +5375,15 @@ export default function EventDetailClient() {
                     mur, który organizator próbuje przebić linkiem „bez konta".
                     E-mail zostaje WYMAGANY — bez niego gość nie dowie się
                     o odwołaniu meczu (`O-36`/`P-3`), zmienia się wyłącznie to,
-                    co widać. */}
+                    co widać. Y-7: Tekst wymienia przypomnienie jeśli jeszcze czasu. */}
                 <p className="mt-1.5 text-[11px] text-slate-400">
-                  Tylko do wiadomości o tym meczu: zmiana, odwołanie, zwolnione miejsce.
-                  Bez hasła i bez zakładania konta.
+                  {(() => {
+                    const harmonogram = harmonogramMeczu(event, [...regulars, ...reserves]);
+                    const mayPrzypomnienie = harmonogram.some((p) => p.klucz === 'przypomnienie');
+                    return mayPrzypomnienie
+                      ? 'Tylko do wiadomości o tym meczu: przypomnienie dzień wcześniej, zmiana, odwołanie, zwolnione miejsce. Bez hasła i bez zakładania konta.'
+                      : 'Tylko do wiadomości o tym meczu: zmiana, odwołanie, zwolnione miejsce. Bez hasła i bez zakładania konta.';
+                  })()}
                 </p>
               </div>
             </div>
