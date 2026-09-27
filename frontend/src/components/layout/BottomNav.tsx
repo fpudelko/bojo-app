@@ -235,9 +235,9 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
   // `BottomNav`, więc hak zdefiniowany w niej resetowałby się co render.
 
   // Przytrzymanie „Grupy" → od razu ekipa, o którą chodzi, zamiast listy
-  // wszystkich (zgłoszone wprost). Priorytet: 1) ekipa z NAJBLIŻSZYM
+  // wszystkich (zgłoszone wprost). Priorytet: 1) grupa z NAJBLIŻSZYM
   // wydarzeniem (`getMyGroupsZTerminem` sortuje dokładnie w tej kolejności —
-  // ta sama funkcja karmi karty na `/grupy`), 2) w jej braku — ekipa
+  // ta sama funkcja karmi karty na `/grupy`), 2) w jej braku — grupa
   // z najświeższą nieprzeczytaną wiadomością, 3) bez żadnego z tych dwóch —
   // zwykła lista `/grupy`, czyli to samo, co zrobiłoby tapnięcie. Zapytania
   // lecą NA ŻĄDANIE gestu, nie przy każdej zmianie trasy — inaczej doszłyby

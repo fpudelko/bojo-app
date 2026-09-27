@@ -51,7 +51,7 @@ export default function NewGroupPage() {
         setGroupCover(id, coverUrl).catch((e) => console.warn('[grupy/nowe] okładka', e));
       }
       toast('Ekipa utworzona! 🎉');
-      // Prosto do zaproszenia — ekipa z jedną osobą jest martwa, a to jedyny
+      // Prosto do zaproszenia — grupa z jedną osobą jest martwa, a to jedyny
       // moment, w którym organizator na pewno chce zapraszać (GroupDetailClient
       // widzi ?zapros=1 i otwiera sheet, tak jak ?dolacz= otwiera dołączanie).
       router.push(`/grupy/${id}?zapros=1`);
@@ -74,7 +74,7 @@ export default function NewGroupPage() {
           <ArrowLeft className="w-4 h-4" /> Wróć
         </button>
 
-        <h1 className="font-display text-2xl font-bold text-ink mb-6">Nowa ekipa</h1>
+        <h1 className="font-display text-2xl font-bold text-ink mb-6">Nowa grupa</h1>
 
         <div className="space-y-5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
           <div>
