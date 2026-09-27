@@ -598,6 +598,33 @@ export interface WynikZapisu {
 // pyta o nią przez `czyNaRezerwe()` albo woła `dolacz_do_meczu()`, które
 // decyduje i wstawia wiersz w jednej transakcji.
 
+/** Rezerwowi z AKTYWNĄ ofertą zwolnionego miejsca — trzymają je, dopóki nie
+ *  odpowiedzą albo nie wygaśnie termin (`event.reserveClaimMinutes`).
+ *
+ *  Do X-4 licznik „Zostało 1 wolne miejsce" liczył tylko `regulars`, więc
+ *  osoba z zewnątrz widziała miejsce, które w rzeczywistości czeka na
+ *  konkretnego rezerwowego — zapis i tak kończył się na rezerwie, ale okno
+ *  najpierw obiecywało „Zapisać się na mecz?". Dołączenie wyniku tej funkcji
+ *  do składu przed policzeniem `wolneMiejscaWgRol()` sprawia, że licznik od
+ *  razu mówi prawdę.
+ *
+ *  Sprawdzamy termin `claimOfferedAt + reserveClaimMinutes` wprost (nie samo
+ *  `!claimPassed`), bo `sync_reserve_claim()` czyści `claim_offered_at`
+ *  dopiero PRZY WYWOŁANIU — a to jest RPC, nie wyzwalacz. Między wygaśnięciem
+ *  terminu a najbliższym wywołaniem (otwarcie strony przez kogokolwiek) wiersz
+ *  jeszcze przez chwilę wygląda jak aktywna oferta. */
+export function ofertyWToku<T extends Pick<EventParticipant, 'claimOfferedAt' | 'claimPassed'>>(
+  rezerwa: T[],
+  reserveClaimMinutes: number,
+  teraz: number = Date.now(),
+): T[] {
+  return rezerwa.filter((p) => {
+    if (!p.claimOfferedAt || p.claimPassed) return false;
+    const termin = new Date(p.claimOfferedAt).getTime() + reserveClaimMinutes * 60_000;
+    return termin > teraz;
+  });
+}
+
 /** Wolne miejsca w rozbiciu na role.
  *
  *  Licznik „Zostało X wolnych miejsc" sumował obie pule, więc przy meczu
