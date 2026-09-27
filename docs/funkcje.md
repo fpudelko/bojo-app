@@ -47,6 +47,46 @@ moduł nie jest schowany, jest usunięty, a trasa tylko przekierowuje.
 
 ---
 
+## Wygląd: mniej zaokrągleń i ramek (2026-09-27)
+
+Właściciel zgłosił, że interfejs „wygląda na wygenerowany przez AI”: duże zaokrąglenia
+na każdej karcie i przycisku oraz ramki wokół treści, które niczego nie oddzielają.
+Pierwsza, szeroka wersja redesignu (PR #434: nowy font, kolory, usunięte emoji,
+przebudowane listy) poszła za daleko i psuła część ekranów, więc ta zmiana jest
+**świadomie wąska**:
+
+- **Zaokrąglenia** (`frontend/tailwind.config.ts`, `borderRadius`): `md` 4 px,
+  `lg` 5 px, `xl` i `2xl` 6 px, `3xl` 8 px. Klasy w komponentach zostają bez zmian,
+  zmienia się tylko to, co znaczą. `rounded-full` bez zmian: kropki, awatary,
+  przełączniki i pigułki zostają okrągłe.
+- **Ramki na stronie meczu:** białe karty „Kiedy i gdzie”, licznik miejsc, „O meczu”,
+  organizator, składy oraz karty w zakładkach Wynik, Rozliczenia i Ustawienia stały
+  się sekcjami oddzielonymi linią. Kolorowe bloki (rezerwa, oferta miejsca, prośby,
+  odwołanie, obserwujesz) zostają w ramkach, bo ramka i kolor niosą tam znaczenie.
+  Scenariusze łapią licznik po `data-licznik-miejsc`, nie po klasie `rounded-2xl`.
+- **Profil:** osiem osobnych kart zamienione na sekcje pełnej szerokości.
+
+Font, kolory, emoji, teksty i mapa są nietknięte.
+
+**Druga runda (ten sam dzień):** zaokrąglenia jeszcze mniejsze (`DEFAULT`/`md` 3 px,
+`lg`/`xl`/`2xl` 4 px, `3xl` 6 px) oraz **koniec tytułów meczów**:
+
+- `eventDisplayTitle()` (`lib/eventTitle.ts`) zwraca zawsze sport i skład
+  („Piłka nożna 7v7"), nigdy tytuł organizatora. Jedna funkcja, więc zmiana obejmuje
+  karty, nagłówek meczu, teksty do udostępnienia, rozliczenie, zaproszenie gościa
+  i obrazek podglądu linku. Kolumna `events.title` zostaje w bazie; powiadomienia
+  liczone w bazie (`coalesce(title, sport)`) mówią przy nowych meczach nazwą sportu,
+  przy starych wciąż tytułem. JSON-LD (`lib/structuredData.ts`) nie był ruszany.
+- **Pole „Tytuł” zniknęło z kreatora i edycji** (`EventTitleDescriptionField.tsx`
+  zostawia sam opis); edycja nie kasuje tytułu starych meczów, tylko go nie pokazuje.
+- **Mecz rozpoznaje się po terminie i miejscu.** Karta na liście (`EventBrowseCard`):
+  nagłówek to termin („pt. 2 paź · 20:00”, odliczanie „za 2 h” obok), drugi wiersz
+  miejsce (większym krojem niż dawniej), trzeci sport ze składem, cena i tryb zapisu.
+  Strona meczu: dzień dużym krojem, pod nim godziny i czas trwania, obiekt dużym krojem
+  z adresem pod spodem. Lista `/rozmowy` i nagłówek rozmowy meczu:
+  „Piłka nożna · czw 2 paź, 18:00” (`tytulRozmowyMeczu()` w `lib/comments.ts`). Strona
+  `/[sport]/[miasto]`: termin, miejsce, sport. Historia na profilu gracza: nazwa obiektu.
+
 ## Gdzie jest spis tras
 
 Celowo nie utrzymujemy tu inwentarza tras i komponentów — agent znajdzie je szybciej
@@ -1030,7 +1070,7 @@ rezerwy nie pokazuje ani tego pola, ani zdania o kolejce. Odwrócenie ustalenia 
 **Krok 1 nie ma już kafelka „Wydarzenie cykliczne" — gry cykliczne usunięte całkowicie
 (decyzja właściciela, runda 9, patrz „Flagi funkcji" wyżej).**
 
-**Krok 3 „Dla kogo" — widoczność, akceptacja, ekipa, tytuł, opis.** Sam ekran nie ma pól
+**Krok 3 „Dla kogo" — widoczność, akceptacja, ekipa, opis** (pole „Tytuł” usunięte 2026-09-27, patrz „Wygląd”). Sam ekran nie ma pól
 wymaganych (`validateStep3` zwraca `{}`).
 
 **Opis nie ma przełącznika — od 2026-09-13.** Stał za `ToggleRow` „Dodaj opis"

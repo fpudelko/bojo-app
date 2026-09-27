@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Clock, MapPin, Crown, MessageCircle } from 'lucide-react';
+import { MapPin, Crown, MessageCircle } from 'lucide-react';
 import type { EventItem } from '@/types';
 import type { MyEventStatus, MyEventRelation } from '@/lib/events';
 import { sportEmoji, sportColor } from '@/lib/sports';
@@ -141,7 +141,6 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
   } catch { /* ignore */ }
   const timeLabel = event.time ? event.time.slice(0, 5) : '';
   const until = poMontazu ? timeUntil(event.date, event.time ?? undefined) : null;
-  const soon = until !== null;
   const cancelled = event.status === 'cancelled';
   const past = cancelled || !isUpcoming(event);
   const statusChip = relation ? (past ? PAST_STATUS_CHIP : STATUS_CHIP)[relation.status] : undefined;
@@ -213,14 +212,51 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
 
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              {/* `line-clamp-2`, nie `truncate`: plakietki obok są `shrink-0`,
-                  więc na 390 px tytułowi zostawało ~150 px i „Czwartkowa
-                  gierka" wychodziło jako „Czwartkowa …". Dwie linie mieszczą
-                  normalną nazwę w całości, a bardzo długą ucinają dopiero
-                  wtedy, gdy naprawdę nie ma jej gdzie zmieścić. */}
-              <h3 className="min-w-0 flex-1 text-sm font-bold leading-tight text-ink line-clamp-2">{title}</h3>
-              <div className="shrink-0 flex items-center gap-2">
-                {!past ? (
+              {/* TERMIN JEST NAGŁÓWKIEM KARTY — od 2026-09-27. Tytułów meczów
+                  Bojo nie pokazuje (decyzja właściciela), a „Piłka nożna 7v7"
+                  na każdej karcie niczego nie odróżnia. Mecz rozpoznaje się
+                  po tym, KIEDY i GDZIE; sport mówi ikona obok i dopisek niżej.
+                  Odliczanie („za 2 h") stoi przy godzinie, bursztynowe, bo
+                  mówi o pośpiechu — i WYŁĄCZNIE dla meczu, który się odbędzie
+                  (odwołany na dziś nie może wyglądać jak coś, na co trzeba
+                  zdążyć; zgłoszone z sesji QA). */}
+              <h3 className="min-w-0 flex-1 text-[15px] font-bold leading-tight text-ink">
+                <span className="whitespace-nowrap first-letter:uppercase">{dayLabel}</span>
+                {timeLabel && <span className="whitespace-nowrap tabular-nums"> · {timeLabel}</span>}
+                {until && !cancelled && (
+                  <span className="ml-1.5 whitespace-nowrap text-xs font-semibold text-amber-600">{until}</span>
+                )}
+              </h3>
+            </div>
+
+            {/* GDZIE — drugi wiersz, większy niż dawniej (był `text-xs` pod
+                tytułem). `line-clamp-2`, nie `truncate`: nazwy katalogowych
+                obiektów bywają długie („Zespół Szkół Ogólnokształcących nr 2
+                im. …"), a jedna linijka ucinała je w połowie słowa. Odległość
+                stoi przy nazwie obiektu, bo mówi o tym samym. */}
+            {(location || distance !== undefined) && (
+              <div className="mt-1 flex items-start gap-2 text-sm">
+                {location && (
+                  <span className="flex min-w-0 flex-1 items-start gap-1 font-medium text-slate-700 dark:text-slate-300">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    <span className="min-w-0 line-clamp-2">{location}</span>
+                  </span>
+                )}
+                {distance !== undefined && (
+                  <span className="shrink-0 text-xs font-medium text-primary-700">
+                    {distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* CO — sport i skład, dopisek. Plakietka „Organizujesz" tu, bo to
+                cecha meczu, a nie stan zapisu (ten ma swój róg na dole). */}
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+              <span>{title}</span>
+              {/* Cena i tryb zapisu zeszły tu z rzędu terminu (2026-09-27): obok
+                  terminu łamały go na trzy linie („niedz. / 4 paź / 18:00"). */}
+              {!past ? (
                   <>
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
                       free ? 'bg-green-50 text-green-700' : 'bg-amber-100 text-amber-700'
@@ -251,62 +287,13 @@ export function EventBrowseCard({ event, distance, relation, unreadMessages, isN
                     </span>
                   )
                 )}
-              </div>
-            </div>
-
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-              {/* Ownership tag — a property of the match, not a status. Lives in
-                  the meta row so it never competes with the CTA slot below. */}
               {relation?.isOrganizer && (
                 <span className="flex items-center gap-1 font-semibold text-primary-700">
                   <Crown className="h-3 w-3 shrink-0" />
                   Organizujesz
                 </span>
               )}
-              {/* Odliczanie WYŁĄCZNIE dla meczu, który się odbędzie — `until`
-                  liczy się z terminu w bazie, a odwołanie go nie zmienia.
-                  Bez tego warunku odwołany mecz zaplanowany na dziś dostawał
-                  bursztynowe „Dzisiaj · 19:00 · za 4 h" tuż obok szarego chipu
-                  „Anulowany" — czyli wyglądał jak coś, na co trzeba zdążyć.
-                  Zgłoszone wprost z sesji QA. */}
-              <span className={`flex items-center gap-1 font-medium ${soon && !cancelled ? 'text-amber-600' : 'text-slate-500'}`}>
-                <Clock className="h-3 w-3" />
-                {dayLabel}{timeLabel ? ` · ${timeLabel}` : ''}
-                {until && !cancelled && ` · ${until}`}
-              </span>
             </div>
-
-            {/* MIEJSCE W WŁASNYM WIERSZU, nie obok godziny.
-                Dzieliło wiersz z „Organizujesz" i terminem, a `flex-1` znaczy
-                „weź, co zostanie" — przy meczu, który się organizuje, zostawało
-                jakieś 80 px i z nazwy obiektu robiło się „Kompleks …",
-                „Orlik …", „Orli…". Trzy karty pod sobą mówiły wtedy dokładnie
-                tyle samo o miejscu: nic. `flex-wrap` tego nie ratował, bo
-                element, który potrafi skurczyć się do zera, nigdy nie zawija.
-
-                Kosztem jest kilkanaście pikseli wysokości karty — tanio jak na
-                jedyną informację, która odpowiada na „czy mi po drodze".
-                Odległość stoi tutaj, przy nazwie obiektu, bo mówi o tym samym. */}
-            {/* `line-clamp-2`, nie `truncate` — ten sam wzorzec i ten sam powód
-                co przy tytule wyżej. Nazwy katalogowych obiektów bywają
-                długie („Zespół Szkół Ogólnokształcących nr 2 im. …"), a jedna
-                linijka ucinała je w połowie słowa niezależnie od tego, ile
-                miejsca własny wiersz już dał. Zgłoszone wprost z sesji QA. */}
-            {(location || distance !== undefined) && (
-              <div className="mt-0.5 flex items-start gap-2 text-xs">
-                {location && (
-                  <span className="flex min-w-0 flex-1 items-start gap-1 text-slate-500">
-                    <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
-                    <span className="min-w-0 line-clamp-2">{location}</span>
-                  </span>
-                )}
-                {distance !== undefined && (
-                  <span className="shrink-0 font-medium text-primary-700">
-                    {distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         </div>
 

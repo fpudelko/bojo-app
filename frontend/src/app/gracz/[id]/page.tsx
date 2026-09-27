@@ -10,7 +10,7 @@ import { pl } from 'date-fns/locale';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/lib/auth';
 import { getPublicPlayer, getPlayerStats, getPlayerHistory, type PublicPlayer } from '@/lib/players';
-import { sportEmoji } from '@/lib/sports';
+import { sportEmoji, sportLabel } from '@/lib/sports';
 import type { PlayerAggregateStats, PlayerHistoryItem } from '@/types';
 import { withCount } from '@/lib/plural';
 import { useWstecz } from '@/lib/historia';
@@ -202,7 +202,8 @@ export default function PublicPlayerPage() {
                         <span className="text-2xl shrink-0" aria-hidden="true">{sportEmoji(h.sport)}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-ink truncate">
-                            {h.title || h.fieldName}
+                            {/* Obiekt, nie tytuł: tytułów meczów Bojo nie pokazuje (2026-09-27). */}
+                            {h.fieldName || sportLabel(h.sport)}
                           </p>
                           <p className="text-xs text-slate-500 dark:text-slate-400">
                             {(() => { try { return format(parseISO(h.date), 'd MMM yyyy', { locale: pl }); } catch { return h.date; } })()}

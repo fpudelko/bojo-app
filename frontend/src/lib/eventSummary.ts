@@ -90,7 +90,8 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
   wiersze.push({
     klucz: 'co',
     etykieta: 'Co',
-    wartosc: v.title.trim() || defaultEventTitle(v.sport, v.maxPlayers),
+    // Bez tytułu organizatora — Bojo go nie pokazuje (2026-09-27).
+    wartosc: defaultEventTitle(v.sport, v.maxPlayers),
     krok: KROK_KREATORA.tytul,
   });
 

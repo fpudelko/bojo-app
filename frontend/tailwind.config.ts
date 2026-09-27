@@ -74,6 +74,20 @@ const config: Config = {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
         display: ['var(--font-display)', 'var(--font-inter)', 'system-ui', 'sans-serif'],
       },
+      // MNIEJ ZAOKRĄGLEŃ — zgłoszone wprost (2026-09-27): `xl`/`2xl`/`3xl`
+      // (12–24 px) na każdej karcie i przycisku były głównym śladem interfejsu
+      // „z generatora". Skala zostaje (klasy w komponentach się nie zmieniają),
+      // każdy stopień schodzi do 3–6 px (druga runda, 2026-09-27: „jeszcze
+      // bardziej zmniejsz”). `full` bez zmian: kropki, awatary,
+      // przełączniki i pigułki zostają okrągłe.
+      borderRadius: {
+        DEFAULT: '3px',
+        md: '3px',
+        lg: '4px',
+        xl: '4px',
+        '2xl': '4px',
+        '3xl': '6px',
+      },
       boxShadow: {
         card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)',
         'card-hover': '0 10px 30px -12px rgb(15 23 42 / 0.18), 0 4px 12px -6px rgb(15 23 42 / 0.10)',

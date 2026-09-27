@@ -455,6 +455,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-27 (4) — Mniej zaokrągleń i ramek, mecze bez tytułów
+
+PROBLEM: interfejs Bojo miał duże zaokrąglenia (12–24 px) na każdej karcie i przycisku
+oraz białe ramki wokół treści, które niczego nie oddzielały; na telefonie zabierały
+miejsce, a całość czytała się jak szablon. Opcjonalny tytuł meczu („Czwartkowa gierka")
+powtarzał to, co mówi data, a mecze bez tytułu nazywały się wszystkie tak samo.
+
+ROZWIĄZANIE BOJO: Bojo nie pokazuje już tytułów meczów i nie pyta o nie w kreatorze.
+Mecz nazywa się sportem i składem („Piłka nożna 7v7"), a rozpoznaje terminem i miejscem:
+karta meczu na liście zaczyna się od terminu („pt. 2 paź · 20:00"), pod nim obiekt,
+potem sport, cena i tryb zapisu; strona meczu pokazuje dzień i obiekt dużym krojem.
+Rozmowy meczów na liście `/rozmowy` nazywają się „Piłka nożna · czw 2 paź, 18:00".
+Zaokrąglenia w całym Bojo zmniejszone do 3–6 px (okrągłe zostają
+kropki, awatary, przełączniki i pigułki). Na stronie meczu termin i miejsce, licznik
+wolnych miejsc, opis meczu i organizator stoją w sekcjach oddzielonych linią, bez
+kart. Kolorowe komunikaty (rezerwa, prośby o dołączenie, mecz odwołany) nadal mają
+ramki. Profil to sekcje pełnej szerokości zamiast ośmiu kart. Kolory i font
+się nie zmieniły.
+
+MECHANIKA: `eventDisplayTitle()` w `lib/eventTitle.ts` ignoruje `events.title` (kolumna
+zostaje), `components/EventBrowseCard.tsx`, `tytulRozmowyMeczu()` w `lib/comments.ts`,
+`borderRadius` w `frontend/tailwind.config.ts`,
+`app/wydarzenia/[id]/EventDetailClient.tsx`, `app/profil/page.tsx`. Szczegóły →
+[funkcje.md](./funkcje.md#wygląd-mniej-zaokrągleń-i-ramek-2026-09-27).
+
 ### 2026-09-27 (3) — Gry cykliczne usunięte całkowicie
 
 PROBLEM: moduł gier cyklicznych (szablon meczu powtarzanego co tydzień, „stała gierka")
@@ -653,25 +678,3 @@ MECHANIKA: `components/turnieje/PanelProsbaOWyglad.tsx`, `zglosZyczenieWygladu()
 w `lib/bledy.ts`. Tabela `zgloszenia_bledow` jest z `099`; czwarty rodzaj `turniej_wyglad`
 i nowa kolumna `turniej_id` dokłada migracja `162`. Admin czyta w `/admin/bledy`.
 
-### 2026-09-24 — Turniej po grupach nie ogłasza już własnego końca
-
-PROBLEM: audyt przeszedł pełny łuk turnieju i trafił na moment, w którym publiczna
-strona pokazywała „Zakończony" tuż po fazie grupowej. Przyczyna: stan turnieju uznawał
-za koniec sytuację, w której rozegrano wszystkie ISTNIEJĄCE mecze, a przy formacie
-„grupy → puchar" to jest chwila przed powstaniem drabinki. Kapitanowie czytali koniec
-turnieju przed ćwierćfinałem. Osobno: karta na liście turniejów liczyła drużyny
-czwartą już regułą (wliczała zgłoszenia czekające), panel odmieniał liczebniki
-dwoma formami zamiast trzech („2 zgłoszeń czeka"), przebieg meczu nie pokazywał minuty,
-a zakończenie meczu wymagało trzech stuknięć.
-
-ROZWIĄZANIE BOJO: stan „Grupy rozegrane, czeka na drabinkę" jest osobnym stanem, nie
-udawanym końcem ani udawanym „trwa". Liczenie drużyn zeszło do mapowania wiersza z bazy,
-więc żadna powierzchnia nie musi już o tej regule pamiętać. Minuta zdarzenia liczy się
-z zegara meczu, bo prowadzący nie ma jak jej wpisywać. Zakończenie meczu ma jedno
-potwierdzenie, a zdanie o kolejnej rundzie pokazuje się wyłącznie w meczu pucharowym.
-Po rozegranym meczu układanie terminarza od nowa jest wyłączone, a nie tylko ostrzegane.
-
-MECHANIKA: `stanTurnieju()` i `maDrabinke()` w `lib/turniejEtykiety.ts`, `toTurniej()`
-w `lib/turnieje.ts` (osadzone zapytania wciągają `status`), `lib/turniejPulpit.ts`,
-konsola w `app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Kolumna
-`turniej_zdarzenia.minuta` istniała od migracji `147` i była dotąd zawsze pusta.

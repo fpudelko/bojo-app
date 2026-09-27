@@ -2,6 +2,9 @@ import { supabase } from './supabase';
 import { zaktualizujJedenWiersz, zPonowieniemPoOdswiezeniu } from './zapytania';
 import { getMyActiveEventIds } from './events';
 import type { EventComment } from '@/types';
+import { format, parseISO } from 'date-fns';
+import { pl } from 'date-fns/locale';
+import { sportLabel } from './sports';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toComment(row: any): EventComment {
@@ -173,6 +176,14 @@ export interface RozmowaNaLiscie extends RozmowaNieprzeczytana {
  * Mecze BEZ ANI JEDNEJ wiadomości nie wchodzą — to nie są rozmowy, tylko mecze,
  * i mają własną listę na `/moje-gry`.
  */
+/** „Piłka nożna · czw 2 paź, 18:00" — nazwa rozmowy meczu na liście `/rozmowy`. */
+export function tytulRozmowyMeczu(sport: string | null, data: string, godzina: string | null): string {
+  let dzien = data;
+  try { dzien = format(parseISO(data), 'EEE d MMM', { locale: pl }); } catch { /* surowa data */ }
+  const sportTxt = sport ? sportLabel(sport) : 'Mecz';
+  return `${sportTxt} · ${dzien}${godzina ? `, ${godzina.slice(0, 5)}` : ''}`;
+}
+
 export async function wszystkieRozmowyMeczow(userId: string): Promise<RozmowaNaLiscie[]> {
   const eventIds = await getMyActiveEventIds(userId);
   if (eventIds.length === 0) return [];
@@ -188,9 +199,10 @@ export async function wszystkieRozmowyMeczow(userId: string): Promise<RozmowaNaL
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const opis = new Map((mecze as any[]).map((m) => [m.id as string, {
-    // Mecz bez tytułu wyświetlał się jako „Bez nazwy" — napis, który nie mówi
-    // nic o tym, którą rozmowę otwierasz. Sport i data mówią.
-    tytul: (m.title as string | null)?.trim() || `${m.sport ?? 'Mecz'} · ${m.event_date}`,
+    // Rozmowę meczu rozpoznaje się po TERMINIE, nie po tytule — tytułów
+    // organizatora Bojo już nie pokazuje (2026-09-27). „Piłka nożna · czw 2 paź,
+    // 18:00" mówi, którą rozmowę otwierasz; surowe „2026-10-02" nie mówiło.
+    tytul: tytulRozmowyMeczu(m.sport as string | null, m.event_date as string, m.event_time as string | null),
   }]));
 
   const { data: wiersze } = await supabase

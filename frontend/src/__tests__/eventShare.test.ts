@@ -60,9 +60,11 @@ describe('eventShareText', () => {
     expect(eventShareText(bazowy).split('\n')[0]).toBe('⚽ Piłka nożna 7v7');
   });
 
-  it('używa własnego tytułu, gdy organizator go podał', () => {
+  // Od 2026-09-27 tytuł organizatora nie jest nazwą meczu (decyzja
+  // właściciela): mecz nazywa się sportem i składem, a rozpoznaje terminem.
+  it('ignoruje tytuł wpisany przez organizatora', () => {
     const t = eventShareText({ ...bazowy, title: 'Środowa gierka' });
-    expect(t.split('\n')[0]).toBe('⚽ Środowa gierka');
+    expect(t.split('\n')[0]).toBe('⚽ Piłka nożna 7v7');
   });
 
   it('druga linia to dzień, data i zakres godzin bez sekund', () => {
@@ -199,8 +201,9 @@ describe('tekstOdwolania', () => {
     expect(tekstOdwolania(bazowy).split('\n')[3]).toBe('Mecz się nie odbędzie.');
   });
 
-  it('używa własnego tytułu meczu, gdy organizator go nadał', () => {
-    expect(tekstOdwolania({ ...bazowy, title: 'Środowa gierka' })).toContain('Odwołane: Środowa gierka');
+  it('ignoruje tytuł wpisany przez organizatora (od 2026-09-27)', () => {
+    expect(tekstOdwolania({ ...bazowy, title: 'Środowa gierka' })).not.toContain('Środowa gierka');
+    expect(tekstOdwolania({ ...bazowy, title: 'Środowa gierka' })).toContain('Odwołane: Piłka nożna 7v7');
   });
 
   // Ta sama zasada co w `eventShareText`: zła data nie może wywrócić okna

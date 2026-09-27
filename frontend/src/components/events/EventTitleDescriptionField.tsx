@@ -5,7 +5,6 @@
  *  do 1000, tytuł dodatkowo `.slice(0, 80)`). Rozjazd którejkolwiek z tych
  *  liczb kończy się CICHYM obcięciem tekstu przy zapisie: organizator pisze
  *  akapit, zapisuje i nigdy się nie dowiaduje, że połowa nie doszła. */
-const LIMIT_TYTULU = 80;
 const LIMIT_OPISU = 1000;
 
 /** Licznik „63/80”. Liczba pojawia się dopiero blisko limitu, bo wcześniej
@@ -49,32 +48,22 @@ function LicznikZnakow({ ile, limit }: { ile: number; limit: number }) {
  * przełącznikiem, drugie nie, to nie była zasada — to był przypadek.
  */
 export default function EventTitleDescriptionField({
-  title, setTitle, placeholderTitle,
   description, setDescription,
   inputCls,
 }: {
-  title: string;
-  setTitle: (v: string) => void;
-  placeholderTitle: string;
+  title?: string;
+  setTitle?: (v: string) => void;
+  placeholderTitle?: string;
   description: string;
   setDescription: (v: string) => void;
   inputCls: string;
 }) {
   return (
     <>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">
-          Tytuł <span className="text-slate-400 font-normal">(opcjonalnie)</span>
-        </label>
-        <input
-          type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-          placeholder={placeholderTitle} className={inputCls} maxLength={LIMIT_TYTULU}
-        />
-        {/* Podpowiedzi „zostaw puste, a mecz nazwie się…" tu nie ma: dokładnie
-            tę nazwę pokazuje placeholder pola, a „(opcjonalnie)" stoi w etykiecie. */}
-        <LicznikZnakow ile={title.length} limit={LIMIT_TYTULU} />
-      </div>
-
+      {/* POLA „TYTUŁ" NIE MA od 2026-09-27 (decyzja właściciela): Bojo nie
+          pokazuje tytułów meczów, mecz nazywa się sportem i składem, a
+          rozpoznaje terminem i miejscem (`eventDisplayTitle`). Props `title`
+          zostają opcjonalne, żeby edycja nie gubiła starego tytułu z bazy. */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1">
           Opis <span className="text-slate-400 font-normal">(opcjonalnie)</span>

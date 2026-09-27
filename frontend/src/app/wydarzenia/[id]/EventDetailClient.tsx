@@ -365,7 +365,7 @@ function PublishedTeamsCard({
   golyMap: Record<string, number>;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+    <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Składy</p>
       <div className="grid grid-cols-2 gap-4">
         {[{ key: 'A' as const, players: teamA },
@@ -2415,7 +2415,7 @@ export default function EventDetailClient() {
           Sam odczyt już utworzonego składu (wyżej i w TeamsPanel niżej) tego
           warunku nie ma. */}
       {!showTeams && !eventStarted && (isOwner || canManageSquad) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-slate-800">Podział na drużyny: Niebiescy vs Czerwoni</p>
           </div>
@@ -2480,7 +2480,7 @@ export default function EventDetailClient() {
     <div id="wynik-meczu">
       {/* Pre-match "result coming" note — only the organizer enters results */}
       {(isOwner || canManageSquad) && event.trackResults && !resultsAvailable && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 flex items-center gap-3 text-sm text-slate-400">
           <Trophy className="w-4 h-4 shrink-0" />
           Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
         </div>
@@ -2489,7 +2489,7 @@ export default function EventDetailClient() {
           zakładka „Wynik" jest pustym ekranem dla każdego, kto nie zarządza
           meczem, dopóki mecz się nie zacznie (zgłoszone wprost). */}
       {!(isOwner || canManageSquad) && event.trackResults && !resultsAvailable && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 flex items-center gap-3 text-sm text-slate-400">
           <Trophy className="w-4 h-4 shrink-0" />
           Wynik pojawi się tutaj po zakończeniu meczu ({event.date} {event.time?.slice(0, 5)})
         </div>
@@ -2522,7 +2522,7 @@ export default function EventDetailClient() {
           kosztów zwykle dzieje się po meczu, więc chowanie go wtedy, gdy organizator
           faktycznie się rozlicza z ekipą, było błędem. */}
       {event.costGrosze > 0 && (isOwner || canManagePayments) && (
-        <div id="podzial-kosztow" className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div id="podzial-kosztow" className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
           <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
             <Banknote className="w-4 h-4" /> Podział kosztów
           </h2>
@@ -2752,7 +2752,7 @@ export default function EventDetailClient() {
           płatności" — tak samo jak wcześniej stał i w nagłówku, i w karcie. */}
       {event.costGrosze > 0
         && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
           <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
             <Banknote className="w-4 h-4" /> Jak zapłacić
           </h2>
@@ -3117,7 +3117,7 @@ export default function EventDetailClient() {
             odpowiedź na pytanie, które gracz zadaje przed wyjściem z domu —
             i musi dać się z niej JEDNYM dotknięciem pojechać na miejsce. */}
         <div className="px-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="pt-1">
             {/* Bez nagłówka „KIEDY I GDZIE" — zgłoszone wprost: data z ikoną
                 kalendarza i adres z pinezką mówią same, co to za karta, więc
                 etykieta powtarzała treść pod sobą własnymi słowami. */}
@@ -3148,36 +3148,46 @@ export default function EventDetailClient() {
                   onClick={openEditWhen}
                   className="flex min-w-0 flex-1 items-start gap-2 py-2 text-left text-sm text-ink"
                 >
-                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                  <Calendar className="mt-1 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
                   {/* `data-termin-meczu`: wszystko, co w tej karcie zmienia się
                       z dnia na dzień — data, godzina, „za 3 h". Zrzuty
                       scenariuszy zasłaniają to maską, bo seed liczy datę jako
                       ODSTĘP od dnia uruchomienia, więc bez maski ten sam,
                       niezmieniony widok meldował „zmianę wyglądu" każdego dnia. */}
                   <span className="min-w-0 flex-1" data-termin-meczu>
-                    <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                    {timeStr && <> · {timeStr}</>}
-                    {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
-                    {zaCzas && (
-                      <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                        {zaCzas}
-                      </span>
-                    )}
+                    {/* Dwa wiersze: DZIEŃ większym krojem, pod nim GODZINY.
+                        Po zniknięciu tytułów (2026-09-27) to jest pierwsza
+                        rzecz, po której rozpoznaje się mecz. */}
+                    <span className="block text-base font-semibold leading-snug">{zWielkiejLitery(dataPelna)}</span>
+                    <span className="mt-0.5 block text-sm text-slate-600 dark:text-slate-400">
+                      {timeStr && <span className="font-medium tabular-nums text-ink">{timeStr}</span>}
+                      {czasTrwaniaMin && <span className="whitespace-nowrap"> · {czasTrwaniaMin} min</span>}
+                      {zaCzas && (
+                        <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                          {zaCzas}
+                        </span>
+                      )}
+                    </span>
                   </span>
                   <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
                 </button>
               ) : (
                 <p className="flex min-w-0 flex-1 items-start gap-2 py-2 text-sm text-ink">
-                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                  <span data-termin-meczu>
-                    <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                    {timeStr && <> · {timeStr}</>}
-                    {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
-                    {zaCzas && (
-                      <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                        {zaCzas}
-                      </span>
-                    )}
+                  <Calendar className="mt-1 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                  <span className="min-w-0 flex-1" data-termin-meczu>
+                    {/* Dwa wiersze: DZIEŃ większym krojem, pod nim GODZINY.
+                        Po zniknięciu tytułów (2026-09-27) to jest pierwsza
+                        rzecz, po której rozpoznaje się mecz. */}
+                    <span className="block text-base font-semibold leading-snug">{zWielkiejLitery(dataPelna)}</span>
+                    <span className="mt-0.5 block text-sm text-slate-600 dark:text-slate-400">
+                      {timeStr && <span className="font-medium tabular-nums text-ink">{timeStr}</span>}
+                      {czasTrwaniaMin && <span className="whitespace-nowrap"> · {czasTrwaniaMin} min</span>}
+                      {zaCzas && (
+                        <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                          {zaCzas}
+                        </span>
+                      )}
+                    </span>
                   </span>
                 </p>
               )}
@@ -3206,15 +3216,15 @@ export default function EventDetailClient() {
                     onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
                     className="group flex min-w-0 flex-1 items-start gap-2 py-2 text-sm"
                   >
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                    <MapPin className="mt-1 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
                     {/* Bez `truncate` — to jest miejsce, w którym adres ma się
                         zmieścić w całości, choćby w dwóch linijkach. */}
                     <span className="min-w-0 flex-1">
-                      <span className="font-semibold text-primary-700 underline decoration-primary-300 underline-offset-2 group-hover:decoration-primary-600 dark:text-primary-300">
+                      <span className="block text-base font-semibold leading-snug text-primary-700 underline decoration-primary-300 underline-offset-2 group-hover:decoration-primary-600 dark:text-primary-300">
                         {eventLoc.primary}
                       </span>
                       {eventLoc.secondary && (
-                        <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
+                        <span className="mt-0.5 block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
                       )}
                     </span>
                     <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" strokeWidth={2.25} />
@@ -3223,11 +3233,11 @@ export default function EventDetailClient() {
                   // Miejsce spoza katalogu nie ma strony, więc nie udaje
                   // odnośnika — zostaje zwykłym tekstem.
                   <p className="flex min-w-0 flex-1 items-start gap-2 py-2 text-sm text-ink">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                    <MapPin className="mt-1 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
                     <span className="min-w-0">
-                      <span className="font-semibold">{eventLoc.primary}</span>
+                      <span className="block text-base font-semibold leading-snug">{eventLoc.primary}</span>
                       {eventLoc.secondary && (
-                        <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
+                        <span className="mt-0.5 block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
                       )}
                     </span>
                   </p>
@@ -3462,7 +3472,10 @@ export default function EventDetailClient() {
             Też wyłącznie w „Składzie" — patrz komentarz przy nagłówku wyżej. */}
         {tab === 'sklad' && (
         <div id="sklad" className="px-4">
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+          {/* Bez karty (2026-09-27, zgłoszone wprost: „niepotrzebne ramki").
+              `data-licznik-miejsc` to kotwica scenariuszy, które wcześniej
+              szukały najbliższego `rounded-2xl`. */}
+          <div data-licznik-miejsc className="border-t border-slate-200 pt-4 dark:border-slate-700">
             <div className="text-center">
               <span className="text-3xl font-extrabold tracking-tight text-primary-700">
                 {takenSpots} / {event.maxPlayers}
@@ -4197,7 +4210,7 @@ export default function EventDetailClient() {
             strony wyglądałby tu jak komentarz bez autora. */}
         {event.description && (
           <div className="px-4">
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+            <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
               <h2 className="text-sm font-semibold text-ink">O meczu</h2>
               <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
                 {event.description}
@@ -4562,7 +4575,7 @@ export default function EventDetailClient() {
             fizyczne usunięcie i zarządzanie listą delegatów to wyłącznie
             prawdziwy organizator, nie admin ani żaden delegat. */}
         {tab === 'ustawienia' && canManageEvent && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
+          <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}
               className="w-full flex items-center gap-2"
@@ -4778,12 +4791,12 @@ export default function EventDetailClient() {
               {event.organizerId ? (
                 <Link
                   href={`/gracz/${event.organizerId}`}
-                  className="flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-slate-100 dark:border-slate-700 hover:border-primary-200 dark:hover:border-primary-800 transition-colors"
+                  className="flex items-center gap-3 border-t border-slate-200 py-4 transition-colors hover:text-primary-700 dark:border-slate-700"
                 >
                   {inner}
                 </Link>
               ) : (
-                <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-3 border-t border-slate-200 py-4 dark:border-slate-700">
                   {inner}
                 </div>
               )}

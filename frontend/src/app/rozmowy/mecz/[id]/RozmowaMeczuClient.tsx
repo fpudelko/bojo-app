@@ -11,8 +11,7 @@ import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMI
 import { useAuth } from '@/lib/auth';
 import { getEvent, getMyActiveEventIds } from '@/lib/events';
 import { kluczRozmowyWidziano } from '@/lib/comments';
-import { eventDisplayTitle } from '@/lib/eventTitle';
-import { matchWhenLabel } from '@/lib/eventDates';
+import { tytulRozmowyMeczu } from '@/lib/comments';
 import { sportEmoji } from '@/lib/sports';
 import type { EventItem } from '@/types';
 
@@ -115,8 +114,10 @@ export default function RozmowaMeczuClient() {
         ) : event ? (
           <>
             <NaglowekRozmowy
-              tytul={eventDisplayTitle(event)}
-              podtytul={`Otwórz mecz · ${matchWhenLabel(event.date, event.time)}`}
+              // Ta sama nazwa co na liście `/rozmowy`: sport i TERMIN, bo po
+              // nim rozpoznaje się mecz od 2026-09-27 (bez tytułów).
+              tytul={tytulRozmowyMeczu(event.sport, event.date, event.time ?? null)}
+              podtytul="Otwórz mecz"
               href={`/wydarzenia/${event.id}`}
               awatar={<span className="text-white">{sportEmoji(event.sport)}</span>}
             />
