@@ -81,7 +81,7 @@ export default function MojeAlerty() {
   if (!user || !SHOW_GAME_ALERTS) return null;
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="-mx-4 border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 p-4">
       <div className="flex items-center gap-3">
         <Bell className="h-5 w-5 shrink-0 text-slate-400" />
         <div className="min-w-0 flex-1">

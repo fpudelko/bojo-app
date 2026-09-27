@@ -47,6 +47,27 @@ moduł nie jest schowany, jest usunięty, a trasa tylko przekierowuje.
 
 ---
 
+## Wygląd: mniej zaokrągleń i ramek (2026-09-27)
+
+Właściciel zgłosił, że interfejs „wygląda na wygenerowany przez AI”: duże zaokrąglenia
+na każdej karcie i przycisku oraz ramki wokół treści, które niczego nie oddzielają.
+Pierwsza, szeroka wersja redesignu (PR #434: nowy font, kolory, usunięte emoji,
+przebudowane listy) poszła za daleko i psuła część ekranów, więc ta zmiana jest
+**świadomie wąska**:
+
+- **Zaokrąglenia** (`frontend/tailwind.config.ts`, `borderRadius`): `md` 4 px,
+  `lg` 5 px, `xl` i `2xl` 6 px, `3xl` 8 px. Klasy w komponentach zostają bez zmian,
+  zmienia się tylko to, co znaczą. `rounded-full` bez zmian: kropki, awatary,
+  przełączniki i pigułki zostają okrągłe.
+- **Ramki na stronie meczu:** białe karty „Kiedy i gdzie”, licznik miejsc, „O meczu”,
+  organizator, składy oraz karty w zakładkach Wynik, Rozliczenia i Ustawienia stały
+  się sekcjami oddzielonymi linią. Kolorowe bloki (rezerwa, oferta miejsca, prośby,
+  odwołanie, obserwujesz) zostają w ramkach, bo ramka i kolor niosą tam znaczenie.
+  Scenariusze łapią licznik po `data-licznik-miejsc`, nie po klasie `rounded-2xl`.
+- **Profil:** osiem osobnych kart zamienione na sekcje pełnej szerokości.
+
+Font, kolory, emoji, teksty, układy list i mapa są nietknięte.
+
 ## Gdzie jest spis tras
 
 Celowo nie utrzymujemy tu inwentarza tras i komponentów — agent znajdzie je szybciej

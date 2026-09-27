@@ -365,7 +365,7 @@ function PublishedTeamsCard({
   golyMap: Record<string, number>;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+    <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-3">Składy</p>
       <div className="grid grid-cols-2 gap-4">
         {[{ key: 'A' as const, players: teamA },
@@ -2415,7 +2415,7 @@ export default function EventDetailClient() {
           Sam odczyt już utworzonego składu (wyżej i w TeamsPanel niżej) tego
           warunku nie ma. */}
       {!showTeams && !eventStarted && (isOwner || canManageSquad) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between gap-4">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-slate-800">Podział na drużyny: Niebiescy vs Czerwoni</p>
           </div>
@@ -2480,7 +2480,7 @@ export default function EventDetailClient() {
     <div id="wynik-meczu">
       {/* Pre-match "result coming" note — only the organizer enters results */}
       {(isOwner || canManageSquad) && event.trackResults && !resultsAvailable && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 flex items-center gap-3 text-sm text-slate-400">
           <Trophy className="w-4 h-4 shrink-0" />
           Wynik można wpisać po rozpoczęciu meczu ({event.date} {event.time?.slice(0, 5)})
         </div>
@@ -2489,7 +2489,7 @@ export default function EventDetailClient() {
           zakładka „Wynik" jest pustym ekranem dla każdego, kto nie zarządza
           meczem, dopóki mecz się nie zacznie (zgłoszone wprost). */}
       {!(isOwner || canManageSquad) && event.trackResults && !resultsAvailable && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center gap-3 text-sm text-slate-400">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 flex items-center gap-3 text-sm text-slate-400">
           <Trophy className="w-4 h-4 shrink-0" />
           Wynik pojawi się tutaj po zakończeniu meczu ({event.date} {event.time?.slice(0, 5)})
         </div>
@@ -2522,7 +2522,7 @@ export default function EventDetailClient() {
           kosztów zwykle dzieje się po meczu, więc chowanie go wtedy, gdy organizator
           faktycznie się rozlicza z ekipą, było błędem. */}
       {event.costGrosze > 0 && (isOwner || canManagePayments) && (
-        <div id="podzial-kosztow" className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div id="podzial-kosztow" className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
           <h2 className="font-semibold text-ink flex items-center gap-2 mb-4">
             <Banknote className="w-4 h-4" /> Podział kosztów
           </h2>
@@ -2752,7 +2752,7 @@ export default function EventDetailClient() {
           płatności" — tak samo jak wcześniej stał i w nagłówku, i w karcie. */}
       {event.costGrosze > 0
         && (event.acceptedPaymentMethods.length > 0 || event.acceptedSportsCards.length > 0) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
           <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
             <Banknote className="w-4 h-4" /> Jak zapłacić
           </h2>
@@ -3117,7 +3117,7 @@ export default function EventDetailClient() {
             odpowiedź na pytanie, które gracz zadaje przed wyjściem z domu —
             i musi dać się z niej JEDNYM dotknięciem pojechać na miejsce. */}
         <div className="px-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="pt-1">
             {/* Bez nagłówka „KIEDY I GDZIE" — zgłoszone wprost: data z ikoną
                 kalendarza i adres z pinezką mówią same, co to za karta, więc
                 etykieta powtarzała treść pod sobą własnymi słowami. */}
@@ -3462,7 +3462,10 @@ export default function EventDetailClient() {
             Też wyłącznie w „Składzie" — patrz komentarz przy nagłówku wyżej. */}
         {tab === 'sklad' && (
         <div id="sklad" className="px-4">
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+          {/* Bez karty (2026-09-27, zgłoszone wprost: „niepotrzebne ramki").
+              `data-licznik-miejsc` to kotwica scenariuszy, które wcześniej
+              szukały najbliższego `rounded-2xl`. */}
+          <div data-licznik-miejsc className="border-t border-slate-200 pt-4 dark:border-slate-700">
             <div className="text-center">
               <span className="text-3xl font-extrabold tracking-tight text-primary-700">
                 {takenSpots} / {event.maxPlayers}
@@ -4197,7 +4200,7 @@ export default function EventDetailClient() {
             strony wyglądałby tu jak komentarz bez autora. */}
         {event.description && (
           <div className="px-4">
-            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+            <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
               <h2 className="text-sm font-semibold text-ink">O meczu</h2>
               <p className="mt-2 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">
                 {event.description}
@@ -4562,7 +4565,7 @@ export default function EventDetailClient() {
             fizyczne usunięcie i zarządzanie listą delegatów to wyłącznie
             prawdziwy organizator, nie admin ani żaden delegat. */}
         {tab === 'ustawienia' && canManageEvent && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-3">
+          <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700 space-y-3">
             <button
               onClick={() => setEditMode((o) => !o)}
               className="w-full flex items-center gap-2"
@@ -4778,12 +4781,12 @@ export default function EventDetailClient() {
               {event.organizerId ? (
                 <Link
                   href={`/gracz/${event.organizerId}`}
-                  className="flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-slate-100 dark:border-slate-700 hover:border-primary-200 dark:hover:border-primary-800 transition-colors"
+                  className="flex items-center gap-3 border-t border-slate-200 py-4 transition-colors hover:text-primary-700 dark:border-slate-700"
                 >
                   {inner}
                 </Link>
               ) : (
-                <div className="flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-3 border-t border-slate-200 py-4 dark:border-slate-700">
                   {inner}
                 </div>
               )}
