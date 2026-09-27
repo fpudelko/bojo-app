@@ -9,23 +9,38 @@ import { supabase } from '@/lib/supabase';
 export async function maJuzAktywnosc(userId: string | undefined): Promise<boolean> {
   if (!userId) return false;
 
-  const [{ count: eventCount }, { count: participantCount }, { count: groupCount }] = await Promise.all([
-    // Zorganizowane mecze
-    supabase
-      .from('events')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId),
-    // Udziały w meczach
-    supabase
-      .from('event_participants')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId),
-    // Członkostwo w grupach
-    supabase
-      .from('group_members')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId),
+  const timeoutPromise = new Promise((resolve) =>
+    setTimeout(() => resolve({ count: 0 }), 3000)
+  );
+
+  const queries = Promise.all([
+    Promise.race([
+      supabase
+        .from('events')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      timeoutPromise,
+    ]),
+    Promise.race([
+      supabase
+        .from('event_participants')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      timeoutPromise,
+    ]),
+    Promise.race([
+      supabase
+        .from('group_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      timeoutPromise,
+    ]),
   ]);
 
-  return (eventCount ?? 0) > 0 || (participantCount ?? 0) > 0 || (groupCount ?? 0) > 0;
+  try {
+    const [{ count: eventCount }, { count: participantCount }, { count: groupCount }] = await queries;
+    return (eventCount ?? 0) > 0 || (participantCount ?? 0) > 0 || (groupCount ?? 0) > 0;
+  } catch {
+    return false;
+  }
 }
