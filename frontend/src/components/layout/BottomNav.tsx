@@ -340,7 +340,7 @@ export default function BottomNav({ hidden = false }: { hidden?: boolean }) {
       ['pobliskie-nowe', nearbyNew, 'Nowa gra w promieniu 5 km', '/mapa'],
       // Ten sam wzorzec co wyżej, dla drugiego gestu w tym pasku — zapala się,
       // gdy jest w ogóle CO otworzyć skrótem (ktoś ma choć jedną ekipę).
-      ['przytrzymaj-grupy', maGrupy, 'Przytrzymaj „Grupy" → najbliższa ekipa', '/grupy'],
+      ['przytrzymaj-grupy', maGrupy, 'Przytrzymaj „Ekipy" → najbliższa ekipa', '/grupy'],
     ];
     for (const [typ, aktywny, tekst, href] of proby) {
       const byloAktywne = poprzednieAktywne.current[typ] ?? false;

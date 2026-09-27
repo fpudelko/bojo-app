@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff, ListOrdered,
+  CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Eye, Link2 as LinkIcon, ShieldCheck, WifiOff, ListOrdered,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -26,13 +26,8 @@ import { zapiszPowrot } from '@/lib/powrot';
 import { useWstecz } from '@/lib/historia';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
-import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
 import GuestInviteNudge from '@/components/events/GuestInviteNudge';
 import CzyGramyPanel from '@/components/events/CzyGramyPanel';
-import {
-  getSeriesEvents, setSeriesTime, setSeriesTemplateTime,
-  terminyWZakresie, type ZakresEdycji,
-} from '@/lib/series';
 import EventInvitesStatus from '@/components/events/EventInvitesStatus';
 import { useAuth, displayName } from '@/lib/auth';
 import TaktykaDruzyny from '@/components/events/TaktykaDruzyny';
@@ -45,7 +40,7 @@ import { KORZYSCI_KONTA } from '@/content/kontoGoscia';
 import TwojaPlatnosc from '@/components/events/TwojaPlatnosc';
 import { zl } from '@/lib/kwota';
 import { pobierzIcs } from '@/lib/kalendarz';
-import { komuDojdzie, konsekwencjeOdwolania } from '@/lib/zmianyMeczu';
+import { komuDojdzie, konsekwencjeOdwolania, konsekwencjeZapisu } from '@/lib/zmianyMeczu';
 import { pozycjaWKolejce, pozycjaPoZapisie, pominietyWKolejce, terminOferty } from '@/lib/kolejkaRezerwy';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { useOknoCzatu, styleOknaCzatu, odstepNadPaskiem, WYSOKOSC_CZATU_BEZ_POMIARU } from '@/lib/oknoCzatu';
@@ -54,7 +49,7 @@ import {
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   setZapisyZamkniete,
   approveParticipant, rejectParticipant,
-  syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
+  syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol, ofertyWToku,
   awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu, czasRezerwyTekst,
 } from '@/lib/events';
 import { invitePlayers, odbiorcyPowtorki } from '@/lib/playerInvites';
@@ -69,7 +64,10 @@ import type {
   PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
 import { sportLabel } from '@/lib/sports';
-import { przejmijWpisGoscia, udostepnijZaproszenieGoscia, pobierzTokenGoscia, linkPrzejeciaWpisu } from '@/lib/guestClaim';
+import {
+  przejmijWpisGoscia, udostepnijZaproszenieGoscia, pobierzTokenGoscia, linkPrzejeciaWpisu,
+  podejrzyjWpisGoscia,
+} from '@/lib/guestClaim';
 import { zapamietajWpisGoscia, mojWpisGoscia, zapomnijWpisGoscia } from '@/lib/mojWpisGoscia';
 import { tekstRozliczenia } from '@/lib/settlementShare';
 import { track } from '@/lib/analytics';
@@ -465,7 +463,7 @@ export default function EventDetailClient() {
   // Zakładki: Skład (domyślnie), Rozmowa, Wynik, Rozliczenia, Ustawienia —
   // analogicznie do /grupy/[id]. Czytamy `?tab=` ręcznie z `window.location`,
   // NIE przez `useSearchParams()` — ten hak wywala produkcyjny build na tej
-  // trasie (patrz komentarz przy `cykliczne`/`dolacz` niżej, ten sam powód).
+  // trasie (patrz komentarz przy `dolacz` niżej, ten sam powód).
   const [tab, setTab] = useState<EventTab>('sklad');
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -633,19 +631,14 @@ export default function EventDetailClient() {
   const [proposals, setProposals] = useState<TeamProposal[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
-  // Terminy stałej gierki, do której należy ten mecz — puste, gdy mecz nie jest
-  // częścią serii. Decyduje o tym, czy „Zmień termin" pyta o zakres.
-  const [seriaTerminy, setSeriaTerminy] = useState<{ id: string; date: string }[]>([]);
-  const [zakresTerminuOtwarty, setZakresTerminuOtwarty] = useState(false);
   // Panel „Mecz gotowy" — tylko tuż po publikacji z kreatora.
   const [swiezoUtworzony, setSwiezoUtworzony] = useState(false);
   /** Token MOJEGO wpisu gościa na tym meczu, zapamiętany na tym urządzeniu.
    *  Czytany po montażu, nie przy renderze — `localStorage` nie istnieje na
    *  serwerze, a ta strona renderuje się serwerowo (metadane Open Graph). */
   const [mojTokenGoscia, setMojTokenGoscia] = useState<string | null>(null);
-  // Id szablonu cyklicznego, gdy kreator go właśnie utworzył razem z tym
-  // meczem (?cykliczne=<id>) — patrz `wydarzenia/nowe/page.tsx`.
-  const [cyklicznyId, setCyklicznyId] = useState<string | null>(null);
+  /** Podgląd wpisu gościa pod `mojTokenGoscia` — patrz useEffect niżej (X-9). */
+  const [wpisGoscia, setWpisGoscia] = useState<Awaited<ReturnType<typeof podejrzyjWpisGoscia>>>(null);
   // Ile osób „Powtórz mecz” zaprosiło z poprzedniego składu (?zaproszono=N,
   // F-5) — panel „Mecz gotowy” dokłada o tym jedną linię.
   const [zaproszonoLiczba, setZaproszonoLiczba] = useState(0);
@@ -750,14 +743,6 @@ export default function EventDetailClient() {
         setGroupInfo(null);
         setCzlonekGrupyMeczu(false);
       }
-      if (ev.recurringEventId) {
-        // Cicho — brak listy terminów znaczy tylko tyle, że nie pytamy o zakres.
-        getSeriesEvents(ev.recurringEventId)
-          .then((t) => setSeriaTerminy(t.map((x) => ({ id: x.id, date: x.date }))))
-          .catch(() => {});
-      } else {
-        setSeriaTerminy([]);
-      }
     } catch (e) {
       // JEDYNY BŁĄD, KTÓRY ZNACZY „NIE MA TAKIEGO MECZU", to `PGRST116` —
       // `.single()` przy zerze wierszy. Wszystko inne (brak zasięgu, 500,
@@ -820,6 +805,31 @@ export default function EventDetailClient() {
     setMojTokenGoscia(null);
   }, [id, user]);
 
+  // Stan wpisu gościa POD TOKENEM — nie ten sam co `myConfirmed`/`myClaimOffer`
+  // (te szukają po `userId`, gość go nie ma). Bez tego strona nie miała jak
+  // się dowiedzieć, że wpis, do którego prowadzi zapamiętany token, już nie
+  // istnieje (X-9): prośba odrzucona albo organizator usunął — a pasek
+  // „Jesteś zapisany(a)" i tak zostawał, bo jedynym sygnałem był sam token
+  // w `localStorage`, którego nikt nie kasował.
+  useEffect(() => {
+    if (!mojTokenGoscia) { setWpisGoscia(null); return; }
+    let aktualny = true;
+    podejrzyjWpisGoscia(mojTokenGoscia).then((wpis) => {
+      if (!aktualny) return;
+      if (!wpis) {
+        // Wiersz zniknął (prośba odrzucona, organizator usunął) — token na
+        // urządzeniu wskazuje już na nic. Zapominamy go, żeby pasek „Dołącz"
+        // wrócił sam (`joinBarVisible` zależy od `!mojTokenGoscia`).
+        zapomnijWpisGoscia(id);
+        setMojTokenGoscia(null);
+        toast('Twojego zapisu już nie ma na liście (organizator mógł go usunąć albo odrzucić prośbę). Możesz zapisać się ponownie.');
+        return;
+      }
+      setWpisGoscia(wpis);
+    }).catch(() => { /* strona działa dalej na tym, co już wie — token spróbujemy odczytać przy następnym wejściu */ });
+    return () => { aktualny = false; };
+  }, [mojTokenGoscia, id]);
+
   // Kreator przekierowuje tu z `?utworzono=1`, żeby pokazać panel „Mecz gotowy".
   //
   // Parametr czytamy z `window.location`, a NIE przez `useSearchParams()`: ten
@@ -834,8 +844,6 @@ export default function EventDetailClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const p = new URLSearchParams(window.location.search);
-    const cid = p.get('cykliczne');
-    if (cid) setCyklicznyId(cid);
     const zap = Number(p.get('zaproszono') ?? '0');
     if (zap > 0) setZaproszonoLiczba(zap);
     // Wylogowany klika „Zaloguj się, aby dołączyć" i wraca na tę samą stronę
@@ -844,10 +852,9 @@ export default function EventDetailClient() {
     // tę intencję przez logowanie, tym samym wzorem co `?utworzono=1`.
     const dolacz = p.get('dolacz') === '1';
     if (dolacz) setChceDolaczyc(true);
-    if (p.get('utworzono') !== '1' && !cid && !dolacz) return;
-    if (p.get('utworzono') === '1' || cid) setSwiezoUtworzony(true);
+    if (p.get('utworzono') !== '1' && !dolacz) return;
+    if (p.get('utworzono') === '1') setSwiezoUtworzony(true);
     p.delete('utworzono');
-    p.delete('cykliczne');
     p.delete('dolacz');
     p.delete('zaproszono');
     const q = p.toString();
@@ -1073,8 +1080,25 @@ export default function EventDetailClient() {
   // A freed spot currently offered to me (I'm on the reserve and it's my turn).
   const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
   const claimDeadline = myClaimOffer ? terminOferty(myClaimOffer, event.reserveClaimMinutes) : null;
+  // Rezerwowi z aktywną ofertą trzymają miejsce, choć formalnie są jeszcze na
+  // rezerwie (X-4). Bez tego ktoś z zewnątrz widział „Zostało 1 wolne
+  // miejsce" i okno „Zapisać się na mecz?", choć baza i tak kierowała zapis
+  // na rezerwę — licznik obiecywał miejsce, którego nie było.
+  const oferty = ofertyWToku(reserves, event.reserveClaimMinutes);
   const takenSpots = regulars.length;
-  const isFull = takenSpots >= event.maxPlayers;
+  // Wolne miejsca liczone tak, jak faktycznie może je dostać KTOŚ Z ZEWNĄTRZ:
+  // skład PLUS trzymane oferty. `wolne` (rozbicie na role) i `isFull` (dalej)
+  // liczą z tego samego zbioru, żeby licznik, tytuł okna zapisu i pasek
+  // zgadzały się z tym, co zrobi baza.
+  const wolne = wolneMiejscaWgRol([...regulars, ...oferty], event);
+  const isFull = wolne.razem === 0;
+  // Najbliższy termin, w którym trzymane miejsce wraca do kolejki — pod
+  // licznik „X miejsce czeka na osobę z rezerwy" (X-4/X-3), nie tylko pod
+  // kartę oferty samego rezerwowego.
+  const najblizszaOfertaTermin = oferty.reduce<Date | null>((min, p) => {
+    const t = terminOferty(p, event.reserveClaimMinutes);
+    return t && (!min || t < min) ? t : min;
+  }, null);
   const eventLoc = eventLocation(event);
   // Kafelek pokazuje NAZWĘ obiektu, adres dopiero w jej braku.
   //
@@ -1352,6 +1376,7 @@ export default function EventDetailClient() {
       // stoi w składzie. Stąd też brał się brak jakiejkolwiek drogi do
       // wypisania się.
       zapamietajWpisGoscia(event.id, result.claimToken);
+      setMojTokenGoscia(result.claimToken);
       setNewUserClaimToken(result.claimToken);
       setNewUserIsReserve(result.isReserve);
       setNewUserPending(result.pendingApproval);
@@ -1556,12 +1581,17 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
-  const handleRemove = async (participantId: string) => {
+  /** `komunikat` domyślnie brzmi jak decyzja organizatora („Uczestnik
+   *  usunięty") — poprawne, gdy to on usuwa kogoś innego (`handleRemovePlayer`).
+   *  Dwa inne wejścia (rezygnacja z rezerwy, wypisanie się z paska) to decyzja
+   *  SAMEGO uczestnika i podają własny tekst, żeby toast opisywał to, co
+   *  faktycznie zrobił — nie to, co zrobiłby organizator. */
+  const handleRemove = async (participantId: string, komunikat = 'Uczestnik usunięty') => {
     setBusy(true);
     try {
       await removeParticipant(participantId);
       await load();
-      toast('Uczestnik usunięty');
+      toast(komunikat);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -1962,46 +1992,19 @@ export default function EventDetailClient() {
     });
   };
 
-  const zapiszTermin = async (zakres: ZakresEdycji) => {
-    setZakresTerminuOtwarty(false);
+  const handleSaveWhen = async () => {
     setBusy(true);
     try {
-      // Data zawsze dotyczy wyłącznie tego terminu — wspólna data absolutna dla
-      // całej serii oznaczałaby wszystkie mecze tego samego dnia.
       await setEventWhen(
         event.id, whenDate, whenTime, whenEnd || null,
         user?.id, displayName(user ?? null),
       );
-
-      if (zakres !== 'ten' && event.recurringEventId) {
-        const dzis = new Date().toLocaleDateString('sv-SE');
-        const objete = terminyWZakresie(seriaTerminy, event.id, zakres, dzis)
-          .filter((t) => t.id !== event.id);
-        await setSeriesTime(objete.map((t) => t.id), whenTime, whenEnd || null);
-        // Szablon też — inaczej kolejne terminy wracałyby do starej godziny.
-        await setSeriesTemplateTime(event.recurringEventId, whenTime, whenEnd || null);
-      }
-
       setWhenOpen(false);
       await load();
-      toast(zakres === 'ten' ? 'Termin zmieniony' : 'Godzina zmieniona w serii');
+      toast('Termin zmieniony');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
-  };
-
-  const handleSaveWhen = async () => {
-    // O zakres pytamy tylko, gdy zmieniła się GODZINA. Sama zmiana daty dotyczy
-    // z definicji jednego terminu, więc pytanie byłoby zbędnym kliknięciem.
-    const godzinaZmieniona =
-      whenTime !== (event.time ?? '').slice(0, 5)
-      || (whenEnd || '') !== (event.endTime ?? '').slice(0, 5);
-
-    if (godzinaZmieniona && event.recurringEventId && seriaTerminy.length > 1) {
-      setZakresTerminuOtwarty(true);
-      return;
-    }
-    await zapiszTermin('ten');
   };
 
   const handleDelete = async () => {
@@ -2353,8 +2356,8 @@ export default function EventDetailClient() {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
-  const freeSpots = event.maxPlayers - takenSpots;
-  const wolne = wolneMiejscaWgRol(regulars, event);
+  // `wolne` (z ofertami w toku wliczonymi) liczony wyżej, razem z `isFull`.
+  const freeSpots = wolne.razem;
   // Czy rola wybrana w oknie dołączania jest już pełna — i którym z kolei
   // będzie ten zapis. Liczone z tych samych danych, z których liczy je
   // `decydujCzyRezerwa()` po stronie zapisu, żeby zapowiedź zgadzała się
@@ -3013,15 +3016,6 @@ export default function EventDetailClient() {
                 Zaproszono {withCount(zaproszonoLiczba, 'osobę', 'osoby', 'osób')} z poprzedniego składu.
               </p>
             )}
-
-            {cyklicznyId && (
-              <Link
-                href={`/cykliczne/${cyklicznyId}`}
-                className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800"
-              >
-                <Repeat className="h-4 w-4" /> Ustawiłeś powtarzanie co tydzień, zarządzaj serią
-              </Link>
-            )}
           </div>
         )}
 
@@ -3401,18 +3395,6 @@ export default function EventDetailClient() {
                 <UserPlus className="h-3.5 w-3.5" strokeWidth={2.25} /> Wymaga akceptacji
               </span>
             )}
-            {/* stała gierka — jedyne przejście z meczu do panelu serii. Bez tego
-                organizator, który wszedł na termin z listy, nie ma jak trafić
-                do ustawień powtarzania. Tylko dla organizatora: `/cykliczne/[id]`
-                i tak wpuszcza wyłącznie właściciela szablonu. */}
-            {event.recurringEventId && isOwner && (
-              <Link
-                href={`/cykliczne/${event.recurringEventId}`}
-                className="inline-flex items-center gap-1.5 rounded bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-              >
-                <Repeat className="h-3.5 w-3.5" strokeWidth={2.25} /> Stała gierka
-              </Link>
-            )}
             {/* group — edytowalne wyłącznie dla organizatora (dawniej schowane
                 w "Zarządzaj wydarzeniem", teraz badge na widoku, otwiera
                 WybierzGrupeDialog; patrz sekcja 6a planu). Dla pozostałych:
@@ -3489,18 +3471,29 @@ export default function EventDetailClient() {
                 2026-08-30: „Zostało 11 wolnych miejsc" nie może wyglądać tak
                 samo pilnie jak „Zostało 1 miejsce". */}
             <div className="flex items-baseline justify-between gap-3">
+              {/* X-11: przy odwołanym meczu „wolne miejsca"/„Komplet" nie ma
+                  znaczenia — odpowiada baner „Mecz odwołany". Sama liczba
+                  i pasek zostają: to fakt o składzie. */}
+              {!isCancelled && (
               <p className={`text-[15px] font-semibold ${
                 isFull ? 'text-blue-700' : freeSpots <= 2 ? 'text-amber-600' : 'text-ink'
               }`}>
                 {isFull
-                  // Only pitch the reserve list to someone who could actually act on
-                  // it — a player already signed up (squad, reserve, pending or
-                  // observing) is told the match is full, not invited to join again.
-                  // Po starcie meczu dołączenie do rezerwy jest już bez sensu.
-                  ? (amIInvolved || eventStarted ? 'Komplet' : 'Komplet: dołącz do rezerwy')
+                  // Miejsce trzymane dla oferty NIE JEST kompletem w zwykłym
+                  // sensie — jest chwilowo obsadzone, do konkretnego terminu,
+                  // nie na zawsze (X-4).
+                  ? (oferty.length > 0
+                      ? `${withCount(oferty.length, 'miejsce czeka', 'miejsca czekają', 'miejsc czeka')} na osobę z rezerwy${
+                          najblizszaOfertaTermin ? ` (do ${format(najblizszaOfertaTermin, 'HH:mm', { locale: pl })})` : ''
+                        }`
+                      // Only pitch the reserve list to someone who could actually act on
+                      // it — a player already signed up is told the match is full.
+                      // Po starcie meczu dołączenie do rezerwy jest już bez sensu.
+                      : (amIInvolved || eventStarted ? 'Komplet' : 'Komplet: dołącz do rezerwy'))
                   : `Zostało ${withCount(freeSpots, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}`}
               </p>
-              <span className="shrink-0 text-sm font-medium tabular-nums text-slate-500 dark:text-slate-400">
+              )}
+              <span className="ml-auto shrink-0 text-sm font-medium tabular-nums text-slate-500 dark:text-slate-400">
                 {takenSpots} / {event.maxPlayers}
               </span>
             </div>
@@ -3530,7 +3523,7 @@ export default function EventDetailClient() {
                 „zostały 2 wolne miejsca" przy komplecie w polu znaczyło
                 „2 miejsca dla bramkarzy", a zawodnik z pola i tak lądował na
                 rezerwie — dowiadując się o tym dopiero po zapisaniu się. */}
-            {gkEnabled && !isFull && (
+            {!isCancelled && gkEnabled && !isFull && (
               <p className="mt-2 text-[13px] text-slate-500">
                 {wolne.rozdzielone
                   ? <>
@@ -3654,7 +3647,11 @@ export default function EventDetailClient() {
                     i skład, i rezerwę — gość na rezerwie też może przejąć wpis. */}
                 {(isOrganizer || canManageSquad) && niePrzejeciGoscie.length > 0 && (
                   <p className="mb-3 rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-800">
-                    {withCount(niePrzejeciGoscie.length, 'gość', 'goście', 'gości')} bez konta w składzie:
+                    {withCount(niePrzejeciGoscie.length, 'gość', 'goście', 'gości')} bez konta{' '}
+                    {/* X-11: zdanie liczyło skład i rezerwę razem, ale mówiło
+                        wyłącznie „w składzie" — gość na rezerwie nie jest
+                        w składzie, dopóki nie zwolni się miejsce. */}
+                    {niePrzejeciGoscie.some((p) => p.isReserve) ? 'w składzie i na rezerwie' : 'w składzie'}:
                     kliknij „Zaproś do Bojo" przy imieniu. Po założeniu konta dołączą do ekipy
                     i dostaną powiadomienie o kolejnym meczu.
                     {' '}<span className="font-semibold">Bez konta i bez adresu e-mail nie dowiedzą się
@@ -3672,22 +3669,28 @@ export default function EventDetailClient() {
                   // `flex-wrap` + `sm:flex-nowrap`: na wąskim telefonie przyciski
                   // zarządzania schodzą do drugiego wiersza, zamiast rozpychać
                   // kartę i ucinać imię.
-                  <li key={p.id} className="flex flex-wrap items-center gap-2 py-2.5 sm:flex-nowrap">
+                  <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
                     {/* Avatar */}
                     {p.avatarUrl
                       ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
                       : <span className="w-7 h-7 rounded bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
                     }
 
-                    {/* Name + attribution */}
-                    <div className="flex-1 min-w-0">
+                    {/* Name + attribution.
+                        Bez `max-w-[140px]` — to ograniczenie robi `truncate`
+                        w `min-w-0` (X-2). Przy 390px imię ucinało się do
+                        „Mateu…", a przy 360px imię gościa miało 0px: dwa
+                        przyciski obok zabierały cały wiersz. Dziś ograniczeniem
+                        jest wyłącznie szerokość wiersza, bo przyciski schodzą
+                        pod imię (niżej), nie stoją obok niego. */}
+                    <div className="min-w-0 flex-1">
                       <span className="flex items-center gap-1 text-sm text-ink overflow-hidden">
                         {p.userId && !p.isGuest ? (
-                          <Link href={`/gracz/${p.userId}`} className="truncate min-w-0 max-w-[140px] sm:max-w-[220px] hover:text-primary-700 hover:underline">
+                          <Link href={`/gracz/${p.userId}`} className="truncate min-w-0 hover:text-primary-700 hover:underline">
                             {p.name}
                           </Link>
                         ) : (
-                          <span className="truncate min-w-0 max-w-[140px] sm:max-w-[220px]">{p.name}</span>
+                          <span className="truncate min-w-0">{p.name}</span>
                         )}
                         {p.isGuest && (
                           <span
@@ -3758,12 +3761,18 @@ export default function EventDetailClient() {
                         event.organizerId`): sam siebie wypisuje przyciskiem
                         w dolnym pasku, a „Usuń" na własnym wpisie zostawiłoby
                         mecz bez gospodarza. Ten sam warunek miała karta. */}
+                    {/* Na bazie: pełny wiersz POD imieniem, wcięty o szerokość
+                        awatara (`pl-10` = w-7 + gap-x-3), pełnej wysokości
+                        dotyku. Od `sm:` wraca obok imienia, jak dotąd —
+                        decyzja D-6 (runda 9): akcje mają zostać widoczne przy
+                        graczu, nie schować się w menu „⋯", bo to one, nie
+                        samo imię, są tu najczęściej używane. */}
                     {p.userId !== event.organizerId && (
-                      <div className="ml-auto flex shrink-0 items-center gap-2">
+                      <div className="flex w-full gap-2 pl-10 sm:ml-auto sm:w-auto sm:pl-0">
                         <button
                           onClick={() => handleRemovePlayer(p)}
                           disabled={busy}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300"
+                          className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 sm:flex-none"
                         >
                           <Trash2 className="h-3.5 w-3.5" /> Usuń
                         </button>
@@ -3774,7 +3783,7 @@ export default function EventDetailClient() {
                         <button
                           onClick={() => handleCofnijNaRezerwe(p)}
                           disabled={busy}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300"
+                          className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 sm:flex-none"
                           title="Przenieś na listę rezerwową"
                         >
                           <Clock className="h-3.5 w-3.5" /> Na rezerwę
@@ -3901,7 +3910,7 @@ export default function EventDetailClient() {
                             </button>
                           )}
                           {p.userId === user?.id ? (
-                            <button onClick={() => handleRemove(p.id)} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Zrezygnuj z rezerwy">
+                            <button onClick={() => handleRemove(p.id, 'Zrezygnowano z rezerwy')} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Zrezygnuj z rezerwy">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           ) : (isOrganizer || canManageSquad) && (
@@ -3981,14 +3990,19 @@ export default function EventDetailClient() {
                 raz w treści i raz nad nim.
 
                 Warunek jest `!statusBarVisible`, a nie zwykłe usunięcie, bo pasek
-                NIE pokazuje się zawsze, gdy widać ten przycisk: znika przy meczu
-                ODWOŁANYM i gościowi wchodzącemu z tokenem (`mojTokenGoscia`),
-                a oba te stany nadal pozwalają się wypisać. Samo skasowanie
-                przycisku zostawiłoby te osoby w meczu bez żadnej drogi wyjścia.
-                Dzięki temu warunkowi oba wyjścia są też ROZŁĄCZNE — nigdy nie
-                stoją na ekranie naraz — na czym opierają się helpery
-                `wypiszSie()` i `niezapisany()` w `e2e/scenariusze.spec.ts`. */}
-            {!statusBarVisible && (
+                NIE pokazuje się zawsze, gdy widać ten przycisk: znika też
+                gościowi wchodzącemu z tokenem (`mojTokenGoscia`), któremu ten
+                sam przycisk zostaje jedyną drogą wyjścia. Dzięki temu warunkowi
+                oba wyjścia są też ROZŁĄCZNE — nigdy nie stoją na ekranie naraz —
+                na czym opierają się helpery `wypiszSie()` i `niezapisany()`
+                w `e2e/scenariusze.spec.ts`.
+
+                `!isCancelled` osobno (X-11): mecz odwołany nie ma z czego się
+                wypisywać — nie odbędzie się niezależnie od tego, czy ktoś
+                zostanie w składzie. Do tej poprawki przycisk stał pod banerem
+                „Mecz odwołany" tylko dlatego, że `statusBarVisible` gaśnie
+                razem z paskiem, nie dlatego, że ktoś tego chciał. */}
+            {!statusBarVisible && !isCancelled && (
             <button
               onClick={() => setLeaveConfirmOpen(true)} disabled={busy}
               // Czerwony od razu, nie dopiero pod kursorem. Wcześniej przycisk
@@ -4217,16 +4231,20 @@ export default function EventDetailClient() {
           >
             <div className="mx-auto flex max-w-2xl items-center gap-3">
               <p className="min-w-0 flex-1 text-sm">
-                <span className="font-semibold text-ink">Jesteś zapisany(a)</span>
+                <span className="font-semibold text-ink">
+                  {wpisGoscia?.ofertaDo ? 'Zwolniło się miejsce, jest Twoje' : 'Jesteś zapisany(a)'}
+                </span>
                 <span className="block text-xs text-slate-500 dark:text-slate-400">
-                  Zapis bez konta: zarządzasz nim linkiem
+                  {wpisGoscia?.ofertaDo
+                    ? `Masz czas do ${format(new Date(wpisGoscia.ofertaDo), 'HH:mm', { locale: pl })}`
+                    : 'Zapis bez konta: zarządzasz nim linkiem'}
                 </span>
               </p>
               <Link
                 href={`/gracz/przejmij/${mojTokenGoscia}`}
                 className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-primary-700 px-4 text-[15px] font-bold text-white transition active:scale-[0.99]"
               >
-                Mój zapis →
+                {wpisGoscia?.ofertaDo ? 'Przyjmij →' : 'Mój zapis →'}
               </Link>
             </div>
           </div>
@@ -4252,12 +4270,21 @@ export default function EventDetailClient() {
             <div className="mx-auto flex max-w-2xl items-center gap-3">
               <p className="min-w-0 flex-1 text-sm">
                 <span className="font-semibold text-ink">
-                  {myPendingRequest
-                    ? 'Czekasz na akceptację'
-                    : amIReserve
-                      ? `Rezerwa${myReservePosition ? `: ${myReservePosition}. w kolejce` : ''}`
-                      : 'Jesteś w składzie'}
-                  {!myPendingRequest && myConfirmed?.isGoalkeeper ? ' · bramkarz' : ''}
+                  {/* Oferta zwolnionego miejsca stoi PRZED „Rezerwa" — inny
+                      stan, nie jej odmiana: rezerwowy z aktywną ofertą już nie
+                      czeka w kolejce, czeka na WŁASNĄ decyzję (X-3). Do tej
+                      poprawki pasek mówił „Rezerwa: 1. w kolejce · Wypisz się"
+                      i zasłaniał kartę oferty leżącą pod nim razem z dolną
+                      nawigacją — decyzja z godziną na zegarze wypadała spod
+                      kciuka. */}
+                  {myClaimOffer
+                    ? 'Zwolniło się miejsce, jest Twoje'
+                    : myPendingRequest
+                      ? 'Czekasz na akceptację'
+                      : amIReserve
+                        ? `Rezerwa${myReservePosition ? `: ${myReservePosition}. w kolejce` : ''}`
+                        : 'Jesteś w składzie'}
+                  {!myPendingRequest && !myClaimOffer && myConfirmed?.isGoalkeeper ? ' · bramkarz' : ''}
                 </span>
                 {/* Podpis WYŁĄCZNIE tam, gdzie dokłada fakt, którego nie ma
                     w wierszu nad nim. Dla składu stało tu „Masz miejsce
@@ -4265,15 +4292,27 @@ export default function EventDetailClient() {
                     słowami; do tego „miejsce" czyta się w tej apce także jako
                     boisko („Miejsce: Szkoła Podstawowa nr 61"), więc podpis
                     nie tylko powtarzał, ale i mylił. Zgłoszone wprost. */}
-                {(myPendingRequest || amIReserve) && (
+                {(myClaimOffer || myPendingRequest || amIReserve) && (
                   <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                    {myPendingRequest
-                      ? 'Organizator jeszcze nie potwierdził'
-                      : 'Wejdziesz, gdy ktoś się wypisze'}
+                    {myClaimOffer
+                      ? (claimDeadline ? `Masz czas do ${format(claimDeadline, 'HH:mm', { locale: pl })}` : 'Potwierdź, żeby wejść do składu')
+                      : myPendingRequest
+                        ? 'Organizator jeszcze nie potwierdził'
+                        : 'Wejdziesz, gdy ktoś się wypisze'}
                   </span>
                 )}
               </p>
-              {myParticipation && (
+              {myClaimOffer ? (
+                // „Odpuszczam" zostaje wyłącznie w karcie oferty pod treścią —
+                // decyzja odmowna nie musi być pod kciukiem na każdej zakładce.
+                <button
+                  onClick={handleAcceptClaim}
+                  disabled={busy}
+                  className="h-11 shrink-0 rounded-xl bg-primary-700 px-4 text-sm font-bold text-white transition hover:bg-primary-800 disabled:opacity-50"
+                >
+                  Wchodzę
+                </button>
+              ) : myParticipation && (
                 <button
                   onClick={() => setLeaveConfirmOpen(true)}
                   disabled={busy}
@@ -4710,18 +4749,6 @@ export default function EventDetailClient() {
           />
         )}
 
-        {zakresTerminuOtwarty && (
-          <ZakresEdycjiSerii
-            liczbaTerminow={seriaTerminy.length}
-            liczbaPrzyszlych={
-              terminyWZakresie(seriaTerminy, event.id, 'ten-i-przyszle', new Date().toLocaleDateString('sv-SE')).length
-            }
-            busy={busy}
-            onWybierz={zapiszTermin}
-            onClose={() => setZakresTerminuOtwarty(false)}
-          />
-        )}
-
         {tab === 'sklad' && (<>
 
         {/* ── Organizator (zawsze na dole, widoczne dla wszystkich) ── */}
@@ -4789,7 +4816,21 @@ export default function EventDetailClient() {
       {/* Reschedule — opened from the date chip. Two gates when people are
           already signed up: the save button first asks for a tick, because a
           moved match that nobody noticed is worse than no match. */}
-      {whenOpen && (
+      {(() => {
+        // X-6: to okno liczyło `confirmed.length` — organizatora i
+        // obserwujących WLICZAJĄC, a gości bez adresu (którzy nie dostaną
+        // niczego) NIE ODEJMUJĄC. „6 osób jest zapisanych" nie mówiło, do ilu
+        // z nich faktycznie pójdzie powiadomienie. Ta sama funkcja, której
+        // używa okno odwołania (`konsekwencjeOdwolania`), tu z jedną zmianą —
+        // terminem, która zawsze powiadamia.
+        const komuZmianaTerminu = komuDojdzie(participants, event.organizerId);
+        const laczniePowiadomieni = komuZmianaTerminu.zKontem + komuZmianaTerminu.gosciezAdresem
+          + komuZmianaTerminu.gosciebezAdresu;
+        const konsekwencjeZmianyTerminu = konsekwencjeZapisu(
+          [{ klucz: 'termin', etykieta: 'Termin', przed: '', po: '', powiadamia: true }],
+          komuZmianaTerminu,
+        );
+        return whenOpen && (
         <div
           className={`fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center ${WARSTWA.modal} p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]`}
           onClick={() => setWhenOpen(false)}
@@ -4840,7 +4881,7 @@ export default function EventDetailClient() {
               </div>
             </div>
 
-            {confirmed.length > 0 && (
+            {laczniePowiadomieni > 0 && (
               <label className="mb-4 flex cursor-pointer select-none items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
                 <input
                   type="checkbox"
@@ -4849,9 +4890,7 @@ export default function EventDetailClient() {
                   className="mt-0.5 rounded border-amber-300 text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-xs text-amber-800">
-                  Wiem, że <span className="font-semibold">
-                    {withCount(confirmed.length, 'osoba jest zapisana', 'osoby są zapisane', 'osób jest zapisanych')}
-                  </span> na stary termin. Dostaną powiadomienie o zmianie.
+                  Wiem, że termin się zmienia. {konsekwencjeZmianyTerminu.join(' ')}
                 </span>
               </label>
             )}
@@ -4859,14 +4898,15 @@ export default function EventDetailClient() {
             <Button
               onClick={handleSaveWhen}
               isLoading={busy}
-              disabled={!whenDate || !whenTime || (confirmed.length > 0 && !whenConfirm)}
+              disabled={!whenDate || !whenTime || (laczniePowiadomieni > 0 && !whenConfirm)}
               className="w-full"
             >
               Zapisz termin
             </Button>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {visOpen && (
         <div
@@ -5006,7 +5046,7 @@ export default function EventDetailClient() {
             </p>
             <div className="space-y-2">
               <Button
-                onClick={() => { setLeaveConfirmOpen(false); handleRemove(myEntry.id); }}
+                onClick={() => { setLeaveConfirmOpen(false); handleRemove(myEntry.id, 'Wypisano Cię z meczu'); }}
                 isLoading={busy}
                 className="w-full bg-red-600 hover:bg-red-700"
               >
@@ -5463,7 +5503,9 @@ export default function EventDetailClient() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-display text-xl font-bold text-ink">
               {newUserAlreadyJoined
-                ? 'Wcześniej dołączyłeś do tej gry.'
+                // Bez rodzaju, jak reszta okna (X-11) — „dołączyłeś" zakłada
+                // mężczyznę, a to jedyne zdanie w tym oknie, które to robiło.
+                ? 'Ten zapis już jest na liście.'
                 : newUserPending
                   ? 'Prośba wysłana, czeka na akceptację.'
                   : newUserIsReserve ? 'Zapisano! Jesteś na liście rezerwowej.' : 'Świetnie! Jesteś w składzie.'}
@@ -5611,7 +5653,7 @@ export default function EventDetailClient() {
         >
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-display text-xl font-bold text-ink">
-              Wcześniej dołączyłeś do tej gry.
+              Ten zapis już jest na liście.
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
               Zaloguj się, żeby zobaczyć więcej szczegółów.

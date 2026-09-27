@@ -85,8 +85,9 @@ export const IKONY: Record<string, IkonaPowiadomienia> = {
   // Nudge o profilu, nie o uczestnictwie w meczu — nie niebieski (`blue-*` jest
   // zarezerwowany dla akceptacji uczestnictwa, patrz AGENTS.md).
   uzupelnij_profil:            { Ikona: UserCog,       klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Profil' },
-  // Serie cykliczne (`SHOW_RECURRING`) — flaga dziś wyłączona, ale istniejące
-  // serie i ich powiadomienia zostają w kodzie nietknięte (patrz AGENTS.md).
+  // Gry cykliczne usunięte całkowicie (decyzja właściciela, runda 9) — baza
+  // już nigdy tego typu nie wstawi, ale historyczne wiersze sprzed usunięcia
+  // wciąż go mają i mają dostać właściwą ikonę, nie szary dzwonek „Powiadomienie".
   nowy_termin_serii:           { Ikona: Repeat,        klasa: 'bg-primary-50 text-primary-700', rodzaj: 'Nowy termin serii' },
   // Próg „gra się odbędzie" (`SHOW_MIN_PLAYERS_THRESHOLD`) — flaga dziś
   // wyłączona, ale mecze założone przed jej wyłączeniem mogą mieć próg

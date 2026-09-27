@@ -15,25 +15,35 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 | `SHOW_TURNIEJE` | `false` | Moduł turniejowy — **wyłączona ponownie 2026-09-17, tymczasowo** (decyzja właściciela po przeglądzie na żywo: moduł działa, ale pierwsze wrażenie nie jest gotowe). Trasa `/turnieje` **odpowiada normalnie** — znikają wyłącznie wejścia w nawigacji. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | `app/moje-gry/page.tsx` (link „🏆 Turnieje”), `app/profil/page.tsx` (wiersz „Turnieje”) |
 | `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (pusty stan listy), `components/map/VenueExplorer.tsx` (`/mapa`), `components/profil/MojeAlerty.tsx` (`/profil`), `app/boisko/[id]/VenueDetailClient.tsx` (**od 2026-09-21**, pusty stan „Nadchodzące mecze") |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
-| `SHOW_RECURRING` | `false` | Gry cykliczne / stałe gierki (wyłączona ponownie 2026-08-16, produktowa decyzja — kod i istniejące serie zostają) | `Header.tsx`, `SiteFooter.tsx`, `app/moje-gry/page.tsx` (link „Stałe gierki" i sekcja „Kolejne stałe gierki"), `app/wydarzenia/nowe/page.tsx` (kafelek „Wydarzenie cykliczne") |
 | `SHOW_MIN_PLAYERS_THRESHOLD` | `false` | Toggle progu „gra się odbędzie" i werdykt „Gramy ✓ / Brakuje N do minimum" (wyłączona 2026-08-21, produktowa decyzja — `events.min_players` i logika zostają) | `EventCapacityFields.tsx` (kreator + edycja), `CzyGramyPanel.tsx` |
 | `FEATURE_RESERVATIONS` | z env `NEXT_PUBLIC_FEATURE_RESERVATIONS` | Rezerwacje obiektów | `LeafletMapImpl.tsx`, `app/admin/[fieldId]/page.tsx` |
 
-Pierwszych pięć: `frontend/src/lib/features.ts` (stałe w kodzie).
+Pierwsze trzy: `frontend/src/lib/features.ts` (stałe w kodzie).
 Ostatnia: `frontend/src/config/features.ts` (zmienna środowiskowa).
+
+**Gry cykliczne (stałe gierki) nie mają już flagi — usunięte całkowicie (decyzja
+właściciela, runda 9, 2026-09-27).** Nie chowamy modułu, tylko go nie ma: tabele
+`recurring_events`/`recurring_event_invites`, cały panel `/cykliczne/[id]`, kreator
+`/cykliczne/nowe`, edge function `send-invites` i kafelek „Wydarzenie cykliczne" w
+kreatorze meczu poszły z kodu (migracje `166`/`167`). Trasa `/cykliczne` i
+`/cykliczne/[id]` zostają jako gołe przekierowania na `/moje-gry` na jeden release,
+żeby stare linki (zakładki, powiadomienia) nie kończyły się błędem 404 — nic więcej
+tam nie ma. Data-matematyka współdzielona z niezależną funkcją „Powtórz mecz"
+(`nastepnyTermin()`, `domyslnyTerminPowtorki()`, `dniDo()`) zostaje w
+`lib/recurring.ts`.
 
 **Rezerwacje mają drugą furtkę per obiekt:** `showBookingForField()` zwraca `true`, jeśli
 flaga globalna jest włączona **albo** dany obiekt ma `fields.booking_enabled = true`.
 Czyli rezerwacje można włączyć pojedynczemu boisku bez odmrażania całej funkcji.
 
-**Flagi ukrywają wejścia, nie trasy.** Trasa `/cykliczne` odpowiada normalnie, jeśli ktoś
-wpisze adres ręcznie — flaga (`SHOW_RECURRING`) usuwa tylko linki w nawigacji, a dodatkowo
-`robots.ts` blokuje jej skanowanie, dopóki flaga jest wyłączona. Dlatego trasy za flagami nie
-trafiają do `llms.txt` ani do `sitemap.ts`: reklamowanie ich wyszukiwarce obiecuje coś, czego
-użytkownik nie znajdzie w interfejsie. `/turnieje` zeszło z tej listy 2026-09-16 razem
-z odmrożeniem `SHOW_TURNIEJE`, a **wróciło na nią 2026-09-17**, gdy flaga została
-wyłączona ponownie — wpis zniknął z `llms.txt`, a `/turnieje` dołączyło do `DISALLOW`
-w `robots.ts`. Pilnuje tego `npm run check:docs` (sekcja 2).
+**Flagi ukrywają wejścia, nie trasy.** `robots.ts` blokuje skanowanie trasy za wyłączoną
+flagą, a trasy za flagami nie trafiają do `llms.txt` ani do `sitemap.ts`: reklamowanie ich
+wyszukiwarce obiecuje coś, czego użytkownik nie znajdzie w interfejsie. `/turnieje` zeszło
+z tej listy 2026-09-16 razem z odmrożeniem `SHOW_TURNIEJE`, a **wróciło na nią
+2026-09-17**, gdy flaga została wyłączona ponownie — wpis zniknął z `llms.txt`, a
+`/turnieje` dołączyło do `DISALLOW` w `robots.ts`. Pilnuje tego `npm run check:docs`
+(sekcja 2). `/cykliczne` też siedzi w `DISALLOW`, ale z innego powodu, patrz wyżej:
+moduł nie jest schowany, jest usunięty, a trasa tylko przekierowuje.
 
 ---
 
@@ -170,7 +180,7 @@ samej kolumny (`REVOKE SELECT (blik_phone)`) wywróciłoby wszystkie `select('*'
 numer przeniósł się tam, gdzie da się go zamknąć polityką. Wiersz `event_blik` widzi
 organizator, delegat od płatności/edycji (`089`) i uczestnik meczu. Klient dociąga numer
 osadzeniem w `getEvent()` (`select('*, fields(address), event_blik(blik_phone)')`), zapisuje
-przez `zapiszNumerBlik()` (`lib/blik.ts`) — także dla całej serii cyklicznej naraz.
+przez `zapiszNumerBlik()` (`lib/blik.ts`).
 **`anon` MUSI mieć GRANT SELECT** na tej tabeli, choć nie zobaczy ani jednego wiersza: bez
 tego PostgREST oddaje wylogowanemu „permission denied" i pada cała strona meczu.
 Reguła „numer dopiero na godzinę przed meczem" zostaje ŚWIADOMIE w UI — to wygoda dla
@@ -475,7 +485,7 @@ niezależne powody ukrycia nie odsłaniały panelu przedwcześnie. Komponent `<H
 montowany warunkowo chowa panel, dopóki jest zamontowany.
 
 **Pigułki z cechami meczu stoją POD kartą „Kiedy i gdzie" — od 2026-09-13**, zgłoszone
-wprost. Rząd („7 zł / os.", „Prywatne", nazwa ekipy, „Wymaga akceptacji", „Stała gierka")
+wprost. Rząd („7 zł / os.", „Prywatne", nazwa ekipy, „Wymaga akceptacji")
 wchodził na ekran PRZED terminem i adresem, czyli przed odpowiedzią na dwa pierwsze
 pytania, jakie się zadaje przy meczu. Dziś kolejność to: opis → karta „Kiedy i gdzie"
 (data, adres, „Nawiguj") → pigułki → licznik miejsc → skład. Cena zostaje **nad**
@@ -1092,18 +1102,8 @@ rezerwy nie pokazuje ani tego pola, ani zdania o kolejce. Odwrócenie ustalenia 
 [domena.md](./domena.md#zwolnione-miejsce-oferta-nie-auto-awans). Obok steppera liczby miejsc stoi podpowiedź,
 że graczy dopisuje się po utworzeniu meczu, na jego stronie, także bez konta.
 
-**Krok 1 — kafelek „Wydarzenie cykliczne".** Obok pól daty/godziny, kafelek otwiera
-`components/events/RecurringSettingsDialog.tsx` z dniem tygodnia wyliczonym z wybranej
-daty (`lib/recurring.ts#dayOfWeekFromDate`) i suwakiem „otwieraj zapisy X dni przed
-terminem" (dawniej „powiadamiaj" — od migracji `073` ta wartość steruje AUTOMATYCZNYM
-tworzeniem kolejnego terminu, nie tylko treścią przypomnienia, więc minimum to 1, nie 0).
-Kliknięcie aktywnego kafelka wyłącza cykliczność, ikona ołówka na aktywnym kafelku
-ponownie otwiera modal. Ustawienia żyją wyłącznie w stanie kreatora — dopiero publikacja
-meczu tworzy szablon w `recurring_events` (`createRecurringEvent`) i wiąże z nim ten
-pierwszy mecz przez `events.recurring_event_id`. Po publikacji strona meczu pokazuje
-jednorazowy link do panelu serii (`/cykliczne/{id}`) przez `?cykliczne=<id>`, a stały badge
-„Stała gierka" (organizator, w pasku u góry strony meczu) prowadzi tam samo z powrotem.
-Patrz „Serie wydarzeń cyklicznych" niżej.
+**Krok 1 nie ma już kafelka „Wydarzenie cykliczne" — gry cykliczne usunięte całkowicie
+(decyzja właściciela, runda 9, patrz „Flagi funkcji" wyżej).**
 
 **Krok 3 „Dla kogo" — widoczność, akceptacja, ekipa, tytuł, opis.** Sam ekran nie ma pól
 wymaganych (`validateStep3` zwraca `{}`).
@@ -1212,11 +1212,6 @@ Parametr czytany jest z `window.location.search` w `useEffect`, **nie** przez
 `useSearchParams()` — ten hak wymusza na trasie prerenderowanej bail-out do CSR i wywala
 produkcyjny build (pułapka opisana w `AGENTS.md`). Zaraz po odczycie parametr znika
 z adresu przez `history.replaceState`, więc odświeżenie nie pokazuje panelu drugi raz.
-
-Gdy kreator utworzył razem z meczem szablon cykliczny (kafelek na kroku 1), doszedł
-`?cykliczne=<id>` — czytany tym samym `useEffect` i zdejmowany tak samo. Panel dostaje
-wtedy dodatkowy link „Ustawiłeś powtarzanie co tydzień — zarządzaj serią" do
-`/cykliczne/{id}`.
 
 **Zdanie o przypomnieniu jest dziś policzone, nie stałe (F-3, docs/faza1-organizator-plan.md).**
 Do 2026-09-23 panel mówił zawsze „Przypomnienie wyśle się samo, Ty wyślij tylko link" —
@@ -1368,46 +1363,22 @@ po własny `toISOString()`.
 
 ---
 
-## Serie wydarzeń cyklicznych
+## Gry cykliczne — usunięte całkowicie (runda 9)
 
-Od migracji `073` termin cykliczny to prawdziwa **seria**, nie zbiór niepowiązanych kopii.
-Moduł jest dziś schowany za `SHOW_RECURRING = false` (patrz „Flagi funkcji" wyżej) —
-kod, istniejące serie i ich strony zarządzania zostają nietknięte, chowają się wyłącznie
-wejścia w nawigacji. Model, żeby nie duplikować schematu `events` w `recurring_events` —
-pełny opis w [domena.md](./domena.md):
-
-- **szablon** (`recurring_events`) niesie regułę powtarzania: dzień tygodnia, godzina,
-  miejsce, limit miejsc, widoczność i wyprzedzenie (`notify_days_before`),
-- **ostatni termin serii** jest żywym wzorcem reszty ustawień (cena, metody płatności,
-  bramkarze, akceptacja zapisów, grupa) — nowy termin dziedziczy je z niego, nie z ubogiego
-  szablonu. To naprawia dawny błąd, w którym płatna gierka odradzała się jako darmowa.
-
-**Auto-tworzenie.** `pg_cron` (jeśli włączony w Supabase) odpala co godzinę
-`utworz_nalezne_terminy_serii()`, która dla każdego aktywnego szablonu tworzy należny
-termin — gdy jest w zasięgu `notify_days_before` i jeszcze nie istnieje. Bez `pg_cron`
-funkcja działa tylko wywołana ręcznie z SQL Editora albo przez przycisk „Utwórz termin"
-na `/cykliczne/[id]` (`spawnEventInstance()` w `lib/recurring.ts` woła to samo RPC —
-`utworz_termin_serii` — więc ręczne i automatyczne tworzenie dają identyczny wynik).
-Uczestnicy poprzedniego terminu dostają wtedy powiadomienie „Nowy termin stałej gierki".
-
-**Edycja jednego meczu z serii.** Zmiana godziny w modalu „Zmień termin" albo zapis
-formularza edycji (gdy seria ma więcej niż jeden termin) pyta o zakres —
-`components/events/ZakresEdycjiSerii.tsx`, logika w `lib/series.ts`:
-
-| Zakres | Co obejmuje |
-|---|---|
-| Tylko to wydarzenie | sam edytowany termin |
-| To i przyszłe | ten termin + terminy z datą ≥ dzisiaj + szablon (żeby kolejne dziedziczyły) |
-| Cała seria | wszystkie terminy, także rozegrane, + szablon |
-
-**Data nigdy nie idzie zbiorczo** (`lib/series.ts#POLA_POZA_ZAKRESEM`) — niezależnie od
-zakresu zmienia się wyłącznie w edytowanym terminie. Przesunięcie całej gierki na inny
-dzień tygodnia to zmiana reguły, czyli edycja szablonu, nie zbiorcza zmiana terminów.
-
-**Edycja szablonu** — `/cykliczne/[id]/edytuj` (dawniej zaślepka „w przygotowaniu").
-Pola pokrywają się z `/cykliczne/nowe`: sport, miejsce, dzień tygodnia, godzina, limit,
-tytuł/opis, widoczność, wyprzedzenie — bo szablon opisuje regułę, nie komplet ustawień
-meczu (cena i płatności edytuje się na konkretnym terminie, z pytaniem o zakres wyżej).
+Do 2026-09-27 istniał tu moduł serii wydarzeń cyklicznych (migracja `073`: szablon
+`recurring_events`, auto-tworzenie terminów przez `pg_cron`, edycja z pytaniem o zakres
+`ten`/`ten-i-przyszłe`/`cała seria`). Decyzją właściciela runda 9 usunęła go **całkowicie**,
+nie tylko schowała flagą: `lib/series.ts`, `lib/recurring.ts` (część CRUD-owa),
+`components/events/ZakresEdycjiSerii.tsx`, `RecurringSettingsDialog.tsx`, kreator
+`/cykliczne/nowe`, panel `/cykliczne/[id]/edytuj`, edge function `send-invites`, tabele
+`recurring_events`/`recurring_event_invites` i kolumna `events.recurring_event_id` (migracje
+`166`/`167`). Trasy `/cykliczne` i `/cykliczne/[id]` zostają jako gołe przekierowania na
+`/moje-gry` na jeden release. Data-matematyka współdzielona z „Powtórz mecz"
+(`nastepnyTermin()`, `domyslnyTerminPowtorki()`, `dniDo()`) zostaje w `lib/recurring.ts`.
+Historyczny typ powiadomienia `nowy_termin_serii` (migracja `073`) zostaje w
+`lib/ikonyPowiadomien.ts`/`lib/ustawieniaPowiadomien.ts` na zawsze — `typyPowiadomien.test.ts`
+skanuje WSZYSTKIE migracje, także tę, i wymaga tam wiersza, mimo że baza nigdy już tego
+typu nie wstawi.
 
 ---
 
@@ -1860,8 +1831,7 @@ nic już ich nie wywołuje — `lib/notifications.ts` nadal umie wyświetlić ta
 kiedyś powstał, ale od tej zmiany żaden nie powstanie.
 
 **Świadomie NIE zbudowane** (patrz `docs/domena.md § Czy gramy`): automatyczny zapis
-milczących do składu, powiadomienie o każdej pojedynczej odpowiedzi, próg minimum na
-poziomie szablonu serii cyklicznej.
+milczących do składu, powiadomienie o każdej pojedynczej odpowiedzi.
 
 ---
 
@@ -2063,7 +2033,10 @@ GitHub Actions, tym samym mechanizmem co import). Rozkład na produkcji: **3 605
 `sitemap.ts` (strony statyczne, huby sportów, `/[sport]/[miasto]`, 16 hubów wojewódzkich
 `/boiska/woj/[wojewodztwo]`) + 16× `sitemap-boiska/[plik]/route.ts` (po jednym na
 województwo, tylko boiska — Tier 3 ma `noindex`, więc wpis w sitemapie byłby sprzeczną
-instrukcją dla Googlebota), zebrane w `sitemap-index.xml/route.ts`. `robots.ts` wskazuje
+instrukcją dla Googlebota), zebrane w `sitemap-index.xml/route.ts`. Każdy wpis to adres
+KANONICZNY obiektu (`slugBoiska(name, id)`: nazwa + końcówka identyfikatora), ten sam co
+`canonical` strony i linki w hubach; adres z samej nazwy jest wyłącznie kluczem
+historycznym dla starych linków i przekierowuje (patrz `linkiObiektuKanoniczne.test.ts`). `robots.ts` wskazuje
 na ten indeks, nie na goły `sitemap.xml`.
 
 ### Faza 1 — fact-dense opis obiektu
@@ -3145,8 +3118,7 @@ odwołanie/przywrócenie, usunięcie). Stan zakładki
 w `?tab=`, odczytany ręcznie z `window.location.search` przez `useEffect`, **nie** przez
 `useSearchParams()` — ta trasa jest prerenderowana i ten hak wywala produkcyjny build
 (`missing-suspense-with-csr-bailout`, patrz pułapka w `AGENTS.md`); dokładnie ten sam
-powód, dla którego `?utworzono=`/`?cykliczne=`/`?dolacz=` na tej stronie też są czytane
-ręcznie.
+powód, dla którego `?utworzono=`/`?dolacz=` na tej stronie też są czytane ręcznie.
 
 **Swipe w bok przełącza zakładki** — mechanika opisana przy `/moje-gry` wyżej
 (`useSwipeZakladek()`). Lista zakładek, po której porusza się gest, jest liczona
@@ -4094,7 +4066,6 @@ powodu (patrz niżej, „`reply_to` ma tylko NASZA poczta").
 Treść i renderery są w `notify-game-alert/tresc.ts` (czysty TS, bez `Deno`), testowane
 w `frontend/src/__tests__/alertGry.test.ts` — tym samym wzorcem co `powiadom-goscia`.
 | SMS | Edge function `send-event-sms` → SMSAPI + Twilio |
-| Zaproszenia cykliczne | Edge function `send-invites` |
 
 Wpisy do `notifications` powstają wyłącznie z wyzwalaczy w bazie albo z wąsko
 uprawnionych funkcji RPC (`SECURITY DEFINER`) — tabela ma polityki SELECT i UPDATE dla
@@ -5069,13 +5040,6 @@ albo odpowiadasz na pytanie o aplikację, nie zakładaj, że to działa:
 - **Strona pod gołym `/boiska`** — trasa istnieje tylko jako `/boiska/[sport]`;
   `/boiska` samo to redirect na `/mapa?gry=0`, tym samym wzorcem co `/gracze`.
 - **Osobny backend, API, kontrolery.** Frontend rozmawia z Supabase bezpośrednio.
-- **Powiadomienia o nowym terminie serii przez e-mail/SMS.** Auto-tworzenie terminów
-  (migracja `073`) powiadamia wyłącznie w aplikacji (dzwonek) — `recurring_event_invites`
-  (kontakty e-mail/telefon, dodawane ręcznie na `/cykliczne/[id]`) nie dostają nic przy
-  automatycznym tworzeniu, tylko przy ręcznym „Utwórz i wyślij zaproszenia". Wymagałoby
-  wywołania Edge Function `send-invites` z poziomu Postgresa (`pg_net`). Zadanie
-  w [BACKLOG.md](../BACKLOG.md).
-- **Reguły powtarzania inne niż cotygodniowa** — co dwa tygodnie, co miesiąc.
 
 ### Martwy kod
 

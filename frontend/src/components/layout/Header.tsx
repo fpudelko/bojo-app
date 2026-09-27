@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { Plus, LogOut, User, UserCircle, RefreshCw, Map, Settings, Sun, Moon } from 'lucide-react';
+import { Plus, LogOut, User, UserCircle, Map, Settings, Sun, Moon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTheme } from 'next-themes';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
@@ -13,7 +13,6 @@ import { ADMIN_LINKS } from '@/lib/adminLinks';
 import { LogoPill } from '@/components/Logo';
 import NotificationBell from './NotificationBell';
 import WczesnyEtapBadge from '@/components/home/landing/WczesnyEtapBadge';
-import { SHOW_RECURRING } from '@/lib/features';
 
 // Ordered by user-journey priority: discover → map
 const NAV_LINKS = [
@@ -168,19 +167,6 @@ export default function Header({
                   >
                     Grupy
                   </Link>
-                  {SHOW_RECURRING && (
-                    <Link
-                      href="/cykliczne"
-                      className={clsx(
-                        'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors',
-                        pathname === '/cykliczne' || pathname.startsWith('/cykliczne/')
-                          ? 'bg-primary-50 text-primary-700'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
-                      )}
-                    >
-                      <RefreshCw className="w-4 h-4" /> Stałe gierki
-                    </Link>
-                  )}
                   {hasVenue && (
                     <Link
                       href="/obiekt"

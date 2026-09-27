@@ -17,7 +17,7 @@ import { wstepHubuSportu, wstepHubuWojewodztwa, wstepHubuSportuMiasta } from '@/
 import { O_BOJO_ODPOWIEDZ, O_BOJO_DZIALA, O_BOJO_NIE_MA, O_BOJO_PROZA } from '@/content/oBojo';
 import { ZAKAZANE_WSZEDZIE } from '@/content/zakazaneFrazy';
 import { faqJsonLd } from '@/lib/structuredData';
-import { SHOW_RECURRING, SHOW_TURNIEJE } from '@/lib/features';
+import { SHOW_TURNIEJE } from '@/lib/features';
 import { FEATURE_RESERVATIONS } from '@/config/features';
 
 /**
@@ -160,7 +160,10 @@ describe('strony treści — żadna jednostka nie odsyła do trasy za wyłączon
   const jednostki = [...jednostkiTresci(), ...jednostkiLlmsTxt()];
 
   const TRASY_ZA_FLAGAMI: { trasa: string; flaga: string; wlaczona: boolean }[] = [
-    { trasa: '/cykliczne', flaga: 'SHOW_RECURRING', wlaczona: SHOW_RECURRING },
+    // Gry cykliczne nie mają już flagi — usunięte całkowicie (decyzja
+    // właściciela, runda 9). Trasa dziś tylko przekierowuje, ale zasada
+    // pozostaje: żadna treść nie ma do niej odsyłać.
+    { trasa: '/cykliczne', flaga: 'gry cykliczne usunięte', wlaczona: false },
     { trasa: '/turnieje', flaga: 'SHOW_TURNIEJE', wlaczona: SHOW_TURNIEJE },
     { trasa: '/rezerwacje', flaga: 'FEATURE_RESERVATIONS', wlaczona: FEATURE_RESERVATIONS },
     { trasa: '/obiekt', flaga: 'FEATURE_RESERVATIONS', wlaczona: FEATURE_RESERVATIONS },

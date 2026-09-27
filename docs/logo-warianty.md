@@ -52,15 +52,33 @@ Zaimplementowane w:
 - `frontend/src/components/Logo.tsx` — `LOGO_SVG_STRING` (favicon/inline) i
   komponent `LogoIcon`.
 - `frontend/scripts/generuj-ikony.mjs` — `LITERA`, `DZIURA_GORA`, `DZIURA_DOL`,
-  `LINIA_BOISKA`; `svgZwykle()` rysuje pełny motyw (linia + koło + litera),
-  `svgMaskowalne()` tylko literę w strefie bezpiecznej (Android przycina
-  ikonę maskowalną do własnego kształtu — dorysowana linia boiska kolidowałaby
-  z tym przycięciem).
+  `LINIA_BOISKA`; `svgZwykle()` rysuje pełny motyw na zaokrąglonym kafelku,
+  `svgMaskowalne()` ten sam motyw na pełnym tle: linia od krawędzi do
+  krawędzi, koło i litera w skali 0.8 (strefa bezpieczna maski Androida).
+- `frontend/src/app/layout.tsx` — favicon w karcie przeglądarki jako `data:` URI.
 - Ikony PWA w `frontend/public/ikony/` — wygenerowane ponownie przez
   `node scripts/generuj-ikony.mjs` po zmianie.
 
-`ikonyPwa.test.ts` pilnuje, żeby ścieżka litery w generatorze nie rozjechała
-się z `Logo.tsx` — bez tego podmiana logo zostawiłaby starą ikonę na telefonie.
+**Dopisane po wdrożeniu (2026-09-26): dwa miejsca, w których logo zostało stare.**
+
+1. Favicon w `layout.tsx` to trzecia, osobna kopia SVG — pierwsza zmiana jej
+   nie ruszyła. Naprawione w PR #423.
+2. Pierwsza wersja `svgMaskowalne()` rysowała samą literę, „żeby linia nie
+   kolidowała z przycięciem". To był błąd rozumowania: na ekranie głównym
+   Androida widać WYŁĄCZNIE wariant maskowalny, więc zainstalowana apka
+   pokazywała gołe B, gdy favicon miał już boisko. Linia wychodząca poza
+   maskę wygląda jak linia boiska wychodząca z kadru, czyli dokładnie tak,
+   jak powinna.
+
+Do tego zainstalowana apka nie pobiera nowego obrazka spod starego adresu.
+Adresy ikon w manifeście niosą `?v=WERSJA_IKON` (`app/manifest.ts`) —
+**zmieniasz obrazek, podbijasz wersję.** Telefon z apką dodaną jako zwykły
+skrót (bez WebAPK) i tak nie odświeży ikony; wtedy pomaga tylko usunięcie
+i ponowne dodanie do ekranu głównego.
+
+`ikonyPwa.test.ts` pilnuje, żeby ścieżka litery w generatorze i w faviconie
+nie rozjechała się z `Logo.tsx`, że wariant maskowalny ma linię i koło boiska
+oraz że adresy ikon w manifeście niosą wersję.
 
 ## Warianty rozważane i odrzucone
 

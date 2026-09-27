@@ -39,7 +39,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {toasts.length > 0 && (
         <div
-          className={`fixed bottom-5 left-1/2 -translate-x-1/2 ${WARSTWA.toast} flex flex-col gap-2 items-center pointer-events-none`}
+          // Mobile-first (X-10): na telefonie góra ekranu jest wolna (nagłówek
+          // to logo i dzwonek, nie akcje), a dół zajmują paski akcji i arkusze
+          // — toast tam przechwytywał kliknięcia na „Udostępnij link" zaraz po
+          // założeniu ekipy i na dole arkusza PWA zaraz po zapisie na mecz.
+          // Od `md:` wraca na dół (decyzja D-8), bo tam dolny pasek nie stoi.
+          className={`fixed top-[calc(env(safe-area-inset-top)+0.75rem)] left-1/2 -translate-x-1/2 md:top-auto md:bottom-5 ${WARSTWA.toast} flex flex-col gap-2 items-center pointer-events-none`}
           aria-live="polite"
           aria-label="Powiadomienia"
         >
@@ -50,7 +55,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               className={[
                 'pointer-events-auto flex items-center gap-2.5 rounded-2xl px-4 py-3 text-sm font-medium shadow-xl',
                 'min-w-[220px] max-w-xs',
-                'animate-[slide-up_0.2s_ease-out]',
+                'animate-[slide-down_0.2s_ease-out] md:animate-[slide-up_0.2s_ease-out]',
                 t.type === 'success'
                   ? 'bg-green-700 text-white'
                   : t.type === 'error'

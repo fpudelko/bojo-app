@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 121 migracji: 041_join_code.sql → 163_gosc_widzi_swoja_platnosc.sql
+-- Zawiera 124 migracji: 041_join_code.sql → 167_gry_cykliczne_usuniecie.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -15481,3 +15481,307 @@ $$;
 
 REVOKE ALL ON FUNCTION podejrzyj_wpis_goscia(uuid) FROM public;
 GRANT EXECUTE ON FUNCTION podejrzyj_wpis_goscia(uuid) TO anon, authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 164_naprawa_rozjazdu_produkcji.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 164: Naprawa rozjazdu między dziennikiem migracji i produkcją.
+--
+-- CO SIĘ STAŁO. Dziennik `schema_migracje` na produkcji dostał wpisy dla
+-- `117`, `126` i `131` przez backfill (`--oznacz-do`, 2026-09-22), ale
+-- odpowiadające im OBIEKTY na produkcji nie istniały. Sonda backfillu widzi
+-- WYŁĄCZNIE tabele (`supabase/migrations/README.md`, „to jest dolna
+-- granica") — migracja, która dokłada samą funkcję albo kolumnę, jest dla
+-- niej niewidoczna. Ktoś wcześniej wkleił do SQL Editora nowsze ciało
+-- `wyslij_przypomnienia()` (z `144`/`160`) bez pomocnika `odmien_nie_oddalo()`
+-- z `131` — CREATE FUNCTION przechodzi mimo brakującej zależności (PL/pgSQL
+-- nie sprawdza ciała przy tworzeniu), więc błąd wyszedł dopiero przy
+-- WYWOŁANIU. Dokładnie ta pułapka, co „migracja przerwana w połowie"
+-- z AGENTS.md, tylko że tym razem połowicznym stanem jest cały BACKFILL,
+-- nie jedna migracja.
+--
+-- SKUTEK NA PRODUKCJI (zmierzone 2026-09-26, same liczby):
+--   - `bojo-przypomnienia` (pg_cron, codziennie 16:00 UTC) pada od 2026-09-12,
+--     KAŻDY dzień: `ERROR: function odmien_nie_oddalo(integer) does not
+--     exist`. Ani „jutro grasz", ani „domknij mecz" nie wychodzą.
+--   - Szukanie obiektu w kreatorze bez polskich znaków nie działa: „lodz"
+--     znajduje 0 ze 194 publicznych obiektów, „poznan" 6 ze 179 — bo
+--     `fields.szukaj_norm` (`126`) nie istnieje i `searchExplorerFields()`
+--     spada na zapasowe `ilike` z wymaganymi ogonkami.
+--   - Poprawka pushy na współdzielonym telefonie (`117`) nigdy nie weszła —
+--     `dopnij_subskrypcje_push()` nie istnieje, RPC pada po cichu
+--     (`catch {}` w `frontend/src/lib/push.ts`).
+--
+-- CO TA MIGRACJA ROBI. Powtarza DOSŁOWNIE idempotentne fragmenty `126`,
+-- `131` i `117` — zero nowej logiki, żeby diff dało się zweryfikować przez
+-- porównanie z oryginałem. Na bazie postawionej z repo (`baza-testowa.sh`,
+-- `stos-bez-dockera.sh`) wszystkie trzy fragmenty są no-op: obiekty już
+-- istnieją. Na produkcji dokładają dokładnie to, czego brakuje.
+--
+-- CZEGO TA MIGRACJA NIE ROBI: nie odtwarza funkcji serii wydarzeń
+-- cyklicznych (`utworz_termin_serii`, `utworz_nalezne_terminy_serii`,
+-- `powiadom_o_nowym_terminie_serii`, `073`/`092`) — na produkcji ich i tak
+-- nie ma (`SHOW_RECURRING` wyłączone od 2026-08-16), a decyzja właściciela
+-- (runda 9, D-4) jest jasna: gry cykliczne mają zniknąć całkowicie, nie
+-- wrócić. Zamiast tego SEKCJA 4 niżej kasuje je też na bazie z repo, żeby
+-- porównanie schematu (`scripts/odcisk-schematu.sh`) nie zgłaszało różnicy,
+-- której nikt nie planuje naprawiać. Pełne usunięcie tabel serii
+-- (`recurring_events`, `recurring_event_invites`) idzie osobną, RĘCZNĄ
+-- migracją w PR-L (`DROP TABLE`).
+--
+-- DA SIĘ PUŚCIĆ DRUGI RAZ — każda instrukcja niżej jest `IF NOT EXISTS`/
+-- `OR REPLACE`/`IF EXISTS`, tak jak w oryginałach.
+
+-- ---------------------------------------------------------------------------
+-- 1. Z migracji 126 — szukanie boisk bez polskich ogonków
+-- ---------------------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+ALTER TABLE fields
+  ADD COLUMN IF NOT EXISTS szukaj_norm TEXT
+  GENERATED ALWAYS AS (
+    translate(
+      lower(coalesce(name, '') || ' ' || coalesce(address, '')),
+      'ąćęłńóśźżĄĆĘŁŃÓŚŹŻ',
+      'acelnoszzacelnoszz'
+    )
+  ) STORED;
+
+COMMENT ON COLUMN fields.szukaj_norm IS
+  'Nazwa + adres złożone do postaci bez ogonków i małymi literami (migracja 126). Do szukania `ilike` bez polskich znaków. Odpowiednik foldText() z frontend/src/lib/searchText.ts — zmiana po jednej stronie wymaga zmiany po drugiej.';
+
+CREATE INDEX IF NOT EXISTS fields_szukaj_norm_trgm
+  ON fields USING gin (szukaj_norm gin_trgm_ops);
+
+-- ---------------------------------------------------------------------------
+-- 2. Z migracji 131 — pomocnik odmiany, którego brak wywraca przypomnienia
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION odmien_nie_oddalo(n integer)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT n || CASE
+    WHEN n = 1 THEN ' osoba jeszcze nie oddała'
+    WHEN n % 10 BETWEEN 2 AND 4 AND n % 100 NOT BETWEEN 12 AND 14
+      THEN ' osoby jeszcze nie oddały'
+    ELSE ' osób jeszcze nie oddało'
+  END;
+$$;
+
+COMMENT ON FUNCTION odmien_nie_oddalo(integer) IS
+  'Odmieniony człon „N osób jeszcze nie oddało" do treści powiadomienia po meczu. Odpowiednik withCount() z frontend/src/lib/plural.ts — razem z czasownikiem, bo ten też się odmienia.';
+
+-- ---------------------------------------------------------------------------
+-- 3. Z migracji 117 — dopięcie subskrypcji push do aktualnego konta
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION dopnij_subskrypcje_push(
+  p_endpoint TEXT, p_p256dh TEXT, p_auth TEXT, p_przegladarka TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN; END IF;
+
+  INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, przegladarka)
+  VALUES (auth.uid(), p_endpoint, p_p256dh, p_auth, p_przegladarka)
+  ON CONFLICT (endpoint) DO UPDATE
+    SET user_id      = excluded.user_id,
+        p256dh       = excluded.p256dh,
+        auth         = excluded.auth,
+        przegladarka = excluded.przegladarka;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION dopnij_subskrypcje_push(TEXT, TEXT, TEXT, TEXT) TO authenticated;
+
+COMMENT ON FUNCTION dopnij_subskrypcje_push IS
+  'Przypina istniejącą subskrypcję push (per przeglądarka) do aktualnie zalogowanego konta. Wołane po cichu przy logowaniu (lib/auth.tsx) — naprawia sytuację, w której współdzielone urządzenie zostaje na zawsze przypięte do PIERWSZEGO konta, które kiedykolwiek kliknęło „Włącz" (migracja 117).';
+
+-- ---------------------------------------------------------------------------
+-- 4. Gry cykliczne: kasujemy to, co produkcja i tak nie ma (decyzja D-4)
+-- ---------------------------------------------------------------------------
+-- Trójka funkcji serii i wyzwalacz z `073` (tabela `recurring_events`, którą
+-- zakłada ten sam plik, na produkcji ISTNIEJE — więc backfill zaliczył `073`
+-- po tabeli) na produkcji NIE ISTNIEJE — sprawdzone wprost porównaniem
+-- odcisku schematu, 2026-09-26. Backfill (`--oznacz-do`) niczego nie
+-- URUCHAMIA, tylko zgaduje po tabelach, jak daleko doszła wcześniejsza ręczna
+-- historia — więc mógł zaliczyć plik, którego dolna połowa (funkcje,
+-- wyzwalacz) nigdy realnie nie poszła. Nieważne, jak dokładnie do tego
+-- doszło: produkcja i repo mają się zgadzać, a właściciel zdecydował (runda 9,
+-- D-4), że gry cykliczne znikają, nie wracają.
+--
+-- Zamiast odtwarzać trójkę na produkcji (byłaby martwa — `SHOW_RECURRING`
+-- wyłączone od 2026-08-16), kasujemy ją też na bazie z repo, żeby porównanie
+-- schematu (`scripts/odcisk-schematu.sh`) startowało bez różnicy, której nikt
+-- nie planuje naprawiać w drugą stronę. Pełne usunięcie modułu (tabele,
+-- kolumna `events.recurring_event_id`, front) idzie osobno w PR-L.
+--
+-- `DROP FUNCTION`/`DROP TRIGGER` są dla skanera ryzyka ODWRACALNE (wzorzec
+-- idempotentny), więc migracja zostaje bezpieczna i idzie automatem.
+DROP TRIGGER IF EXISTS trg_powiadom_o_nowym_terminie_serii ON events;
+DROP FUNCTION IF EXISTS powiadom_o_nowym_terminie_serii();
+DROP FUNCTION IF EXISTS utworz_nalezne_terminy_serii();
+DROP FUNCTION IF EXISTS utworz_termin_serii(uuid, date);
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 166_gry_cykliczne_odpiecie.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 166_gry_cykliczne_odpiecie.sql
+--
+-- Gry cykliczne (stałe gierki) znikają z Bojo całkowicie — decyzja właściciela,
+-- runda 9 (D-4): nie tylko flaga `SHOW_RECURRING`, cały moduł. Migracja `164`
+-- już skasowała trójkę funkcji serii i jej wyzwalacz (`utworz_termin_serii`,
+-- `utworz_nalezne_terminy_serii`, `powiadom_o_nowym_terminie_serii`) — ta,
+-- BEZPIECZNA połowa, odpina dwie funkcje, które PRZETRWAŁY `164`, bo nie są
+-- częścią samego modułu, tylko GO CZYTAJĄ z zewnątrz, i cron, który mógł
+-- zostać zaplanowany na produkcji zanim `164` skasowała funkcję, którą woła.
+--
+-- Bez tej migracji `167` (DROP TABLE/COLUMN, RĘCZNA) wywróciłaby dwie zwykłe
+-- operacje na `events` w chwili kliknięcia: przypięcie meczu do grupy i
+-- usunięcie konta zaczęłyby rzucać `record "new" has no field
+-- "recurring_event_id"` / `relation "recurring_events" does not exist`.
+-- Rozdzielenie na dwie migracje jest świadome: to odpięcie idzie automatem
+-- przy merge'u (patrz AGENTS.md, „Migracje SQL uruchamia workflow"), więc
+-- runtime przestaje zależeć od modułu PRZED tym, jak ktoś ręcznie kliknie
+-- destrukcyjny DROP.
+--
+-- DA SIĘ PUŚCIĆ DRUGI RAZ — `CREATE OR REPLACE` i `cron.unschedule` w bloku
+-- `IF EXISTS` są idempotentne.
+
+-- ---------------------------------------------------------------------------
+-- 1. Cron „bojo-terminy-serii" (073) — woła funkcję, którą `164` już skasowała
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'bojo-terminy-serii';
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 2. Przypięcie meczu do grupy nie ma już gałęzi „to termin serii" (092)
+-- ---------------------------------------------------------------------------
+-- Gałąź istniała wyłącznie po to, żeby `utworz_termin_serii()` (073) mogła
+-- kopiować `group_id` z poprzedniego terminu bez sprawdzania uprawnień —
+-- ta funkcja już nie istnieje (`164`), więc INSERT z `recurring_event_id`
+-- nigdy się już nie zdarzy. Zostawienie warunku byłoby martwym kodem czekającym
+-- na kolumnę, która za chwilę (`167`) zniknie.
+CREATE OR REPLACE FUNCTION pilnuj_uprawnien_do_grupy()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.group_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'UPDATE' AND NEW.group_id IS NOT DISTINCT FROM OLD.group_id THEN
+    RETURN NEW;  -- grupa się nie zmienia — nie nasza sprawa
+  END IF;
+  -- auth.uid() IS NULL = wywołanie spoza sesji przeglądarki (seedy z SQL
+  -- Editora, admin, przyszłe zadania w tle) — kontrolę uprawnień egzekwujemy
+  -- tylko wtedy, gdy REALNIE jest czyjaś sesja do sprawdzenia.
+  IF auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+  IF NOT czy_moze_tworzyc_wydarzenia_w_grupie(NEW.group_id) THEN
+    RAISE EXCEPTION 'Nie masz uprawnień, żeby dodać mecz do tej grupy';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 3. Usunięcie konta nie anonimizuje już organizatora szablonów serii (016)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.delete_account()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  uid UUID := auth.uid();
+BEGIN
+  IF uid IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
+
+  -- Anonymise personal data in event_participants (keep event history, lose identity)
+  UPDATE public.event_participants
+  SET user_id   = NULL,
+      name      = 'Usunięty użytkownik',
+      phone     = NULL,
+      added_by  = NULL
+  WHERE user_id = uid;
+
+  -- Anonymise organizer name in events (keep events visible)
+  UPDATE public.events
+  SET organizer_name = 'Usunięty użytkownik'
+  WHERE organizer_id = uid;
+
+  -- Delete profile (avatar stays in storage — purge separately if needed)
+  DELETE FROM public.profiles WHERE id = uid;
+
+  -- Delete auth user — Supabase cascades to auth-linked data
+  DELETE FROM auth.users WHERE id = uid;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.delete_account() TO authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 167_gry_cykliczne_usuniecie.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 167_gry_cykliczne_usuniecie.sql
+--
+-- Gry cykliczne (stałe gierki) usunięte całkowicie — decyzja właściciela,
+-- runda 9 (D-4). Migracja `164` skasowała trójkę funkcji serii i jej
+-- wyzwalacz, `166` odpięła dwie funkcje spoza modułu, które go czytały
+-- (przypięcie meczu do grupy, usunięcie konta) i cron 'bojo-terminy-serii'.
+-- Ta migracja kasuje to, co po tamtych dwóch jeszcze zostaje: SAME DANE —
+-- tabele szablonu serii i kolumnę, która do nich wskazywała. RĘCZNA: skaner
+-- (`scripts/ryzyko-migracji.mjs`) i tak złapie każdy `DROP TABLE`/`DROP
+-- COLUMN` niżej, ten nagłówek tylko to nazywa wprost.
+--
+-- CO ZOSTAJE W BAZIE PO TEJ MIGRACJI: mecze, które kiedyś były terminami
+-- serii, zostają zwykłymi meczami — tracą wyłącznie kolumnę
+-- `recurring_event_id`, nie wiersz. Skład, wynik, rozliczenie, historia
+-- czatu — nic z tego nie jest powiązane z `recurring_events`, więc nic
+-- z tego nie znika.
+--
+-- `player_stats` (migracja `011`) idzie w tym samym pliku, nie osobno:
+-- to tabela wyłącznie dla tego modułu (`recurring_event_id` w jej UNIQUE
+-- i w jej jedynej sensownej polityce SELECT), martwa od migracji `043`,
+-- która zastąpiła ją funkcją `get_player_stats()` liczącą na żywo z
+-- `events`/`event_participants` — bez czytania tej tabeli. Zero wywołań
+-- z frontendu poza usuniętym już `lib/eventFeatures.ts`. Rozdzielanie
+-- jej usunięcia na osobną migrację nie chroniłoby niczego, co warto
+-- chronić osobno.
+--
+-- KOLEJNOŚĆ MA ZNACZENIE: najpierw kolumna `events.recurring_event_id`
+-- (FK DO `recurring_events`), potem tabele, które WSKAZUJĄ na
+-- `recurring_events` (`recurring_event_invites`, `player_stats`), na
+-- końcu sam szablon. Odwrotna kolejność kończy się błędem klucza obcego.
+
+-- ---------------------------------------------------------------------------
+-- 1. Kolumna na `events` — CASCADE zabiera ze sobą oba indeksy z `073`
+--    (`idx_events_recurring`, `uniq_events_seria_termin`)
+-- ---------------------------------------------------------------------------
+ALTER TABLE events DROP COLUMN IF EXISTS recurring_event_id CASCADE;
+
+-- ---------------------------------------------------------------------------
+-- 2. Tabele, które wskazują na `recurring_events`
+-- ---------------------------------------------------------------------------
+DROP TABLE IF EXISTS recurring_event_invites;
+DROP TABLE IF EXISTS player_stats;
+
+-- ---------------------------------------------------------------------------
+-- 3. Szablon serii
+-- ---------------------------------------------------------------------------
+DROP TABLE IF EXISTS recurring_events;

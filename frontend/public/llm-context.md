@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-25 · migracja `163` · 62 tabel
+**Stan na:** 2026-09-27 · migracja `167` · 59 tabel
 
 ---
 
@@ -95,7 +95,7 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 | Status | Co obejmuje |
 |---|---|
 | **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, alert o nowym meczu w okolicy, panel admina |
-| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
+| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | potwierdzenia i przypomnienia SMS, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
 | **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
 Aktualny stan flag i miejsca ich użycia → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
@@ -346,8 +346,10 @@ zdjęcie i nadchodzące mecze na tym obiekcie.
 
 **Mechanika.** Tabela `fields` (migracja `001`). Aktywna mapa to komponent
 `VenueExplorer.tsx` na trasie `/mapa`, oparty o Leaflet i OpenStreetMap. Strona
-pojedynczego boiska odpowiada zarówno pod adresem slugowym (`/boisko/nazwa-boiska`),
-jak i po surowym identyfikatorze. Dane zbierają skrypty `scraper/` (OpenStreetMap +
+pojedynczego boiska ma adres kanoniczny z nazwą i końcówką identyfikatora
+(`/boisko/boisko-pilkarskie-741e4f384561`), bo nazwy obiektów z OpenStreetMap powtarzają
+się tysiące razy. Adres z samej nazwy (stare linki) przekierowuje na adres kanoniczny,
+a adres z surowym identyfikatorem pokazuje stronę z tagiem `canonical`. Dane zbierają skrypty `scraper/` (OpenStreetMap +
 Google Places + Claude), uruchamiane ręcznie z GitHub Actions.
 
 **Dane kontaktowe obiektów są domyślnie ukryte** i egzekwuje to sama baza (migracja
@@ -409,8 +411,8 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Publiczna lista graczy** — trasa `/gracze` przekierowuje na listę meczów.
 - **Osobny backend, API ani kontrolery.**
 
-Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — potwierdzenia SMS, gry
-cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie". Kod istnieje,
+Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — potwierdzenia SMS,
+rezerwacje obiektów, próg minimum graczy „gra się odbędzie". Kod istnieje,
 wejścia w nawigacji nie ma. Aktualny stan flag →
 [docs/funkcje.md](./funkcje.md#flagi-funkcji).
 
@@ -452,6 +454,124 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-09-27 (3) — Gry cykliczne usunięte całkowicie
+
+PROBLEM: moduł gier cyklicznych (szablon meczu powtarzanego co tydzień, „stała gierka")
+stał wyłączony flagą od 2026-08-16 — kod, tabele i strony zarządzania zostawały w
+repozytorium, mimo że nikt nie miał do nich wejścia. Właściciel zdecydował: to nie ma
+wrócić, więc trzymanie martwego kodu i dwóch tabel bez czytelnika nie broni niczego.
+
+ROZWIĄZANIE BOJO: cały moduł usunięty z kodu i z bazy — szablon meczu cyklicznego,
+lista zaproszeń, panel zarządzania serią, kreator ustawień powtarzania w kreatorze
+meczu. Strony `/cykliczne` i `/cykliczne/[id]` zostają na jeden release jako gołe
+przekierowania na „Moje gry", żeby stary link czy zakładka na telefonie nie kończyły
+się błędem 404. Mecze, które kiedyś były terminami serii, zostają zwykłymi meczami —
+nic w ich składzie, wyniku ani rozliczeniu się nie zmienia. Data-matematyka
+współdzielona z niezależną funkcją „Powtórz mecz" (ten sam dzień tygodnia i godzina,
+pierwszy raz w przyszłości) zostaje.
+
+MECHANIKA: migracje `166` (odpięcie: cron, dwie funkcje spoza modułu, które go
+czytały) i `167` (usunięcie: `DROP TABLE`/`DROP COLUMN`, wymaga ręcznego kliknięcia
+w Actions → Migracje). `lib/recurring.ts` zostaje wyłącznie z matematyką dat.
+
+### 2026-09-27 (2) — Skład organizatora czytelny na każdym telefonie
+
+PROBLEM: w składzie organizatora imiona były ucinane przez dwa sąsiadujące przyciski
+(„Usuń", „Na rezerwę") — przy 390 px imię kończyło się na „Mateu…", przy 360 px imię
+gościa miało zero pikseli. „Zmień termin" liczyło samych zapisanych („6 osób jest
+zapisanych"), nie biorąc pod uwagę, że część to organizator (nie dostaje powiadomienia
+o własnej zmianie) i obserwujący (dostaje, bo ma konto) — liczba nie mówiła, do ilu
+osób faktycznie pójdzie wiadomość. Toast na telefonie siadał na dole ekranu i zasłaniał
+„Udostępnij link" tuż po założeniu ekipy oraz dół arkusza „Miej Bojo na ekranie głównym"
+po zapisie. Dodatkowo: dolna nawigacja podpowiadała przytrzymanie zakładki „Grupy",
+choć nazywa się dziś „Ekipy"; zdanie o gościach bez konta nie mówiło, że część jest na
+rezerwie, nie w składzie; odwołany mecz nadal pokazywał „Zostało N wolnych miejsc" i
+przycisk „Wypisz się z meczu" pod banerem „Mecz odwołany"; okno zapisu gościa, który
+był już na liście, używało męskiej formy czasownika niezależnie od tego, kto klika.
+
+ROZWIĄZANIE BOJO: przyciski „Usuń"/„Na rezerwę" stoją teraz pod imieniem, pełnej
+wysokości dotyku, i wracają obok imienia dopiero na tablecie — imię ma wtedy całą
+szerokość wiersza. „Zmień termin" liczy odbiorców tą samą funkcją co odwołanie meczu
+(organizator wypada, obserwujący z kontem zostaje). Toast na telefonie wjeżdża od góry
+ekranu, nie z dołu. Dymek dolnej nawigacji, zdanie o gościach na rezerwie, licznik przy
+odwołanym meczu i okno „już zapisany" mówią dokładnie to, co się dzieje.
+
+MECHANIKA: `EventDetailClient.tsx` (układ wiersza składu, `konsekwencjeZapisu()` +
+`komuDojdzie()` z `lib/zmianyMeczu.ts` w oknie „Zmień termin", warunek `!isCancelled`
+przy liczniku i przycisku wypisania), `lib/toast.tsx` (pozycja i animacja),
+`BottomNav.tsx`, `GroupDetailClient.tsx`. Bez migracji.
+Szczegóły → [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-2, X-6, X-10, X-11.
+
+### 2026-09-27 — Strona meczu mówi prawdę o Twoim zapisie
+
+PROBLEM: rezerwowy z aktywną ofertą zwolnionego miejsca widział na dole ekranu pasek
+„Rezerwa: 1. w kolejce · Wypisz się", który zasłaniał kartę oferty z przyciskiem
+„Wchodzę" i godziną na decyzję — akcja z terminem chowała się pod paskiem, który mówił
+coś przeciwnego. Osoba z zewnątrz w trakcie takiej oferty widziała „Zostało 1 wolne
+miejsce" i okno „Zapisać się na mecz?", choć zapis i tak kończył się na rezerwie —
+licznik obiecywał miejsce, którego nie było. Gość, którego wpis zniknął (organizator
+usunął albo odrzucił prośbę), dalej widział „Jesteś zapisany(a) · Mój zapis →" bez
+żadnej drogi do ponownego zapisu. Po zapisie gościa pasek „Dołącz bez konta" wracał aż
+do odświeżenia strony. Wypisanie się samemu dawało toast „Uczestnik usunięty" — zdanie
+opisujące decyzję organizatora, nie własną.
+
+ROZWIĄZANIE BOJO: pasek stanu rozpoznaje aktywną ofertę jako odrębny, priorytetowy stan
+(„Zwolniło się miejsce, jest Twoje · Masz czas do HH:MM", przycisk „Wchodzę") — to samo
+dla gościa bez konta. Licznik miejsc liczy trzymaną ofertę jako zajętą dla swojej roli,
+więc „Zostało N wolnych miejsc" i tytuł okna zapisu zgadzają się z tym, co faktycznie
+zrobi baza; gdy jedyne wolne miejsce jest właśnie oferowane, licznik mówi to wprost
+(„1 miejsce czeka na osobę z rezerwy"). Strona sama sprawdza, czy zapamiętany wpis
+gościa wciąż istnieje, i wraca do „Dołącz", gdy nie — z komunikatem, że można zapisać
+się ponownie. Token gościa zapamiętuje się od razu po zapisie. Toast po wypisaniu mówi
+„Wypisano Cię z meczu" (pasek/okno) albo „Zrezygnowano z rezerwy" (kosz na liście
+rezerwowej); organizator usuwający kogoś innego dostaje „Uczestnik usunięty" bez zmian.
+
+MECHANIKA: `ofertyWToku()` w `lib/events.ts` (dołączana do składu przed
+`wolneMiejscaWgRol()`), `podejrzyjWpisGoscia()` (`lib/guestClaim.ts`) wołane po zmianie
+`mojTokenGoscia`, `handleRemove(id, komunikat)` w `EventDetailClient.tsx`. Bez migracji.
+Szczegóły → [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-1, X-3, X-4, X-5, X-9.
+
+### 2026-09-26 (2) — Przypomnienia o meczu i szukanie boiska bez ogonków znowu działają
+
+PROBLEM: przypomnienie „jutro grasz" i prośba „domknij mecz" dzień po nie wychodziły
+na produkcji ANI RAZU przez dwa tygodnie (2026-09-12…2026-09-26) — zadanie w bazie
+padało codziennie, bo brakowało jednej wewnętrznej funkcji. Osobno: szukanie obiektu
+po nazwie miasta bez polskich znaków („lodz", „poznan") nie działało wcale albo prawie
+wcale, bo brakowało kolumny, na której się ono opiera. Przyczyna obu: jednorazowe
+uzupełnienie dziennika migracji (backfill) rozpoznaje wyłącznie TABELE, więc migracja,
+która dokłada samą funkcję albo kolumnę, mogła zostać uznana za zastosowaną, choć
+nigdy realnie nie poszła.
+
+ROZWIĄZANIE BOJO: migracja odtwarza brakujące obiekty. Przypomnienia i szukanie działają
+znowu tak, jak działały wcześniej — to naprawa rozjazdu, nie nowa funkcja. Dwa nowe
+automatyczne sprawdzenia pilnują, żeby taka cisza nie powtórzyła się bez wiedzy zespołu:
+jedno porównuje bazę z repozytorium po każdej zmianie schematu, drugie codziennie
+sprawdza, czy zaplanowane zadania w bazie faktycznie przechodzą.
+
+MECHANIKA: migracja `164`, `scripts/odcisk-schematu.sh`,
+`.github/workflows/zdrowie-produkcji.yml`. Szczegóły →
+[faza1-runda9-plan.md](./faza1-runda9-plan.md), X-0.
+
+### 2026-09-26 — Lista boisk w mieście otwiera boisko, które kliknięto
+
+PROBLEM: huby katalogu Bojo (`/boiska/[sport]`, `/boiska/[sport]/[miasto]`,
+`/boiska/woj/[wojewodztwo]`) i sitemapy boisk budowały adres obiektu z samej nazwy.
+Nazwy z importu OpenStreetMap powtarzają się tysiące razy („Boisko piłkarskie" ponad
+10 tys. razy), a adres z samej nazwy prowadzi przez przekierowanie do jednego,
+przypadkowego obiektu o tej nazwie. Kliknięcie obiektu na liście miasta mogło otworzyć
+boisko z innej miejscowości, a z 32 tys. wpisów w sitemapach boisk wyszukiwarka
+dostawała około 10,6 tys. różnych adresów, każdy przez przekierowanie.
+
+ROZWIĄZANIE BOJO: każdy link do strony obiektu i każdy wpis sitemapy boisk używa adresu
+kanonicznego: nazwa plus końcówka identyfikatora obiektu
+(`/boisko/boisko-pilkarskie-741e4f384561`). Adres z samej nazwy nadal działa dla starych
+linków i przekierowuje na adres kanoniczny.
+
+MECHANIKA: `slugBoiska(name, id)` z `lib/utils.ts` w `app/sitemap-boiska/[plik]/route.ts`
+i w trzech hubach `app/boiska/…` (link i `ItemList` w JSON-LD). Test
+`linkiObiektuKanoniczne.test.ts` odrzuca budowanie adresu obiektu przez `slugify(name)`.
+Wykryte przy analizie Search Console → [seo-geo-strategia.md](./seo-geo-strategia.md).
 
 ### 2026-09-25 (4) — Nowy wygląd Bojo: płasko, kanciasto, strona meczu czytelniejsza
 
@@ -561,124 +681,3 @@ MECHANIKA: `components/turnieje/PanelProsbaOWyglad.tsx`, `zglosZyczenieWygladu()
 w `lib/bledy.ts`. Tabela `zgloszenia_bledow` jest z `099`; czwarty rodzaj `turniej_wyglad`
 i nowa kolumna `turniej_id` dokłada migracja `162`. Admin czyta w `/admin/bledy`.
 
-### 2026-09-24 — Turniej po grupach nie ogłasza już własnego końca
-
-PROBLEM: audyt przeszedł pełny łuk turnieju i trafił na moment, w którym publiczna
-strona pokazywała „Zakończony" tuż po fazie grupowej. Przyczyna: stan turnieju uznawał
-za koniec sytuację, w której rozegrano wszystkie ISTNIEJĄCE mecze, a przy formacie
-„grupy → puchar" to jest chwila przed powstaniem drabinki. Kapitanowie czytali koniec
-turnieju przed ćwierćfinałem. Osobno: karta na liście turniejów liczyła drużyny
-czwartą już regułą (wliczała zgłoszenia czekające), panel odmieniał liczebniki
-dwoma formami zamiast trzech („2 zgłoszeń czeka"), przebieg meczu nie pokazywał minuty,
-a zakończenie meczu wymagało trzech stuknięć.
-
-ROZWIĄZANIE BOJO: stan „Grupy rozegrane, czeka na drabinkę" jest osobnym stanem, nie
-udawanym końcem ani udawanym „trwa". Liczenie drużyn zeszło do mapowania wiersza z bazy,
-więc żadna powierzchnia nie musi już o tej regule pamiętać. Minuta zdarzenia liczy się
-z zegara meczu, bo prowadzący nie ma jak jej wpisywać. Zakończenie meczu ma jedno
-potwierdzenie, a zdanie o kolejnej rundzie pokazuje się wyłącznie w meczu pucharowym.
-Po rozegranym meczu układanie terminarza od nowa jest wyłączone, a nie tylko ostrzegane.
-
-MECHANIKA: `stanTurnieju()` i `maDrabinke()` w `lib/turniejEtykiety.ts`, `toTurniej()`
-w `lib/turnieje.ts` (osadzone zapytania wciągają `status`), `lib/turniejPulpit.ts`,
-konsola w `app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Kolumna
-`turniej_zdarzenia.minuta` istniała od migracji `147` i była dotąd zawsze pusta.
-
-### 2026-09-23 (2) — Organizator może wreszcie ułożyć terminarz turnieju
-
-PROBLEM: przycisk „Wygeneruj terminarz" w panelu organizatora nie robił NIC i nie mówił
-dlaczego. Godzina startu wraca z Postgresa jako `10:00:00`, bo kolumna ma typ `time`,
-a panel sklejał `${dataStartu}T${godzinaStartu}:00`, czyli `2026-10-24T10:00:00:00`.
-To nieprawidłowa data: `toISOString()` rzucał wyjątek wewnątrz obsługi kliknięcia,
-a organizator widział ciszę. Turnieje seedowe mają mecze, bo wstawia je SQL, więc nic
-tego nie zgłaszało. Układanie terminarza to główna funkcja modułu turniejowego.
-
-ROZWIĄZANIE BOJO: godzina normalizuje się do `HH:MM` na granicy z bazą, generator
-odrzuca nieprawidłową datę czytelnym komunikatem, a panel pokazuje ten komunikat
-zamiast milczeć. Przy okazji jedna reguła liczenia drużyn objęła ostatnie trzy miejsca,
-które jej nie używały (wiersz w Info, etykieta zakładki, karta na liście), licznik
-w nagłówku przestał ginąć za wielokropkiem przy 360 px, opis linku zaczyna się wielką
-literą i mówi „do 16 drużyn" zamiast „16 drużyn", skład drużyny pokazuje „7 osób
-(od 5 do 12)" zamiast „7 z 5", a cały wiersz przełącznika reaguje na dotknięcie
-i ma nazwę dla czytnika ekranu.
-
-MECHANIKA: `toTurniej()` w `lib/turnieje.ts` (normalizacja godziny), `ulozHarmonogram()`
-w `lib/turniejFormat.ts` (osłona), `generujPodglad()` w panelu turnieju,
-`components/ui/ToggleRow.tsx`. Testy: `turniejTerminarzGodzina.test.ts`.
-
-### 2026-09-23 — Okno gościa tłumaczy, po co e-mail, a Bojo nie obiecuje podaży, której nie ma
-
-PROBLEM: formularz „Dołącz do meczu bez logowania" wymagał e-maila bez wyjaśnienia —
-pole wyglądało jak rejestracja i newsletter, dokładnie ten mur, który organizator
-próbuje ominąć linkiem „bez konta". Osobno: trzy miejsca w aplikacji (potwierdzenie
-otwarcia meczu dla okolicy, ekran po zapisie gościa, zaproszenie do konta dzień po
-meczu) obiecywały graczowi, że publiczny mecz „zobaczą gracze z okolicy" — nieprawda
-w mieście, gdzie w danym momencie nikt akurat nie szuka gry: obietnica bez pokrycia,
-którą Bojo składało samo sobie. Do tego pole daty w kreatorze i edycji liczyło „dziś"
-w UTC, więc między północą a 1–2 w nocy czasu polskiego cofało się o dzień i odmawiało
-wybrania dzisiejszej daty.
-
-ROZWIĄZANIE BOJO: pole e-mail w formularzu gościa ma dziś jedno zdanie pod spodem —
-do czego adres służy i czego nie wymaga (bez hasła, bez konta). Trzy miejsca z obietnicą
-„gracze z okolicy" stracił tę frazę na rzecz faktu bez daty: mecz trafia na publiczną
-listę otwartych gier, a graczy szukających meczu dopiero przybywa. Lista korzyści
-z konta (ekran po zapisie gościa i zaproszenie dzień po meczu) to dziś jedno źródło
-zamiast dwóch rozjeżdżających się kopii. Pola dat liczą „dziś"/„jutro" po czasie
-lokalnym, nie przez `toISOString()`.
-
-MECHANIKA: helper pod polem e-mail w formularzu gościa (`EventDetailClient.tsx`).
-`content/kontoGoscia.ts` (`KORZYSCI_KONTA`) renderowane przez `.map()` w oknie po
-zapisie gościa i w `/gracz/przejmij/[token]`; mail `zaloz_konto`
-(`supabase/functions/powiadom-goscia/tresc.ts`) trzyma tę samą listę ręcznie, pilnowane
-testem czytającym plik. `dzisLokalnie()`/`jutroLokalnie()` w `lib/eventDates.ts` (budowane
-z lokalnych metod `Date`, nie przez UTC), użyte w polu daty kreatora i edycji, oknach
-„Zmień termin"/„Powtórz mecz" i w `lib/groups.ts`. Testy: `kontoGoscia.test.ts`,
-`zakazaneFrazyWTsx.test.ts`, `eventDates.test.ts`. Bez migracji.
-
-### 2026-09-23 — Organizator wie, co Bojo zrobi za niego, i wysyła skład jednym kliknięciem
-
-PROBLEM: organizator nie widział żadnego z trzech zegarów Bojo (przypomnienie dzień
-przed meczem, kolejka rezerwowa, domknięcie po meczu), a panel „Mecz gotowy" obiecywał
-zawsze „Przypomnienie wyśle się samo" — nieprawda dla meczu założonego po 18:00 dzień
-przed terminem albo w dniu meczu, bo automat łapie wyłącznie mecze na jutro. Brakowało
-też dwóch rzeczy, które organizator robi co tydzień na WhatsAppie: wysłania listy
-składu i zaproszenia tych samych ludzi na kolejny termin.
-
-ROZWIĄZANIE BOJO: karta „Co Bojo zrobi za Ciebie" na stronie meczu pokazuje dokładny
-czas przypomnienia (albo że jest już za późno, z przyciskiem „Wyślij link teraz"), ile
-czasu ma rezerwowy na decyzję, kto nie dostanie żadnej wiadomości, i kiedy przypomnimy
-o rozliczeniu. Przycisk „Wyślij skład" wysyła ponumerowaną listę składu z wolnymi
-miejscami i rezerwą — zamiennik posta, który organizator dziś przepisuje ręcznie.
-„Powtórz mecz" domyślnie zaprasza poprzedni skład (osoby z kontem), więc kopia meczu
-nie startuje już pusta.
-
-MECHANIKA: `lib/harmonogramMeczu.ts` (czysta funkcja, `PRZYPOMNIENIA_UTC` jest lustrem
-`cron.schedule('bojo-przypomnienia', …)` z migracji `129`, pilnowane testem czytającym
-pliki migracji), `components/events/HarmonogramMeczu.tsx`. `tekstSkladu()`
-w `lib/eventShare.ts`, wspólne z `eventShareText()` przez `liniaMiejscICeny()`
-i `zdanieBezKonta()`. `odbiorcyPowtorki()` w `lib/playerInvites.ts` filtruje skład do
-osób z kontem, bez organizatora i bez rezerwy; mecz przypięty do grupy pomija
-zaproszenia (wyzwalacz `072` już powiadamia całą grupę). Bez migracji.
-
-### 2026-09-23 — Organizator nie jest dłużnikiem samego siebie w rozliczeniu
-
-PROBLEM: organizator grający we własnym meczu miał w bazie taki sam wiersz jak każdy
-inny uczestnik (`has_paid = false`, dopóki nikt go nie odhaczył). Panel „Podział
-kosztów", wiadomość „Wyślij rozliczenie ekipie" i przypomnienie dzień po meczu liczyły
-go razem z resztą: organizator widział własne imię w „Zaległościach" na czacie całej
-ekipy i dostawał przypomnienie „odhacz wpłaty" o samym sobie.
-
-ROZWIĄZANIE BOJO: organizator płaci za obiekt i zbiera od reszty, więc jego wiersz
-w składzie nigdy nie jest zaległością. Panel kosztów pokazuje go osobno, bez
-przełącznika wpłaty („Ty · płacisz za obiekt"), a rozliczenie na czacie i przypomnienie
-po meczu pomijają go w liczeniu.
-
-MECHANIKA: `winienWplate()` w `lib/payments.ts`, jedna reguła używana przez panel
-kosztów i kartę „Po meczu" w `EventDetailClient.tsx`, przez `tekstRozliczenia()`
-w `lib/settlementShare.ts` (parametr `organizerId`, wymagany) i przez `toEvent()`
-w `lib/events.ts` (`unpaidCount` na `/moje-gry`). Migracja `160` jest lustrem tej
-reguły w `wyslij_przypomnienia()` (blok C). Rozważane i odrzucone przy tej okazji:
-przeliczanie kosztu obiektu na faktyczny skład — `event_participants` to lista ludzi
-zapisanych przez Bojo, nie lista ludzi na boisku, więc liczba wierszy w bazie nie mówi,
-ile osób realnie grało. Testy: `payments.test.ts`, `settlementShare.test.ts`,
-`events.test.ts`, `supabase/test/przypomnienia.sql`.

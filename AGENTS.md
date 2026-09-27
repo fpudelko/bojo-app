@@ -339,10 +339,13 @@ osobna migracja, gdy nowy moduł zastąpi go w całości.
 zakłada się przyciskiem „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów,
 na `/mapa`, w `/profil` oraz (od 2026-09-21) w pustym stanie „Nadchodzące mecze"
 na stronie obiektu.
-`SHOW_RECURRING` jest **wyłączona** od 2026-08-16 (produktowa decyzja o rezygnacji
-z gier cyklicznych/stałych gierek) — chowa wejścia w nawigacji i przełącznik
-„Wydarzenie cykliczne" w kreatorze; istniejące serie i ich strony zarządzania
-zostają w kodzie nietknięte. `SHOW_MIN_PLAYERS_THRESHOLD` jest **wyłączona** od
+Gry cykliczne (stałe gierki) nie mają już flagi — **usunięte całkowicie** decyzją
+właściciela (runda 9, 2026-09-27), nie tylko schowane: `lib/series.ts`,
+`RecurringSettingsDialog.tsx`, `ZakresEdycjiSerii.tsx`, kreator `/cykliczne/nowe`,
+panel `/cykliczne/[id]/edytuj`, edge function `send-invites`, tabele
+`recurring_events`/`recurring_event_invites` i `events.recurring_event_id` poszły
+z kodu (migracje `166`/`167`). Trasy `/cykliczne` i `/cykliczne/[id]` zostają jako
+przekierowania na `/moje-gry` na jeden release. `SHOW_MIN_PLAYERS_THRESHOLD` jest **wyłączona** od
 2026-08-21 (produktowa decyzja) — chowa toggle progu „gra się odbędzie" w kreatorze
 i edycji oraz werdykt „Gramy ✓ / Brakuje N do minimum" na stronie meczu;
 `events.min_players` i logika (`werdyktGry()`, migracja `097`) zostają nietknięte.
@@ -416,6 +419,28 @@ jednostce. Dlatego **migracja ma dać się puścić drugi raz** i naprawić stan
 zapisem i mówią, którego pliku migracji brakuje. Szczegóły →
 [docs/baza-danych.md](./docs/baza-danych.md#-migracja-przerwana-w-połowie-zostaje-w-połowie).
 
+**Trzecia wersja: dziennik mówi „zastosowana", a obiektu nie ma — bo backfill
+nie widzi migracji bez tabeli.** `--oznacz-do` zgaduje, dokąd doszła wcześniejsza
+ręczna historia, patrząc WYŁĄCZNIE na tabele (`supabase/migrations/README.md`).
+Migracja, która dokłada samą funkcję albo kolumnę, jest dla tej sondy niewidoczna
+— może zostać zaliczona, mimo że nigdy realnie nie poszła. Dokładnie to
+zdarzyło się na produkcji: `131` (funkcja `odmien_nie_oddalo()`) i `126`
+(kolumna `fields.szukaj_norm`) miały wpis w dzienniku, a obiektów w bazie nie
+było — `bojo-przypomnienia` padało codziennie przez dwa tygodnie (naprawione
+migracją `164`). Workflow „Migracje" porównuje teraz bazę z repo po KAŻDYM
+przebiegu (krok „Zgodność schematu z repo", `scripts/odcisk-schematu.sh`) —
+ten sam pomysł co strażnik zadań `pg_cron` niżej, tylko po stronie schematu,
+nie wykonania.
+
+**Zadania `pg_cron` na produkcji mają własnego strażnika — `zdrowie-produkcji.yml`.**
+Migracja, która poszła bez błędu, nie znaczy, że funkcja, którą uruchamia CRON,
+faktycznie działa przy wywołaniu — `wyslij_przypomnienia()` istniała na
+produkcji (CREATE FUNCTION nie sprawdza ciała PL/pgSQL), a mimo to padała za
+każdym razem, gdy cron ją wołał. Ten workflow sprawdza codziennie, czy ostatni
+przebieg KAŻDEGO aktywnego zadania w `cron.job_run_details` zakończył się
+`succeeded` — bez tego jedynym sygnałem awarii jest brak telefonu u
+organizatora, czyli w praktyce żaden.
+
 **Do UPDATE-ów używaj `zaktualizujJedenWiersz()`, do dużych list `pobierzWszystkie()`**
 (`frontend/src/lib/zapytania.ts`). Oba istnieją po to, żeby cisza opisana w dwóch
 pułapkach niżej zamieniła się w wyjątek. Nowy kod, który omija te helpery, odtwarza
@@ -462,6 +487,15 @@ ktoś się wypisze, rezerwowy nie wskakuje automatycznie — ktoś musi go powia
 Nie „naprawiaj" tego.
 
 **`/gracze` to `redirect('/wydarzenia')`** — nie ma listy graczy, mimo że trasa istnieje.
+
+**Link do strony obiektu buduj przez `slugBoiska(name, id)`, nigdy `slugify(name)`.**
+Sama nazwa to klucz historyczny: strona obiektu przekierowuje z niego na adres
+kanoniczny, a nazwy z importu OSM powtarzają się tysiące razy („boisko-pilkarskie”
+ponad 10 tys. razy), więc adres z samej nazwy trafia w PRZYPADKOWY obiekt. Do
+2026-09-26 tak budowały adresy sitemapa boisk i trzy huby `/boiska/…`: z 32 tys.
+wpisów sitemapy wychodziło ~10,6 tys. różnych adresów, każdy przez przekierowanie,
+a kliknięcie na liście miasta otwierało boisko z innej miejscowości. Pilnuje tego
+`linkiObiektuKanoniczne.test.ts`.
 
 **Martwy kod:** `components/map/MapView.tsx`, `LeafletMapImpl.tsx`, `EventsMapView.tsx`,
 `EventsMapImpl.tsx` — nic ich nie importuje. Aktywna mapa to `VenueExplorer.tsx`

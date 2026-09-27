@@ -26,11 +26,6 @@ import {
 } from '@/lib/zmianyMeczu';
 import { eventUrl, udostepnijZmiane } from '@/lib/eventShare';
 import { getMyDelegatePermissions } from '@/lib/eventDelegates';
-import {
-  getSeriesEvents, updateSeriesEvents, updateSeriesTemplate,
-  terminyWZakresie, patchDlaPozostalych, type ZakresEdycji,
-} from '@/lib/series';
-import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { defaultEventTitle } from '@/lib/eventTitle';
@@ -106,11 +101,6 @@ export default function EditEventPage() {
   const [requireApproval, setRequireApproval] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Seria (stała gierka), do której należy ten termin — decyduje o tym, czy
-  // przy zapisie pytamy o zakres zmiany.
-  const [recurringEventId, setRecurringEventId] = useState<string | undefined>();
-  const [seriaTerminy, setSeriaTerminy] = useState<{ id: string; date: string }[]>([]);
-  const [zakresOtwarty, setZakresOtwarty] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [costPln, setCostPln] = useState('');
@@ -150,14 +140,6 @@ export default function EditEventPage() {
 
         setSport(ev.sport);
         setDate(ev.date);
-        setRecurringEventId(ev.recurringEventId);
-        if (ev.recurringEventId) {
-          // Cicho — brak listy terminów oznacza tylko tyle, że nie pytamy
-          // o zakres. Nie jest powodem, żeby zablokować edycję meczu.
-          getSeriesEvents(ev.recurringEventId)
-            .then((terminy) => setSeriaTerminy(terminy.map((t) => ({ id: t.id, date: t.date }))))
-            .catch(() => {});
-        }
         const evTime = ev.time?.slice(0, 5) ?? '18:00';
         setTime(evTime);
         const evEndTime = ev.endTime?.slice(0, 5);
@@ -230,8 +212,7 @@ export default function EditEventPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user]);
 
-  /** Formularz → payload dla `updateEvent`. Wydzielone, bo ten sam payload
-   *  idzie do jednego meczu i (przy serii) do pozostałych terminów. */
+  /** Formularz → payload dla `updateEvent`. */
   const zbudujPayload = (): EventCreate => {
     const endTime = addMinutes(time, durationMin);
     // `nazwaZAdresu()`, nie surowy pierwszy segment — patrz uzasadnienie
@@ -336,28 +317,15 @@ export default function EditEventPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageLoading, mecz]);
 
-  const zapisz = async (zakres: ZakresEdycji, wyslijWiadomosc = false) => {
+  const zapisz = async (wyslijWiadomosc = false) => {
     const payload = zbudujPayload();
-    setZakresOtwarty(false);
     setSubmitting(true);
     setError(null);
     try {
-      // Edytowany termin zawsze zapisuje się w całości — z własną datą.
       // actorId/actorName odblokowują wpis do dziennika aktywności
       // (event_updated, lib/events.ts) — bez nich gałąź nigdy się nie
       // wykonywała dla głównej ścieżki edycji.
       await updateEvent(id, payload, user?.id, displayName(user ?? null));
-
-      if (zakres !== 'ten' && recurringEventId) {
-        const dzis = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD, lokalnie
-        const objete = terminyWZakresie(seriaTerminy, id, zakres, dzis)
-          .filter((t) => t.id !== id);
-        // `patchDlaPozostalych` zdejmuje `date` — inaczej wszystkie terminy serii
-        // wylądowałyby tego samego dnia.
-        await updateSeriesEvents(objete.map((t) => t.id), patchDlaPozostalych(payload) as EventCreate);
-        // Szablon też, inaczej KOLEJNE terminy wracałyby do starych ustawień.
-        await updateSeriesTemplate(recurringEventId, payload);
-      }
 
       // Wiadomość na czat PO udanym zapisie, nie przed — ta sama zasada co
       // przy odwołaniu meczu: nie ogłaszamy stanu, którego jeszcze nie ma.
@@ -407,20 +375,7 @@ export default function EditEventPage() {
       return;
     }
     setFieldErrors({});
-
-    // Przy serii dłuższej niż jeden termin pytamy o zakres. Przy jednym terminie
-    // wszystkie trzy odpowiedzi znaczą to samo — pytanie byłoby kliknięciem
-    // bez treści.
-    //
-    // KOLEJNOŚĆ PYTAŃ JEST TREŚCIĄ: najpierw „ilu terminów to dotyczy", potem
-    // „komu to pójdzie". Odwrotnie okno konsekwencji mówiłoby o jednym meczu,
-    // a zapis obejmowałby dziesięć. (`SHOW_RECURRING` jest dziś wyłączona,
-    // więc ta gałąź realnie nie chodzi — ale nie psujemy jej.)
-    if (recurringEventId && seriaTerminy.length > 1) {
-      setZakresOtwarty(true);
-      return;
-    }
-    await zapiszZPytaniem('ten');
+    await zapiszZPytaniem();
   };
 
   /**
@@ -433,10 +388,7 @@ export default function EditEventPage() {
    * organizator wie, co robi. Edycja — czyli czynność WYKONYWANA CZĘŚCIEJ —
    * nie miała go wcale.
    */
-  const zapiszZPytaniem = async (zakres: ZakresEdycji) => {
-    // Okno zakresu serii musi zejść, zanim wejdzie okno konsekwencji —
-    // dwa okna jedno na drugim to na telefonie ekran bez wyjścia.
-    setZakresOtwarty(false);
+  const zapiszZPytaniem = async () => {
     const payload = zbudujPayload();
     const zmiany = mecz ? policzZmiany(daneZMeczu(mecz), daneZPayloadu(payload)) : [];
 
@@ -473,7 +425,7 @@ export default function EditEventPage() {
     });
     if (wybor === 'nie') return;
 
-    await zapisz(zakres, wybor === 'dodatkowa');
+    await zapisz(wybor === 'dodatkowa');
   };
 
   const inputCls =
@@ -794,18 +746,6 @@ export default function EditEventPage() {
 
       {/* Poza <form>: klik w przycisk wewnątrz formularza wywołałby submit. */}
       {oknoPotwierdzenia}
-
-      {zakresOtwarty && (
-        <ZakresEdycjiSerii
-          liczbaTerminow={seriaTerminy.length}
-          liczbaPrzyszlych={
-            terminyWZakresie(seriaTerminy, id, 'ten-i-przyszle', new Date().toLocaleDateString('sv-SE')).length
-          }
-          busy={submitting}
-          onWybierz={zapiszZPytaniem}
-          onClose={() => setZakresOtwarty(false)}
-        />
-      )}
     </div>
   );
 }

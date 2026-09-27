@@ -13,12 +13,11 @@ import { getCommentsForUnread, policzNieprzeczytanePerWydarzenie, kluczRozmowyWi
 import { splitMyEvents } from '@/lib/myEvents';
 import { EventBrowseCard } from '@/components/EventBrowseCard';
 import { InviteList } from '@/components/events/InviteList';
-import { DoRozliczeniaSection, GroupGamesSection, InvitesSection, MyMatchesSection, NastepneEdycjeSection } from '@/components/home/dashboard/DashboardSections';
-import { getMyRecurringEvents, getNextEventsForRecurring, nastepnyTermin, dniDo } from '@/lib/recurring';
+import { DoRozliczeniaSection, GroupGamesSection, InvitesSection, MyMatchesSection } from '@/components/home/dashboard/DashboardSections';
 import { doRozliczenia } from '@/lib/myEvents';
 import PustyStanMeczow from '@/components/home/dashboard/PustyStanMeczow';
 import { useMyInvites } from '@/lib/useMyInvites';
-import { SHOW_RECURRING, SHOW_TURNIEJE } from '@/lib/features';
+import { SHOW_TURNIEJE } from '@/lib/features';
 import ZaproszeniaTurniejowe from '@/components/turnieje/ZaproszeniaTurniejowe';
 import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
 import type { EventItem } from '@/types';
@@ -129,45 +128,6 @@ function MojeGryContent() {
       .catch(() => {});
   }, [user]);
 
-  // Kolejne terminy serii, których jeszcze nie ma w bazie. Osobno od
-  // `getMyParticipatedEvents`, bo to nie są mecze — to szablony. Cicha porażka
-  // jest tu w porządku: brak tej sekcji nie psuje strony.
-  const [nastepneEdycje, setNastepneEdycje] = useState<
-    { serieId: string; nazwa: string; data: string; godzina: string; zaIle: number; powstanieZa: number }[]
-  >([]);
-  useEffect(() => {
-    // Gry cykliczne wyłączone (`SHOW_RECURRING`, produktowa decyzja
-    // 2026-08-16) — bez tego strażnika strona i tak dociągałaby serie
-    // z bazy tylko po to, żeby sekcja niżej ich nie pokazała.
-    if (!user || !SHOW_RECURRING) { setNastepneEdycje([]); return; }
-    let aktualne = true;
-    (async () => {
-      const serie = (await getMyRecurringEvents(user.id)).filter((s) => s.isActive);
-      if (serie.length === 0) { if (aktualne) setNastepneEdycje([]); return; }
-      const utworzone = await getNextEventsForRecurring(serie.map((s) => s.id));
-      const pozycje = serie
-        .map((s) => {
-          const data = nastepnyTermin(s.dayOfWeek, s.eventTime);
-          // Termin już istnieje → nie ma czego zapowiadać, mecz jest na liście
-          // wyżej jak każdy inny.
-          if (utworzone[s.id]?.date === data) return null;
-          const zaIle = dniDo(data);
-          return {
-            serieId: s.id,
-            nazwa: s.title || `${s.sport}: ${s.fieldName}`,
-            data,
-            godzina: s.eventTime,
-            zaIle,
-            powstanieZa: zaIle - s.notifyDaysBefore,
-          };
-        })
-        .filter((p): p is NonNullable<typeof p> => p !== null)
-        .sort((a, b) => a.data.localeCompare(b.data));
-      if (aktualne) setNastepneEdycje(pozycje);
-    })().catch(() => {});
-    return () => { aktualne = false; };
-  }, [user]);
-
   // Cancelled games never count as "upcoming" — they drop into History so the
   // calendar only shows games that are actually happening. Observing is split
   // out: seeing it next to real sign-ups reads as "I'm in". Organizing and
@@ -214,17 +174,6 @@ function MojeGryContent() {
 
         {/* Bez nagłówka "Twoje mecze" i przycisku "+ Nowy mecz" — mecz
             tworzy się z FAB-a w dolnej nawigacji, dostępnego z każdego ekranu. */}
-
-        {/* Stałe gierki link */}
-        {SHOW_RECURRING && (
-          <Link
-            href="/cykliczne"
-            className="flex items-center justify-between -mx-4 border-y border-slate-200 px-4 py-3.5 transition-colors hover:bg-slate-50 group dark:border-slate-700 dark:hover:bg-slate-800"
-          >
-            <span className="text-sm font-semibold text-ink">Stałe gierki</span>
-            <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-primary-600 transition-colors" />
-          </Link>
-        )}
 
         {/* Turnieje — moduł za flagą, jedno z dwóch wejść (drugie: /profil). */}
         {SHOW_TURNIEJE && (
@@ -359,7 +308,6 @@ function MojeGryContent() {
                 „gdzie mógłbym dojść". Sekcja sama się chowa, gdy nie ma czego
                 pokazać (`GroupGamesSection` zwraca null przy pustej liście). */}
             <GroupGamesSection events={groupEvents} statusFor={statusMeczuEkipy} />
-            <NastepneEdycjeSection pozycje={nastepneEdycje} />
           </div>
         ) : tab === 'observing' ? (
           observing.length === 0 ? (

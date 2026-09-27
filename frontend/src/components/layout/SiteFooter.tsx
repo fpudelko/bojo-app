@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { SHOW_RECURRING } from '@/lib/features';
 import { HUBY_KATALOGU_SPORTOWYCH } from '@/lib/sports';
 
 // Po co ta grupa w stopce: do 2026-08-23 do żadnego huba w HUBY_KATALOGU_SPORTOWYCH
@@ -51,9 +50,6 @@ export default function SiteFooter() {
             <Link href="/wydarzenia/nowe" className="transition-colors hover:text-white">Zorganizuj mecz</Link>
             <Link href="/mapa?gry=0" className="transition-colors hover:text-white">Mapa boisk</Link>
             <Link href="/grupy" className="transition-colors hover:text-white">Grupy</Link>
-            {SHOW_RECURRING && (
-              <Link href="/cykliczne" className="transition-colors hover:text-white">Stałe gierki</Link>
-            )}
           </GrupaLinkow>
 
           <GrupaLinkow tytul="Boiska">

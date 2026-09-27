@@ -69,6 +69,14 @@ jobs:
       - name: Spójność dokumentacji
         run: node scripts/check-docs.mjs
 
+      # Skrypty skilli Search Console (.claude/skills/gsc*): parser eksportów GSC,
+      # mapa typów stron, walidator JSON-LD, analiza okazji. Czytają formaty,
+      # których nie kontrolujemy (CSV/ZIP z Google), i pliki repo (robots.ts,
+      # ścieżki stron), więc bez testów w CI gniją po cichu: skill dalej
+      # „działa”, tylko mówi nieprawdę. Bez zależności, kilkaset milisekund.
+      - name: Testy skryptów skilli (node:test)
+        run: node --test $(find .claude/skills -name '*.test.mjs')
+
       # Co widzi CRAWLER. Reużywa builda z poprzedniego kroku, więc kosztuje
       # kilka sekund. Bramka istnieje, bo tsc, Vitest, ESLint i Playwright
       # patrzą na aplikację z tej strony, z której problemu nie widać:

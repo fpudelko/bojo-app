@@ -588,7 +588,11 @@ export default function GroupDetailClient() {
                 </Link>
               )}
             </div>
-            {events.length === 0 && (
+            {/* X-11: gdy ekipa nie miała jeszcze żadnego meczu, karta
+                `NajblizszyMeczGrupy` wyżej mówi to samo („Ekipa nie ma jeszcze
+                żadnego meczu"/„Wrzuć pierwszy termin…") — to zdanie się wtedy
+                nie powtarza. */}
+            {events.length === 0 && !(member && !nextMatch && !ostatniMecz) && (
               <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                 Brak meczów. {perms.canCreateEvents && 'Stwórz pierwszy!'}
               </p>

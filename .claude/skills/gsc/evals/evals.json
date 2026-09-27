@@ -1,0 +1,36 @@
+{
+  "skill_name": "gsc",
+  "uwaga": "Zadania do sprawdzania skilli gsc* (konwencja skill-creatora). Pliki wejściowe: test/dane/ (prawdziwy eksport Events z 2026-09-24) i generatory z scripts/test/pomocnicze.mjs (dane SYNTETYCZNE). Przebieg 2026-09-26: każdy krok uruchomiony ręcznie, wyniki zgodne z oczekiwaniami.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "dostałem maila z GSC „Nowe problemy (Wydarzenia – uporządkowane dane)”, wrzucam eksport, zobacz co jest do naprawy",
+      "files": ["scripts/test/dane/https___www.bojo.pl_-Events-2026-09-24.zip"],
+      "expected_output": "Rozpoznany raport Wydarzenia (Event); 5 problemów niekrytycznych (description, image, performer, offers.validFrom, offers.availability), wszystkie „zalecane”; wskazany eventJsonLd() w frontend/src/lib/structuredData.ts; procedura: odtwórz z buildera na danych z bazy, popraw z testem, po deployu „Sprawdź poprawkę”."
+    },
+    {
+      "id": 2,
+      "prompt": "przy 4 z 5 problemów „Nie można kontynuować weryfikacji”, te same dwa mecze, co jest nie tak?",
+      "files": [],
+      "expected_output": "Najpierw sprawdzenie, czy poprawka jest na produkcji (deploy, nie merge); porównanie danych z bazy z wyjściem buildera; rozumowanie o performer vs description/image (ten sam blok); rekomendacja ponownego kliknięcia po deployu; wpis do dziennika."
+    },
+    {
+      "id": 3,
+      "prompt": "wrzucam eksport raportu Strony z 15.09, co z tego wynika i czy mamy problem z indeksacją katalogu?",
+      "files": ["(pomocnicze.mjs: eksportIndeksowania())"],
+      "expected_output": "Skok 59 → 17 473 zaindeksowanych 2026-09-05; werdykty: noindex i alternatywne zamierzone, przekierowania zależą od przykładów (echo sitemapy sprzed PR #435), duplikaty do zbadania (SQL), R1 0,5% = spokój; prośba o eksport przykładów dla przyczyn „do zbadania”."
+    },
+    {
+      "id": 4,
+      "prompt": "tu masz eksport skuteczności z ostatnich 28 dni, co poprawić żeby było więcej kliknięć?",
+      "files": ["(pomocnicze.mjs: eksportSkutecznosci({ przecinek: true }))"],
+      "expected_output": "Znalezione dwie strony z luką CTR (orlik-luka…, hala-luka…) z plikiem, który pisze snippet; zapytanie blisko TOP 3 (boisko orlik poznań rataje); marka z zerem kliknięć opisana jako kolizja nazwy, nie błąd strony; linia bazowa do dziennika przed zmianą; propozycja zmiany szablonu z pomiarem po 28 dniach albo eksperymentem A/B."
+    },
+    {
+      "id": 5,
+      "prompt": "zrób przegląd GSC, minęły dwa tygodnie",
+      "files": [],
+      "expected_output": "Odczyt docs/gsc-dziennik.md (terminy), prośba o konkretne eksporty albo użycie gsc-api.mjs przy ustawionym kluczu, analiza skryptami, zestawienie z terminami i zmianami, nowy wpis w dzienniku."
+    }
+  ]
+}

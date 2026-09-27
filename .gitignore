@@ -113,6 +113,9 @@ frontend/tsconfig.tsbuildinfo
 .claude/*
 !.claude/settings.json
 !.claude/hooks/
+# Skille projektu (np. gsc* do Search Console) też są współdzielone: to procedury
+# i skrypty, z których korzysta każda sesja, a CI uruchamia ich testy.
+!.claude/skills/
 .claude/settings.local.json
 rewizja-do-wklejenia.txt
 

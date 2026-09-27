@@ -220,6 +220,27 @@ jobs:
             DB_URL="$ADRES" ./scripts/migruj.sh ${{ steps.tryb.outputs.potem }} | tee -a /tmp/wynik.txt
           fi
 
+      # Ta sama pułapka co w nagłówku `164`: dziennik migracji mówi
+      # „zastosowana", a obiektu, który ta migracja zakłada, w bazie nie ma —
+      # bo backfill widzi wyłącznie tabele. Krok po KAŻDYM przebiegu (dev
+      # i produkcja niżej), nie raz na dwa tygodnie, gdy zabraknie telefonu
+      # organizatorowi. Szczegóły → `scripts/odcisk-schematu.sh`.
+      - name: Zgodność schematu z repo
+        env:
+          DB_URL_DEV:  ${{ secrets.SUPABASE_DB_URL_DEV }}
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.tryb.outputs.srodowisko }}" = "produkcja" ]; then
+            SEKRET="SUPABASE_DB_URL_PROD"
+            SUROWY="$DB_URL_PROD"
+          else
+            SEKRET="SUPABASE_DB_URL_DEV"
+            SUROWY="$DB_URL_DEV"
+          fi
+          ADRES="$(DB_URL="$SUROWY" ./scripts/sprawdz-adres-bazy.sh "$SEKRET")"
+          DB_URL="$ADRES" ./scripts/odcisk-schematu.sh | tee /tmp/odcisk.txt
+
       - name: Podsumowanie
         if: always()
         run: |
@@ -230,6 +251,12 @@ jobs:
             echo ""
             echo '```'
             cat /tmp/wynik.txt 2>/dev/null || echo "(brak wyniku — przebieg padł wcześniej)"
+            echo '```'
+            echo ""
+            echo "#### Zgodność schematu z repo"
+            echo ""
+            echo '```'
+            cat /tmp/odcisk.txt 2>/dev/null || echo "(nie uruchomiono — poprzedni krok padł wcześniej)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -254,10 +281,12 @@ jobs:
           node-version: 20
 
       - name: Uruchom bezpieczne migracje
+        id: uruchom
         env:
           DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
           set -euo pipefail
+          echo "pomin=false" >> "$GITHUB_OUTPUT"
 
           # Brak sekretu NIE jest błędem: produkcja bywa jeszcze nieskonfigurowana,
           # a czerwony znaczek na masterze z tego powodu nauczyłby wszystkich
@@ -265,6 +294,7 @@ jobs:
           if [ -z "${DB_URL_PROD:-}" ]; then
             echo "SUPABASE_DB_URL_PROD nie jest ustawiony — pomijam produkcję."
             echo "Instrukcja: supabase/migrations/README.md" >> "$GITHUB_STEP_SUMMARY"
+            echo "pomin=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -282,9 +312,24 @@ jobs:
 
           if [ "$KOD" = "3" ]; then
             echo "Produkcja czeka na jednorazowy backfill dziennika — patrz podsumowanie."
+            echo "pomin=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           exit "$KOD"
+
+      # Nie skacze, gdy sekretu brakuje albo produkcja czeka na backfill —
+      # w obu stanach nic nie ruszyło, więc porównywać nie ma czego. W każdym
+      # innym przypadku (także częściowym, zatrzymanym na migracji RĘCZNEJ)
+      # sprawdza to, co bezpieczne NAPRAWDĘ zdążyły dołożyć — dokładnie ta
+      # sama pułapka co w nagłówku `164`. Szczegóły → `scripts/odcisk-schematu.sh`.
+      - name: Zgodność schematu z repo
+        if: steps.uruchom.outputs.pomin != 'true'
+        env:
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -euo pipefail
+          ADRES="$(DB_URL="$DB_URL_PROD" ./scripts/sprawdz-adres-bazy.sh SUPABASE_DB_URL_PROD)"
+          DB_URL="$ADRES" ./scripts/odcisk-schematu.sh | tee /tmp/odcisk.txt
 
       - name: Podsumowanie
         if: always()
@@ -293,4 +338,10 @@ jobs:
             echo "### Migracje — produkcja (tylko bezpieczne)"
             echo ""
             cat /tmp/wynik.txt 2>/dev/null | sed 's/^/    /' || echo "    (brak wyniku)"
+            echo ""
+            echo "#### Zgodność schematu z repo"
+            echo ""
+            echo '```'
+            cat /tmp/odcisk.txt 2>/dev/null || echo "(pominięto — patrz wyżej)"
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
