@@ -3683,15 +3683,24 @@ export default function EventDetailClient() {
                         „Mateu…", a przy 360px imię gościa miało 0px: dwa
                         przyciski obok zabierały cały wiersz. Dziś ograniczeniem
                         jest wyłącznie szerokość wiersza, bo przyciski schodzą
-                        pod imię (niżej), nie stoją obok niego. */}
+                        pod imię (niżej), nie stoją obok niego.
+
+                        `flex-wrap` na wierszu odznak (nie `overflow-hidden`
+                        bez zawijania): przy kilku odznakach naraz (gość + rola
+                        + org. + kapitan…) sam brak zawijania ściskał JEDYNY
+                        elastyczny element w wierszu, czyli imię — do 0px, bo
+                        odznaki mają `shrink-0`. Imię znikało całkowicie,
+                        a odznaki zostawały. Zawijanie przenosi nadmiarowe
+                        odznaki niżej i zostawia imieniu jego naturalną
+                        szerokość zamiast ją zerować. */}
                     <div className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1 text-sm text-ink overflow-hidden">
+                      <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink">
                         {p.userId && !p.isGuest ? (
-                          <Link href={`/gracz/${p.userId}`} className="truncate min-w-0 hover:text-primary-700 hover:underline">
+                          <Link href={`/gracz/${p.userId}`} className="max-w-full truncate hover:text-primary-700 hover:underline">
                             {p.name}
                           </Link>
                         ) : (
-                          <span className="truncate min-w-0">{p.name}</span>
+                          <span className="max-w-full truncate">{p.name}</span>
                         )}
                         {p.isGuest && (
                           <span
@@ -3825,9 +3834,13 @@ export default function EventDetailClient() {
                       return (
                       <li key={p.id} className="flex items-start justify-between gap-2 py-2.5">
                         <div className="min-w-0 flex-1">
-                          <span className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
+                          {/* `flex-wrap` — te same odznaki co w składzie (`RolaGracza`,
+                              „czeka na decyzję" itd.) mają `shrink-0`; bez zawijania
+                              ściskały imię do 0px zamiast przejść niżej. Patrz
+                              komentarz przy analogicznym wierszu w `regulars.map`. */}
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-500">{pozycja ?? '-'}</span>
-                            <span className="min-w-0 truncate">{p.name}</span>
+                            <span className="max-w-full truncate">{p.name}</span>
                             {gkEnabled && <RolaGracza bramkarz={!!p.isGoalkeeper} wariant="maly" />}
                             {p.isGuest && <span className="shrink-0 text-xs text-slate-400">(gość)</span>}
                             {/* Termin widoczny dla KAŻDEGO patrzącego na kolejkę,
