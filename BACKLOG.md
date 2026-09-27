@@ -24,8 +24,7 @@ Co z tego wynika, wprost:
 
 | Pozycja | Rewizja mówiła | Teraz |
 |---|---|---|
-| Gry cykliczne (`SHOW_RECURRING`) | do skasowania | ~~**zostają** — flaga włączona od migracji `073`~~ — **NIEAKTUALNE od 2026-08-16**: kolejna decyzja właściciela, jeden dzień po tej tabeli, ponownie wyłączyła flagę („produkcyjna decyzja o rezygnacji z gier cyklicznych/stałych gierek”,
-  `frontend/src/lib/features.ts`). Kod zostaje, ale nikt nie zamierza go włączać — patrz §1.3 |
+| Gry cykliczne (`SHOW_RECURRING`) | do skasowania | **ZROBIONE 2026-09-27** — usunięte całkowicie (kod, tabele, edge function), nie tylko flaga; patrz §1.3 |
 | „Półka, która nie umie być pusta" + `SHOW_GAME_ALERTS` | jedna z pięciu rzeczy do zbudowania | **schodzi na później** — to agenda otwartych gier |
 | Przejęcie profilu gościa (claim) | pierwsze | **nadal kluczowe** — w stałej ekipie ci sami goście wracają co tydzień, więc ta sama strata powtarza się 50× w roku, nie raz |
 | Web-push (PWA) | do skasowania („kanał powrotu dla użytkowników, których nie ma") | **wraca jako priorytet** — stała ekipa to dokładnie kohorta, którą jest po co przypominać: te same 10 osób, ten sam czwartek, jedno pytanie „grasz?". Plan: [§8 „PWA + web-push"](#pwa--web-push--plan-priorytet-od-2026-08-15) |
@@ -145,31 +144,21 @@ dołączenie. Zostaje jako otwarte tylko to, co dokument opisywał osobno:
 `game_alerts` (promień + sport, oparte o lokalizację, nie o członkostwo) wciąż
 za flagą `SHOW_GAME_ALERTS` — to inna funkcja, nie ta sama luka.
 
-### 1.3 Gry cykliczne ukryte flagą — KOD ZROBIONY, DECYZJA PODJĘTA (zostają ukryte)
+### 1.3 Gry cykliczne — USUNIĘTE CAŁKOWICIE (runda 9, 2026-09-27)
 
-Wizja wymienia je w pierwszej propozycji wartości, na równi z grami pojedynczymi.
-`SHOW_RECURRING = false` nadal ukrywa wejścia w `Header.tsx`, `app/page.tsx`,
-`app/moje-gry`.
+Wizja wymienia je w pierwszej propozycji wartości, na równi z grami pojedynczymi —
+sekcja 1 dokumentu jest wprawdzie nadrzędna i nie parafrazujemy jej, ale ten wpis
+odnotowuje, że kod pod nią dziś nie istnieje.
 
-**Ten wpis był podwójnie nieaktualny i obie nieaktualności naprawione tutaj:**
-
-1. **"Decyzja do podjęcia" już nie jest otwarta.** `features.ts` datuje decyzję
-   o pozostawieniu flagi wyłączonej na 2026-08-16: „produkcyjna decyzja o rezygnacji
-   z gier cyklicznych/stałych gierek". To NIE jest brak decyzji — to świadome
-   odrzucenie, młodsze niż [PRZESŁANKA STRATEGICZNA](#przesłanka-strategiczna-2026-08-15--czytaj-przed-planowaniem)
-   z 15.08, która mówiła odwrotnie (patrz poprawka przy tamtej tabeli). Kod
-   zostaje w repo nietknięty, tylko nikt dziś nie zamierza go włączać.
-2. **"Brakuje" listowało dwie rzeczy, które już istnieją.** Migracja
-   `073_serie_wydarzen_cyklicznych.sql` dodaje `events.recurring_event_id`
-   (używana też w `092`), `getNextEventsForRecurring()` w `lib/recurring.ts`
-   zwraca realne dane (nie puste na sztywno), a `/cykliczne/[id]/edytuj` to
-   dziś 350-liniowy formularz edycji szablonu, którego własny komentarz mówi
-   wprost: „zastępuje zaślepkę („Ta funkcja jest jeszcze w przygotowaniu”)".
-   Ten wpis był pisany PRZED `073` i nikt go nie zaktualizował po tym, jak `073`
-   naprawiła dokładnie te dwa braki.
-
-Zostaje wyłącznie pytanie produktowe (czy kiedykolwiek odmrozić kompletny kod) —
-nie zadanie techniczne.
+Do 2026-08-16 kod czekał wyłączony flagą `SHOW_RECURRING`. Decyzja właściciela z rundy 9
+poszła dalej: nie „zostawić schowane", tylko usunąć całkowicie — flaga, szablon
+`recurring_events`/`recurring_event_invites`, kolumna `events.recurring_event_id`,
+`lib/series.ts`, panel `/cykliczne/[id]`, kreator `/cykliczne/nowe`, edge function
+`send-invites` (migracje `166`/`167`, patrz [docs/funkcje.md](./docs/funkcje.md#gry-cykliczne--usunięte-całkowicie-runda-9)).
+Trasy `/cykliczne`/`/cykliczne/[id]` zostają jako gołe przekierowania na `/moje-gry`
+na jeden release. Data-matematyka współdzielona z „Powtórz mecz" zostaje w
+`lib/recurring.ts`. Pytanie produktowe „czy kiedykolwiek odmrozić" jest dziś zamknięte:
+odmrożenie znaczyłoby odbudowę modułu od zera, nie włączenie flagi.
 
 ### 1.4 Rozliczenie po meczu — ZROBIONE
 Propozycja brzmi „Rozliczysz ekipę w minutę". Wpis opisywał dwa problemy, oba naprawione:
@@ -194,7 +183,6 @@ Jedno miejsce, jeden przełącznik. Pełna tabela z miejscami użycia →
 | `SHOW_TURNIEJE` | — | **WYŁĄCZONA ponownie 2026-09-17, tymczasowo** (decyzja właściciela po przeglądzie na żywo: moduł działa, pierwsze wrażenie nie jest gotowe), mimo że wszystkie pięć etapów jest zrobionych. Zastąpiła flagę `SHOW_CUP` (stary „BOJO Cup" usunięty z frontu 2026-09-13, tabele `tournament_*` skasowane migracją `151`). Szczegóły → §6 |
 | ~~`SHOW_GAME_ALERTS`~~ | — | **WŁĄCZONA 2026-09-12.** Powód wyłączenia (brak kanału) zniknął — kanał istnieje (§3). Wejście: „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów |
 | `SHOW_SMS_FEATURES` | Potwierdzenie SMS + przypomnienia | Brak podpiętej bramki SMS |
-| `SHOW_RECURRING` | Gry cykliczne | Skupienie na meczach jednorazowych — patrz §1.3 |
 | `FEATURE_RESERVATIONS` | Rezerwacje obiektów, panel menedżera | Brak partnerstw z obiektami. Można włączyć per obiekt przez `fields.booking_enabled` |
 
 ---
@@ -211,7 +199,6 @@ Wcześniejsze wersje tego pliku i `PRZEWODNIK.md` twierdziły, że powiadomień 
 | UI (dzwonek) | `components/layout/NotificationBell.tsx`, renderowany w `Header.tsx` |
 | E-mail | Edge function `notify-game-alert` → Resend |
 | SMS | Edge function `send-event-sms` → SMSAPI + Twilio |
-| Zaproszenia cykliczne | Edge function `send-invites` |
 | Web-push | Migracja `102` — tabela `push_subscriptions`, trigger na `notifications` → edge function `send-push` |
 
 | Poczta do gościa bez konta | Migracja `133`/`137` — `konfiguracja_poczty`, `pg_net` → edge function `powiadom-goscia` → Resend |
@@ -1187,15 +1174,11 @@ ikony, różne warunki widoczności. Zostaje jeden, przy liczniku wolnych miejsc
 zaułek dialogu przy braku jakiejkolwiek grupy (tekst „załóż grupę" bez linku) też
 naprawiony wcześniej.
 
-### Rewizja `SHOW_RECURRING` pod kątem strategii „organizator"
-Mecze cykliczne (`lib/recurring.ts`, `app/cykliczne/*`) są w pełni zbudowane: szablon
-tygodniowy, imienna lista zaproszeń, statystyki niezawodności gracza
-(`getGroupPlayerStats`), wysyłka przez edge function `send-invites`. Ukryte celowo
-(„focus na jednorazowe mecze", `lib/features.ts:24-29`), ale to funkcja, która wprost
-redukuje cotygodniową pracę organizatora — najbliższą kategorię wartości do strategii
-„organizator, nie targowisko" z rewizji 2026-08. Przed odkryciem: zweryfikować, czy
-`send-invites` faktycznie doręcza (nieznany status wdrożenia), potem świadoma decyzja
-o priorytecie, nie cichy flip flagi.
+### Rewizja `SHOW_RECURRING` pod kątem strategii „organizator" — ZAMKNIĘTE 2026-09-27
+Ta rewizja rozważała odmrożenie modułu gier cyklicznych. Rozstrzygnięcie poszło w drugą
+stronę: właściciel zdecydował się na usunięcie całkowite, nie na odmrożenie — patrz §1.3.
+Pytanie „czy `send-invites` faktycznie doręcza" jest już bez znaczenia: ta edge function
+nie istnieje.
 
 ### `docs/wizja.md` sekcja 1 nie odzwierciedla zwrotu na organizatora
 Sekcja 1 (dokument nadrzędny, werbatim) opisuje dwustronny rynek — „organizowanie i

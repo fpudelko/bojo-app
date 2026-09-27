@@ -192,8 +192,12 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     opis: 'Ktoś z Twojej ekipy założył mecz',
   },
   {
-    // Gry cykliczne (`SHOW_RECURRING`) — flaga dziś wyłączona, ale istniejące
-    // serie i ich powiadomienia (`073`) zostają w kodzie nietknięte.
+    // Gry cykliczne usunięte całkowicie (decyzja właściciela, runda 9) —
+    // baza już nigdy nie wstawi tego typu, ale migracja `073`, która kiedyś
+    // to robiła, zostaje w historii niezmieniona (migracji się nie edytuje
+    // wstecz) — `typyPowiadomien.test.ts` skanuje WSZYSTKIE migracje, więc
+    // wciąż go tam znajdzie i będzie wymagać tego wiersza. Usunięcie go
+    // wygląda na sprzątanie, a w rzeczywistości psuje test S-7.
     typ: 'nowy_termin_serii',
     nazwa: 'Nowy termin w serii',
     opis: 'Powstał kolejny termin Twojej cyklicznej gierki',

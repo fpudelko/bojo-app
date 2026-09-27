@@ -1,10 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
-
-// `lib/recurring` importuje klienta Supabase na poziomie modułu; testujemy
-// czyste funkcje daty, więc klient wystarczy zaślepić.
-vi.mock('@/lib/supabase', () => ({ supabase: { from: () => ({}) } }));
-vi.mock('@/lib/events', () => ({ createEvent: () => Promise.resolve() }));
-
+import { describe, it, expect } from 'vitest';
 import { nastepnyTermin, dniDo, domyslnyTerminPowtorki } from '@/lib/recurring';
 
 // Poniedziałek 2026-08-10, 09:00. ISO: pon=1 … niedz=7.

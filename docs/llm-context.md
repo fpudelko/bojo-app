@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-26 · migracja `164` · 62 tabel
+**Stan na:** 2026-09-27 · migracja `167` · 59 tabel
 
 ---
 
@@ -95,7 +95,7 @@ a mimo to nikt tej funkcji w interfejsie nie znajdzie.
 | Status | Co obejmuje |
 |---|---|
 | **PRODUKCJA** — działa i jest widoczne | katalog boisk i mapa, mecze publiczne i prywatne, zapisy z listą rezerwową, „Obserwuję", drużyny, wyniki, rejestrowanie płatności, grupy, powiadomienia in-app, alert o nowym meczu w okolicy, panel admina |
-| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | potwierdzenia i przypomnienia SMS, gry cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
+| **UKRYTE ZA FLAGĄ** — kod jest, wejścia w nawigacji nie ma | potwierdzenia i przypomnienia SMS, rezerwacje obiektów, próg minimum graczy „gra się odbędzie" |
 | **NIE ISTNIEJE** — patrz „Czego Bojo NIE robi" | rankingi, ocena poziomu, realne płatności |
 
 Aktualny stan flag i miejsca ich użycia → [docs/funkcje.md](./funkcje.md#flagi-funkcji).
@@ -411,8 +411,8 @@ Zapora przed zmyślaniem. Poniższe **nie istnieje** w Bojo — nie zakładaj, �
 - **Publiczna lista graczy** — trasa `/gracze` przekierowuje na listę meczów.
 - **Osobny backend, API ani kontrolery.**
 
-Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — potwierdzenia SMS, gry
-cykliczne, rezerwacje obiektów, próg minimum graczy „gra się odbędzie". Kod istnieje,
+Osobna kategoria: funkcje **zbudowane, ale ukryte za flagami** — potwierdzenia SMS,
+rezerwacje obiektów, próg minimum graczy „gra się odbędzie". Kod istnieje,
 wejścia w nawigacji nie ma. Aktualny stan flag →
 [docs/funkcje.md](./funkcje.md#flagi-funkcji).
 
@@ -454,6 +454,26 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-09-27 (3) — Gry cykliczne usunięte całkowicie
+
+PROBLEM: moduł gier cyklicznych (szablon meczu powtarzanego co tydzień, „stała gierka")
+stał wyłączony flagą od 2026-08-16 — kod, tabele i strony zarządzania zostawały w
+repozytorium, mimo że nikt nie miał do nich wejścia. Właściciel zdecydował: to nie ma
+wrócić, więc trzymanie martwego kodu i dwóch tabel bez czytelnika nie broni niczego.
+
+ROZWIĄZANIE BOJO: cały moduł usunięty z kodu i z bazy — szablon meczu cyklicznego,
+lista zaproszeń, panel zarządzania serią, kreator ustawień powtarzania w kreatorze
+meczu. Strony `/cykliczne` i `/cykliczne/[id]` zostają na jeden release jako gołe
+przekierowania na „Moje gry", żeby stary link czy zakładka na telefonie nie kończyły
+się błędem 404. Mecze, które kiedyś były terminami serii, zostają zwykłymi meczami —
+nic w ich składzie, wyniku ani rozliczeniu się nie zmienia. Data-matematyka
+współdzielona z niezależną funkcją „Powtórz mecz" (ten sam dzień tygodnia i godzina,
+pierwszy raz w przyszłości) zostaje.
+
+MECHANIKA: migracje `166` (odpięcie: cron, dwie funkcje spoza modułu, które go
+czytały) i `167` (usunięcie: `DROP TABLE`/`DROP COLUMN`, wymaga ręcznego kliknięcia
+w Actions → Migracje). `lib/recurring.ts` zostaje wyłącznie z matematyką dat.
 
 ### 2026-09-27 (2) — Skład organizatora czytelny na każdym telefonie
 
@@ -655,25 +675,3 @@ MECHANIKA: `stanTurnieju()` i `maDrabinke()` w `lib/turniejEtykiety.ts`, `toTurn
 w `lib/turnieje.ts` (osadzone zapytania wciągają `status`), `lib/turniejPulpit.ts`,
 konsola w `app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Kolumna
 `turniej_zdarzenia.minuta` istniała od migracji `147` i była dotąd zawsze pusta.
-
-### 2026-09-23 (2) — Organizator może wreszcie ułożyć terminarz turnieju
-
-PROBLEM: przycisk „Wygeneruj terminarz" w panelu organizatora nie robił NIC i nie mówił
-dlaczego. Godzina startu wraca z Postgresa jako `10:00:00`, bo kolumna ma typ `time`,
-a panel sklejał `${dataStartu}T${godzinaStartu}:00`, czyli `2026-10-24T10:00:00:00`.
-To nieprawidłowa data: `toISOString()` rzucał wyjątek wewnątrz obsługi kliknięcia,
-a organizator widział ciszę. Turnieje seedowe mają mecze, bo wstawia je SQL, więc nic
-tego nie zgłaszało. Układanie terminarza to główna funkcja modułu turniejowego.
-
-ROZWIĄZANIE BOJO: godzina normalizuje się do `HH:MM` na granicy z bazą, generator
-odrzuca nieprawidłową datę czytelnym komunikatem, a panel pokazuje ten komunikat
-zamiast milczeć. Przy okazji jedna reguła liczenia drużyn objęła ostatnie trzy miejsca,
-które jej nie używały (wiersz w Info, etykieta zakładki, karta na liście), licznik
-w nagłówku przestał ginąć za wielokropkiem przy 360 px, opis linku zaczyna się wielką
-literą i mówi „do 16 drużyn" zamiast „16 drużyn", skład drużyny pokazuje „7 osób
-(od 5 do 12)" zamiast „7 z 5", a cały wiersz przełącznika reaguje na dotknięcie
-i ma nazwę dla czytnika ekranu.
-
-MECHANIKA: `toTurniej()` w `lib/turnieje.ts` (normalizacja godziny), `ulozHarmonogram()`
-w `lib/turniejFormat.ts` (osłona), `generujPodglad()` w panelu turnieju,
-`components/ui/ToggleRow.tsx`. Testy: `turniejTerminarzGodzina.test.ts`.

@@ -14,8 +14,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bojo.pl';
 
   // Only routes a user can actually reach from the UI. /cykliczne is deliberately
-  // absent: SHOW_RECURRING hides its nav entries, so listing it here would send
-  // crawlers to a feature nobody can find.
+  // absent: recurring games were removed entirely (owner decision, round 9);
+  // the route only redirects to /moje-gry for one release, nothing to list.
   // /mapa, /wydarzenia i /grupy mają priorytet NIŻSZY niż strony treści poniżej,
   // mimo że dla człowieka są ważniejsze — bo dla robota nie są tym samym.
   // Wszystkie trzy dociągają listę po zamontowaniu (komentarze w ich page.tsx:

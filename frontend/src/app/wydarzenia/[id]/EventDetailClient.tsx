@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import {
-  Calendar, CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, Repeat, ShieldCheck, WifiOff, ListOrdered,
+  Calendar, CalendarPlus, Clock, MapPin, Users, UserPlus, Trash2, Lock, Globe, Share2, Check, X, Pencil, Banknote, Trophy, Star, BanIcon, RotateCcw, Unlock, AlertTriangle, Copy, ChevronDown, ChevronRight, Settings, ArrowLeft, Navigation, Tag, Eye, Link2 as LinkIcon, ShieldCheck, WifiOff, ListOrdered,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -26,13 +26,8 @@ import { zapiszPowrot } from '@/lib/powrot';
 import { useWstecz } from '@/lib/historia';
 import InviteFromGroupDialog from '@/components/events/InviteFromGroupDialog';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
-import ZakresEdycjiSerii from '@/components/events/ZakresEdycjiSerii';
 import GuestInviteNudge from '@/components/events/GuestInviteNudge';
 import CzyGramyPanel from '@/components/events/CzyGramyPanel';
-import {
-  getSeriesEvents, setSeriesTime, setSeriesTemplateTime,
-  terminyWZakresie, type ZakresEdycji,
-} from '@/lib/series';
 import EventInvitesStatus from '@/components/events/EventInvitesStatus';
 import { useAuth, displayName } from '@/lib/auth';
 import TaktykaDruzyny from '@/components/events/TaktykaDruzyny';
@@ -468,7 +463,7 @@ export default function EventDetailClient() {
   // Zakładki: Skład (domyślnie), Rozmowa, Wynik, Rozliczenia, Ustawienia —
   // analogicznie do /grupy/[id]. Czytamy `?tab=` ręcznie z `window.location`,
   // NIE przez `useSearchParams()` — ten hak wywala produkcyjny build na tej
-  // trasie (patrz komentarz przy `cykliczne`/`dolacz` niżej, ten sam powód).
+  // trasie (patrz komentarz przy `dolacz` niżej, ten sam powód).
   const [tab, setTab] = useState<EventTab>('sklad');
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -634,10 +629,6 @@ export default function EventDetailClient() {
   const [proposals, setProposals] = useState<TeamProposal[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [groupPickerOpen, setGroupPickerOpen] = useState(false);
-  // Terminy stałej gierki, do której należy ten mecz — puste, gdy mecz nie jest
-  // częścią serii. Decyduje o tym, czy „Zmień termin" pyta o zakres.
-  const [seriaTerminy, setSeriaTerminy] = useState<{ id: string; date: string }[]>([]);
-  const [zakresTerminuOtwarty, setZakresTerminuOtwarty] = useState(false);
   // Panel „Mecz gotowy" — tylko tuż po publikacji z kreatora.
   const [swiezoUtworzony, setSwiezoUtworzony] = useState(false);
   /** Token MOJEGO wpisu gościa na tym meczu, zapamiętany na tym urządzeniu.
@@ -646,9 +637,6 @@ export default function EventDetailClient() {
   const [mojTokenGoscia, setMojTokenGoscia] = useState<string | null>(null);
   /** Podgląd wpisu gościa pod `mojTokenGoscia` — patrz useEffect niżej (X-9). */
   const [wpisGoscia, setWpisGoscia] = useState<Awaited<ReturnType<typeof podejrzyjWpisGoscia>>>(null);
-  // Id szablonu cyklicznego, gdy kreator go właśnie utworzył razem z tym
-  // meczem (?cykliczne=<id>) — patrz `wydarzenia/nowe/page.tsx`.
-  const [cyklicznyId, setCyklicznyId] = useState<string | null>(null);
   // Ile osób „Powtórz mecz” zaprosiło z poprzedniego składu (?zaproszono=N,
   // F-5) — panel „Mecz gotowy” dokłada o tym jedną linię.
   const [zaproszonoLiczba, setZaproszonoLiczba] = useState(0);
@@ -753,14 +741,6 @@ export default function EventDetailClient() {
         setGroupInfo(null);
         setCzlonekGrupyMeczu(false);
       }
-      if (ev.recurringEventId) {
-        // Cicho — brak listy terminów znaczy tylko tyle, że nie pytamy o zakres.
-        getSeriesEvents(ev.recurringEventId)
-          .then((t) => setSeriaTerminy(t.map((x) => ({ id: x.id, date: x.date }))))
-          .catch(() => {});
-      } else {
-        setSeriaTerminy([]);
-      }
     } catch (e) {
       // JEDYNY BŁĄD, KTÓRY ZNACZY „NIE MA TAKIEGO MECZU", to `PGRST116` —
       // `.single()` przy zerze wierszy. Wszystko inne (brak zasięgu, 500,
@@ -862,8 +842,6 @@ export default function EventDetailClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const p = new URLSearchParams(window.location.search);
-    const cid = p.get('cykliczne');
-    if (cid) setCyklicznyId(cid);
     const zap = Number(p.get('zaproszono') ?? '0');
     if (zap > 0) setZaproszonoLiczba(zap);
     // Wylogowany klika „Zaloguj się, aby dołączyć" i wraca na tę samą stronę
@@ -872,10 +850,9 @@ export default function EventDetailClient() {
     // tę intencję przez logowanie, tym samym wzorem co `?utworzono=1`.
     const dolacz = p.get('dolacz') === '1';
     if (dolacz) setChceDolaczyc(true);
-    if (p.get('utworzono') !== '1' && !cid && !dolacz) return;
-    if (p.get('utworzono') === '1' || cid) setSwiezoUtworzony(true);
+    if (p.get('utworzono') !== '1' && !dolacz) return;
+    if (p.get('utworzono') === '1') setSwiezoUtworzony(true);
     p.delete('utworzono');
-    p.delete('cykliczne');
     p.delete('dolacz');
     p.delete('zaproszono');
     const q = p.toString();
@@ -2012,46 +1989,19 @@ export default function EventDetailClient() {
     });
   };
 
-  const zapiszTermin = async (zakres: ZakresEdycji) => {
-    setZakresTerminuOtwarty(false);
+  const handleSaveWhen = async () => {
     setBusy(true);
     try {
-      // Data zawsze dotyczy wyłącznie tego terminu — wspólna data absolutna dla
-      // całej serii oznaczałaby wszystkie mecze tego samego dnia.
       await setEventWhen(
         event.id, whenDate, whenTime, whenEnd || null,
         user?.id, displayName(user ?? null),
       );
-
-      if (zakres !== 'ten' && event.recurringEventId) {
-        const dzis = new Date().toLocaleDateString('sv-SE');
-        const objete = terminyWZakresie(seriaTerminy, event.id, zakres, dzis)
-          .filter((t) => t.id !== event.id);
-        await setSeriesTime(objete.map((t) => t.id), whenTime, whenEnd || null);
-        // Szablon też — inaczej kolejne terminy wracałyby do starej godziny.
-        await setSeriesTemplateTime(event.recurringEventId, whenTime, whenEnd || null);
-      }
-
       setWhenOpen(false);
       await load();
-      toast(zakres === 'ten' ? 'Termin zmieniony' : 'Godzina zmieniona w serii');
+      toast('Termin zmieniony');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
-  };
-
-  const handleSaveWhen = async () => {
-    // O zakres pytamy tylko, gdy zmieniła się GODZINA. Sama zmiana daty dotyczy
-    // z definicji jednego terminu, więc pytanie byłoby zbędnym kliknięciem.
-    const godzinaZmieniona =
-      whenTime !== (event.time ?? '').slice(0, 5)
-      || (whenEnd || '') !== (event.endTime ?? '').slice(0, 5);
-
-    if (godzinaZmieniona && event.recurringEventId && seriaTerminy.length > 1) {
-      setZakresTerminuOtwarty(true);
-      return;
-    }
-    await zapiszTermin('ten');
   };
 
   const handleDelete = async () => {
@@ -3063,15 +3013,6 @@ export default function EventDetailClient() {
                 Zaproszono {withCount(zaproszonoLiczba, 'osobę', 'osoby', 'osób')} z poprzedniego składu.
               </p>
             )}
-
-            {cyklicznyId && (
-              <Link
-                href={`/cykliczne/${cyklicznyId}`}
-                className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800"
-              >
-                <Repeat className="h-4 w-4" /> Ustawiłeś powtarzanie co tydzień, zarządzaj serią
-              </Link>
-            )}
           </div>
         )}
 
@@ -3458,18 +3399,6 @@ export default function EventDetailClient() {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
                 <UserPlus className="h-3.5 w-3.5" strokeWidth={2.25} /> Wymaga akceptacji
               </span>
-            )}
-            {/* stała gierka — jedyne przejście z meczu do panelu serii. Bez tego
-                organizator, który wszedł na termin z listy, nie ma jak trafić
-                do ustawień powtarzania. Tylko dla organizatora: `/cykliczne/[id]`
-                i tak wpuszcza wyłącznie właściciela szablonu. */}
-            {event.recurringEventId && isOwner && (
-              <Link
-                href={`/cykliczne/${event.recurringEventId}`}
-                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-              >
-                <Repeat className="h-3.5 w-3.5" strokeWidth={2.25} /> Stała gierka
-              </Link>
             )}
             {/* group — edytowalne wyłącznie dla organizatora (dawniej schowane
                 w "Zarządzaj wydarzeniem", teraz badge na widoku, otwiera
@@ -4818,18 +4747,6 @@ export default function EventDetailClient() {
             wybranaId={groupInfo?.id}
             onWybierz={(g) => { setGroupPickerOpen(false); handleSetGroup(g?.id ?? ''); }}
             onClose={() => setGroupPickerOpen(false)}
-          />
-        )}
-
-        {zakresTerminuOtwarty && (
-          <ZakresEdycjiSerii
-            liczbaTerminow={seriaTerminy.length}
-            liczbaPrzyszlych={
-              terminyWZakresie(seriaTerminy, event.id, 'ten-i-przyszle', new Date().toLocaleDateString('sv-SE')).length
-            }
-            busy={busy}
-            onWybierz={zapiszTermin}
-            onClose={() => setZakresTerminuOtwarty(false)}
           />
         )}
 

@@ -28,12 +28,7 @@ export function numerBlikZWiersza(row: Record<string, unknown> | null | undefine
   return numer?.trim() || undefined;
 }
 
-/**
- * Zapisuje numer dla podanych meczów; pusty numer kasuje wiersz.
- *
- * Bierze LISTĘ meczów, bo seria cykliczna ustawia jeden numer na wszystkich
- * swoich terminach naraz (`updateSeriesSettings` w lib/series.ts).
- */
+/** Zapisuje numer dla podanych meczów; pusty numer kasuje wiersz. */
 export async function zapiszNumerBlik(eventIds: string[], numer: string | null | undefined): Promise<void> {
   if (eventIds.length === 0) return;
   const czysty = numer?.trim() || null;

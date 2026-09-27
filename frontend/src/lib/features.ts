@@ -58,23 +58,6 @@ export const SHOW_GAME_ALERTS = true;
 export const SHOW_SMS_FEATURES = false;
 
 /**
- * Recurring games ("Stałe gierki") — fixed weekly pickup games with a saved
- * roster. Code lives in /app/cykliczne/* and lib/recurring.ts.
- *
- * Enabled with migration `073`: until then a "series" was a template nothing
- * ever spawned from, `events.recurring_event_id` did not exist, and a paid game
- * respawned as free — so hiding it was the honest call. Now the next date is
- * created automatically, inherits the previous one's settings, and edits can
- * span the series.
- *
- * Wyłączona ponownie 2026-08-16 — produktowa decyzja o rezygnacji z gier
- * cyklicznych/stałych gierek. Flaga chowa wejścia w nawigacji i przełącznik
- * „Wydarzenie cykliczne" w kreatorze (`/wydarzenia/nowe`); istniejące serie
- * i ich strony zarządzania zostają w kodzie nietknięte.
- */
-export const SHOW_RECURRING = false;
-
-/**
  * Próg „gra się odbędzie" (`events.min_players`, migracja `097`) — toggle
  * „+ Ustaw minimum, żeby gra się odbyła" w `EventCapacityFields.tsx` (kreator
  * + edycja) i werdykt „Gramy ✓ / Brakuje N do minimum" w `CzyGramyPanel.tsx`.

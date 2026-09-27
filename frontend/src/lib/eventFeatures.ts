@@ -5,7 +5,6 @@ import type {
   EventAdvancedSettings,
   MatchResult,
   PlayerGoal,
-  PlayerStats,
   TeamMode,
 } from '@/types';
 
@@ -357,42 +356,6 @@ export async function setPlayerGoals(
     { onConflict: 'event_id,participant_id' },
   );
   if (error) throw new Error(error.message);
-}
-
-// ---------------------------------------------------------------------------
-// Player stats
-// ---------------------------------------------------------------------------
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toPlayerStats(row: any): PlayerStats {
-  return {
-    id: row.id,
-    userId: row.user_id,
-    recurringEventId: row.recurring_event_id ?? undefined,
-    invitedCount: row.invited_count,
-    confirmedCount: row.confirmed_count,
-    noShowCount: row.no_show_count,
-    goalsTotal: row.goals_total,
-    matchesPlayed: row.matches_played,
-    updatedAt: row.updated_at,
-  };
-}
-
-export async function getGroupPlayerStats(
-  recurringEventId: string,
-): Promise<PlayerStats[]> {
-  const { data, error } = await supabase
-    .from('player_stats')
-    .select('*')
-    .eq('recurring_event_id', recurringEventId)
-    .order('confirmed_count', { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(toPlayerStats);
-}
-
-export function reliabilityPct(stats: PlayerStats): number {
-  if (stats.invitedCount === 0) return 100;
-  return Math.round(((stats.confirmedCount - stats.noShowCount) / stats.invitedCount) * 100);
 }
 
 // ---------------------------------------------------------------------------

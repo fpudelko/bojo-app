@@ -43,11 +43,10 @@ export default function EventDateTimeField({
 }) {
   return (
     <div className="grid grid-cols-2 gap-4">
-      {/* Data zajmuje pełną szerokość na telefonie, a `extraSlot` (kafelek
-          cykliczności) stoi POD wierszami, nie obok daty. Wciśnięty w połowę
-          360-pikselowego ekranu łamał swój opis na pięć linijek i rozpychał
-          wiersz w pionie — tekst reklamował funkcję szerszą niż miejsce, które
-          mu daliśmy. */}
+      {/* Data zajmuje pełną szerokość na telefonie, a `extraSlot` stoi POD
+          wierszami, nie obok daty. Wciśnięty w połowę 360-pikselowego ekranu
+          łamał swój opis na pięć linijek i rozpychał wiersz w pionie — tekst
+          reklamował funkcję szerszą niż miejsce, które mu daliśmy. */}
       {/* `data-pole-daty` istnieje WYŁĄCZNIE dla regresji wizualnej —
           `scenariusze.spec.ts` zasłania tym selektorem datę na zrzucie kroku
           pierwszego. Powód: kreator ustawia domyślnie JUTRO, więc ta wartość

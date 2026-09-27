@@ -339,10 +339,13 @@ osobna migracja, gdy nowy moduł zastąpi go w całości.
 zakłada się przyciskiem „Powiadom mnie, gdy się pojawi" w pustym stanie listy meczów,
 na `/mapa`, w `/profil` oraz (od 2026-09-21) w pustym stanie „Nadchodzące mecze"
 na stronie obiektu.
-`SHOW_RECURRING` jest **wyłączona** od 2026-08-16 (produktowa decyzja o rezygnacji
-z gier cyklicznych/stałych gierek) — chowa wejścia w nawigacji i przełącznik
-„Wydarzenie cykliczne" w kreatorze; istniejące serie i ich strony zarządzania
-zostają w kodzie nietknięte. `SHOW_MIN_PLAYERS_THRESHOLD` jest **wyłączona** od
+Gry cykliczne (stałe gierki) nie mają już flagi — **usunięte całkowicie** decyzją
+właściciela (runda 9, 2026-09-27), nie tylko schowane: `lib/series.ts`,
+`RecurringSettingsDialog.tsx`, `ZakresEdycjiSerii.tsx`, kreator `/cykliczne/nowe`,
+panel `/cykliczne/[id]/edytuj`, edge function `send-invites`, tabele
+`recurring_events`/`recurring_event_invites` i `events.recurring_event_id` poszły
+z kodu (migracje `166`/`167`). Trasy `/cykliczne` i `/cykliczne/[id]` zostają jako
+przekierowania na `/moje-gry` na jeden release. `SHOW_MIN_PLAYERS_THRESHOLD` jest **wyłączona** od
 2026-08-21 (produktowa decyzja) — chowa toggle progu „gra się odbędzie" w kreatorze
 i edycji oraz werdykt „Gramy ✓ / Brakuje N do minimum" na stronie meczu;
 `events.min_players` i logika (`werdyktGry()`, migracja `097`) zostają nietknięte.
