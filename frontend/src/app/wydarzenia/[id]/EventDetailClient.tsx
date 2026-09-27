@@ -3148,36 +3148,46 @@ export default function EventDetailClient() {
                   onClick={openEditWhen}
                   className="flex min-w-0 flex-1 items-start gap-2 py-2 text-left text-sm text-ink"
                 >
-                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                  <Calendar className="mt-1 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
                   {/* `data-termin-meczu`: wszystko, co w tej karcie zmienia się
                       z dnia na dzień — data, godzina, „za 3 h". Zrzuty
                       scenariuszy zasłaniają to maską, bo seed liczy datę jako
                       ODSTĘP od dnia uruchomienia, więc bez maski ten sam,
                       niezmieniony widok meldował „zmianę wyglądu" każdego dnia. */}
                   <span className="min-w-0 flex-1" data-termin-meczu>
-                    <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                    {timeStr && <> · {timeStr}</>}
-                    {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
-                    {zaCzas && (
-                      <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                        {zaCzas}
-                      </span>
-                    )}
+                    {/* Dwa wiersze: DZIEŃ większym krojem, pod nim GODZINY.
+                        Po zniknięciu tytułów (2026-09-27) to jest pierwsza
+                        rzecz, po której rozpoznaje się mecz. */}
+                    <span className="block text-base font-semibold leading-snug">{zWielkiejLitery(dataPelna)}</span>
+                    <span className="mt-0.5 block text-sm text-slate-600 dark:text-slate-400">
+                      {timeStr && <span className="font-medium tabular-nums text-ink">{timeStr}</span>}
+                      {czasTrwaniaMin && <span className="whitespace-nowrap"> · {czasTrwaniaMin} min</span>}
+                      {zaCzas && (
+                        <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                          {zaCzas}
+                        </span>
+                      )}
+                    </span>
                   </span>
                   <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2.25} />
                 </button>
               ) : (
                 <p className="flex min-w-0 flex-1 items-start gap-2 py-2 text-sm text-ink">
-                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
-                  <span data-termin-meczu>
-                    <span className="font-semibold">{zWielkiejLitery(dataPelna)}</span>
-                    {timeStr && <> · {timeStr}</>}
-                    {czasTrwaniaMin && <span className="whitespace-nowrap text-slate-400"> · {czasTrwaniaMin} min</span>}
-                    {zaCzas && (
-                      <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                        {zaCzas}
-                      </span>
-                    )}
+                  <Calendar className="mt-1 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                  <span className="min-w-0 flex-1" data-termin-meczu>
+                    {/* Dwa wiersze: DZIEŃ większym krojem, pod nim GODZINY.
+                        Po zniknięciu tytułów (2026-09-27) to jest pierwsza
+                        rzecz, po której rozpoznaje się mecz. */}
+                    <span className="block text-base font-semibold leading-snug">{zWielkiejLitery(dataPelna)}</span>
+                    <span className="mt-0.5 block text-sm text-slate-600 dark:text-slate-400">
+                      {timeStr && <span className="font-medium tabular-nums text-ink">{timeStr}</span>}
+                      {czasTrwaniaMin && <span className="whitespace-nowrap"> · {czasTrwaniaMin} min</span>}
+                      {zaCzas && (
+                        <span className="ml-1.5 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                          {zaCzas}
+                        </span>
+                      )}
+                    </span>
                   </span>
                 </p>
               )}
@@ -3206,15 +3216,15 @@ export default function EventDetailClient() {
                     onClick={() => zapiszPowrot(`/wydarzenia/${event.id}`)}
                     className="group flex min-w-0 flex-1 items-start gap-2 py-2 text-sm"
                   >
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                    <MapPin className="mt-1 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
                     {/* Bez `truncate` — to jest miejsce, w którym adres ma się
                         zmieścić w całości, choćby w dwóch linijkach. */}
                     <span className="min-w-0 flex-1">
-                      <span className="font-semibold text-primary-700 underline decoration-primary-300 underline-offset-2 group-hover:decoration-primary-600 dark:text-primary-300">
+                      <span className="block text-base font-semibold leading-snug text-primary-700 underline decoration-primary-300 underline-offset-2 group-hover:decoration-primary-600 dark:text-primary-300">
                         {eventLoc.primary}
                       </span>
                       {eventLoc.secondary && (
-                        <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
+                        <span className="mt-0.5 block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
                       )}
                     </span>
                     <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary-400" strokeWidth={2.25} />
@@ -3223,11 +3233,11 @@ export default function EventDetailClient() {
                   // Miejsce spoza katalogu nie ma strony, więc nie udaje
                   // odnośnika — zostaje zwykłym tekstem.
                   <p className="flex min-w-0 flex-1 items-start gap-2 py-2 text-sm text-ink">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
+                    <MapPin className="mt-1 h-4 w-4 shrink-0 text-slate-400" strokeWidth={2.25} />
                     <span className="min-w-0">
-                      <span className="font-semibold">{eventLoc.primary}</span>
+                      <span className="block text-base font-semibold leading-snug">{eventLoc.primary}</span>
                       {eventLoc.secondary && (
-                        <span className="block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
+                        <span className="mt-0.5 block text-slate-500 dark:text-slate-400">{eventLoc.secondary}</span>
                       )}
                     </span>
                   </p>

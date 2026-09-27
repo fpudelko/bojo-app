@@ -455,20 +455,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-09-27 (4) — Mniej zaokrągleń i ramek w interfejsie Bojo
+### 2026-09-27 (4) — Mniej zaokrągleń i ramek, mecze bez tytułów
 
 PROBLEM: interfejs Bojo miał duże zaokrąglenia (12–24 px) na każdej karcie i przycisku
 oraz białe ramki wokół treści, które niczego nie oddzielały; na telefonie zabierały
-miejsce, a całość czytała się jak szablon.
+miejsce, a całość czytała się jak szablon. Opcjonalny tytuł meczu („Czwartkowa gierka")
+powtarzał to, co mówi data, a mecze bez tytułu nazywały się wszystkie tak samo.
 
-ROZWIĄZANIE BOJO: zaokrąglenia w całym Bojo zmniejszone do 4–8 px (okrągłe zostają
+ROZWIĄZANIE BOJO: Bojo nie pokazuje już tytułów meczów i nie pyta o nie w kreatorze.
+Mecz nazywa się sportem i składem („Piłka nożna 7v7"), a rozpoznaje terminem i miejscem:
+karta meczu na liście zaczyna się od terminu („pt. 2 paź · 20:00"), pod nim obiekt,
+potem sport, cena i tryb zapisu; strona meczu pokazuje dzień i obiekt dużym krojem.
+Rozmowy meczów na liście `/rozmowy` nazywają się „Piłka nożna · czw 2 paź, 18:00".
+Zaokrąglenia w całym Bojo zmniejszone do 3–6 px (okrągłe zostają
 kropki, awatary, przełączniki i pigułki). Na stronie meczu termin i miejsce, licznik
 wolnych miejsc, opis meczu i organizator stoją w sekcjach oddzielonych linią, bez
 kart. Kolorowe komunikaty (rezerwa, prośby o dołączenie, mecz odwołany) nadal mają
-ramki. Profil to sekcje pełnej szerokości zamiast ośmiu kart. Treść, kolory i układ
-list się nie zmieniły.
+ramki. Profil to sekcje pełnej szerokości zamiast ośmiu kart. Kolory i font
+się nie zmieniły.
 
-MECHANIKA: `borderRadius` w `frontend/tailwind.config.ts`,
+MECHANIKA: `eventDisplayTitle()` w `lib/eventTitle.ts` ignoruje `events.title` (kolumna
+zostaje), `components/EventBrowseCard.tsx`, `tytulRozmowyMeczu()` w `lib/comments.ts`,
+`borderRadius` w `frontend/tailwind.config.ts`,
 `app/wydarzenia/[id]/EventDetailClient.tsx`, `app/profil/page.tsx`. Szczegóły →
 [funkcje.md](./funkcje.md#wygląd-mniej-zaokrągleń-i-ramek-2026-09-27).
 

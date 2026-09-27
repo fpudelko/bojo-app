@@ -26,9 +26,11 @@ describe('defaultEventTitle', () => {
 });
 
 describe('eventDisplayTitle', () => {
-  it('uses the organizer-set title when present', () => {
+  // Owner decision 2026-09-27: the organizer's title is no longer the match
+  // name; a match is identified by date and place, named by sport and squad.
+  it('ignores the organizer-set title', () => {
     expect(eventDisplayTitle({ title: 'Czwartkowa ligówka', sport: 'piłka nożna', maxPlayers: 14 }))
-      .toBe('Czwartkowa ligówka');
+      .toBe('Piłka nożna 7v7');
   });
 
   it('falls back to the default title for an empty string', () => {

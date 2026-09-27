@@ -21,9 +21,9 @@ describe('tekstZaproszeniaGoscia', () => {
     expect(tekstZaproszeniaGoscia('Marek', bazowy)).toContain('Piłka nożna 7v7');
   });
 
-  it('używa własnego tytułu, gdy organizator go podał', () => {
+  it('ignoruje tytuł wpisany przez organizatora (od 2026-09-27)', () => {
     const t = tekstZaproszeniaGoscia('Marek', { ...bazowy, title: 'Środowa gierka' });
-    expect(t).toContain('Środowa gierka');
+    expect(t).not.toContain('Środowa gierka');
   });
 
   it('tłumaczy, po co kliknąć — nie jest gołym wezwaniem do akcji', () => {

@@ -49,7 +49,8 @@ export default async function Image({ params }: { params: { id: string } }) {
   } catch { /* zostaje surowa data */ }
   const godzina = ev.time ? ev.time.slice(0, 5) : '';
 
-  const nazwa = ev.title || defaultEventTitle(ev.sport, ev.max_players ?? 0);
+  // Sport i skład, nie tytuł organizatora — tak samo jak w aplikacji (2026-09-27).
+  const nazwa = defaultEventTitle(ev.sport, ev.max_players ?? 0);
   const miejsce = ev.field_name || ev.custom_location_name || 'Boisko';
 
   // Wolne miejsca — liczone tak samo jak wszędzie w produkcie: bez

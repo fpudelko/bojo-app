@@ -152,14 +152,16 @@ export default async function GrajPage(
                         className="flex items-start gap-4 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md hover:border-primary-200 transition-all"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-slate-900 truncate">
-                            {eventDisplayTitle({ title: ev.title, sport: ev.sport, maxPlayers: ev.maxPlayers })}
-                          </p>
-                          <p className="text-sm text-slate-500 mt-1">
+                          {/* Termin nagłówkiem, potem miejsce, sport na końcu —
+                              tak jak na kartach w aplikacji (bez tytułów, 2026-09-27). */}
+                          <p className="font-semibold text-slate-900 first-letter:uppercase">
                             {kiedy}{ev.time ? `, ${ev.time.slice(0, 5)}` : ''}
                           </p>
-                          <p className="text-sm text-slate-500 flex items-center gap-1 mt-1 truncate">
-                            <MapPin className="w-3.5 h-3.5 shrink-0" /> {ev.fieldName}
+                          <p className="text-sm font-medium text-slate-700 flex items-center gap-1 mt-1 truncate">
+                            <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400" /> {ev.fieldName}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {eventDisplayTitle({ title: ev.title, sport: ev.sport, maxPlayers: ev.maxPlayers })}
                           </p>
                         </div>
                       </Link>

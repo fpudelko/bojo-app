@@ -77,14 +77,16 @@ const config: Config = {
       // MNIEJ ZAOKRĄGLEŃ — zgłoszone wprost (2026-09-27): `xl`/`2xl`/`3xl`
       // (12–24 px) na każdej karcie i przycisku były głównym śladem interfejsu
       // „z generatora". Skala zostaje (klasy w komponentach się nie zmieniają),
-      // każdy stopień schodzi do 4–8 px. `full` bez zmian: kropki, awatary,
+      // każdy stopień schodzi do 3–6 px (druga runda, 2026-09-27: „jeszcze
+      // bardziej zmniejsz”). `full` bez zmian: kropki, awatary,
       // przełączniki i pigułki zostają okrągłe.
       borderRadius: {
-        md: '4px',
-        lg: '5px',
-        xl: '6px',
-        '2xl': '6px',
-        '3xl': '8px',
+        DEFAULT: '3px',
+        md: '3px',
+        lg: '4px',
+        xl: '4px',
+        '2xl': '4px',
+        '3xl': '6px',
       },
       boxShadow: {
         card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)',

@@ -74,8 +74,9 @@ describe('wiersz „Co"', () => {
     expect(w({}, 'co').wartosc).toBe('Piłka nożna 7v7');
   });
 
-  it('z tytułem pokazuje tytuł', () => {
-    expect(w({ title: 'Środowa gierka' }, 'co').wartosc).toBe('Środowa gierka');
+  // Od 2026-09-27 Bojo nie pokazuje tytułów meczów (decyzja właściciela).
+  it('tytuł organizatora nie wchodzi do podsumowania', () => {
+    expect(w({ title: 'Środowa gierka' }, 'co').wartosc).toBe('Piłka nożna 7v7');
   });
 
   it('sam biały znak to nadal brak tytułu', () => {
