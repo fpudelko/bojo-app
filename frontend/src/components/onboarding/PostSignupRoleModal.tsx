@@ -74,8 +74,12 @@ export default function PostSignupRoleModal() {
 
       // Jeśli użytkownik ma już aktywność (zorganizowany mecz, udział w meczu,
       // członkostwo w grupie), nie pokazuj modalki — już wie, jaką ma rolę.
-      const aktywny = await maJuzAktywnosc(user.id);
-      if (aktywny) return;
+      try {
+        const aktywny = await maJuzAktywnosc(user.id);
+        if (aktywny) return;
+      } catch {
+        // Jeśli nie da się sprawdzić aktywności, stosujemy regułę bez tej części
+      }
 
       // `pathname` w zależnościach NIE jest ozdobą. Organiczna rejestracja
       // zaczyna się na `/logowanie` (nieneutralne), a kończy
