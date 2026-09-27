@@ -455,6 +455,34 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-27 (2) — Skład organizatora czytelny na każdym telefonie
+
+PROBLEM: w składzie organizatora imiona były ucinane przez dwa sąsiadujące przyciski
+(„Usuń", „Na rezerwę") — przy 390 px imię kończyło się na „Mateu…", przy 360 px imię
+gościa miało zero pikseli. „Zmień termin" liczyło samych zapisanych („6 osób jest
+zapisanych"), nie biorąc pod uwagę, że część to organizator (nie dostaje powiadomienia
+o własnej zmianie) i obserwujący (dostaje, bo ma konto) — liczba nie mówiła, do ilu
+osób faktycznie pójdzie wiadomość. Toast na telefonie siadał na dole ekranu i zasłaniał
+„Udostępnij link" tuż po założeniu ekipy oraz dół arkusza „Miej Bojo na ekranie głównym"
+po zapisie. Dodatkowo: dolna nawigacja podpowiadała przytrzymanie zakładki „Grupy",
+choć nazywa się dziś „Ekipy"; zdanie o gościach bez konta nie mówiło, że część jest na
+rezerwie, nie w składzie; odwołany mecz nadal pokazywał „Zostało N wolnych miejsc" i
+przycisk „Wypisz się z meczu" pod banerem „Mecz odwołany"; okno zapisu gościa, który
+był już na liście, używało męskiej formy czasownika niezależnie od tego, kto klika.
+
+ROZWIĄZANIE BOJO: przyciski „Usuń"/„Na rezerwę" stoją teraz pod imieniem, pełnej
+wysokości dotyku, i wracają obok imienia dopiero na tablecie — imię ma wtedy całą
+szerokość wiersza. „Zmień termin" liczy odbiorców tą samą funkcją co odwołanie meczu
+(organizator wypada, obserwujący z kontem zostaje). Toast na telefonie wjeżdża od góry
+ekranu, nie z dołu. Dymek dolnej nawigacji, zdanie o gościach na rezerwie, licznik przy
+odwołanym meczu i okno „już zapisany" mówią dokładnie to, co się dzieje.
+
+MECHANIKA: `EventDetailClient.tsx` (układ wiersza składu, `konsekwencjeZapisu()` +
+`komuDojdzie()` z `lib/zmianyMeczu.ts` w oknie „Zmień termin", warunek `!isCancelled`
+przy liczniku i przycisku wypisania), `lib/toast.tsx` (pozycja i animacja),
+`BottomNav.tsx`, `GroupDetailClient.tsx`. Bez migracji.
+Szczegóły → [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-2, X-6, X-10, X-11.
+
 ### 2026-09-27 — Strona meczu mówi prawdę o Twoim zapisie
 
 PROBLEM: rezerwowy z aktywną ofertą zwolnionego miejsca widział na dole ekranu pasek
@@ -649,32 +677,3 @@ i ma nazwę dla czytnika ekranu.
 MECHANIKA: `toTurniej()` w `lib/turnieje.ts` (normalizacja godziny), `ulozHarmonogram()`
 w `lib/turniejFormat.ts` (osłona), `generujPodglad()` w panelu turnieju,
 `components/ui/ToggleRow.tsx`. Testy: `turniejTerminarzGodzina.test.ts`.
-
-### 2026-09-23 — Okno gościa tłumaczy, po co e-mail, a Bojo nie obiecuje podaży, której nie ma
-
-PROBLEM: formularz „Dołącz do meczu bez logowania" wymagał e-maila bez wyjaśnienia —
-pole wyglądało jak rejestracja i newsletter, dokładnie ten mur, który organizator
-próbuje ominąć linkiem „bez konta". Osobno: trzy miejsca w aplikacji (potwierdzenie
-otwarcia meczu dla okolicy, ekran po zapisie gościa, zaproszenie do konta dzień po
-meczu) obiecywały graczowi, że publiczny mecz „zobaczą gracze z okolicy" — nieprawda
-w mieście, gdzie w danym momencie nikt akurat nie szuka gry: obietnica bez pokrycia,
-którą Bojo składało samo sobie. Do tego pole daty w kreatorze i edycji liczyło „dziś"
-w UTC, więc między północą a 1–2 w nocy czasu polskiego cofało się o dzień i odmawiało
-wybrania dzisiejszej daty.
-
-ROZWIĄZANIE BOJO: pole e-mail w formularzu gościa ma dziś jedno zdanie pod spodem —
-do czego adres służy i czego nie wymaga (bez hasła, bez konta). Trzy miejsca z obietnicą
-„gracze z okolicy" stracił tę frazę na rzecz faktu bez daty: mecz trafia na publiczną
-listę otwartych gier, a graczy szukających meczu dopiero przybywa. Lista korzyści
-z konta (ekran po zapisie gościa i zaproszenie dzień po meczu) to dziś jedno źródło
-zamiast dwóch rozjeżdżających się kopii. Pola dat liczą „dziś"/„jutro" po czasie
-lokalnym, nie przez `toISOString()`.
-
-MECHANIKA: helper pod polem e-mail w formularzu gościa (`EventDetailClient.tsx`).
-`content/kontoGoscia.ts` (`KORZYSCI_KONTA`) renderowane przez `.map()` w oknie po
-zapisie gościa i w `/gracz/przejmij/[token]`; mail `zaloz_konto`
-(`supabase/functions/powiadom-goscia/tresc.ts`) trzyma tę samą listę ręcznie, pilnowane
-testem czytającym plik. `dzisLokalnie()`/`jutroLokalnie()` w `lib/eventDates.ts` (budowane
-z lokalnych metod `Date`, nie przez UTC), użyte w polu daty kreatora i edycji, oknach
-„Zmień termin"/„Powtórz mecz" i w `lib/groups.ts`. Testy: `kontoGoscia.test.ts`,
-`zakazaneFrazyWTsx.test.ts`, `eventDates.test.ts`. Bez migracji.

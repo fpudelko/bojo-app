@@ -145,6 +145,24 @@ describe('komuDojdzie', () => {
     ], 'org');
     expect(komu.zKontem).toBe(2);
   });
+
+  // X-6: „Zmień termin" liczyło `confirmed.length` — organizatora
+  // i obserwującego WLICZAJĄC, choć okno odwołania obok liczyło poprawnie
+  // (`komuDojdzie` już wtedy pomijał organizatora). 6 osób w składzie
+  // (organizator, 4 zwykłych, 1 obserwujący) dawało „6 osób jest zapisanych",
+  // podczas gdy powiadomienie faktycznie szło do 4 — organizator go nie
+  // dostaje, obserwujący owszem (ma konto), więc zliczają się osobno.
+  it('organizator i obserwujący w składzie: organizator wypada, obserwujący zostaje', () => {
+    const komu = komuDojdzie([
+      uczestnik({ userId: 'org' }),
+      uczestnik({ userId: 'u1' }),
+      uczestnik({ userId: 'u2' }),
+      uczestnik({ userId: 'u3' }),
+      uczestnik({ userId: 'u4' }),
+      uczestnik({ userId: 'obserwator', rsvp: 'maybe' }),
+    ], 'org');
+    expect(komu.zKontem).toBe(5);
+  });
 });
 
 describe('konsekwencjeZapisu', () => {
