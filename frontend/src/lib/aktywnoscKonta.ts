@@ -13,17 +13,17 @@ export async function maJuzAktywnosc(userId: string | undefined): Promise<boolea
     // Zorganizowane mecze
     supabase
       .from('events')
-      .select('id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId),
     // Udziały w meczach
     supabase
       .from('event_participants')
-      .select('id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId),
     // Członkostwo w grupach
     supabase
       .from('group_members')
-      .select('id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId),
   ]);
 
