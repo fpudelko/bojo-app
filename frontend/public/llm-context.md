@@ -455,6 +455,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-27 — Strona meczu mówi prawdę o Twoim zapisie
+
+PROBLEM: rezerwowy z aktywną ofertą zwolnionego miejsca widział na dole ekranu pasek
+„Rezerwa: 1. w kolejce · Wypisz się", który zasłaniał kartę oferty z przyciskiem
+„Wchodzę" i godziną na decyzję — akcja z terminem chowała się pod paskiem, który mówił
+coś przeciwnego. Osoba z zewnątrz w trakcie takiej oferty widziała „Zostało 1 wolne
+miejsce" i okno „Zapisać się na mecz?", choć zapis i tak kończył się na rezerwie —
+licznik obiecywał miejsce, którego nie było. Gość, którego wpis zniknął (organizator
+usunął albo odrzucił prośbę), dalej widział „Jesteś zapisany(a) · Mój zapis →" bez
+żadnej drogi do ponownego zapisu. Po zapisie gościa pasek „Dołącz bez konta" wracał aż
+do odświeżenia strony. Wypisanie się samemu dawało toast „Uczestnik usunięty" — zdanie
+opisujące decyzję organizatora, nie własną.
+
+ROZWIĄZANIE BOJO: pasek stanu rozpoznaje aktywną ofertę jako odrębny, priorytetowy stan
+(„Zwolniło się miejsce, jest Twoje · Masz czas do HH:MM", przycisk „Wchodzę") — to samo
+dla gościa bez konta. Licznik miejsc liczy trzymaną ofertę jako zajętą dla swojej roli,
+więc „Zostało N wolnych miejsc" i tytuł okna zapisu zgadzają się z tym, co faktycznie
+zrobi baza; gdy jedyne wolne miejsce jest właśnie oferowane, licznik mówi to wprost
+(„1 miejsce czeka na osobę z rezerwy"). Strona sama sprawdza, czy zapamiętany wpis
+gościa wciąż istnieje, i wraca do „Dołącz", gdy nie — z komunikatem, że można zapisać
+się ponownie. Token gościa zapamiętuje się od razu po zapisie. Toast po wypisaniu mówi
+„Wypisano Cię z meczu" (pasek/okno) albo „Zrezygnowano z rezerwy" (kosz na liście
+rezerwowej); organizator usuwający kogoś innego dostaje „Uczestnik usunięty" bez zmian.
+
+MECHANIKA: `ofertyWToku()` w `lib/events.ts` (dołączana do składu przed
+`wolneMiejscaWgRol()`), `podejrzyjWpisGoscia()` (`lib/guestClaim.ts`) wołane po zmianie
+`mojTokenGoscia`, `handleRemove(id, komunikat)` w `EventDetailClient.tsx`. Bez migracji.
+Szczegóły → [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-1, X-3, X-4, X-5, X-9.
+
 ### 2026-09-26 (2) — Przypomnienia o meczu i szukanie boiska bez ogonków znowu działają
 
 PROBLEM: przypomnienie „jutro grasz" i prośba „domknij mecz" dzień po nie wychodziły
@@ -649,28 +678,3 @@ testem czytającym plik. `dzisLokalnie()`/`jutroLokalnie()` w `lib/eventDates.ts
 z lokalnych metod `Date`, nie przez UTC), użyte w polu daty kreatora i edycji, oknach
 „Zmień termin"/„Powtórz mecz" i w `lib/groups.ts`. Testy: `kontoGoscia.test.ts`,
 `zakazaneFrazyWTsx.test.ts`, `eventDates.test.ts`. Bez migracji.
-
-### 2026-09-23 — Organizator wie, co Bojo zrobi za niego, i wysyła skład jednym kliknięciem
-
-PROBLEM: organizator nie widział żadnego z trzech zegarów Bojo (przypomnienie dzień
-przed meczem, kolejka rezerwowa, domknięcie po meczu), a panel „Mecz gotowy" obiecywał
-zawsze „Przypomnienie wyśle się samo" — nieprawda dla meczu założonego po 18:00 dzień
-przed terminem albo w dniu meczu, bo automat łapie wyłącznie mecze na jutro. Brakowało
-też dwóch rzeczy, które organizator robi co tydzień na WhatsAppie: wysłania listy
-składu i zaproszenia tych samych ludzi na kolejny termin.
-
-ROZWIĄZANIE BOJO: karta „Co Bojo zrobi za Ciebie" na stronie meczu pokazuje dokładny
-czas przypomnienia (albo że jest już za późno, z przyciskiem „Wyślij link teraz"), ile
-czasu ma rezerwowy na decyzję, kto nie dostanie żadnej wiadomości, i kiedy przypomnimy
-o rozliczeniu. Przycisk „Wyślij skład" wysyła ponumerowaną listę składu z wolnymi
-miejscami i rezerwą — zamiennik posta, który organizator dziś przepisuje ręcznie.
-„Powtórz mecz" domyślnie zaprasza poprzedni skład (osoby z kontem), więc kopia meczu
-nie startuje już pusta.
-
-MECHANIKA: `lib/harmonogramMeczu.ts` (czysta funkcja, `PRZYPOMNIENIA_UTC` jest lustrem
-`cron.schedule('bojo-przypomnienia', …)` z migracji `129`, pilnowane testem czytającym
-pliki migracji), `components/events/HarmonogramMeczu.tsx`. `tekstSkladu()`
-w `lib/eventShare.ts`, wspólne z `eventShareText()` przez `liniaMiejscICeny()`
-i `zdanieBezKonta()`. `odbiorcyPowtorki()` w `lib/playerInvites.ts` filtruje skład do
-osób z kontem, bez organizatora i bez rezerwy; mecz przypięty do grupy pomija
-zaproszenia (wyzwalacz `072` już powiadamia całą grupę). Bez migracji.

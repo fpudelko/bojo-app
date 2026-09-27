@@ -54,7 +54,7 @@ import {
   cancelEvent, restoreEvent, repeatEvent, setAllowGuestAdds, setEventGroup, setEventWhen,
   setZapisyZamkniete,
   approveParticipant, rejectParticipant,
-  syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol,
+  syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol, ofertyWToku,
   awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu, czasRezerwyTekst,
 } from '@/lib/events';
 import { invitePlayers, odbiorcyPowtorki } from '@/lib/playerInvites';
@@ -69,7 +69,10 @@ import type {
   PaymentMethod, SportsCardProvider, Visibility,
 } from '@/types';
 import { sportEmoji } from '@/lib/sports';
-import { przejmijWpisGoscia, udostepnijZaproszenieGoscia, pobierzTokenGoscia, linkPrzejeciaWpisu } from '@/lib/guestClaim';
+import {
+  przejmijWpisGoscia, udostepnijZaproszenieGoscia, pobierzTokenGoscia, linkPrzejeciaWpisu,
+  podejrzyjWpisGoscia,
+} from '@/lib/guestClaim';
 import { zapamietajWpisGoscia, mojWpisGoscia, zapomnijWpisGoscia } from '@/lib/mojWpisGoscia';
 import { tekstRozliczenia } from '@/lib/settlementShare';
 import { track } from '@/lib/analytics';
@@ -641,6 +644,8 @@ export default function EventDetailClient() {
    *  Czytany po montażu, nie przy renderze — `localStorage` nie istnieje na
    *  serwerze, a ta strona renderuje się serwerowo (metadane Open Graph). */
   const [mojTokenGoscia, setMojTokenGoscia] = useState<string | null>(null);
+  /** Podgląd wpisu gościa pod `mojTokenGoscia` — patrz useEffect niżej (X-9). */
+  const [wpisGoscia, setWpisGoscia] = useState<Awaited<ReturnType<typeof podejrzyjWpisGoscia>>>(null);
   // Id szablonu cyklicznego, gdy kreator go właśnie utworzył razem z tym
   // meczem (?cykliczne=<id>) — patrz `wydarzenia/nowe/page.tsx`.
   const [cyklicznyId, setCyklicznyId] = useState<string | null>(null);
@@ -817,6 +822,31 @@ export default function EventDetailClient() {
     zapomnijWpisGoscia(id);
     setMojTokenGoscia(null);
   }, [id, user]);
+
+  // Stan wpisu gościa POD TOKENEM — nie ten sam co `myConfirmed`/`myClaimOffer`
+  // (te szukają po `userId`, gość go nie ma). Bez tego strona nie miała jak
+  // się dowiedzieć, że wpis, do którego prowadzi zapamiętany token, już nie
+  // istnieje (X-9): prośba odrzucona albo organizator usunął — a pasek
+  // „Jesteś zapisany(a)" i tak zostawał, bo jedynym sygnałem był sam token
+  // w `localStorage`, którego nikt nie kasował.
+  useEffect(() => {
+    if (!mojTokenGoscia) { setWpisGoscia(null); return; }
+    let aktualny = true;
+    podejrzyjWpisGoscia(mojTokenGoscia).then((wpis) => {
+      if (!aktualny) return;
+      if (!wpis) {
+        // Wiersz zniknął (prośba odrzucona, organizator usunął) — token na
+        // urządzeniu wskazuje już na nic. Zapominamy go, żeby pasek „Dołącz"
+        // wrócił sam (`joinBarVisible` zależy od `!mojTokenGoscia`).
+        zapomnijWpisGoscia(id);
+        setMojTokenGoscia(null);
+        toast('Twojego zapisu już nie ma na liście (organizator mógł go usunąć albo odrzucić prośbę). Możesz zapisać się ponownie.');
+        return;
+      }
+      setWpisGoscia(wpis);
+    }).catch(() => { /* strona działa dalej na tym, co już wie — token spróbujemy odczytać przy następnym wejściu */ });
+    return () => { aktualny = false; };
+  }, [mojTokenGoscia, id]);
 
   // Kreator przekierowuje tu z `?utworzono=1`, żeby pokazać panel „Mecz gotowy".
   //
@@ -1071,8 +1101,25 @@ export default function EventDetailClient() {
   // A freed spot currently offered to me (I'm on the reserve and it's my turn).
   const myClaimOffer = reserves.find((p) => p.userId === user?.id && p.claimOfferedAt);
   const claimDeadline = myClaimOffer ? terminOferty(myClaimOffer, event.reserveClaimMinutes) : null;
+  // Rezerwowi z aktywną ofertą trzymają miejsce, choć formalnie są jeszcze na
+  // rezerwie (X-4). Bez tego ktoś z zewnątrz widział „Zostało 1 wolne
+  // miejsce" i okno „Zapisać się na mecz?", choć baza i tak kierowała zapis
+  // na rezerwę — licznik obiecywał miejsce, którego nie było.
+  const oferty = ofertyWToku(reserves, event.reserveClaimMinutes);
   const takenSpots = regulars.length;
-  const isFull = takenSpots >= event.maxPlayers;
+  // Wolne miejsca liczone tak, jak faktycznie może je dostać KTOŚ Z ZEWNĄTRZ:
+  // skład PLUS trzymane oferty. `wolne` (rozbicie na role) i `isFull` (dalej)
+  // liczą z tego samego zbioru, żeby licznik, tytuł okna zapisu i pasek
+  // zgadzały się z tym, co zrobi baza.
+  const wolne = wolneMiejscaWgRol([...regulars, ...oferty], event);
+  const isFull = wolne.razem === 0;
+  // Najbliższy termin, w którym trzymane miejsce wraca do kolejki — pod
+  // licznik „X miejsce czeka na osobę z rezerwy" (X-4/X-3), nie tylko pod
+  // kartę oferty samego rezerwowego.
+  const najblizszaOfertaTermin = oferty.reduce<Date | null>((min, p) => {
+    const t = terminOferty(p, event.reserveClaimMinutes);
+    return t && (!min || t < min) ? t : min;
+  }, null);
   const eventLoc = eventLocation(event);
   // Kafelek pokazuje NAZWĘ obiektu, adres dopiero w jej braku.
   //
@@ -1349,6 +1396,7 @@ export default function EventDetailClient() {
       // stoi w składzie. Stąd też brał się brak jakiejkolwiek drogi do
       // wypisania się.
       zapamietajWpisGoscia(event.id, result.claimToken);
+      setMojTokenGoscia(result.claimToken);
       setNewUserClaimToken(result.claimToken);
       setNewUserIsReserve(result.isReserve);
       setNewUserPending(result.pendingApproval);
@@ -1553,12 +1601,17 @@ export default function EventDetailClient() {
     } finally { setBusy(false); }
   };
 
-  const handleRemove = async (participantId: string) => {
+  /** `komunikat` domyślnie brzmi jak decyzja organizatora („Uczestnik
+   *  usunięty") — poprawne, gdy to on usuwa kogoś innego (`handleRemovePlayer`).
+   *  Dwa inne wejścia (rezygnacja z rezerwy, wypisanie się z paska) to decyzja
+   *  SAMEGO uczestnika i podają własny tekst, żeby toast opisywał to, co
+   *  faktycznie zrobił — nie to, co zrobiłby organizator. */
+  const handleRemove = async (participantId: string, komunikat = 'Uczestnik usunięty') => {
     setBusy(true);
     try {
       await removeParticipant(participantId);
       await load();
-      toast('Uczestnik usunięty');
+      toast(komunikat);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
@@ -2350,8 +2403,8 @@ export default function EventDetailClient() {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
-  const freeSpots = event.maxPlayers - takenSpots;
-  const wolne = wolneMiejscaWgRol(regulars, event);
+  // `wolne` (z ofertami w toku wliczonymi) liczony wyżej, razem z `isFull`.
+  const freeSpots = wolne.razem;
   // Czy rola wybrana w oknie dołączania jest już pełna — i którym z kolei
   // będzie ten zapis. Liczone z tych samych danych, z których liczy je
   // `decydujCzyRezerwa()` po stronie zapisu, żeby zapowiedź zgadzała się
@@ -3513,13 +3566,21 @@ export default function EventDetailClient() {
               isFull ? 'text-blue-700' : freeSpots <= 2 ? 'text-amber-600' : 'text-slate-600'
             }`}>
               {isFull
-                // Only pitch the reserve list to someone who could actually act on
-                // it — a player already signed up (squad, reserve, pending or
-                // observing) is told the match is full, not invited to join again.
-                // Po starcie meczu dołączenie do rezerwy jest już bez sensu
-                // (`joinBarVisible` niżej z tego samego powodu chowa cały pasek
-                // zapisu) — sam napis wtedy też nie zaprasza do rezerwy.
-                ? (amIInvolved || eventStarted ? 'Komplet' : 'Komplet: dołącz do rezerwy')
+                // Miejsce trzymane dla oferty NIE JEST kompletem w zwykłym
+                // sensie — jest chwilowo obsadzone, do konkretnego terminu, nie
+                // na zawsze. „Komplet" tu obiecywałby coś stałego, choć miejsce
+                // za chwilę może wrócić do kolejki (X-4).
+                ? (oferty.length > 0
+                    ? `${withCount(oferty.length, 'miejsce czeka', 'miejsca czekają', 'miejsc czeka')} na osobę z rezerwy${
+                        najblizszaOfertaTermin ? ` (do ${format(najblizszaOfertaTermin, 'HH:mm', { locale: pl })})` : ''
+                      }`
+                    // Only pitch the reserve list to someone who could actually act on
+                    // it — a player already signed up (squad, reserve, pending or
+                    // observing) is told the match is full, not invited to join again.
+                    // Po starcie meczu dołączenie do rezerwy jest już bez sensu
+                    // (`joinBarVisible` niżej z tego samego powodu chowa cały pasek
+                    // zapisu) — sam napis wtedy też nie zaprasza do rezerwy.
+                    : (amIInvolved || eventStarted ? 'Komplet' : 'Komplet: dołącz do rezerwy'))
                 : `Zostało ${withCount(freeSpots, 'wolne miejsce', 'wolne miejsca', 'wolnych miejsc')}`}
             </p>
 
@@ -3898,7 +3959,7 @@ export default function EventDetailClient() {
                             </button>
                           )}
                           {p.userId === user?.id ? (
-                            <button onClick={() => handleRemove(p.id)} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Zrezygnuj z rezerwy">
+                            <button onClick={() => handleRemove(p.id, 'Zrezygnowano z rezerwy')} disabled={busy} className="shrink-0 rounded p-1.5 text-slate-400 hover:text-red-500" title="Zrezygnuj z rezerwy">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           ) : (isOrganizer || canManageSquad) && (
@@ -4216,16 +4277,20 @@ export default function EventDetailClient() {
           >
             <div className="mx-auto flex max-w-2xl items-center gap-3">
               <p className="min-w-0 flex-1 text-sm">
-                <span className="font-semibold text-ink">Jesteś zapisany(a)</span>
+                <span className="font-semibold text-ink">
+                  {wpisGoscia?.ofertaDo ? 'Zwolniło się miejsce, jest Twoje' : 'Jesteś zapisany(a)'}
+                </span>
                 <span className="block text-xs text-slate-500 dark:text-slate-400">
-                  Zapis bez konta: zarządzasz nim linkiem
+                  {wpisGoscia?.ofertaDo
+                    ? `Masz czas do ${format(new Date(wpisGoscia.ofertaDo), 'HH:mm', { locale: pl })}`
+                    : 'Zapis bez konta: zarządzasz nim linkiem'}
                 </span>
               </p>
               <Link
                 href={`/gracz/przejmij/${mojTokenGoscia}`}
                 className="flex h-11 shrink-0 items-center justify-center rounded-2xl bg-primary-700 px-4 text-[15px] font-bold text-white transition active:scale-[0.99]"
               >
-                Mój zapis →
+                {wpisGoscia?.ofertaDo ? 'Przyjmij →' : 'Mój zapis →'}
               </Link>
             </div>
           </div>
@@ -4251,12 +4316,21 @@ export default function EventDetailClient() {
             <div className="mx-auto flex max-w-2xl items-center gap-3">
               <p className="min-w-0 flex-1 text-sm">
                 <span className="font-semibold text-ink">
-                  {myPendingRequest
-                    ? 'Czekasz na akceptację'
-                    : amIReserve
-                      ? `Rezerwa${myReservePosition ? `: ${myReservePosition}. w kolejce` : ''}`
-                      : 'Jesteś w składzie'}
-                  {!myPendingRequest && myConfirmed?.isGoalkeeper ? ' · bramkarz' : ''}
+                  {/* Oferta zwolnionego miejsca stoi PRZED „Rezerwa" — inny
+                      stan, nie jej odmiana: rezerwowy z aktywną ofertą już nie
+                      czeka w kolejce, czeka na WŁASNĄ decyzję (X-3). Do tej
+                      poprawki pasek mówił „Rezerwa: 1. w kolejce · Wypisz się"
+                      i zasłaniał kartę oferty leżącą pod nim razem z dolną
+                      nawigacją — decyzja z godziną na zegarze wypadała spod
+                      kciuka. */}
+                  {myClaimOffer
+                    ? 'Zwolniło się miejsce, jest Twoje'
+                    : myPendingRequest
+                      ? 'Czekasz na akceptację'
+                      : amIReserve
+                        ? `Rezerwa${myReservePosition ? `: ${myReservePosition}. w kolejce` : ''}`
+                        : 'Jesteś w składzie'}
+                  {!myPendingRequest && !myClaimOffer && myConfirmed?.isGoalkeeper ? ' · bramkarz' : ''}
                 </span>
                 {/* Podpis WYŁĄCZNIE tam, gdzie dokłada fakt, którego nie ma
                     w wierszu nad nim. Dla składu stało tu „Masz miejsce
@@ -4264,15 +4338,27 @@ export default function EventDetailClient() {
                     słowami; do tego „miejsce" czyta się w tej apce także jako
                     boisko („Miejsce: Szkoła Podstawowa nr 61"), więc podpis
                     nie tylko powtarzał, ale i mylił. Zgłoszone wprost. */}
-                {(myPendingRequest || amIReserve) && (
+                {(myClaimOffer || myPendingRequest || amIReserve) && (
                   <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                    {myPendingRequest
-                      ? 'Organizator jeszcze nie potwierdził'
-                      : 'Wejdziesz, gdy ktoś się wypisze'}
+                    {myClaimOffer
+                      ? (claimDeadline ? `Masz czas do ${format(claimDeadline, 'HH:mm', { locale: pl })}` : 'Potwierdź, żeby wejść do składu')
+                      : myPendingRequest
+                        ? 'Organizator jeszcze nie potwierdził'
+                        : 'Wejdziesz, gdy ktoś się wypisze'}
                   </span>
                 )}
               </p>
-              {myParticipation && (
+              {myClaimOffer ? (
+                // „Odpuszczam" zostaje wyłącznie w karcie oferty pod treścią —
+                // decyzja odmowna nie musi być pod kciukiem na każdej zakładce.
+                <button
+                  onClick={handleAcceptClaim}
+                  disabled={busy}
+                  className="h-11 shrink-0 rounded-xl bg-primary-700 px-4 text-sm font-bold text-white transition hover:bg-primary-800 disabled:opacity-50"
+                >
+                  Wchodzę
+                </button>
+              ) : myParticipation && (
                 <button
                   onClick={() => setLeaveConfirmOpen(true)}
                   disabled={busy}
@@ -5003,7 +5089,7 @@ export default function EventDetailClient() {
             </p>
             <div className="space-y-2">
               <Button
-                onClick={() => { setLeaveConfirmOpen(false); handleRemove(myEntry.id); }}
+                onClick={() => { setLeaveConfirmOpen(false); handleRemove(myEntry.id, 'Wypisano Cię z meczu'); }}
                 isLoading={busy}
                 className="w-full bg-red-600 hover:bg-red-700"
               >
