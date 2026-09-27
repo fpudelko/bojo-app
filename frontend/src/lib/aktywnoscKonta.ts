@@ -9,40 +9,31 @@ import { supabase } from '@/lib/supabase';
 export async function maJuzAktywnosc(userId: string | undefined): Promise<boolean> {
   if (!userId) return false;
 
-  const timeoutPromise = new Promise<{ count: number }>((resolve) =>
-    setTimeout(() => resolve({ count: 0 }), 3000)
-  );
-
-  const queries = Promise.all([
-    Promise.race<{ count: number }>([
-      supabase
-        .from('events')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId),
-      timeoutPromise,
-    ]),
-    Promise.race<{ count: number }>([
-      supabase
-        .from('event_participants')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId),
-      timeoutPromise,
-    ]),
-    Promise.race<{ count: number }>([
-      supabase
-        .from('group_members')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId),
-      timeoutPromise,
-    ]),
-  ]);
-
   try {
-    const results = await queries;
-    const eventCount = (results[0] as any).count ?? 0;
-    const participantCount = (results[1] as any).count ?? 0;
-    const groupCount = (results[2] as any).count ?? 0;
-    return eventCount > 0 || participantCount > 0 || groupCount > 0;
+    const timeoutMs = 3000;
+
+    const checkActivity = async (table: string): Promise<boolean> => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const { count } = await supabase
+          .from(table)
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId);
+        return (count ?? 0) > 0;
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
+    const [hasEvents, hasParticipations, hasGroupMemberships] = await Promise.all([
+      checkActivity('events').catch(() => false),
+      checkActivity('event_participants').catch(() => false),
+      checkActivity('group_members').catch(() => false),
+    ]);
+
+    return hasEvents || hasParticipations || hasGroupMemberships;
   } catch {
     return false;
   }
