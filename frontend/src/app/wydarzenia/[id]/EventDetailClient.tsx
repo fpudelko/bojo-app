@@ -2664,14 +2664,18 @@ export default function EventDetailClient() {
                     onClick={() => setPayMethods((prev) => (
                       prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]
                     ))}
+                    aria-pressed={payMethods.includes(m)}
                     className={[
-                      'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
+                      'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors',
                       payMethods.includes(m)
                         ? 'border-primary-600 bg-primary-50 text-primary-700'
                         : 'border-slate-200 text-slate-600 hover:bg-slate-50',
                     ].join(' ')}
                   >
                     {PAYMENT_METHOD_LABELS[m]}
+                    {payMethods.includes(m) && (
+                      <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                    )}
                   </button>
                 ))}
               </div>
@@ -5222,14 +5226,18 @@ export default function EventDetailClient() {
                       key={m}
                       type="button"
                       onClick={() => setJoinPaymentMethod(m)}
+                      aria-pressed={joinPaymentMethod === m}
                       className={[
-                        'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
                         joinPaymentMethod === m
                           ? 'border-primary-600 bg-primary-50 text-primary-700'
                           : 'border-slate-200 text-slate-600 hover:border-slate-300',
                       ].join(' ')}
                     >
                       {PAYMENT_METHOD_LABELS[m]}
+                      {joinPaymentMethod === m && (
+                        <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                      )}
                     </button>
                   ))}
                 </div>
