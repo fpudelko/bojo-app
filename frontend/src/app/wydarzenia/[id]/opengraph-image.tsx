@@ -1,10 +1,9 @@
 import { ImageResponse } from 'next/og';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { supabase } from '@/lib/supabase';
 import { sportEmoji } from '@/lib/sports';
 import { defaultEventTitle } from '@/lib/eventTitle';
-import { getEventMeta } from './eventMeta';
+import { getEventMeta, policzZajeteMiejsca } from './eventMeta';
 
 // Podgląd linku na WhatsAppie/Messengerze był zawsze generyczny (baner strony
 // głównej) — `openGraph.images` w page.tsx ustawiał się wyłącznie przy
@@ -53,14 +52,8 @@ export default async function Image({ params }: { params: { id: string } }) {
   const miejsce = ev.field_name || ev.custom_location_name || 'Boisko';
 
   // Wolne miejsca — liczone tak samo jak wszędzie w produkcie: bez
-  // rezerwowych i bez wierszy czekających na akceptację.
-  const { count } = await supabase
-    .from('event_participants')
-    .select('*', { count: 'exact', head: true })
-    .eq('event_id', params.id)
-    .eq('pending_approval', false)
-    .eq('is_reserve', false);
-  const zajete = count ?? 0;
+  // rezerwowych, bez wierszy czekających na akceptację i bez obserwujących.
+  const zajete = (await policzZajeteMiejsca(params.id)) ?? 0;
   const wolne = Math.max(0, (ev.max_players ?? 0) - zajete);
   const skladTekst = ev.max_players ? (wolne > 0 ? `${wolne} wolnych miejsc` : 'Komplet') : '';
 
