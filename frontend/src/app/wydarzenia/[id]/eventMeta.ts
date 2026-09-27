@@ -4,6 +4,7 @@ import { pl } from 'date-fns/locale';
 import { supabase } from '@/lib/supabase';
 import { defaultEventTitle } from '@/lib/eventTitle';
 import { isPast } from '@/lib/eventWizard';
+import { liczZajeteMiejsca } from '@/lib/zajeteMiejsca';
 
 // Wydzielone z page.tsx, żeby ten sam odczyt meczu (klient anon, bez sesji —
 // obie trasy renderują się po stronie serwera, bez cookies użytkownika) mógł
@@ -64,18 +65,22 @@ export async function getEventMeta(id: string): Promise<EventMeta | null> {
 
 /**
  * Zajęte miejsca w składzie: bez rezerwowych i bez wierszy czekających na
- * akceptację, tak samo jak w opengraph-image.tsx i na karcie meczu. Potrzebne
- * do `offers.availability` w JSON-LD (lib/structuredData.ts). Błąd odczytu
- * daje `undefined`, a wtedy JSON-LD nie zgaduje kompletu.
+ * akceptację i BEZ OBSERWUJĄCYCH (`rsvp = 'maybe'`), tak samo jak w
+ * opengraph-image.tsx i na karcie meczu. Potrzebne do `offers.availability`
+ * w JSON-LD (lib/structuredData.ts). Błąd odczytu daje `undefined`, a wtedy
+ * JSON-LD nie zgaduje kompletu.
+ *
+ * Odczyt z kolumn zamiast `select('*')` — migration 127 usunęła uprawnienia
+ * kolumny dla anon user. Rozwidlenie w obie strony (event_participants +
+ * opengraph-image) — koniec przychodzenia gościa bez zalogowania.
  */
 export async function policzZajeteMiejsca(id: string): Promise<number | undefined> {
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from('event_participants')
-    .select('*', { count: 'exact', head: true })
-    .eq('event_id', id)
-    .eq('pending_approval', false)
-    .eq('is_reserve', false);
-  return error ? undefined : (count ?? 0);
+    .select('is_reserve, pending_approval, rsvp')
+    .eq('event_id', id);
+  if (error) return undefined;
+  return liczZajeteMiejsca(data);
 }
 
 /**

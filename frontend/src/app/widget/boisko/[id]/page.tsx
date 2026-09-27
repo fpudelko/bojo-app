@@ -4,6 +4,7 @@ import { pl } from 'date-fns/locale';
 import { Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { sportEmoji } from '@/lib/sports';
+import { liczZajeteMiejsca } from '@/lib/zajeteMiejsca';
 import { LogoWordmark } from '@/components/Logo';
 import { WIDGET_BRAK_MECZOW, WIDGET_STOPKA, WIDGET_NIEZNANY_OBIEKT } from '@/content/widget';
 
@@ -57,12 +58,14 @@ async function getUpcomingEvents(fieldId: string): Promise<WidgetEvent[]> {
   const eventIds = data.map((e) => e.id);
   const { data: counts } = await supabase
     .from('event_participants')
-    .select('event_id')
-    .in('event_id', eventIds)
-    .eq('is_reserve', false);
+    .select('event_id, is_reserve, pending_approval, rsvp')
+    .in('event_id', eventIds);
 
   const countMap: Record<string, number> = {};
-  for (const c of counts ?? []) countMap[c.event_id] = (countMap[c.event_id] ?? 0) + 1;
+  for (const eventId of eventIds) {
+    const eventParticipants = (counts ?? []).filter((c) => c.event_id === eventId);
+    countMap[eventId] = liczZajeteMiejsca(eventParticipants);
+  }
 
   return data.map((e) => ({
     id: e.id,
