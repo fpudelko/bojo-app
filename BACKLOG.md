@@ -60,7 +60,7 @@ konkretnego gościa dopisał, nie tylko organizator. Zostaje:
 | # | Co zostało | Gdzie |
 |---|---|---|
 | **O-10** | Krok 2 kreatora nadal niesie do 15 kontrolek przy 2 na kroku 1. „Więcej opcji" zdjęło jedną decyzję; osobnej przebudowy świadomie nie zakładamy — do rewizji, gdy będzie feedback od realnych organizatorów | `app/wydarzenia/nowe/page.tsx` |
-| **R-9 (druga połowa)** | Kanał pocztowy dla uczestników z kontem jest zbudowany (migracja `140`) i **nie doręczy niczego, dopóki `bojo.pl` nie zostanie zweryfikowane w Resend** (SPF + DKIM) i nie zostanie wypełniona `konfiguracja_poczty`. Poza repo — wymaga dostępu do DNS i panelu Resend, patrz [strategia.md §3](./docs/strategia.md) | Supabase → SQL Editor + Resend |
+| **R-9 (druga połowa)** | Kanał pocztowy dla uczestników z kontem jest zbudowany (migracja `140`) i **działa od 2026-09-10** — domena `bojo.pl` zweryfikowana w Resend (SPF + DKIM), funkcja `powiadom-goscia` wdrożona. Szczegóły: [funkcje.md](./docs/funkcje.md) | Supabase → SQL Editor + Resend |
 
 Piąta runda audytu (2026-09-09) zamknęła `R-1`…`R-8` oraz połowę `R-9` — pełna
 lista z uzasadnieniami w

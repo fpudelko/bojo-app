@@ -663,9 +663,9 @@ pola TS to `costGrosze` i `sportsCardDiscountGrosze`.
 **Numer do BLIKA — kto go widzi.** `canSeeBlikPhone()` (`lib/payments.ts`): organizator
 widzi go zawsze, uczestnik ze składu dopiero `BLIK_PHONE_REVEAL_MINUTES` (60) przed
 startem meczu — nagłówek strony meczu jest publiczny i indeksowalny, więc numer
-prywatnego telefonu nie wystawia się komukolwiek od razu. **Jeden świadomy wyjątek:**
-okno „Dołączam” z wyborem metody BLIK pokazuje numer natychmiast, niezależnie od czasu
-do meczu — bez niego nie da się zapłacić przy zapisie. `minutesUntilStart()`
+prywatnego telefonu nie wystawia się komukolwiek od razu. Reguła jest konsystentna
+na całej aplikacji: okno „Dołączam” mówi uczestnikowi, że numer będzie dostępny
+godzinę przed meczem w zakładce Rozliczenia (Y-3, decyzja D-9 A). `minutesUntilStart()`
 (`lib/eventDates.ts`) liczy dystans czasowy; ujemna wartość (mecz już trwa) też
 odsłania numer.
 
