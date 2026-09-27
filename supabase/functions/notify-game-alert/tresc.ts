@@ -121,7 +121,7 @@ export interface Mail {
 
 export function tresc(d: DaneAlertu, dataDlaTematu: string): Mail {
   const { emoji, label } = tytul(d);
-  return { temat: `Alert: ${label} — ${dataDlaTematu}`, label, emoji, szczegoly: szczegoly(d) };
+  return { temat: `Alert: ${label}, ${dataDlaTematu}`, label, emoji, szczegoly: szczegoly(d) };
 }
 
 function esc(s: string): string {
@@ -171,7 +171,7 @@ export function doHtml(m: Mail, k: Kontakt): string {
 <tr><td style="background:${PLOTNO};border-top:1px solid ${OBWODKA};padding:16px 24px;">
   <p style="margin:0;font-size:13px;line-height:1.5;color:${SZARY};">
     Zarządzaj alertami na <a href="${esc(k.strona)}" style="color:${ZIELEN};text-decoration:none;">${esc(domena)}</a><br>
-    Coś nie gra? Napisz na <a href="mailto:${esc(k.odpowiedzNa)}" style="color:${ZIELEN};text-decoration:none;">${esc(k.odpowiedzNa)}</a> — czytamy każdą wiadomość.
+    Coś nie gra? Napisz na <a href="mailto:${esc(k.odpowiedzNa)}" style="color:${ZIELEN};text-decoration:none;">${esc(k.odpowiedzNa)}</a>, czytamy każdą wiadomość.
   </p>
   <p style="margin:10px 0 0;font-size:13px;line-height:1.5;color:${SZARY};">
     Nie chcesz więcej takich wiadomości?
@@ -186,5 +186,5 @@ export function doTekstu(m: Mail, k: Kontakt): string {
     + `${m.label}\n${m.szczegoly}\n\nZobacz mecz:\n${k.eventUrl}\n\n`
     + `Zarządzaj alertami na ${k.strona}\n`
     + `Nie chcesz więcej takich wiadomości? Wyłącz alert jednym kliknięciem:\n${k.wylaczUrl}\n\n`
-    + `Coś nie gra? Napisz na ${k.odpowiedzNa} — czytamy każdą wiadomość.\n`;
+    + `Coś nie gra? Napisz na ${k.odpowiedzNa}, czytamy każdą wiadomość.\n`;
 }

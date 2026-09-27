@@ -32,5 +32,5 @@ rozpoznaje mail, zrzut albo eksport i kieruje dalej do `gsc-dane-strukturalne`
 - **Dane z API GSC** wymagają klucza konta serwisowego w zmiennej środowiskowej
   `GSC_KLUCZ_JSON`. Konfiguracja: `.claude/skills/gsc/references/dane-i-dostep.md`.
   Nigdy w repo ani w czacie.
-- **Ścieżki cytowane w skillach sprawdza `npm run check:docs`** (sekcja 12). Przenosisz
+- **Ścieżki cytowane w skillach sprawdza `npm run check:docs`** (sekcja 13). Przenosisz
   plik opisany w skillu → popraw skill w tym samym PR.

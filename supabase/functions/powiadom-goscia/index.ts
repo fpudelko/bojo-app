@@ -56,7 +56,7 @@ serve(async (req) => {
     // Brak klucza to stan wdrożenia, nie błąd żądania. 200, żeby `pg_net` nie
     // ponawiał w nieskończoność — i żeby brak skonfigurowanej poczty NIGDY nie
     // wyglądał jak awaria po stronie bazy.
-    console.warn('[powiadom-goscia] brak RESEND_API_KEY — nie wysyłam');
+    console.warn('[powiadom-goscia] brak RESEND_API_KEY, nie wysyłam');
     return new Response(JSON.stringify({ pominiete: 'brak klucza' }), { status: 200 });
   }
 

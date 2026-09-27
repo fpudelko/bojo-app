@@ -41,7 +41,7 @@ export type Blok =
   | { typ: 'akapit'; tekst: string }
   /** Karta meczu: tytuł i jedna linia szczegółów (data · miejsce · koszt). */
   | { typ: 'mecz'; tytul: string; szczegoly: string }
-  /** Wyliczenie — w tekście z półpauzą, w HTML-u z kropką. */
+  /** Wyliczenie, w tekście z dywizem, w HTML-u z kropką. */
   | { typ: 'lista'; punkty: string[] }
   /** Główna akcja. `opis` prowadzi do niej w wersji tekstowej („Zacznij tutaj:"),
    *  `etykieta` jest napisem na przycisku („Utwórz mecz"). */
@@ -73,7 +73,7 @@ export function doTekstu(mail: Mail): string {
         kawalki.push(`${b.tytul}\n${b.szczegoly}`);
         break;
       case 'lista':
-        kawalki.push(b.punkty.map((p) => `— ${p}`).join('\n'));
+        kawalki.push(b.punkty.map((p) => `- ${p}`).join('\n'));
         break;
       case 'przycisk':
       case 'link':
@@ -153,7 +153,7 @@ export function doHtml(mail: Mail, cfg: Konfiguracja): string {
 <tr><td style="background:${PLOTNO};border-top:1px solid ${OBWODKA};padding:16px 24px;">
   <p style="margin:0;font-size:13px;line-height:1.5;color:${SZARY};">
     © ${rok} Bojo · <a href="${esc(cfg.strona)}" style="color:${ZIELEN};text-decoration:none;">${esc(domena)}</a><br>
-    Odpisz na tę wiadomość, jeśli coś nie gra — czytamy każdą odpowiedź.
+    Odpisz na tę wiadomość, jeśli coś nie gra; czytamy każdą odpowiedź.
   </p>
 </td></tr>
 </table></td></tr></table></body></html>`;
@@ -261,7 +261,7 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
 
     case 'zaakceptowano':
       return { temat: `Jesteś w składzie: ${d.tytul}`, naglowek, bloki: [
-        { typ: 'akapit', tekst: 'Organizator przyjął Twoją prośbę — masz miejsce w składzie:' },
+        { typ: 'akapit', tekst: 'Organizator przyjął Twoją prośbę, masz miejsce w składzie:' },
         kartaMeczu(d),
         { typ: 'akapit', tekst: 'Dzień przed meczem przypomnimy Ci o nim mailem.' },
         ...zamkniecie(d, cfg),
@@ -282,7 +282,7 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
         kartaMeczu(d),
         { typ: 'akapit', tekst: d.oferta_do
           ? `Masz czas do ${d.oferta_do}. Później miejsce przejdzie do kolejnej osoby, a Ty wrócisz na koniec kolejki.`
-          : 'Potwierdź jak najszybciej — miejsce czeka tylko przez chwilę.' },
+          : 'Potwierdź jak najszybciej: miejsce czeka tylko przez chwilę.' },
         { typ: 'przycisk', etykieta: 'Potwierdzam, gram', opis: 'Potwierdzasz tym linkiem:', url: wpis(d, cfg) },
       ] };
 
@@ -313,7 +313,7 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
       return { temat: `Nowy termin: ${d.tytul}`, naglowek, bloki: [
         { typ: 'akapit', tekst: 'Organizator zmienił termin meczu, na który jesteś zapisany. Nowy termin:' },
         kartaMeczu(d),
-        { typ: 'akapit', tekst: 'Jeśli nowy termin Ci nie pasuje — wypisz się, żeby ktoś zdążył wejść na Twoje miejsce.' },
+        { typ: 'akapit', tekst: 'Jeśli nowy termin Ci nie pasuje, wypisz się, żeby ktoś zdążył wejść na Twoje miejsce.' },
         ...zamkniecie(d, cfg),
       ] };
 
@@ -326,9 +326,9 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
 
     case 'mecz_przywrocony':
       return { temat: `Jednak gramy: ${d.tytul}`, naglowek, bloki: [
-        { typ: 'akapit', tekst: 'Dostałeś wcześniej wiadomość, że ten mecz jest odwołany. Organizator cofnął odwołanie — mecz się odbędzie:' },
+        { typ: 'akapit', tekst: 'Dostałeś wcześniej wiadomość, że ten mecz jest odwołany. Organizator cofnął odwołanie; mecz się odbędzie:' },
         kartaMeczu(d),
-        { typ: 'akapit', tekst: 'Twoje miejsce w składzie zostało nietknięte. Jeśli zdążyłeś zaplanować coś innego — wypisz się, żeby ktoś mógł wejść na Twoje miejsce.' },
+        { typ: 'akapit', tekst: 'Twoje miejsce w składzie zostało nietknięte. Jeśli zdążyłeś zaplanować coś innego, wypisz się, żeby ktoś mógł wejść na Twoje miejsce.' },
         ...zamkniecie(d, cfg),
       ] };
 
@@ -336,7 +336,7 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
       return { temat: `Jutro grasz: ${d.tytul}`, naglowek, bloki: [
         { typ: 'akapit', tekst: 'Jutro masz mecz:' },
         kartaMeczu(d),
-        { typ: 'akapit', tekst: 'Jeśli nie dasz rady — daj znać jak najszybciej, żeby ktoś zdążył wejść na Twoje miejsce.' },
+        { typ: 'akapit', tekst: 'Jeśli nie dasz rady, daj znać jak najszybciej, żeby ktoś zdążył wejść na Twoje miejsce.' },
         ...zamkniecie(d, cfg),
       ] };
 
@@ -344,7 +344,7 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
       // ŚWIADOMIE CZWARTY W KOLEJNOŚCI, nie pierwszy: to jedyny mail, który
       // czegoś CHCE, a nie o czymś informuje. Wysłany jako pierwszy kontakt od
       // nieznanego nadawcy czytałby się jak spam niezależnie od treści.
-      return { temat: 'Zagrałeś wczoraj — zapisz sobie to miejsce', naglowek, bloki: [
+      return { temat: 'Zagrałeś wczoraj, zapisz sobie to miejsce', naglowek, bloki: [
         { typ: 'akapit', tekst: 'Wczoraj grałeś w meczu:' },
         kartaMeczu(d),
         { typ: 'akapit', tekst: 'Zapisałeś się bez konta, więc za każdym razem podajesz imię i mail od nowa, a organizator nie ma jak Cię dopisać na kolejny termin jednym kliknięciem.' },
@@ -374,8 +374,8 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
       // stronie. Grupa jest druga, bo wciąga więcej ludzi naraz, ale wymaga
       // ekipy, którą trzeba już mieć. Szukanie gry jest trzecie i jest
       // uczciwie oznaczone jako to, na co dziś nie ma co liczyć.
-      return { temat: 'Konto w Bojo gotowe — pierwszy mecz zajmie dwie minuty', naglowek, bloki: [
-        { typ: 'akapit', tekst: 'Konto założone. Bojo służy do jednego: organizujesz mecz i wysyłasz ekipie jeden link. Kto go dostanie, zapisuje się sam — bez zakładania konta.' },
+      return { temat: 'Konto w Bojo gotowe, pierwszy mecz zajmie dwie minuty', naglowek, bloki: [
+        { typ: 'akapit', tekst: 'Konto założone. Bojo służy do jednego: organizujesz mecz i wysyłasz ekipie jeden link. Kto go dostanie, zapisuje się sam (bez zakładania konta).' },
         { typ: 'akapit', tekst: 'Co Bojo liczy za Ciebie:' },
         { typ: 'lista', punkty: [
           'skład i limit miejsc',
@@ -386,14 +386,14 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
         { typ: 'przycisk', etykieta: 'Utwórz pierwszy mecz', opis: 'Zacznij tutaj:',
           url: `${cfg.strona}/wydarzenia/nowe` },
         { typ: 'link', etykieta: 'Załóż grupę',
-          opis: 'Grasz stałą ekipą? Załóż grupę — wchodzi się do niej jednym linkiem, a każdy nowy mecz widzą wszyscy:',
+          opis: 'Grasz stałą ekipą? Załóż grupę, wchodzi się do niej jednym linkiem, a każdy nowy mecz widzą wszyscy:',
           url: `${cfg.strona}/grupy/nowe` },
         { typ: 'link', etykieta: 'Zobacz otwarte mecze',
           opis: 'Szukasz gry, a nie ekipy? Otwarte mecze są tutaj:',
           url: `${cfg.strona}/wydarzenia` },
         // Prośbę o odpowiedź niesie stopka KAŻDEGO maila, więc drugi raz w treści
         // była powtórzeniem — widać to dopiero na złożonej wiadomości, nie w kodzie.
-        { typ: 'drobne', tekst: 'Bojo dopiero się rozkręca, więc otwartych meczów bywa mało — najszybciej zagrasz, tworząc mecz i wysyłając link znajomym.' },
+        { typ: 'drobne', tekst: 'Bojo dopiero się rozkręca, więc otwartych meczów bywa mało; najszybciej zagrasz, tworząc mecz i wysyłając link znajomym.' },
       ] };
 
     default:

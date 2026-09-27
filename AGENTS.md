@@ -733,6 +733,18 @@ ponownie i zacommituj wynik.
   objęte zakazem: nie renderują się użytkownikowi. Pilnuje tego
   `npm run check:docs` (sekcja 11), skanując `frontend/src` z pominięciem
   komentarzy — złapie długi myślnik w treści niezależnie od tego, kto go dopisze.
+
+  **Ten sam zakaz obowiązuje treść generowaną w bazie i w funkcjach brzegowych** —
+  `notifications.body`/`title` wstawiane przez wyzwalacze i RPC, maile
+  (`supabase/functions/powiadom-goscia`, `notify-game-alert`), SMS
+  (`send-event-sms`). Do migracji `165` sekcja 11 tego nie widziała: KAŻDY typ
+  powiadomienia na produkcji niósł „—" („Czwartkowa gierka — 26.09, godz.
+  18:00."), bo zakaz w praktyce obowiązywał tylko `frontend/src`. `npm run
+  check:docs` (sekcja 12) skanuje migracje **od `165`** (starsze są historią, nie
+  treścią — nie trzeba ich cofać) i cały `supabase/functions/**`, z pominięciem
+  komentarzy SQL/TS, ale NIE ciał funkcji PL/pgSQL — inaczej złapałby tylko
+  połowę tego, co realnie wysyła się do użytkownika. Nie rusza tytułów meczów
+  wpisanych przez ludzi (`events.title`…) — to treść autora, nie szablon Bojo.
 - **Kolorystyka niesie stałe znaczenie w całej apce** — trzy kolory mają dziś
   zarezerwowane, wyłączne odczytanie, żeby budować podświadome skojarzenie:
   - **Różowy (`pink-*`)** — zawsze i wyłącznie odniesienie do wiadomości: plakietka

@@ -12,7 +12,10 @@
 //   7. frontend/public/llm-context.md is byte-identical to its source in docs/
 //   8. llm-context.md still has every required section, changelog capped at 10
 //   9. llm-context.md's "Stan na" marker — every field of it, not just the migration
-//  12. every repo path and relative link cited in .claude/skills/**/*.md exists
+//  10. no max-width breakpoints in frontend/src (mobile-first convention)
+//  11. no em-dash in user-facing frontend/src content
+//  12. no em-dash in migrations from 165 onward or in supabase/functions/**
+//  13. every repo path and relative link cited in .claude/skills/**/*.md exists
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -325,7 +328,62 @@ for (const rel of walk('frontend/src')) {
 if (emDashViolations === 0) console.log(`  sprawdzono ${emDashFilesScanned} plików, zero długich myślników w treści`);
 
 // ---------------------------------------------------------------------------
-section('12. ścieżki i linki w skillach (.claude/skills) żywe');
+section('12. brak długiego myślnika (—) w migracjach od 165 i w supabase/functions');
+// Ten sam zakaz co sekcja 11, ale po stronie bazy i funkcji brzegowych — dopisana
+// po tym, jak KAŻDY typ powiadomienia w `notifications.body` na produkcji niósł
+// „—” (migracja `165` przepisała 25 funkcji). Sekcja 11 skanuje wyłącznie
+// `frontend/src`, więc bez tej złapałaby tylko połowę problemu na przyszłość.
+//
+// Próg `165`, nie `001`: starsze migracje są HISTORIĄ, nie treścią renderowaną
+// dziś — `165` jest pierwszą napisaną z tą regułą w głowie, więc od niej zakaz
+// zaczyna obowiązywać w jedną stronę (przybywać nowym plikom nie wolno, cofać
+// się do starych nikt nie musi). Migracje pomijają tylko komentarze SQL (`--`),
+// NIE ciała funkcji — inaczej ten sam literał w `notifications.body`, który
+// wywołał ten PR, przeszedłby bez zgłoszenia.
+let dbEmDashViolations = 0;
+for (const f of migrationFiles) {
+  const num = parseInt(f, 10);
+  if (!Number.isFinite(num) || num < 165) continue;
+  const bezKomentarzySql = read(`supabase/migrations/${f}`).replace(/--[^\n]*/g, '');
+  bezKomentarzySql.split('\n').forEach((line, i) => {
+    if (line.includes('—')) {
+      dbEmDashViolations++;
+      fail(`supabase/migrations/${f}:${i + 1}: długi myślnik w migracji — zastąp przecinkiem, dwukropkiem, średnikiem albo nowym zdaniem`);
+    }
+  });
+}
+function* walkFunctions(dir) {
+  if (!existsSync(join(ROOT, dir))) return;
+  for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+    const rel = join(dir, entry.name);
+    if (entry.isDirectory()) yield* walkFunctions(rel);
+    else if (/\.tsx?$/.test(entry.name)) yield rel;
+  }
+}
+let fnFilesScanned = 0;
+for (const rel of walkFunctions('supabase/functions')) {
+  fnFilesScanned++;
+  let inBlockComment = false;
+  read(rel).split('\n').forEach((line, i) => {
+    const trimmed = line.trim();
+    if (inBlockComment) {
+      if (line.includes('*/')) inBlockComment = false;
+      return;
+    }
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+    if (line.includes('/*') && !line.includes('*/')) { inBlockComment = true; return; }
+    const codeOnly = line.replace(/\/\*.*?\*\//g, '').split('//')[0];
+    if (codeOnly.includes('—')) {
+      dbEmDashViolations++;
+      fail(`${rel}:${i + 1}: długi myślnik w treści — zastąp przecinkiem, dwukropkiem, średnikiem albo nowym zdaniem`);
+    }
+  });
+}
+if (dbEmDashViolations === 0)
+  console.log(`  sprawdzono migracje od 165 i ${fnFilesScanned} plików w supabase/functions, zero długich myślników`);
+
+// ---------------------------------------------------------------------------
+section('13. ścieżki i linki w skillach (.claude/skills) żywe');
 // Skille to dokumentacja dla agentów: mówią „popraw `frontend/src/lib/structuredData.ts`”
 // albo „uruchom `scripts/gsc-okazje.mjs`”. Gdy plik się przeniesie, skill dalej to
 // mówi, pewnym tonem, i agent szuka w próżni. Sprawdzamy dwie rzeczy: ścieżki

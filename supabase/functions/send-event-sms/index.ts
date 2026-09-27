@@ -118,9 +118,9 @@ serve(async (req) => {
 
     let message: string;
     if (type === 'confirmation') {
-      message = `Cześć ${participant.name}! Zapraszamy na ${label} — ${date} ${time}, ${venue}. Odpowiedz SMS: TAK lub NIE.`;
+      message = `Cześć ${participant.name}! Zapraszamy na ${label}, ${date} ${time}, ${venue}. Odpowiedz SMS: TAK lub NIE.`;
     } else if (type === 'removal') {
-      message = `Cześć ${participant.name}! Zostałeś usunięty z listy: ${label} — ${date} ${time}.`;
+      message = `Cześć ${participant.name}! Zostałeś usunięty z listy: ${label}, ${date} ${time}.`;
     } else {
       return new Response(JSON.stringify({ error: 'Unknown type' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
