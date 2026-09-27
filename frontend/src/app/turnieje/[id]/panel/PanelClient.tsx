@@ -516,7 +516,7 @@ export default function PanelClient() {
               <>
                 <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4">
                   <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-                    <span className="inline-block h-2 w-2 rounded-full bg-primary-600" /> Turniej trwa
+                    <span className="inline-block h-2 w-2 rounded bg-primary-600" /> Turniej trwa
                   </p>
                   <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
                     {opoznienie === null
@@ -630,7 +630,7 @@ export default function PanelClient() {
                   {turniej.wpisoweGrosze > 0 && (
                     <button
                       onClick={() => przelaczOplacone(d)}
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${d.wpisoweOplaconeAt ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-500'}`}
+                      className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${d.wpisoweOplaconeAt ? 'bg-primary-50 text-primary-700' : 'bg-slate-100 text-slate-500'}`}
                     >
                       {d.wpisoweOplaconeAt ? 'Opłacone ✓' : 'Nieopłacone'}
                     </button>

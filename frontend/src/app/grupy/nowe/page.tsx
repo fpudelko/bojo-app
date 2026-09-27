@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { createGroup, setGroupCover } from '@/lib/groups';
 import { useToast } from '@/lib/toast';
 import { useWstecz } from '@/lib/historia';
-import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
+import { FOCUS_SPORTS, sportLabel } from '@/lib/sports';
 
 export default function NewGroupPage() {
   const router = useRouter();
@@ -50,7 +50,7 @@ export default function NewGroupPage() {
       if (coverUrl) {
         setGroupCover(id, coverUrl).catch((e) => console.warn('[grupy/nowe] okładka', e));
       }
-      toast('Ekipa utworzona! 🎉');
+      toast('Ekipa utworzona!');
       // Prosto do zaproszenia — ekipa z jedną osobą jest martwa, a to jedyny
       // moment, w którym organizator na pewno chce zapraszać (GroupDetailClient
       // widzi ?zapros=1 i otwiera sheet, tak jak ?dolacz= otwiera dołączanie).
@@ -69,14 +69,14 @@ export default function NewGroupPage() {
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
       <Header />
-      <main className="flex-1 max-w-lg mx-auto w-full px-4 py-8">
+      <main className="flex-1 max-w-lg mx-auto w-full px-4 py-6">
         <button onClick={wstecz} className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink transition-colors">
           <ArrowLeft className="w-4 h-4" /> Wróć
         </button>
 
         <h1 className="font-display text-2xl font-bold text-ink mb-6">Nowa ekipa</h1>
 
-        <div className="space-y-5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
+        <div className="space-y-5">
           <div>
             <span className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Okładka (opcjonalnie)</span>
             <div className="relative h-24 overflow-hidden rounded-xl bg-gradient-to-br from-primary-700 to-primary-900">
@@ -114,7 +114,7 @@ export default function NewGroupPage() {
                     sport === s ? 'border-primary-600 bg-primary-50 text-primary-700' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800',
                   ].join(' ')}
                 >
-                  <span>{sportEmoji(s)}</span> {sportLabel(s)}
+                  {sportLabel(s)}
                 </button>
               ))}
             </div>

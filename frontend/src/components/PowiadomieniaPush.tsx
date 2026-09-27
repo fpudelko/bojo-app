@@ -120,9 +120,9 @@ export default function PowiadomieniaPush() {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+    <div className="-mx-4 border-b border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700 dark:bg-primary-950/40">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded bg-primary-50 text-primary-700 dark:bg-primary-950/40">
           {stan === 'wlaczone' ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
         </span>
 

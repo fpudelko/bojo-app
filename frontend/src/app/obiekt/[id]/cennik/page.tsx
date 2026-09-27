@@ -182,10 +182,10 @@ export default function CennikPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-medium text-slate-900 truncate">{rule.name}</p>
-                    <span className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-2 py-0.5">
+                    <span className="text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-200 rounded px-2 py-0.5">
                       {formatPrice(rule.priceGrosze)}
                     </span>
-                    <span className="text-xs text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">
+                    <span className="text-xs text-slate-400 bg-slate-100 rounded px-2 py-0.5">
                       prioryt. {rule.priority}
                     </span>
                   </div>

@@ -9,7 +9,6 @@ import Card from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth';
 import { getField } from '@/lib/api';
 import type { Field } from '@/types';
-import { sportEmoji } from '@/lib/sports';
 
 
 export default function VenueDashboardPage() {
@@ -141,9 +140,9 @@ export default function VenueDashboardPage() {
             {field.sport.map((s) => (
               <span
                 key={s}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 text-xs font-medium"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white border border-slate-200 text-slate-600 text-xs font-medium"
               >
-                {sportEmoji(s)} {s}
+                {s}
               </span>
             ))}
           </div>

@@ -27,7 +27,10 @@ export default async function HomePage() {
       >
         Przejdź do treści
       </a>
-      <Header transparentOverHero={!signedInHint} hideMobileBarForUser />
+      {/* Bez `transparentOverHero` od redesignu 2026-09: hero landingu jest
+          jasny, więc biały nagłówek nałożony na niego byłby niewidoczny.
+          Sam tryb w Header.tsx zostaje, gdyby ciemne hero wróciło. */}
+      <Header hideMobileBarForUser />
 
       <main id="main" className="flex-1">
         <HomeSwitch

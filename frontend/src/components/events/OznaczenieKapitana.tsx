@@ -18,7 +18,7 @@ export default function OznaczenieKapitana() {
     <span
       title="Kapitan"
       aria-label="Kapitan"
-      className="inline-flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border border-amber-400 bg-amber-50 text-[9px] font-bold leading-none text-amber-700"
+      className="inline-flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded border border-amber-400 bg-amber-50 text-[9px] font-bold leading-none text-amber-700"
     >
       c
     </span>

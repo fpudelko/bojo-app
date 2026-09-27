@@ -22,6 +22,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // NEUTRAL — nadpisuje domyślny `slate` Tailwinda (redesign 2026-09).
+        // Szarość `slate` (chłodna, niebieskawa) była najbardziej rozpoznawalnym
+        // śladem interfejsu z generatora; ta jest lekko podbarwiona zielenią marki.
+        // Nazwa zostaje `slate`, bo używa jej ~4000 klas w repo i reguły trybu
+        // ciemnego w globals.css — zmienia się odcień, nie znaczenie (szary
+        // nadal niesie wyłącznie „zapisy zamknięte", patrz AGENTS.md).
+        slate: {
+          50:  '#F6F7F5',
+          100: '#EEF0EE',
+          200: '#E3E6E3',
+          300: '#D5DAD6',
+          400: '#8B958F',
+          500: '#5B6660',
+          600: '#4A544F',
+          700: '#3B4540',
+          800: '#252D29',
+          900: '#0E1411',
+          950: '#070A08',
+        },
         // Working brand palette — finalną zatwierdzi grafik.
         primary: {
           50:  '#f0fdf5',
@@ -71,12 +90,35 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        display: ['var(--font-display)', 'var(--font-inter)', 'system-ui', 'sans-serif'],
+        // Jedna rodzina (Geist) — hierarchia z rozmiaru i wagi, nie z drugiego
+        // kroju. `display` zostaje jako alias, żeby nie ruszać ~80 miejsc.
+        sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'ui-monospace', 'monospace'],
+      },
+      // KANCIASTO — redesign 2026-09. Zaokrąglenia `xl`/`2xl` (12–16 px) na
+      // każdej karcie były drugim głównym śladem generatora i zjadały miejsce
+      // na telefonie. Skala zostaje (nie ruszamy ~650 klas), ale każdy stopień
+      // schodzi do 2–4 px. `full` zostaje okrągłe: kropki, przełączniki,
+      // awatary, spinnery.
+      borderRadius: {
+        sm: '2px',
+        DEFAULT: '2px',
+        md: '2px',
+        lg: '3px',
+        xl: '3px',
+        '2xl': '4px',
+        '3xl': '4px',
       },
       boxShadow: {
-        card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)',
-        'card-hover': '0 10px 30px -12px rgb(15 23 42 / 0.18), 0 4px 12px -6px rgb(15 23 42 / 0.10)',
+        // Karty są płaskie: hierarchię budują linie i odstępy, nie cienie.
+        // `sm` i domyślny cień (121 + 23 użycia, prawie wyłącznie karty
+        // i przyciski) gaszą się tutaj; `md` i wyżej zostają dla warstw,
+        // które naprawdę leżą NAD treścią (menu, okna, toasty).
+        sm: '0 0 #0000',
+        DEFAULT: '0 0 #0000',
+        card: '0 0 #0000',
+        'card-hover': '0 0 0 1px rgb(14 20 17 / 0.10)',
         'glow-accent': '0 0 0 1px rgb(132 204 22 / 0.25), 0 8px 24px -8px rgb(132 204 22 / 0.45)',
       },
       keyframes: {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Check, Loader2, Users, X } from 'lucide-react';
 import { createGroup, getGroup, getMyGroups } from '@/lib/groups';
-import { FOCUS_SPORTS, sportEmoji, sportLabel } from '@/lib/sports';
+import { FOCUS_SPORTS, sportLabel } from '@/lib/sports';
 import type { Group } from '@/types';
 import { WARSTWA } from '@/lib/warstwy';
 
@@ -132,7 +132,7 @@ export default function WybierzGrupeDialog({
                           : 'inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50'
                       }
                     >
-                      <span>{sportEmoji(s)}</span> {sportLabel(s)}
+                      {sportLabel(s)}
                     </button>
                   ))}
                 </div>

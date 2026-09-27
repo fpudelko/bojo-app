@@ -49,7 +49,7 @@ export default function ZaproszeniaTurniejowe({ userId }: { userId: string }) {
     <div>
       <div className="mb-2 flex items-center gap-2">
         <h2 className="font-display text-base font-bold text-ink">Zaproszenia do drużyn</h2>
-        <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs font-medium text-slate-500 dark:text-slate-300">
+        <span className="rounded bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-xs font-medium text-slate-500 dark:text-slate-300">
           {zaproszenia.length}
         </span>
       </div>

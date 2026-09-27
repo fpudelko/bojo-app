@@ -153,7 +153,7 @@ export default function PoMeczuCard({
   // ustępuje jednej linii zamiast zajmować pełną kartę zadań.
   if (doZrobienia.length === 0) {
     return (
-      <div className="mx-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+      <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
         <p className="text-sm text-slate-600 dark:text-slate-400">
           {zadania.length > 0 ? 'Wszystko rozliczone. ' : ''}Powtórzyć mecz za tydzień?
         </p>
@@ -178,7 +178,7 @@ export default function PoMeczuCard({
   }
 
   return (
-    <div className="mx-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+    <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700">
       <p className="font-semibold text-ink">Po meczu</p>
       <ul className="mt-2.5 space-y-2">
         {zadania.map((z) => {

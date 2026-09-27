@@ -9,7 +9,6 @@ import { Loader2, MapPin, Users } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import AuthForm from '@/components/auth/AuthForm';
 import { useAuth } from '@/lib/auth';
-import { sportEmoji } from '@/lib/sports';
 import { withCount } from '@/lib/plural';
 import { zWielkiejLitery } from '@/lib/utils';
 
@@ -70,14 +69,14 @@ export default function ZaproszenieClient({
       <Header showMobileWordmark />
       <main className="mx-auto w-full max-w-md flex-1 px-4 py-10">
         <div className="text-center">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary-700 to-primary-900 text-3xl shadow-sm">
-            {group.coverImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
+          {/* Okładka tylko, gdy ekipa ją ma (redesign 2026-09: bez emoji
+              sportu na zielonym gradiencie jako zastępstwa). */}
+          {group.coverImageUrl && (
+            <span className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <span className="text-white">{group.sport ? sportEmoji(group.sport) : '👥'}</span>
-            )}
-          </span>
+            </span>
+          )}
           <h1 className="mt-3 font-display text-xl font-bold text-ink">{group.name}</h1>
           <p className="mt-1 text-sm text-slate-600">
             {inviterName ? `${inviterName} zaprasza Cię do ekipy` : 'Zaproszenie do ekipy'}

@@ -50,7 +50,8 @@ describe('X-11: drobne zdania mówią dokładnie to, co się dzieje', () => {
   });
 
   it('odwołany mecz: bez „wolne miejsca"/„Komplet" i bez „Wypisz się z meczu" pod banerem', () => {
-    expect(stronaMeczu).toMatch(/\{!isCancelled && \(\s*<p className=\{`mt-3 text-center text-sm font-bold/);
+    // Nagłówek licznika od redesignu 2026-09: lewa kolumna rzędu z „N / max”.
+    expect(stronaMeczu).toMatch(/\{!isCancelled && \(\s*<p className=\{`text-\[15px\] font-semibold/);
     expect(stronaMeczu).toContain('{!statusBarVisible && !isCancelled && (');
   });
 

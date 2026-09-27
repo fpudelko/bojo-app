@@ -3,7 +3,6 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { sportEmoji } from '@/lib/sports';
 import { LogoWordmark } from '@/components/Logo';
 import { WIDGET_BRAK_MECZOW, WIDGET_STOPKA, WIDGET_NIEZNANY_OBIEKT } from '@/content/widget';
 
@@ -116,8 +115,7 @@ export default async function WidgetBoiskoPage({ params }: { params: { id: strin
                   className="flex items-center justify-between gap-3 hover:opacity-80"
                 >
                   <span className="flex items-center gap-2 text-slate-700">
-                    <span aria-hidden>{sportEmoji(ev.sport)}</span>
-                    <span className="flex flex-col">
+                                        <span className="flex flex-col">
                       <span className="font-medium capitalize">{ev.sport}</span>
                       <span className="flex items-center gap-1 text-xs text-slate-500">
                         <Clock className="h-3 w-3" /> {dateStr} · {ev.time}
@@ -125,7 +123,7 @@ export default async function WidgetBoiskoPage({ params }: { params: { id: strin
                     </span>
                   </span>
                   <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                    className={`shrink-0 rounded px-2.5 py-1 text-xs font-medium ${
                       spotsLeft <= 0
                         ? 'bg-red-100 text-red-700'
                         : spotsLeft <= 3

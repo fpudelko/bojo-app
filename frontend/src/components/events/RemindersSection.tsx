@@ -95,7 +95,7 @@ export default function RemindersSection({ eventId }: Props) {
   if (loading) return null;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+    <div className="border-t border-slate-200 pt-5 dark:border-slate-700">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-slate-900 flex items-center gap-2">
           <Bell className="w-4 h-4" /> Przypomnienia
@@ -122,7 +122,7 @@ export default function RemindersSection({ eventId }: Props) {
                   </span>
                   <span className="text-xs text-slate-400 uppercase tracking-wide">{r.channel}</span>
                   {r.sent && (
-                    <span className="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5">Wysłano</span>
+                    <span className="text-xs bg-green-100 text-green-700 rounded px-2 py-0.5">Wysłano</span>
                   )}
                 </div>
                 {r.message && (

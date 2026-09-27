@@ -38,7 +38,7 @@ export default function TwojaPlatnosc({
   const pokazBlik = metoda === 'blik' && (!!blikTelefon || blikPozniej);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6" data-twoja-platnosc>
+    <div className="border-y border-slate-200 px-4 py-4 dark:border-slate-700" data-twoja-platnosc>
       <h2 className="font-semibold text-ink flex items-center gap-2 mb-3">
         <Banknote className="w-4 h-4" /> Twoja płatność
       </h2>
@@ -77,11 +77,11 @@ export default function TwojaPlatnosc({
       {pokazStatus && (
         <div className="mt-4 pt-4 border-t border-slate-100">
           {oplacone ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+            <span className="inline-flex items-center gap-1.5 rounded bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
               <Check className="w-3.5 h-3.5" strokeWidth={2.25} /> Opłacone
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+            <span className="inline-flex items-center gap-1.5 rounded bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
               <Clock className="w-3.5 h-3.5" strokeWidth={2.25} /> Jeszcze nieopłacone
             </span>
           )}

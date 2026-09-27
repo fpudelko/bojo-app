@@ -100,7 +100,7 @@ export default function DopiszGoscia({
 
             {gkEnabled && (
               <div className="mt-2 flex gap-2">
-                {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([r, label]) => (
+                {([['field', 'Zawodnik z pola'], ['gk', 'Bramkarz']] as const).map(([r, label]) => (
                   <button
                     key={r}
                     type="button"

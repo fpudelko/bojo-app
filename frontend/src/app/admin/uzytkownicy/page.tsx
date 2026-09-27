@@ -176,8 +176,8 @@ export default function UsersAdminPanel() {
               return (
                 <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                   {p.avatar_url
-                    ? <img src={p.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
-                    : <div className="w-9 h-9 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
+                    ? <img src={p.avatar_url} alt="" className="w-9 h-9 rounded object-cover shrink-0" />
+                    : <div className="w-9 h-9 rounded bg-primary-50 flex items-center justify-center shrink-0">
                         <User className="w-4 h-4 text-primary-700" />
                       </div>}
                   <div className="min-w-0 flex-1">

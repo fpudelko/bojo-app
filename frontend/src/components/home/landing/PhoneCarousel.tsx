@@ -115,7 +115,7 @@ export default function PhoneCarousel({ className = '' }: { className?: string }
             aria-label={`Pokaż ekran: ${label}`}
             aria-current={i === index}
             className={[
-              'h-2 rounded-full transition-all',
+              'h-2 rounded transition-all',
               i === index ? 'w-6 bg-white' : 'w-2 bg-white/40 hover:bg-white/70',
             ].join(' ')}
           />

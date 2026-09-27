@@ -122,7 +122,7 @@ export default function OknoPotwierdzenia({
           <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">
             {konsekwencje.map((linia) => (
               <li key={linia} className="flex gap-2">
-                <span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300 dark:bg-slate-600" />
+                <span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded bg-slate-300 dark:bg-slate-600" />
                 <span>{linia}</span>
               </li>
             ))}

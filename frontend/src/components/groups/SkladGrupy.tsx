@@ -42,9 +42,9 @@ export default function SkladGrupy({
             {members.slice(0, 8).map((m) => (
               m.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={m.id} src={m.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover ring-2 ring-canvas" />
+                <img key={m.id} src={m.avatarUrl} alt="" className="h-9 w-9 rounded object-cover ring-2 ring-canvas" />
               ) : (
-                <span key={m.id} className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700 ring-2 ring-canvas">
+                <span key={m.id} className="flex h-9 w-9 items-center justify-center rounded bg-primary-50 text-xs font-bold text-primary-700 ring-2 ring-canvas">
                   {m.name.charAt(0).toUpperCase()}
                 </span>
               )
@@ -66,9 +66,9 @@ export default function SkladGrupy({
                 <Link href={`/gracz/${m.userId}`} className="group flex min-w-0 flex-1 items-center gap-3">
                   {m.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={m.avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                    <img src={m.avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded object-cover" />
                   ) : (
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-primary-50 text-primary-700">
                       <UserIcon className="h-4 w-4" />
                     </span>
                   )}

@@ -146,7 +146,7 @@ export default function NowyTurniejPage() {
         <Header />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
           <div className="text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-950">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded bg-primary-50 dark:bg-primary-950">
               <Check className="h-6 w-6 text-primary-700 dark:text-primary-300" />
             </div>
             <h1 className="font-display text-2xl font-bold text-ink">Turniej jest ogłoszony</h1>

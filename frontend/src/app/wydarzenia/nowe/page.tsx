@@ -16,7 +16,7 @@ import { track } from '@/lib/analytics';
 import { createEvent, DOMYSLNE_MINUTY_REZERWY } from '@/lib/events';
 import { getField } from '@/lib/api';
 import { surfaceLabel, venueThumbnail } from '@/lib/labels';
-import { FOCUS_SPORTS, FOCUS_SPORT_BY_SLUG, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
+import { FOCUS_SPORTS, FOCUS_SPORT_BY_SLUG, sportLabel, GK_SPORTS } from '@/lib/sports';
 import { validateStep1, validateStep2, validateStep, validatePayments, isPast, KROK_KREATORA, czyMeczPlatny } from '@/lib/eventWizard';
 import { jutroLokalnie } from '@/lib/eventDates';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
@@ -479,7 +479,7 @@ function NewEventForm() {
             <li className="flex items-start gap-2"><span aria-hidden="true">✓</span> Mecz publiczny trafia na listę otwartych gier w Bojo</li>
           </ul>
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+          <div className="mt-6 border-y border-slate-200 py-5 dark:border-slate-700">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
                 <Lock className="w-4 h-4 text-primary-700" aria-hidden="true" />
@@ -529,8 +529,7 @@ function NewEventForm() {
                           : 'border-slate-200 text-slate-600',
                       ].join(' ')}
                     >
-                      <span>{sportEmoji(s)}</span>
-                      <span>{sportLabel(s)}</span>
+                                            <span>{sportLabel(s)}</span>
                     </div>
                   ))}
                 </div>
@@ -562,7 +561,7 @@ function NewEventForm() {
                   <p className="text-sm font-medium text-slate-900">Lista rezerwowa</p>
                   <p className="text-xs text-slate-500">Przy komplecie kolejni czekają w kolejce.</p>
                 </div>
-                <div className="h-5 w-9 shrink-0 rounded-full bg-primary-600" />
+                <div className="h-5 w-9 shrink-0 rounded bg-primary-600" />
               </div>
 
               <div className="flex h-11 items-center justify-center rounded-xl bg-primary-700 text-sm font-semibold text-white">
@@ -802,7 +801,7 @@ function NewEventForm() {
                 aria-current={current ? 'step' : undefined}
                 aria-label={`Krok ${n}: ${STEP_TITLES[n - 1]}`}
                 className={clsx(
-                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all',
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded text-sm font-bold transition-all',
                   'focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2',
                   (current || done) && 'bg-primary-700 text-white',
                   current && 'ring-4 ring-primary-100 dark:ring-primary-900',
@@ -880,8 +879,7 @@ function NewEventForm() {
                           : 'bg-white text-slate-700 border-slate-200 hover:border-primary-400',
                       ].join(' ')}
                     >
-                      <span>{sportEmoji(s)}</span>
-                      <span>{sportLabel(s)}</span>
+                                            <span>{sportLabel(s)}</span>
                     </button>
                   ))}
                 </div>
@@ -898,7 +896,7 @@ function NewEventForm() {
                     aria-label="Wybierz sport"
                   >
                     {SPORTS.map((s) => (
-                      <option key={s} value={s}>{sportEmoji(s)} {sportLabel(s)}</option>
+                      <option key={s} value={s}>{sportLabel(s)}</option>
                     ))}
                   </select>
                 </div>
@@ -1098,7 +1096,7 @@ function NewEventForm() {
                 </div>
                 {organizerParticipates && GK_SPORTS.includes(sport) && goalkeepersEnabled && (
                   <div className="mt-2 flex gap-2">
-                    {([['field', 'Zawodnik z pola'], ['gk', '🧤 Bramkarz']] as const).map(([role, label]) => (
+                    {([['field', 'Zawodnik z pola'], ['gk', 'Bramkarz']] as const).map(([role, label]) => (
                       <button
                         key={role}
                         type="button"

@@ -68,7 +68,7 @@ export function GameFeedCard({ event }: { event: EventItem }) {
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-base font-bold leading-tight text-ink line-clamp-2">{title}</h3>
             <span
-              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+              className={`shrink-0 rounded px-2.5 py-1 text-xs font-bold ${
                 free ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
               }`}
             >
@@ -101,19 +101,19 @@ export function GameFeedCard({ event }: { event: EventItem }) {
               <span className="text-sm font-medium text-slate-500">graczy</span>
             </div>
             {stanZapisow ? (
-              <span className={`rounded-full px-3 py-1 text-sm font-bold ${stanZapisow.klasy}`}>
+              <span className={`rounded px-3 py-1 text-sm font-bold ${stanZapisow.klasy}`}>
                 {stanZapisow.napis}
               </span>
             ) : (
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700">
+              <span className="rounded bg-amber-50 px-3 py-1 text-sm font-bold text-amber-700">
                 brak {left}
               </span>
             )}
           </div>
 
-          <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="h-3 w-full overflow-hidden rounded bg-slate-100">
             <div
-              className="h-full rounded-full transition-all"
+              className="h-full rounded transition-all"
               style={{ width: `${pct}%`, backgroundColor: barColor }}
               role="progressbar"
               aria-valuenow={taken}

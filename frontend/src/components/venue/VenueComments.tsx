@@ -81,7 +81,7 @@ export default function VenueComments({ fieldId }: { fieldId: string }) {
         <ul className="space-y-4 mb-4">
           {comments.map((c) => (
             <li key={c.id} className="flex gap-3">
-              <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
+              <span className="w-7 h-7 rounded bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
                 {c.userName.charAt(0).toUpperCase()}
               </span>
               <div className="flex-1 min-w-0">

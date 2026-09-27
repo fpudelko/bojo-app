@@ -388,9 +388,9 @@ export default function ModeracjaPage() {
                   )}
                 </span>
               </div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-2 bg-slate-100 rounded overflow-hidden">
                 <div
-                  className="h-full bg-primary-600 rounded-full transition-all duration-300"
+                  className="h-full bg-primary-600 rounded transition-all duration-300"
                   style={{ width: `${progressPct}%` }}
                 />
               </div>

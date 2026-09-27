@@ -10,11 +10,8 @@ export default function LandingHowItWorks() {
   return (
     <section className="bg-canvas px-4 py-16 sm:py-20">
       <div className="mx-auto max-w-3xl">
-        <div className="text-center mb-10">
-          <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">
-            Jak to działa
-          </span>
-          <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
             Trzy kroki do składu
           </h2>
         </div>
@@ -41,7 +38,7 @@ export default function LandingHowItWorks() {
                   wczesny ? 'bg-slate-100 text-slate-400' : 'bg-primary-50 text-primary-700',
                 )}>
                   <Icon className="h-5 w-5" aria-hidden="true" />
-                  <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent-500 text-[11px] font-bold text-primary-950 ring-2 ring-canvas">
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded bg-primary-700 text-[11px] font-bold text-white ring-2 ring-canvas">
                     {i + 1}
                   </span>
                 </div>

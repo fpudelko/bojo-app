@@ -185,7 +185,7 @@ export default async function SportMiastoPage(
                       {field.sport.map((s) => {
                         const SIcon = SPORT_ICONS[s] ?? Activity;
                         return (
-                          <span key={s} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary-50 text-primary-700">
+                          <span key={s} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-primary-50 text-primary-700">
                             <SIcon className="w-3 h-3" /> {s}
                           </span>
                         );

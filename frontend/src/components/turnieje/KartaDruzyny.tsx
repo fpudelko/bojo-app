@@ -49,7 +49,7 @@ export default function KartaDruzyny({
               <span className="text-xs text-slate-400">{odmienZawodnikow(d.liczbaZawodnikow)}</span>
             )}
           </div>
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
+          <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
         </Link>
         <button
           onClick={() => setRozwinieta((v) => !v)}

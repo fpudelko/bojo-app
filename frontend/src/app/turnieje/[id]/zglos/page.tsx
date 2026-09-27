@@ -149,7 +149,7 @@ export default function ZglosDruzynePage() {
           <h1 className="font-display text-2xl font-bold text-ink">Masz już drużynę w tym turnieju</h1>
           <div className="mt-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
             <p className="font-medium text-ink">{mojaDruzyna.nazwa}</p>
-            <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>
+            <span className={`mt-1 inline-block rounded px-2 py-0.5 text-xs font-medium ${status.ton}`}>
               {status.label}
             </span>
           </div>

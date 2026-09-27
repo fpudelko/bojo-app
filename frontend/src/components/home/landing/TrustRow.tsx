@@ -8,7 +8,7 @@ import { LANDING_HERO } from './content';
  *  once there's width to spare. */
 export default function TrustRow({ className = '' }: { className?: string }) {
   return (
-    <ul className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-white/70 sm:gap-x-4 ${className}`}>
+    <ul className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-slate-600 sm:gap-x-4 dark:text-slate-400 ${className}`}>
       {LANDING_HERO.trust.map((t) => (
         <li key={t} className="inline-flex items-center gap-1 whitespace-nowrap sm:gap-1.5">
           <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> {t}

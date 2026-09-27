@@ -9,7 +9,6 @@ import Card from '@/components/ui/Card';
 import { useAuth, displayName } from '@/lib/auth';
 import { getFields } from '@/lib/api';
 import type { Field } from '@/types';
-import { sportEmoji } from '@/lib/sports';
 
 
 export default function MyVenuesPage() {
@@ -103,7 +102,7 @@ export default function MyVenuesPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-slate-900 truncate">{venue.name}</p>
                         {venue.isBookable && (
-                          <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700 border border-primary-200">
+                          <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700 border border-primary-200">
                             Rezerwacje
                           </span>
                         )}
@@ -121,9 +120,9 @@ export default function MyVenuesPage() {
                       {venue.sport.map((s) => (
                         <span
                           key={s}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs font-medium"
                         >
-                          {sportEmoji(s)} {s}
+                          {s}
                         </span>
                       ))}
                     </div>

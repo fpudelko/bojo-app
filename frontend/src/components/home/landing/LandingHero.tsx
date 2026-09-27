@@ -7,10 +7,14 @@ import PhoneCarousel from './PhoneCarousel';
 import TrustRow from './TrustRow';
 
 export default function LandingHero() {
+  // JASNY PAS zamiast ciemnego gradientu z poświatą i kropkami (redesign
+  // 2026-09) — ten sam jasnozielony pas co na górze strony meczu. Bez
+  // `.hero-first-screen`: kolumna na wysokość ekranu z treścią dosuniętą
+  // do dołu zostawiała na telefonie pół ekranu pustego tła nad nagłówkiem.
   return (
-    <section className="hero-surface-deep relative overflow-hidden pt-16 text-white">
-      <div className="relative mx-auto w-full max-w-6xl px-5 pb-10 md:flex md:items-start md:gap-8 md:pb-16 md:pt-20">
-        {/* .hero-first-screen (globals.css) makes this exactly one screen tall
+    <section className="relative overflow-hidden border-b border-primary-100 bg-primary-50/70 text-ink dark:border-primary-900/60 dark:bg-primary-950/40">
+      <div className="relative mx-auto w-full max-w-6xl px-5 pb-10 pt-8 md:flex md:items-start md:gap-8 md:pb-16 md:pt-16">
+        {/* (Dawniej .hero-first-screen, globals.css) made this exactly one screen tall
             — na telefonie z treścią dosuniętą do dołu, na komputerze z górnym
             odstępem odtwarzającym dawne wyśrodkowanie i `justify-content:
             space-between`, które rozdziela resztę wysokości na cztery odstępy
@@ -18,7 +22,7 @@ export default function LandingHero() {
             przy tych elementach zostają jako podłoga — na niskim oknie
             `space-between` po prostu nie ma czego dokładać. Szczegóły w
             komentarzu przy klasie. */}
-        <div className="hero-first-screen md:w-7/12">
+        <div className="md:w-7/12">
           {/* Wrapper keeps the pill hugging its text: as a direct flex child
               of .hero-first-screen it would stretch to the full column width. */}
           <div>
@@ -41,25 +45,25 @@ export default function LandingHero() {
               większą czcionkę zbyt wcześnie — przy 1024px kolumna jest jeszcze
               węższa niż docelowa i tekst łamałby się do 3 linii. Przy 630px
               4.75rem to zmierzona górna granica 2 linii z zapasem. */}
-          <h1 className="mt-4 font-display text-[2.5rem] font-extrabold leading-[1.05] tracking-[-0.01em] sm:text-5xl sm:tracking-tight md:text-[3.5rem] min-[1152px]:text-[4.75rem]">
+          <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.05] tracking-[-0.02em] sm:text-5xl sm:tracking-tight md:text-[3.5rem] min-[1152px]:text-[4.75rem]">
             {LANDING_HERO.h1[0]}<br />{LANDING_HERO.h1[1]}
           </h1>
 
-          <p className="mt-3.5 max-w-[36ch] text-base leading-relaxed text-white/75 sm:text-lg">
+          <p className="mt-3.5 max-w-[36ch] text-base leading-relaxed text-slate-600 sm:text-lg dark:text-slate-400">
             {LANDING_HERO.lead}
           </p>
 
           <div className="mt-6 flex flex-col items-end gap-3 sm:flex-row sm:items-center">
             <Link
               href={LANDING_CTA.primary.href}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-accent-500 px-6 text-base font-bold text-[#0A2B1A] shadow-lg shadow-black/20 transition-colors hover:bg-accent-400 active:scale-[0.98] motion-reduce:active:scale-100 sm:w-auto"
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 px-6 text-base font-semibold text-white transition-colors hover:bg-primary-800 active:scale-[0.98] motion-reduce:active:scale-100 sm:w-auto"
             >
               {LANDING_CTA.primary.label} <ArrowRight className="h-5 w-5" aria-hidden="true" />
             </Link>
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={LANDING_CTA.secondary.href}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-white/70 underline underline-offset-4 hover:text-white"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 underline underline-offset-4 hover:text-ink dark:text-slate-400"
               >
                 {LANDING_CTA.secondary.label} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>

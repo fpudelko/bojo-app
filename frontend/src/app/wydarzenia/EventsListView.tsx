@@ -480,7 +480,8 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
   );
 
   const cards = (rows: EventRow[]) => (
-    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
+    // Bez odstępów: wiersze dzielą linie (EventBrowseCard, redesign 2026-09).
+    <div className="lg:grid lg:grid-cols-2 lg:gap-x-6">
       {rows.map(({ event, distance }) => (
         <EventBrowseCard key={event.id} event={event} distance={distance} relation={statusFor(event)} isNew={jestNowe(event)} />
       ))}
@@ -529,7 +530,6 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
       {/* Błąd — osobno od pustego stanu */}
       {!loading && loadError && (
         <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
-          <span className="text-4xl">⚠️</span>
           <p className="text-base font-semibold text-ink">Nie udało się wczytać meczów</p>
           <p className="text-sm text-slate-500 dark:text-slate-400">Sprawdź połączenie i spróbuj jeszcze raz.</p>
           <button
@@ -584,7 +584,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
               </p>
               <Link
                 href="/wydarzenia/nowe"
-                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950 sm:w-auto"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 py-3 text-sm font-bold text-white sm:w-auto"
               >
                 <Plus className="h-4 w-4" /> Zorganizuj mecz
               </Link>
@@ -596,7 +596,6 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
       {/* Pusto */}
       {pustaLista && (
         <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
-          <span className="mb-4 text-5xl">⚽</span>
           <p className="text-base font-bold text-slate-700 dark:text-slate-300">
             {ukryteKomplety > 0
               ? (ukryteKomplety === 1 ? 'Jedyny mecz w okolicy ma komplet' : 'Wszystkie mecze w okolicy mają komplet')
@@ -667,7 +666,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
             <>
               <Link
                 href="/grupy"
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950"
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary-700 px-5 py-3 text-sm font-bold text-white"
               >
                 <Users className="h-4 w-4" /> Dołącz do ekipy
               </Link>
@@ -678,7 +677,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
           ) : (
             <Link
               href="/wydarzenia/nowe"
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent-500 px-5 py-3 text-sm font-bold text-primary-950"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary-700 px-5 py-3 text-sm font-bold text-white"
             >
               <Plus className="h-4 w-4" /> Stwórz mecz
             </Link>
@@ -693,11 +692,11 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
     <Link
       href="/moje-gry?tab=zaproszenia"
       aria-label={`Zaproszenia: ${inviteCount}`}
-      className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-accent-100 px-3 text-xs font-bold text-primary-900 ring-1 ring-accent-200 transition-colors hover:bg-accent-200"
+      className="flex h-9 shrink-0 items-center gap-1.5 rounded bg-accent-100 px-3 text-xs font-bold text-primary-900 ring-1 ring-accent-200 transition-colors hover:bg-accent-200"
     >
       <MailOpen className="h-3.5 w-3.5" strokeWidth={2.25} />
       Zaproszenia
-      <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary-700 px-1 text-[11px] text-white tabular-nums">
+      <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded bg-primary-700 px-1 text-[11px] text-white tabular-nums">
         {inviteCount}
       </span>
     </Link>
@@ -785,7 +784,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
             type="button"
             onClick={() => setViewMode((v) => (v === 'lista' ? 'mapa' : 'lista'))}
             aria-label={viewMode === 'lista' ? 'Pokaż na mapie' : 'Pokaż listę'}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
           >
             {viewMode === 'lista' ? <MapIcon className="h-4 w-4" /> : <List className="h-4 w-4" />}
           </button>
@@ -806,7 +805,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
             onClick={openSheet}
             aria-label={liczbaFiltrow > 0 ? `Filtry: ${liczbaFiltrow} aktywne` : 'Filtry'}
             className={clsx(
-              'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors',
+              'relative flex h-9 w-9 shrink-0 items-center justify-center rounded border shadow-sm transition-colors',
               liczbaFiltrow > 0
                 ? 'border-primary-700 bg-primary-700 text-white'
                 : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
@@ -814,7 +813,7 @@ export default function EventsListView({ widzianoWczesniej, zarzadzaAdresem = fa
           >
             <SlidersHorizontal className="h-4 w-4" />
             {liczbaFiltrow > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-extrabold leading-none text-primary-950 ring-2 ring-white dark:ring-slate-900">
+              <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded bg-primary-700 px-1 text-[10px] font-extrabold leading-none text-white ring-2 ring-white dark:ring-slate-900">
                 {liczbaFiltrow}
               </span>
             )}

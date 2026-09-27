@@ -13,7 +13,7 @@ export function GreetingBarSkeleton() {
   return (
     <div className="flex items-center justify-between px-4 pt-6 pb-2" aria-hidden="true">
       <div className="h-6 w-40 animate-pulse rounded-md bg-slate-100" />
-      <div className="h-10 w-10 animate-pulse rounded-full bg-slate-100" />
+      <div className="h-10 w-10 animate-pulse rounded bg-slate-100" />
     </div>
   );
 }

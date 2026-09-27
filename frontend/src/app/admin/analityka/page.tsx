@@ -330,7 +330,7 @@ export default function AnalyticsAdminPage() {
                 {stats.wgZrodla.map((z) => (
                   <li key={z.zrodlo} className="flex items-center gap-3 text-sm">
                     <span className="w-28 shrink-0 text-slate-600">{ETYKIETY_ZRODEL[z.zrodlo] ?? z.zrodlo}</span>
-                    <span className="h-2 rounded-full bg-primary-600" style={{ width: `${(z.ile / stats.wejscia7) * 60}%`, minWidth: '0.5rem' }} />
+                    <span className="h-2 rounded bg-primary-600" style={{ width: `${(z.ile / stats.wejscia7) * 60}%`, minWidth: '0.5rem' }} />
                     <span className="tabular-nums font-medium text-ink">{z.ile}</span>
                     <span className="text-xs text-slate-400">
                       {Math.round((z.ile / stats.wejscia7) * 100)}%

@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { ArrowRight, ChevronRight } from 'lucide-react';
 import { getFields } from '@/lib/api';
 import { slugBoiska } from '@/lib/utils';
-import { sportEmoji } from '@/lib/sports';
 
 /**
  * "Boiska w okolicy" proof section. Wired to real fields from DB
@@ -32,10 +31,7 @@ export default async function LandingVenues() {
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-primary-700">
-              Boiska w okolicy
-            </span>
-            <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
               Boiska, na których się gra
             </h2>
           </div>
@@ -52,11 +48,8 @@ export default async function LandingVenues() {
             <li key={f.id}>
               <Link
                 href={`/boisko/${slugBoiska(f.name, f.id)}`}
-                className="flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-card transition-colors duration-200 hover:border-primary-200 hover:shadow-card-hover"
+                className="flex items-center gap-3.5 border-b border-slate-200 py-3 transition-colors duration-200 hover:bg-slate-50 dark:border-slate-700"
               >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-xl">
-                  {sportEmoji(f.sport[0] ?? 'inne')}
-                </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold text-ink" title={f.name}>{f.name}</span>
                   {f.district && (

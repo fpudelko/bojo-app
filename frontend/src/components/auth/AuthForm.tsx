@@ -52,7 +52,7 @@ function GoogleBlockedSection() {
       <div className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-semibold text-slate-400 cursor-not-allowed select-none">
         <GoogleIcon />
         <span>Kontynuuj z Google</span>
-        <span className="text-base leading-none">🔒</span>
+        <Lock className="h-4 w-4" aria-hidden="true" />
       </div>
       <div className="mt-2.5 rounded-xl border border-amber-100 bg-amber-50 px-3.5 py-3">
         <p className="text-xs font-semibold text-amber-800 mb-1">Google jest zablokowane w tej przeglądarce</p>
@@ -187,7 +187,7 @@ export default function AuthForm({ next, onSuccess, initialMode, powod }: Props)
   if (info && (mode === 'magic' || mode === 'reset' || mode === 'signup')) {
     return (
       <div className="text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-50">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded bg-green-50">
           <CheckCircle2 className="h-6 w-6 text-green-600" />
         </div>
         <h2 className="font-display text-xl font-bold text-ink">Sprawdź pocztę</h2>

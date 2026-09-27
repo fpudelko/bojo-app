@@ -391,7 +391,9 @@ test.describe('dołączanie do meczu', () => {
     await niezapisany(page);
     await uspokoj(page);
 
-    const licznik = page.getByText('2 / 10').locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    // Kotwica po atrybucie, nie po klasie: licznik stracił kartę (redesign
+    // 2026-09) i razem z nią `rounded-2xl`, na którym trzymał się ten selektor.
+    const licznik = page.locator('[data-licznik-miejsc]').filter({ hasText: '2 / 10' });
     await expect(licznik).toBeVisible();
     await zaslonPaskamiDolnymi(page, () => expect(licznik).toHaveScreenshot('licznik-przed-dolaczeniem.png'));
 
@@ -413,8 +415,7 @@ test.describe('dołączanie do meczu', () => {
     ).toBeVisible();
     await bezChmurki(page);
     await uspokoj(page);
-    const po = tresc(page).getByText('3 / 10')
-      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    const po = tresc(page).locator('[data-licznik-miejsc]').filter({ hasText: '3 / 10' });
     await zaslonPaskamiDolnymi(page, () => expect(po).toHaveScreenshot('licznik-po-dolaczeniu.png'));
 
     await wypiszSie(page);
@@ -439,8 +440,9 @@ test.describe('dołączanie do meczu', () => {
       // Sprawdzamy OBA miejsca, w których to zdanie pada — chmurka i karta
       // rozjeżdżały się już wcześniej i każde z nich może się zepsuć osobno.
       await expect(chmurka(page).getByText(/liście rezerwowej/i)).toBeVisible();
-      const karta = tresc(page).getByText(/jesteś na liście rezerwowej/i)
-        .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+      // Bloki stanu na stronie meczu nie mają już karty (redesign 2026-09):
+      // kotwica po `data-blok-meczu`, nie po klasie zaokrąglenia.
+      const karta = tresc(page).locator('[data-blok-meczu]').filter({ hasText: /jesteś na liście rezerwowej/i });
       await expect(karta).toBeVisible();
       await expect(tresc(page).getByText(/nie masz miejsca w składzie/i)).toBeVisible();
       await bezChmurki(page);
@@ -458,8 +460,7 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     await otworzMecz(page, MECZ.rezerwacjaBr);
     await uspokoj(page);
 
-    const licznik = page.getByText(/pole: komplet/i)
-      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    const licznik = page.locator('[data-licznik-miejsc]').filter({ hasText: /pole: komplet/i });
     await expect(licznik).toBeVisible();
     await zaslonPaskamiDolnymi(page, () => expect(licznik).toHaveScreenshot('bramkarze-rezerwacja-licznik.png'));
 
@@ -485,8 +486,7 @@ test.describe('miejsca dla bramkarzy — dwa tryby obok siebie', () => {
     await otworzMecz(page, MECZ.wspolnaPula);
     await uspokoj(page);
 
-    const licznik = page.getByText(/dla wszystkich ról/i)
-      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    const licznik = page.locator('[data-licznik-miejsc]').filter({ hasText: /dla wszystkich ról/i });
     await expect(licznik).toBeVisible();
     await zaslonPaskamiDolnymi(page, () => expect(licznik).toHaveScreenshot('bramkarze-wspolna-licznik.png'));
 
@@ -510,8 +510,7 @@ test.describe('organizator', () => {
     await otworzMecz(page, MECZ.doAkceptacji);
     await uspokoj(page);
     // Sekcja próśb — bez dat, więc nadaje się na wzorzec.
-    const prosby = page.getByText(/czeka na akceptację|prośby o dołączenie/i).first()
-      .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    const prosby = page.locator('[data-blok-meczu]').filter({ hasText: /czeka na akceptację|prośby o dołączenie/i }).first();
     await zaslonPaskamiDolnymi(page, () => expect(prosby).toHaveScreenshot('prosby-organizator.png'));
   });
 
@@ -602,8 +601,7 @@ test.describe('mecz w stanie szczególnym', () => {
     await otworzMecz(page, MECZ.odwolany);
     await uspokoj(page);
 
-    const baner = tresc(page).getByText('Mecz odwołany', { exact: true })
-      .locator('xpath=ancestor::div[contains(@class,"rounded-xl")][1]');
+    const baner = tresc(page).locator('[data-blok-meczu]').filter({ hasText: 'Mecz odwołany' });
     await expect(baner).toBeVisible();
     await expect(tresc(page).getByText(/został odwołany przez organizatora/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /^Dołącz/ })).toHaveCount(0);
@@ -829,8 +827,7 @@ test.describe('prośba o dołączenie', () => {
     // który chodzi po tej samej bazie równolegle (patrz `zeSprzataniem`).
     await zeSprzataniem(async () => {
       await expect(chmurka(page).getByText(/wysłano prośbę o dołączenie/i)).toBeVisible();
-      const kafel = tresc(page).getByText('Oczekujesz na akceptację', { exact: true })
-        .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+      const kafel = tresc(page).locator('[data-blok-meczu]').filter({ hasText: 'Oczekujesz na akceptację' });
       await expect(kafel).toBeVisible();
       // „Skąd będę wiedział, że zaakceptował?" — to zdanie jest odpowiedzią
       // i ma zostać na ekranie.
@@ -864,9 +861,8 @@ test.describe('skład', () => {
     await otworzMecz(page, MECZ.rezerwacjaBr);
     await uspokoj(page);
 
-    // Lista startuje ZWINIĘTA (`rosterOpen === false`) i rozwija ją kliknięcie
-    // w stos awatarów. Sam przycisk nie ma tekstu — awatary niosą `title`.
-    await tresc(page).getByTitle('Zawodnik 1', { exact: true }).first().click();
+    // Lista startuje ROZWINIĘTA od redesignu 2026-09 („lista ludzi to jednak
+    // lista"). Wcześniej rozwijało ją kliknięcie w stos awatarów.
 
     // Wiersz to `div.py-2`, nie `li` — ta lista nigdy nie była `<ul>`, choć
     // pierwsza wersja tego testu tak zakładała.

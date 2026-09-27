@@ -573,6 +573,34 @@ i w trzech hubach `app/boiska/…` (link i `ItemList` w JSON-LD). Test
 `linkiObiektuKanoniczne.test.ts` odrzuca budowanie adresu obiektu przez `slugify(name)`.
 Wykryte przy analizie Search Console → [seo-geo-strategia.md](./seo-geo-strategia.md).
 
+### 2026-09-25 (4) — Nowy wygląd Bojo: płasko, kanciasto, strona meczu czytelniejsza
+
+PROBLEM: właściciel Bojo ocenił, że aplikacja „wygląda na wygenerowaną przez AI”:
+każdy element w zaokrąglonej karcie z cieniem, chłodne szarości `slate`, para krojów
+Inter + Bricolage, emoji i ikony sportu na liście meczów. Karty zabierały miejsce na
+telefonie, a na stronie meczu godzina, cena i wolne miejsca ginęły między ramkami.
+
+ROZWIĄZANIE BOJO: jeden krój (Geist), szarości z nutą zieleni marki, rogi 2–4 px
+i karty bez cieni w całej aplikacji. Strona meczu zaczyna się jasnozielonym pasem
+z godziną i ceną dużym krojem, pod nim miejsce jako wiersz z nawigacją, licznik
+„Zostało N wolnych miejsc” z paskiem z odcinków (jeden odcinek na miejsce do 24 miejsc)
+i skład od razu jako lista. Przycisk zapisu brzmi „Dołącz · 15 zł” (zielony, dawniej
+bursztynowy „Dołącz →”). Lista meczów to wiersze: godzina i dzień, nazwa i miejsce,
+liczba wolnych miejsc i cena, bez ikon sportu i bez paska postępu. Profil to
+zgrupowane sekcje zamiast ośmiu osobnych kart. Ekipy (`/grupy`) i rozmowy (`/rozmowy`)
+to listy wierszy bez ikon; strona główna dla niezalogowanych ma jasny pas zamiast
+ciemnego gradientu i mniej sekcji. Główne przyciski w całym Bojo są zielone, nie
+bursztynowe. Emoji zostały tylko w wyborze sportu, na mapie i w tekstach do
+udostępnienia. Znaczenia kolorów (różowy = wiadomości,
+niebieski = wymaga akceptacji / komplet, pomarańczowy = nowość, szary = zapisy
+zamknięte) się nie zmieniły.
+
+MECHANIKA: tokeny w `frontend/tailwind.config.ts` (paleta `slate` nadpisana,
+`borderRadius`, `boxShadow`), font z paczki `geist` w `app/layout.tsx`,
+`app/wydarzenia/[id]/EventDetailClient.tsx`, `components/EventBrowseCard.tsx`,
+`app/profil/page.tsx`, `app/grupy/GroupsClient.tsx`, `app/rozmowy/RozmowyClient.tsx`,
+`components/home/landing/LandingHero.tsx`. Szczegóły → [funkcje.md](./funkcje.md#wygląd-redesign-2026-09).
+
 ### 2026-09-25 (3) — Zapis bez konta nie udaje, że nie jest skończony; zaproszenie do ekipy prowadzi do meczu
 
 PROBLEM: po zapisie na mecz bez konta Bojo pisało „Ostatni krok, 15 sekund”, więc gracz
@@ -653,25 +681,3 @@ MECHANIKA: `components/turnieje/PanelProsbaOWyglad.tsx`, `zglosZyczenieWygladu()
 w `lib/bledy.ts`. Tabela `zgloszenia_bledow` jest z `099`; czwarty rodzaj `turniej_wyglad`
 i nowa kolumna `turniej_id` dokłada migracja `162`. Admin czyta w `/admin/bledy`.
 
-### 2026-09-24 — Turniej po grupach nie ogłasza już własnego końca
-
-PROBLEM: audyt przeszedł pełny łuk turnieju i trafił na moment, w którym publiczna
-strona pokazywała „Zakończony" tuż po fazie grupowej. Przyczyna: stan turnieju uznawał
-za koniec sytuację, w której rozegrano wszystkie ISTNIEJĄCE mecze, a przy formacie
-„grupy → puchar" to jest chwila przed powstaniem drabinki. Kapitanowie czytali koniec
-turnieju przed ćwierćfinałem. Osobno: karta na liście turniejów liczyła drużyny
-czwartą już regułą (wliczała zgłoszenia czekające), panel odmieniał liczebniki
-dwoma formami zamiast trzech („2 zgłoszeń czeka"), przebieg meczu nie pokazywał minuty,
-a zakończenie meczu wymagało trzech stuknięć.
-
-ROZWIĄZANIE BOJO: stan „Grupy rozegrane, czeka na drabinkę" jest osobnym stanem, nie
-udawanym końcem ani udawanym „trwa". Liczenie drużyn zeszło do mapowania wiersza z bazy,
-więc żadna powierzchnia nie musi już o tej regule pamiętać. Minuta zdarzenia liczy się
-z zegara meczu, bo prowadzący nie ma jak jej wpisywać. Zakończenie meczu ma jedno
-potwierdzenie, a zdanie o kolejnej rundzie pokazuje się wyłącznie w meczu pucharowym.
-Po rozegranym meczu układanie terminarza od nowa jest wyłączone, a nie tylko ostrzegane.
-
-MECHANIKA: `stanTurnieju()` i `maDrabinke()` w `lib/turniejEtykiety.ts`, `toTurniej()`
-w `lib/turnieje.ts` (osadzone zapytania wciągają `status`), `lib/turniejPulpit.ts`,
-konsola w `app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Kolumna
-`turniej_zdarzenia.minuta` istniała od migracji `147` i była dotąd zawsze pusta.

@@ -85,7 +85,7 @@ export default function ZaprosZnajomychPanel(
     // trafiać w nagłówek — bez przycisków. Atrybut trzyma się układu.
     <div
       data-zapros-znajomych
-      className="rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800"
+      className="border-y border-slate-200 px-4 py-4 dark:border-slate-700"
     >
       <div className="flex items-center gap-2">
         <Share2 className="h-4 w-4 shrink-0 text-slate-400" />

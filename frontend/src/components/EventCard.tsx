@@ -63,7 +63,7 @@ export function EventCard({ event, isOrganizer }: { event: EventItem; isOrganize
         </div>
         <div className="shrink-0 flex flex-col items-end gap-1.5">
           {isOrganizer && (
-            <span className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-medium">
               Org.
             </span>
           )}

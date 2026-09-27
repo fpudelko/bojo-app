@@ -47,6 +47,81 @@ moduł nie jest schowany, jest usunięty, a trasa tylko przekierowuje.
 
 ---
 
+## Wygląd (redesign 2026-09)
+
+Właściciel zgłosił wprost, że aplikacja „wygląda na wygenerowaną przez AI”. Wybrał
+jeden z czterech kierunków pokazanych na makietach: jasny, płaski, kanciasty
+(„D, tryb jasny”). Wdrożenie idzie od tokenów, nie od ekranów, więc zmienia całą
+aplikację naraz, a ręcznie przerobione są tylko trzy miejsca, na których zależało
+najbardziej.
+
+**Tokeny (`frontend/tailwind.config.ts`, `app/globals.css`):**
+
+| Co | Było | Jest | Dlaczego tak |
+|---|---|---|---|
+| Krój | Inter + Bricolage Grotesque | Geist (sans + mono), paczka `geist` | jedna rodzina, hierarchia z rozmiaru i wagi; Next 14.2 nie ma Geist w liście Google Fonts |
+| Szarości | domyślny `slate` Tailwinda | `slate` nadpisany odcieniami z nutą zieleni | nazwa klasy zostaje (~4000 użyć i reguły trybu ciemnego), zmienia się odcień |
+| Zaokrąglenia | `xl`/`2xl` = 12–16 px | każdy stopień 2–4 px, `full` bez zmian | kanciasto; ~650 klas zostaje nietkniętych |
+| Pigułki | `rounded-full` | `rounded` (2 px) | skrypt jednorazowy; przełączniki, radia, spinnery i znaczniki na boisku taktyki zostały okrągłe |
+| Cienie | `shadow-sm` na każdej karcie | `sm`, domyślny i `card` = brak | hierarchię budują linie i odstępy; `md` i wyżej zostają dla warstw nad treścią |
+| Tło strony | kremowe `#FAF9F6` | białe | karty przestały być wyspami na tle |
+| Tryb ciemny | granatowy | prawie czarny z nutą zieleni | zgodny z odcieniem jasnego |
+
+**Ręcznie przerobione:**
+
+- **Strona meczu** (`EventDetailClient.tsx`): pas na górze z godziną i ceną dużym
+  krojem, miejsce jako wiersz listy z ikoną nawigacji, licznik bez karty z paskiem
+  z odcinków (jeden na miejsce do 24 miejsc, powyżej ciągły), skład rozwinięty od
+  wejścia (`rosterOpen` startuje jako `true`), „O meczu”, „Zaproś”, „Co Bojo zrobi
+  za Ciebie” i „Organizator” jako płaskie sekcje. Przycisk zapisu: zielony
+  „Dołącz · 15 zł” zamiast bursztynowego „Dołącz →”. Cena przed startem meczu nie
+  stoi już w rzędzie pigułek (jest w pasie), po starcie pigułka pokazuje stan
+  rozliczenia jak wcześniej. Scenariusze łapią licznik po `data-licznik-miejsc`,
+  nie po klasie `rounded-2xl`.
+- **Lista meczów** (`EventBrowseCard.tsx`): wiersz „godzina i dzień | nazwa
+  i miejsce | wolne miejsca, liczba graczy, cena”, bez emoji sportu, kolorowej
+  krawędzi i paska postępu. Właściciel: „bez zdjęć i ikon”.
+- **Profil** (`app/profil/page.tsx` i komponenty ustawień): zgrupowane sekcje
+  pełnej szerokości zamiast ośmiu osobnych kart.
+
+**Druga tura (ten sam PR, 7 commitów „Redesign N/7”):**
+
+1. **Strona meczu, resztki:** bloki stanu (rezerwa, oferta miejsca, obserwujesz,
+   oczekujesz na akceptację, prośby, „Mecz gotowy”, odwołanie, zapisy zamknięte,
+   „Po meczu”) jako pasy pełnej szerokości z `data-blok-meczu` (kotwica
+   scenariuszy); drużyny, wynik, rozliczenia, płatność, ustawienia jako płaskie
+   sekcje. Emoji w treści na tekst: „2 gole”, „BR”, „karta”, „Bramkarz”.
+2. **`/moje-gry`:** wejścia „Stałe gierki”/„Turnieje” jako wiersze, szkielety
+   ładowania jako linie, sekcje meczów bez odstępów. Duże emoji ze stanów pustych
+   usunięte w całej aplikacji (13 miejsc).
+3. **Ekipy:** `/grupy` jako lista wierszy (nazwa, członkowie, obiekt | termin,
+   „brakuje N”/„komplet”), bez ikony sportu i paska. Chmurka wiadomości
+   i pomarańczowa kropka stoją **przy nazwie ekipy**, nie na rogu ikony (ikony już
+   nie ma). Nagłówek `/grupy/[id]` bez ramki i bez zastępczego emoji.
+4. **Rozmowy:** inicjał w kwadracie zamiast ⚽ i ikony ekipy (rozmowa prywatna
+   zielona), nagłówek rozmowy bez gradientu.
+5. **Kreator i edycja:** podsumowanie i przypomnienia bez kart. Bursztynowe
+   przyciski główne (`bg-accent-500 text-primary-950`) zielone w całej aplikacji,
+   także wariant `accent` w `Button`. Taktyka zostaje przy bursztynie (kolor
+   zaznaczenia na boisku).
+6. **Strona główna:** jasny pas zamiast ciemnego gradientu (nagłówek nie jest już
+   przezroczysty nad hero), bez `LandingStats` (kafle z liczbami) i `LandingValues`
+   (lista funkcji), bez małych napisów nad sekcjami, nagłówki sekcji do lewej.
+   Klasy `.hero-*` usunięte z `globals.css`.
+7. **Reszta:** strona boiska z neutralnymi plakietkami udogodnień (bez emoji,
+   bez niebieskiego i pomarańczowego, które znaczą co innego), emoji sportów
+   zdjęte z treści (nagłówki, listy, formularze, profil gracza, katalog, widget),
+   logowanie, onboarding, alerty, zaproszenie do ekipy.
+
+**Emoji zostają świadomie tam, gdzie pełnią funkcję:** wybór sportu (`SportChip`,
+decyzja z 2026-09-14 z testami: stały kwadrat 44 px, rząd nie skacze), znaczniki
+na mapie, teksty do udostępnienia na czat (`lib/eventShare.ts`) i obrazki podglądu
+linku (`opengraph-image`). Nietknięte: turnieje (za flagą), panel admina, stare
+komponenty map z listy martwego kodu w AGENTS.md.
+
+Znaczenia kolorów z AGENTS.md (różowy, niebieski, pomarańczowy, szary) nie zmieniły
+się.
+
 ## Gdzie jest spis tras
 
 Celowo nie utrzymujemy tu inwentarza tras i komponentów — agent znajdzie je szybciej

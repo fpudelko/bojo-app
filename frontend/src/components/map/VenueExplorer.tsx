@@ -414,13 +414,13 @@ function VenueCard({ field, games, hasGameToday, selected, backTo }: {
         )}
         {games > 0 && (
           <p className="text-[11px] text-slate-400">
-            👥 {games} {gamesWord(games)} / tydzień
+            {games} {gamesWord(games)} / tydzień
           </p>
         )}
         <div className="flex flex-wrap items-center gap-1">
           {hasGameToday && (
             <span className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-100 rounded-full px-1.5 py-0.5">
-              📅 Dziś
+              Dziś
             </span>
           )}
           {field.bookingEnabled && (
@@ -562,7 +562,7 @@ function SearchToolbar({
         >
           <SlidersHorizontal className="h-4 w-4" />
           {liczbaFiltrow > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-extrabold leading-none text-primary-950 ring-2 ring-white">
+            <span className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-primary-700 px-1 text-[10px] font-extrabold leading-none text-white ring-2 ring-white">
               {liczbaFiltrow}
             </span>
           )}

@@ -277,7 +277,7 @@ export default function DruzynaClient() {
         <div>
           <div className="flex items-start gap-2">
             <h1 className="min-w-0 flex-1 font-display text-2xl font-bold text-ink">{druzyna.nazwa}</h1>
-            <span className={`mt-1.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>
+            <span className={`mt-1.5 shrink-0 rounded px-2 py-0.5 text-xs font-medium ${status.ton}`}>
               {status.label}
             </span>
           </div>
@@ -306,8 +306,8 @@ export default function DruzynaClient() {
                     warunek (audyt 4). */}
                 Skład: {withCount(zawodnicy.length, 'osoba', 'osoby', 'osób')} (od {turniej.minZawodnikow} do {turniej.maxZawodnikow})
               </p>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800">
-                <div className="h-full rounded-full bg-primary-600 transition-all" style={{ width: `${procent}%` }} />
+              <div className="mt-1.5 h-2 overflow-hidden rounded bg-white/70 dark:bg-slate-800">
+                <div className="h-full rounded bg-primary-600 transition-all" style={{ width: `${procent}%` }} />
               </div>
               <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
                 {brakuje > 0

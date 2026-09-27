@@ -27,7 +27,7 @@ export function SectionHeader({ title, href, count, subtitle, extra }: {
         <h2 className="text-base font-bold text-ink">
           {title}
           {count != null && count > 0 && (
-            <span className="ml-2 rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700">
+            <span className="ml-2 rounded border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs font-bold text-primary-700">
               {count}
             </span>
           )}
@@ -110,7 +110,7 @@ export function MyMatchesSection({ items, title = 'Twoje najbliższe mecze', sub
   return (
     <div>
       <SectionHeader title={title} subtitle={subtitle} href={href ?? undefined} count={items.length} />
-      <div className="space-y-3">
+      <div>
         {shown.map(({ event, relation }) => (
           <EventBrowseCard key={event.id} event={event} relation={relation} unreadMessages={unreadByEvent?.[event.id]} odznakiOrganizatora />
         ))}
@@ -138,7 +138,7 @@ export function DoRozliczeniaSection({ items, limit = null }: {
         count={items.length}
         subtitle="Twoje rozegrane mecze, w których ktoś jeszcze nie oddał pieniędzy"
       />
-      <div className="space-y-3">
+      <div>
         {shown.map(({ event, relation }) => (
           <EventBrowseCard key={event.id} event={event} relation={relation} />
         ))}
@@ -177,7 +177,7 @@ export function GroupGamesSection({ events, statusFor }: {
         href="/grupy"
         count={fresh.length}
       />
-      <div className="space-y-3">
+      <div>
         {fresh.slice(0, 3).map((e) => (
           <EventBrowseCard key={e.id} event={e} relation={statusFor(e)} />
         ))}

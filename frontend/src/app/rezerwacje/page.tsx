@@ -32,20 +32,20 @@ function formatDatePl(iso: string): string {
 function StatusBadge({ status }: { status: Booking['status'] }) {
   if (status === 'confirmed') {
     return (
-      <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">
+      <span className="inline-flex items-center text-xs px-2 py-0.5 rounded font-medium bg-green-100 text-green-700">
         Potwierdzona
       </span>
     );
   }
   if (status === 'pending') {
     return (
-      <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">
+      <span className="inline-flex items-center text-xs px-2 py-0.5 rounded font-medium bg-amber-100 text-amber-700">
         Oczekuje
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">
+    <span className="inline-flex items-center text-xs px-2 py-0.5 rounded font-medium bg-slate-100 text-slate-500">
       Anulowana
     </span>
   );

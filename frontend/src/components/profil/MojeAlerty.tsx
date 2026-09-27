@@ -8,7 +8,6 @@ import { SHOW_GAME_ALERTS } from '@/lib/features';
 import {
   getMojeAlerty, ustawAktywnoscAlertu, deleteMyAlert, nazwaAlertu, opisAlertu,
 } from '@/lib/alerts';
-import { sportEmoji } from '@/lib/sports';
 import AlertSetupDialog from '@/components/home/AlertSetupDialog';
 import type { GameAlert } from '@/types';
 
@@ -81,7 +80,7 @@ export default function MojeAlerty() {
   if (!user || !SHOW_GAME_ALERTS) return null;
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="-mx-4 border-b border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-center gap-3">
         <Bell className="h-5 w-5 shrink-0 text-slate-400" />
         <div className="min-w-0 flex-1">
@@ -110,14 +109,6 @@ export default function MojeAlerty() {
                     onClick={() => setOkno({ alert: a })}
                     className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                   >
-                    <span aria-hidden className="text-lg leading-none">
-                      {/* Emoji tylko przy JEDNYM sporcie. Przy dwóch pierwsze
-                          z nich kłamałoby o drugim, a sklejanie kilku emoji
-                          w jednej linii rozpycha wiersz i przestaje się czytać
-                          — stadion znaczy tu „więcej niż jeden sport albo
-                          dowolny", a dokładną listę niesie nazwa obok. */}
-                      {a.sports.length === 1 ? sportEmoji(a.sports[0]) : '🏟️'}
-                    </span>
                     <span className="min-w-0">
                       <span className={`block truncate text-sm font-medium ${a.isActive ? 'text-ink' : 'text-slate-400'}`}>
                         {nazwaAlertu(a)}
@@ -132,7 +123,7 @@ export default function MojeAlerty() {
                     type="button"
                     onClick={() => usun(a)}
                     aria-label={`Usuń alert: ${nazwaAlertu(a)}`}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-slate-50 hover:text-red-500 dark:hover:bg-slate-700"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-slate-300 transition-colors hover:bg-slate-50 hover:text-red-500 dark:hover:bg-slate-700"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

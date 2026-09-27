@@ -43,7 +43,7 @@ export default function ZglosBladPage() {
       <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8">
         {wyslane ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-800">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-50">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded bg-green-50">
               <CheckCircle2 className="h-6 w-6 text-green-600" />
             </div>
             <h1 className="font-display text-xl font-bold text-ink">Dzięki, mamy to</h1>

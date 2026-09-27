@@ -329,7 +329,7 @@ export function UstawieniaBramkarzy({
                       'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2',
                       wybrany ? 'border-primary-600' : 'border-slate-300',
                     ].join(' ')}>
-                      {wybrany && <span className="h-2 w-2 rounded-full bg-primary-600" />}
+                      {wybrany && <span className="h-2 w-2 rounded bg-primary-600" />}
                     </span>
                     <span className="text-sm font-semibold text-slate-900">{tryb.tytul}</span>
                   </span>
