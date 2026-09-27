@@ -20,11 +20,13 @@ import type { MetadataRoute } from 'next';
 //      /turnieje/nowe, /turnieje/*/panel i /turnieje/*/zglos dołączają tu
 //      z odmrożeniem `SHOW_TURNIEJE` — ta sama para „kreator + panel
 //      organizatora za logowaniem", co przy meczu i grupie.
-//   3. Funkcje ZA WYŁĄCZONYMI FLAGAMI: /cykliczne (SHOW_RECURRING), /obiekt
-//      i /rezerwacje (FEATURE_RESERVATIONS). docs/funkcje.md mówi wprost:
-//      „reklamowanie ich wyszukiwarce obiecuje coś, czego użytkownik nie
-//      znajdzie w interfejsie". Flagi chowają wejścia w nawigacji, nie trasy
-//      — te odpowiadają normalnie.
+//   3. Funkcje ZA WYŁĄCZONYMI FLAGAMI: /obiekt i /rezerwacje
+//      (FEATURE_RESERVATIONS). docs/funkcje.md mówi wprost: „reklamowanie ich
+//      wyszukiwarce obiecuje coś, czego użytkownik nie znajdzie w interfejsie".
+//      Flagi chowają wejścia w nawigacji, nie trasy — te odpowiadają normalnie.
+//      /cykliczne dołącza tu z innego powodu: gry cykliczne zostały usunięte
+//      całkowicie (decyzja właściciela, runda 9); trasa przez jeden release
+//      tylko przekierowuje na /moje-gry, żeby stare linki nie kończyły się 404.
 //      `/turnieje` WRÓCIŁO tu 2026-09-17, gdy `SHOW_TURNIEJE` została
 //      tymczasowo wyłączona: skoro w interfejsie nie ma do modułu żadnego
 //      wejścia, reklamowanie go wyszukiwarce obiecuje coś, czego użytkownik

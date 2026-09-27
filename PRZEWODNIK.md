@@ -27,7 +27,6 @@ działa, ale flaga ukryła wejścia w nawigacji — pełna tabela flag w
 | **Profil gracza** (`/gracz/...`) | Publiczny profil gracza: awatar, statystyki (rozegrane mecze, frekwencja), znaczek „rzetelny gracz", historia | tak |
 | **Moje gry** (`/moje-gry`) | Mecze, które organizujesz lub na które się zapisałeś + historia | tak |
 | **Profil** (`/profil`) | Imię, awatar, telefon (za zgodą), usunięcie konta | tak |
-| **Cykliczne** (`/cykliczne`) | Szablony powtarzalnych meczów (np. „każdy wtorek 18:00") z zapisami | **nie** — `SHOW_RECURRING` |
 | **Turniej** (`/turnieje`) | Zapisy drużyn, terminarz, wyniki na żywo, tabela i statystyki — w budowie etapami | **nie** — `SHOW_TURNIEJE` |
 | **Rezerwacje** (`/rezerwacje`) | Twoje rezerwacje terminów | **nie** — `FEATURE_RESERVATIONS` |
 

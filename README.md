@@ -70,8 +70,8 @@ i setup: [supabase/migrations/README.md](./supabase/migrations/README.md).
 Dane startowe: `supabase/seed.sql`.
 
 Najważniejsze tabele: `fields` (boiska), `events` (mecze), `event_participants`,
-`recurring_events` (cykliczne), `bookings` (rezerwacje), `field_outreach` (CRM kontaktu),
-`profiles` (użytkownicy + flaga `is_admin`).
+`bookings` (rezerwacje), `field_outreach` (CRM kontaktu), `profiles` (użytkownicy +
+flaga `is_admin`).
 
 ---
 

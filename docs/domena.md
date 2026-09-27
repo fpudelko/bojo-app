@@ -31,13 +31,15 @@ bez walidacji runtime — Zod jest na liście długu ([strategia.md §5](./strat
 `bojo.pl` (fallback w `layout.tsx`, `robots.ts`, `sitemap.ts` — nowe miejsca używają tej
 samej wartości). Migracje uruchamia się ręcznie → [baza-danych.md](./baza-danych.md).
 
-**Pierwsze zadanie cykliczne w repo: `pg_cron`, migracja `073`.** Do tej pory wszystko
-działo się z klienta albo z wyzwalacza SQL — nic nie odpalało się samo, bez niczyjej
-wizyty. Auto-tworzenie terminów serii (patrz „Serie wydarzeń cyklicznych" niżej) wymaga
-działania bez organizatora w pobliżu, bo RLS na `events` przepuszcza INSERT tylko jako
-`auth.uid() = organizer_id`. `pg_cron` bywa niewłączony na danym projekcie Supabase —
-migracja to sprawdza i pomija harmonogram zamiast się wywrócić, więc funkcja degraduje
-się do ręcznego wywołania, nie przestaje istnieć.
+**Pierwsze zadanie cykliczne w repo: `pg_cron`, migracja `073` (auto-tworzenie terminów
+serii gier cyklicznych — moduł usunięty całkowicie w rundzie 9, patrz `docs/funkcje.md`).**
+Do tej pory wszystko działo się z klienta albo z wyzwalacza SQL — nic nie odpalało się
+samo, bez niczyjej wizyty. `073` musiała działać bez organizatora w pobliżu, bo RLS na
+`events` przepuszcza INSERT tylko jako `auth.uid() = organizer_id`. `pg_cron` bywa
+niewłączony na danym projekcie Supabase — migracja to sprawdza i pomija harmonogram
+zamiast się wywrócić, więc funkcja degraduje się do ręcznego wywołania, nie przestaje
+istnieć. Ten wzorzec zostaje dziś w trzech zadaniach: przypomnienia, maile do gości,
+kolejka rezerwowa.
 
 **Drobne moduły `lib/` bez własnej sekcji tutaj** — po co służą: `lib/legal.ts` (dane
 usługodawcy dla `/prywatnosc` i `/regulamin`, jedno miejsce do uzupełnienia);
@@ -429,10 +431,7 @@ w menu ustawień, z podpowiedzią liczby brakujących miejsc.
 
 **Świadomie NIE zbudowane:** automatyczne dopisywanie milczących do składu (łamałoby
 „nikt nie trafia do składu po cichu" — patrz wyżej), powiadomienie o każdej odpowiedzi
-(tylko organizator dostaje zbiorczy obraz przez panel, nie strumień zdarzeń),
-`min_players` na poziomie serii cyklicznej (jak reszta ustawień specyficznych dla
-terminu, dziedziczy się z ostatniego terminu serii — patrz „Serie wydarzeń
-cyklicznych" niżej — nie z szablonu).
+(tylko organizator dostaje zbiorczy obraz przez panel, nie strumień zdarzeń).
 
 ---
 
@@ -815,47 +814,15 @@ wyzwalacz w bazie, nie UI.
 
 ---
 
-## Serie wydarzeń cyklicznych
+## Gry cykliczne — usunięte całkowicie (runda 9)
 
-`lib/recurring.ts`, `lib/series.ts`. Od migracji `073` (`events.recurring_event_id →
-recurring_events.id`) termin cykliczny jest prawdziwą serią, nie niezależną kopią.
-
-**Podział ról — dlaczego dwie tabele, nie jedna z flagą.** Duplikowanie całego schematu
-`events` w `recurring_events` byłoby jednym źródłem prawdy o dwie kolumny za dużo:
-
-- **szablon** (`recurring_events`) jest właścicielem WYŁĄCZNIE reguły powtarzania: dzień
-  tygodnia, godzina, miejsce, limit miejsc, widoczność, wyprzedzenie
-  (`notify_days_before`). Edycja szablonu (`/cykliczne/[id]/edytuj`) zmienia tylko te pola.
-- **ostatni termin serii** (`events` z najpóźniejszym `event_date` przy danym
-  `recurring_event_id`) jest żywym wzorcem WSZYSTKIEGO INNEGO: ceny, metod płatności,
-  bramkarzy, akceptacji zapisów, grupy. Nowy termin — ręczny czy automatyczny — dziedziczy
-  stamtąd, nie z szablonu.
-
-Konsekwencja, którą łatwo przeoczyć: **szablon sam w sobie nigdy nie mówi, ile kosztuje
-gierka.** Pierwszy termin serii (bez poprzednika) startuje z domyślnych `createEvent()` —
-darmowy, bez metod płatności. Cena wchodzi do serii dopiero, gdy ktoś ją ustawi NA
-TERMINIE i wybierze zakres „to i przyszłe"/„cała seria" (patrz niżej) — to wtedy trafia
-też do organizatora patrzącego tylko na `/cykliczne/[id]`, który sam z siebie ceny nie
-pokazuje (bo jej nie ma — to własność terminu, nie szablonu).
-
-**Auto-tworzenie.** Funkcja SQL `utworz_nalezne_terminy_serii()` (migracja `073`,
-`SECURITY DEFINER`) sprawdza co godzinę (`pg_cron`, jeśli włączony w Supabase) każdy
-aktywny szablon: liczy najbliższe wystąpienie `day_of_week`, i jeśli mieści się
-w `notify_days_before` i jeszcze nie istnieje — tworzy je przez `utworz_termin_serii()`.
-To samo RPC woła `spawnEventInstance()` z przeglądarki (przycisk „Utwórz termin" na
-`/cykliczne/[id]`) — ręczne i automatyczne tworzenie idą jedną ścieżką, więc nie mogą się
-rozjechać. Bez `pg_cron` seria żyje wyłącznie z ręcznych kliknięć — degradacja,
-nie awaria.
-
-**`event_date` nigdy nie jest własnością serii.** Nawet przy zbiorczej edycji (zakres „to
-i przyszłe" / „cała seria" — `components/events/ZakresEdycjiSerii.tsx`,
-`lib/series.ts#terminyWZakresie`) data zmienia się wyłącznie na edytowanym terminie.
-Wspólna data absolutna dla wielu terminów jest sprzeczna sama w sobie; przesunięcie całej
-gierki na inny dzień tygodnia to zmiana REGUŁY (szablon), nie zbiorcza zmiana dat.
-
-**„Przyszłe" liczy się po dacie terminu, nie po kolejności wstawiania** — terminy można
-dopisać ręcznie poza kolejnością (dowolna data na `/cykliczne/[id]`), więc pozycja w tabeli
-nic nie mówi o tym, czy mecz jeszcze się nie odbył.
+Do 2026-09-27 stał tu opis modelu serii wydarzeń cyklicznych (`events.recurring_event_id
+→ recurring_events.id`, migracja `073`): szablon niosący regułę powtarzania, ostatni
+termin serii jako żywy wzorzec reszty ustawień, auto-tworzenie przez `pg_cron`, edycja
+zbiorcza z pytaniem o zakres. Decyzja właściciela (runda 9, D-4) usunęła moduł
+**całkowicie** (migracje `164`/`166`/`167`, szczegóły → `docs/funkcje.md#gry-cykliczne--usunięte-całkowicie-runda-9`),
+nie tylko flagę — więc żaden z tych mechanizmów dziś nie istnieje w bazie. Data-matematyka
+współdzielona z niezależną funkcją „Powtórz mecz" zostaje w `lib/recurring.ts`.
 
 ---
 
@@ -966,9 +933,10 @@ powstanie w tym samym zapisie. Rozwiązanie: identyfikatory meczów nadaje PRZEG
 (`crypto.randomUUID()`, albo wstrzyknięty generator w testach) i `zapisz_terminarz()`
 wstawia całą partię JEDNYM wielorzędowym `INSERT ... SELECT FROM jsonb_array_elements()`
 — PostgreSQL sprawdza klucze obce dopiero PO zakończeniu całego INSERT-u, więc wzajemne
-odwołania w jednej partii są poprawne. Ten sam wzorzec co samoreferencyjne relacje
-gdzie indziej w bazie (np. `events.recurring_event_id`), tylko rozciągnięty na WIELE
-wierszy naraz.
+odwołania w jednej partii są poprawne. `zrodlo_a_mecz_id`/`zrodlo_b_mecz_id` są
+samoreferencyjne (`turniej_mecze` wskazuje na `turniej_mecze`) — ten sam wzorzec jak
+przy zwykłej relacji jeden-do-jednego w tej samej tabeli, tylko rozciągnięty na WIELE
+wierszy naraz, wstawianych jedną partią.
 
 **Wolne losy (drabinka niebędąca potęgą dwójki) wchodzą od razu jako `walkower`, nie
 `zaplanowany`** — drużyna awansuje bez gry, stąd też kolumna `walkower_dla`. Propagacja

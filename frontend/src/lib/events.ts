@@ -129,7 +129,6 @@ export function toEvent(row: any): EventItem {
     fieldAddress: row.field_address ?? undefined,
     district: row.field_district ?? undefined,
     groupId: row.group_id ?? undefined,
-    recurringEventId: row.recurring_event_id ?? undefined,
     coverImageUrl: row.cover_image_url ?? undefined,
   };
 }
@@ -277,7 +276,6 @@ export async function createEvent(
       sports_card_discount_grosz: data.sportsCardDiscountGrosze ?? null,
       sports_card_other_name: data.sportsCardOtherName?.trim() || null,
       group_id: data.groupId ?? null,
-      recurring_event_id: data.recurringEventId ?? null,
       custom_location_name: safeCustomName ?? null,
       custom_address: safeCustomAddress ?? null,
     })
@@ -1403,7 +1401,7 @@ type PolaWlasnePowtorki = 'date' | 'time' | 'endTime';
  * przestaje się kompilować, zamiast po cichu gubić ustawienie.
  *
  * DLACZEGO TAK, A NIE LISTA PÓL DO PILNOWANIA. `repeatEvent` zgubiło już
- * `groupId`, `minPlayers`, `endTime` i `recurringEventId` — każde naprawiane
+ * `groupId`, `minPlayers` i `endTime` — każde naprawiane
  * osobno, po fakcie, bo ręczna lista nie umie się zepsuć głośno. Audyt
  * 2026-09-12 (ustalenie `S-2`) znalazł piąty, szósty i siódmy przypadek tej
  * samej rodziny: `requireApproval`, `reserveEnabled`, `goalkeeperSlotsReserved`
@@ -1459,11 +1457,6 @@ export async function repeatEvent(
     sportsCardOtherName: source.sportsCardOtherName,
     customLocationName: source.customLocationName,
     customAddress: source.customAddress,
-    // Powtórka meczu z serii ZOSTAJE w serii — inaczej „Powtórz mecz" po cichu
-    // wypinałoby termin ze stałej gierki i psuło zarówno edycję zbiorczą, jak
-    // i dziedziczenie ustawień przez kolejne terminy. Powtórka zwykłego meczu
-    // pozostaje zwykłym meczem (`undefined`).
-    recurringEventId: source.recurringEventId,
     // Powtórka meczu grupy ZOSTAJE w grupie — bez tego „Powtórz mecz" po cichu
     // wypinało termin z ekipy, i cotygodniowa gierka rozjeżdżała się z listą
     // meczów grupy po pierwszej powtórce.

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MapPin, Lock, ChevronDown, X, Users, Check, Repeat, Pencil } from 'lucide-react';
+import { MapPin, Lock, ChevronDown, X, Users, Check } from 'lucide-react';
 import { clsx } from 'clsx';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -19,7 +19,6 @@ import { surfaceLabel, venueThumbnail } from '@/lib/labels';
 import { FOCUS_SPORTS, FOCUS_SPORT_BY_SLUG, sportLabel, sportEmoji, GK_SPORTS } from '@/lib/sports';
 import { validateStep1, validateStep2, validateStep, validatePayments, isPast, KROK_KREATORA, czyMeczPlatny } from '@/lib/eventWizard';
 import { jutroLokalnie } from '@/lib/eventDates';
-import { SHOW_RECURRING } from '@/lib/features';
 import { HideBottomNav } from '@/lib/bottomNavVisibility';
 import { WARSTWA } from '@/lib/warstwy';
 import { defaultEventTitle } from '@/lib/eventTitle';
@@ -29,17 +28,14 @@ import {
 } from '@/lib/eventDraft';
 import { wczytajOstatnieBoisko, zapiszOstatnieBoisko, type OstatnieBoisko } from '@/lib/lastVenue';
 import WybierzGrupeDialog from '@/components/events/WybierzGrupeDialog';
-import RecurringSettingsDialog from '@/components/events/RecurringSettingsDialog';
 import EventPaymentFields from '@/components/events/EventPaymentFields';
 import EventVisibilityFields from '@/components/events/EventVisibilityFields';
 import EventTitleDescriptionField from '@/components/events/EventTitleDescriptionField';
 import { MiejscaWSkladzie, UstawieniaRezerwy, UstawieniaBramkarzy } from '@/components/events/EventCapacityFields';
 import OpcjaMeczu from '@/components/events/OpcjaMeczu';
 import EventDateTimeField, { addMinutes } from '@/components/events/EventDateTimeField';
-import { createRecurringEvent, dayOfWeekFromDate, dayOfWeekLabelFromDate } from '@/lib/recurring';
 import type { Group } from '@/types';
 import type { Visibility, PaymentMethod, SportsCardProvider } from '@/types';
-import { withCount } from '@/lib/plural';
 import { zl } from '@/lib/kwota';
 
 // NAZWY MÓWIĄ, O CO PYTAMY — i to nie jest kosmetyka.
@@ -146,9 +142,6 @@ function NewEventForm() {
   // Tryb miejsc dla bramkarzy (migracja `077`). Wartość ma znaczenie tylko
   // wtedy, gdy `goalkeepersEnabled` jest włączone.
   const [slotyZarezerwowane, setSlotyZarezerwowane] = useState(true);
-  const [recurringEnabled, setRecurringEnabled] = useState(false);
-  const [recurringNotifyDaysBefore, setRecurringNotifyDaysBefore] = useState(3);
-  const [recurringModalOpen, setRecurringModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('public');
@@ -430,8 +423,6 @@ function NewEventForm() {
     setPlatny(false);
     setReserveEnabled(true);
     setReserveClaimMinutes(DOMYSLNE_MINUTY_REZERWY);
-    setRecurringEnabled(false);
-    setRecurringNotifyDaysBefore(3);
     setTitle('');
     setDescription('');
     setVisibility('public');
@@ -709,42 +700,11 @@ function NewEventForm() {
         });
       }
 
-      // Szablon cykliczny to dodatek do meczu jednorazowego, nie odwrotnie —
-      // gdy zawiedzie, organizator i tak dostaje działający mecz, po prostu
-      // bez linku do panelu serii niżej.
-      let cyklicznyId: string | null = null;
-      if (recurringEnabled) {
-        try {
-          cyklicznyId = await createRecurringEvent(
-            {
-              sport,
-              fieldId: location.venue?.id,
-              fieldName,
-              lat: location.lat ?? undefined,
-              lng: location.lng ?? undefined,
-              title: title || undefined,
-              description: description.trim() || undefined,
-              dayOfWeek: dayOfWeekFromDate(date),
-              eventTime: time,
-              endTime: endTime ?? undefined,
-              maxPlayers,
-              visibility,
-              notifyDaysBefore: recurringNotifyDaysBefore,
-            },
-            user.id,
-            displayName(user),
-          );
-        } catch {
-          // Cichy fallback — patrz komentarz wyżej.
-        }
-      }
-
       clearEventDraft();
       // `?utworzono=1` włącza na stronie meczu panel „Mecz gotowy — wyślij link".
-      // `?cykliczne=<id>` (gdy powstał szablon) dokłada tam link do panelu serii.
-      // Strona sama zdejmuje te parametry z adresu zaraz po odczycie, więc nie
-      // trafią do linku, który organizator za chwilę wyśle ekipie.
-      router.push(`/wydarzenia/${id}?utworzono=1${cyklicznyId ? `&cykliczne=${cyklicznyId}` : ''}`);
+      // Strona sama zdejmuje ten parametr z adresu zaraz po odczycie, więc nie
+      // trafi do linku, który organizator za chwilę wyśle ekipie.
+      router.push(`/wydarzenia/${id}?utworzono=1`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się utworzyć wydarzenia');
       setPodgladOtwarty(false);
@@ -944,7 +904,7 @@ function NewEventForm() {
                 </div>
               </div>
 
-              {/* Date / time + Recurring tile */}
+              {/* Date / time */}
               <EventDateTimeField
                 date={date}
                 setDate={(v) => { setDate(v); setFieldErrors((f) => ({ ...f, date: '' })); }}
@@ -956,43 +916,6 @@ function NewEventForm() {
                 setCzasWlasny={setCzasWlasny}
                 dateError={fieldErrors.date}
                 inputCls={inputCls}
-                extraSlot={SHOW_RECURRING ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (recurringEnabled) { setRecurringEnabled(false); return; }
-                      setRecurringModalOpen(true);
-                    }}
-                    className={[
-                      'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors',
-                      recurringEnabled ? 'border-primary-500 bg-primary-50' : 'border-slate-300 hover:border-slate-400',
-                    ].join(' ')}
-                  >
-                    <Repeat className={`h-5 w-5 shrink-0 ${recurringEnabled ? 'text-primary-700' : 'text-slate-500'}`} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-slate-900">Wydarzenie cykliczne</span>
-                      <span className="block text-xs text-slate-500">
-                        {recurringEnabled
-                          ? `Co tydzień, przypomnienie ${withCount(recurringNotifyDaysBefore, 'dzień', 'dni', 'dni')} wcześniej`
-                          : 'Powtarzaj ten mecz co tydzień'}
-                      </span>
-                    </span>
-                    {recurringEnabled ? (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); setRecurringModalOpen(true); }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setRecurringModalOpen(true); } }}
-                        aria-label="Edytuj ustawienia cyklicznego wydarzenia"
-                        className="shrink-0 rounded-lg p-1.5 text-primary-700 hover:bg-primary-100"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </span>
-                    ) : (
-                      <span className="shrink-0 text-xs font-semibold text-primary-700">Włącz</span>
-                    )}
-                  </button>
-                ) : undefined}
               />
 
               {/* LICZBA MIEJSC — przy terminie, nie przy ustawieniach.
@@ -1551,14 +1474,6 @@ function NewEventForm() {
             setGroupMemberCount(g?.memberCount);
             setWyborGrupyOtwarty(false);
           }}
-        />
-      )}
-      {recurringModalOpen && (
-        <RecurringSettingsDialog
-          dayOfWeekLabel={date ? dayOfWeekLabelFromDate(date) : null}
-          notifyDaysBefore={recurringNotifyDaysBefore}
-          onSave={(n) => { setRecurringNotifyDaysBefore(n); setRecurringEnabled(true); setRecurringModalOpen(false); }}
-          onClose={() => setRecurringModalOpen(false)}
         />
       )}
     </div>
