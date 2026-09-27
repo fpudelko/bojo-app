@@ -22,7 +22,7 @@ import { KONTAKT_HREF } from '@/content/kontakt';
 export const LANDING_DIRECT_ANSWER =
   'Bojo to darmowa aplikacja webowa do organizowania amatorskich meczów. ' +
   'Zakładasz grę (sport, boisko z mapy, termin i liczba miejsc) i wysyłasz ' +
-  'jeden link tam, gdzie Twoja ekipa już rozmawia. Osoba z linkiem zapisuje ' +
+  'jeden link tam, gdzie Twoja grupa już rozmawia. Osoba z linkiem zapisuje ' +
   'się bez zakładania konta, podając imię i e-mail. Bojo liczy zajęte ' +
   'miejsca, prowadzi listę rezerwową z widoczną kolejnością i dzieli koszt ' +
   'wynajmu obiektu na graczy.';
@@ -95,7 +95,7 @@ export const LANDING_VALUES = [
   },
   {
     icon: 'UsersRound',
-    title: 'Stała ekipa w grupie',
+    title: 'Grupa w grupie',
     body:
       'Grupa z linkiem zaproszenia zamiast wątku na Messengerze. Historia meczów ' +
       'i składów zostaje w jednym miejscu.',
@@ -190,7 +190,7 @@ export const LANDING_MISJA = {
     tytul: 'Gdzie jesteśmy dziś, wprost',
     punkty: [
       'Działa: zakładanie meczu, zapis z linku bez konta, skład, rezerwa, podział ' +
-      'kosztów, ekipa, wyniki i statystyki.',
+      'kosztów, grupy, wyniki i statystyki.',
       'Jeszcze nie działa w pełnej skali: dobranie brakujących graczy z okolicy. ' +
       'Otwartych meczów jest dziś za mało, żeby to obiecać bez zastrzeżenia.',
       'Katalog boisk to dziś lokalizacje na mapie w całej Polsce. Nawierzchnię, typ ' +

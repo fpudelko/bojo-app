@@ -465,7 +465,7 @@ export default function GroupDetailClient() {
               </span>
               {/* Nazwa jako przycisk — rozwija listę pozostałych ekip zamiast
                   być czystym tytułem. Wyłącznie gdy jest co przełączać (druga
-                  ekipa w liście); jednej ekipy nie ma sensu robić klikalną. */}
+                  grupa w liście); jednej ekipy nie ma sensu robić klikalną. */}
               {mojeEkipy.filter((g) => g.id !== group.id).length > 0 ? (
                 <button
                   onClick={() => setPrzelacznikOtwarty((v) => !v)}
@@ -596,7 +596,7 @@ export default function GroupDetailClient() {
                 </Link>
               )}
             </div>
-            {/* X-11: gdy ekipa nie miała jeszcze żadnego meczu, karta
+            {/* X-11: gdy grupa nie miała jeszcze żadnego meczu, karta
                 `NajblizszyMeczGrupy` wyżej mówi to samo („Ekipa nie ma jeszcze
                 żadnego meczu"/„Wrzuć pierwszy termin…") — to zdanie się wtedy
                 nie powtarza. */}

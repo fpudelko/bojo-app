@@ -213,7 +213,7 @@ export default function DruzynaClient() {
     const wynik = await potwierdz({
       tytul: 'Zamienić drużynę w ekipę?',
       konsekwencje: [
-        'Powstanie nowa ekipa w Bojo z tą samą nazwą',
+        'Powstanie nowa grupa w Bojo z tą samą nazwą',
         'Zawodnicy z kontem trafią do niej od razu',
       ],
       potwierdzLabel: 'Zamień w ekipę',
