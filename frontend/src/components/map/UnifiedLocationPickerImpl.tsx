@@ -10,7 +10,7 @@ import 'leaflet/dist/leaflet.css';
 import { Search, Loader2 } from 'lucide-react';
 import type { Field } from '@/types';
 import { getExplorerFields, searchExplorerFields, type Kadr } from '@/lib/api';
-import { sportLabel } from '@/lib/sports';
+import { sportLabel, sportEmoji } from '@/lib/sports';
 import KadrObserwator from './KadrObserwator';
 import { POZNAN } from './mapIcons';
 
@@ -235,6 +235,32 @@ export default function UnifiedLocationPickerImpl({ sport, value, onChange }: Pr
           {geocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
         </button>
       </div>
+
+      {/* Dropdown list of search results */}
+      {znalezione !== null && visible.length > 0 && (
+        <div className="absolute top-14 left-2 right-2 z-[1001] rounded-lg bg-white/95 shadow backdrop-blur-sm border border-slate-200 max-h-64 overflow-y-auto">
+          {visible.slice(0, 8).map((field) => (
+            <button
+              key={field.id}
+              type="button"
+              onClick={() => {
+                onChange({ venue: field, lat: field.lat, lng: field.lng, address: field.address });
+                setFlyTarget({ lat: field.lat, lng: field.lng });
+                setSearch('');
+              }}
+              className="w-full text-left px-3 py-2 hover:bg-slate-100 border-b border-slate-100 last:border-b-0 transition-colors"
+            >
+              <div className="flex items-start gap-2">
+                <span className="text-lg flex-shrink-0 mt-0.5">{sportEmoji(field.sport)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-ink truncate">{field.name}</div>
+                  <div className="text-xs text-slate-600 truncate">{field.address}</div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Komunikat o wynikach. Do tej pory szukanie bez trafienia wyglądało
           identycznie jak szukanie, które jeszcze nie ruszyło — a przycisk lupy

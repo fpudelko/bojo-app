@@ -7,6 +7,7 @@ import { useAuth, displayName } from '@/lib/auth';
 import { ostatniZamierzonyCel } from '@/lib/powrotPoLogowaniu';
 import { WARSTWA } from '@/lib/warstwy';
 import { useJestWidget } from '@/lib/widget';
+import { maJuzAktywnosc } from '@/lib/aktywnoscKonta';
 
 /**
  * Modal wyboru roli, pokazywany raz — od razu po organicznej rejestracji
@@ -67,19 +68,28 @@ export default function PostSignupRoleModal() {
     // sześć `console.debug`, w tym jeden wypisujący nazwę zalogowanego do
     // konsoli przeglądarki: ta sama klasa, którą runda `P-11` zdjęła
     // z `lib/powrotPoLogowaniu.ts`.
-    if (!user) return;
-    if (typeof localStorage === 'undefined') return;
-    // `pathname` w zależnościach NIE jest ozdobą. Organiczna rejestracja
-    // zaczyna się na `/logowanie` (nieneutralne), a kończy
-    // `router.push('/moje-gry')` — efekt policzony tylko raz, na
-    // `/logowanie`, nie pokazałby okna nigdy.
-    if (czyPokazacWyborRoli({
-      sciezka: pathname ?? '',
-      cel: ostatniZamierzonyCel(),
-      wiekKontaMs: Date.now() - new Date(user.created_at).getTime(),
-      widziano: !!localStorage.getItem(kluczWidziano(user.id)),
-      widget: jestWidget,
-    })) setOpen(true);
+    const checkAndShow = async () => {
+      if (!user) return;
+      if (typeof localStorage === 'undefined') return;
+
+      // Jeśli użytkownik ma już aktywność (zorganizowany mecz, udział w meczu,
+      // członkostwo w grupie), nie pokazuj modalki — już wie, jaką ma rolę.
+      const aktywny = await maJuzAktywnosc(user.id);
+      if (aktywny) return;
+
+      // `pathname` w zależnościach NIE jest ozdobą. Organiczna rejestracja
+      // zaczyna się na `/logowanie` (nieneutralne), a kończy
+      // `router.push('/moje-gry')` — efekt policzony tylko raz, na
+      // `/logowanie`, nie pokazałby okna nigdy.
+      if (czyPokazacWyborRoli({
+        sciezka: pathname ?? '',
+        cel: ostatniZamierzonyCel(),
+        wiekKontaMs: Date.now() - new Date(user.created_at).getTime(),
+        widziano: !!localStorage.getItem(kluczWidziano(user.id)),
+        widget: jestWidget,
+      })) setOpen(true);
+    };
+    checkAndShow();
   }, [user, jestWidget, pathname]);
 
   const zamknij = useCallback(() => {

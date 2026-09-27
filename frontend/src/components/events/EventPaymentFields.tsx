@@ -1,6 +1,7 @@
 'use client';
 
 import type { Dispatch, SetStateAction } from 'react';
+import { Check } from 'lucide-react';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, SPORTS_CARD_PROVIDERS, SPORTS_CARD_LABELS, formatBlikPhone } from '@/lib/payments';
 import type { PaymentMethod, SportsCardProvider } from '@/types';
 
@@ -69,6 +70,7 @@ export default function EventPaymentFields({
               type="button"
               onClick={() => setAcceptedPaymentMethods((cur) =>
                 cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m])}
+              aria-pressed={acceptedPaymentMethods.includes(m)}
               className={[
                 'inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
                 acceptedPaymentMethods.includes(m)
@@ -77,6 +79,9 @@ export default function EventPaymentFields({
               ].join(' ')}
             >
               {PAYMENT_METHOD_LABELS[m]}
+              {acceptedPaymentMethods.includes(m) && (
+                <Check className="w-4 h-4" aria-hidden="true" />
+              )}
             </button>
           ))}
         </div>
@@ -173,6 +178,7 @@ export default function EventPaymentFields({
                   type="button"
                   onClick={() => setAcceptedSportsCards((cur) =>
                     cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c])}
+                  aria-pressed={acceptedSportsCards.includes(c)}
                   className={[
                     'inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
                     acceptedSportsCards.includes(c)
@@ -181,6 +187,9 @@ export default function EventPaymentFields({
                   ].join(' ')}
                 >
                   {SPORTS_CARD_LABELS[c]}
+                  {acceptedSportsCards.includes(c) && (
+                    <Check className="w-4 h-4" aria-hidden="true" />
+                  )}
                 </button>
               ))}
             </div>
