@@ -1,9 +1,9 @@
 # Zrzuty — PR #434 · widoki-publiczne
 
-Przebieg [`36165558751`](https://github.com/fpudelko/bojo-app/actions/runs/36165558751)
+Przebieg [`36320959606`](https://github.com/fpudelko/bojo-app/actions/runs/36320959606)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/434)
 
-Zmienione widoki: **47** · nowe widoki: **0**
+Zmienione widoki: **49** · nowe widoki: **0**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -562,6 +562,28 @@ w czytelnej skali, potem całe strony obok siebie.
 
 </details>
 
+### trasa-moje-gry
+
+<table><tr>
+<td width="50%" align="center"><b>było</b><br>
+<img src="wycinek__trasa-moje-gry__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>jest</b><br>
+<img src="wycinek__trasa-moje-gry__actual.png" width="100%"></td>
+</tr></table>
+
+<table><tr>
+<td width="50%" align="center"><b>cała strona — było</b><br>
+<img src="roznica__trasa-moje-gry__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>cała strona — jest</b><br>
+<img src="roznica__trasa-moje-gry__actual.png" width="100%"></td>
+</tr></table>
+
+<details><summary>nakładka z podświetlonymi pikselami</summary>
+
+<img src="roznica__trasa-moje-gry__diff.png" width="100%">
+
+</details>
+
 ### trasa-nie-ma-strony
 
 <table><tr>
@@ -999,6 +1021,28 @@ w czytelnej skali, potem całe strony obok siebie.
 <details><summary>nakładka z podświetlonymi pikselami</summary>
 
 <img src="roznica__wylogowany-grupy__diff.png" width="100%">
+
+</details>
+
+### wylogowany-moje-gry
+
+<table><tr>
+<td width="50%" align="center"><b>było</b><br>
+<img src="wycinek__wylogowany-moje-gry__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>jest</b><br>
+<img src="wycinek__wylogowany-moje-gry__actual.png" width="100%"></td>
+</tr></table>
+
+<table><tr>
+<td width="50%" align="center"><b>cała strona — było</b><br>
+<img src="roznica__wylogowany-moje-gry__expected.png" width="100%"></td>
+<td width="50%" align="center"><b>cała strona — jest</b><br>
+<img src="roznica__wylogowany-moje-gry__actual.png" width="100%"></td>
+</tr></table>
+
+<details><summary>nakładka z podświetlonymi pikselami</summary>
+
+<img src="roznica__wylogowany-moje-gry__diff.png" width="100%">
 
 </details>
 
