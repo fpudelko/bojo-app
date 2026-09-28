@@ -449,6 +449,24 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
       p_email: 'jan@example.com',
       p_bramkarz: false,
     }));
+    // Bez karty klucza dostawcy nie ma wcale: zwykły zapis gościa nie może
+    // zależeć od tego, czy migracja `169` jest już na produkcji.
+    expect(mockRpc.mock.calls.find(([n]) => n === 'dolacz_do_meczu_jako_goscie')?.[1])
+      .not.toHaveProperty('p_dostawca_karty');
+  });
+
+  // Migracja 169: gość deklaruje kartę sportową tak samo jak konto
+  // (`dolacz_do_meczu`) — z dostawcą, żeby organizator wiedział, którą kartę ma.
+  it('karta sportowa gościa idzie do bazy razem z dostawcą', async () => {
+    bazaOddaje({ claim_token: 'tok-3', event_id: 'e1', already_joined: false, has_account: false });
+
+    await joinEventAsGuest('e1', 'Jan', 'jan@example.com', false,
+      { method: 'blik', hasSportsCard: true, sportsCardProvider: 'multisport' });
+    expect(mockRpc).toHaveBeenCalledWith('dolacz_do_meczu_jako_goscie', expect.objectContaining({
+      p_metoda_platnosci: 'blik',
+      p_karta_sportowa: true,
+      p_dostawca_karty: 'multisport',
+    }));
   });
 
   // Sedno migracji 088: e-mail z kontem dostaje ekran namawiający na LOGOWANIE,

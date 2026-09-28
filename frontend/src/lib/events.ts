@@ -914,6 +914,12 @@ export async function joinEventAsGuest(
     p_bramkarz: asGoalkeeper,
     p_metoda_platnosci: payment?.method ?? null,
     p_karta_sportowa: payment?.hasSportsCard ?? false,
+    // `p_dostawca_karty` exists only from migration `169`. Sent only with a
+    // ticked card so plain guest sign-ups keep working if a manual migration
+    // holds the production queue before `169`.
+    ...(payment?.hasSportsCard && payment.sportsCardProvider
+      ? { p_dostawca_karty: payment.sportsCardProvider }
+      : {}),
   });
 
   if (error) throw new Error(error.message);

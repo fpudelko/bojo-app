@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-28 · migracja `168` · 59 tabel
+**Stan na:** 2026-09-28 · migracja `169` · 59 tabel
 
 ---
 
@@ -455,6 +455,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-28 (3) — Gracz bez konta deklaruje kartę sportową przy zapisie
+
+PROBLEM: mecz w Bojo, w którym organizator akceptuje kartę sportową (Multisport,
+FitProfit, Medicover), pokazywał pole „Mam kartę sportową" i zniżkę tylko graczowi
+zalogowanemu. Gracz zapisujący się bez konta („Dołącz do meczu bez logowania") nie miał
+tego pola wcale: widział pełną cenę, a organizator nie wiedział, że ten gracz wejdzie
+na kartę. Okno bez konta kazało też kliknąć jedyną dostępną metodę płatności, zanim
+odblokowało „Zapisz się", i przy meczu z akceptacją zapisów pisało o liście rezerwowej
+albo zamkniętych zapisach, choć prośba gracza i tak czeka na organizatora.
+
+ROZWIĄZANIE BOJO: okno zapisu bez konta ma to samo pole „Mam kartę sportową" co okno
+dla zalogowanego (z wyborem karty, gdy mecz akceptuje kilka), a koszt pokazuje cenę po
+zniżce. Jedyna metoda płatności jest zaznaczona od razu. Przy meczu z akceptacją zapisów
+okno nie zapowiada rezerwy i nie blokuje wysłania prośby.
+
+MECHANIKA: migracja `169` dokłada `p_dostawca_karty` do `dolacz_do_meczu_jako_goscie()`
+(ta sama reguła co `dolacz_do_meczu()`: dostawca zapisywany tylko przy zaznaczonej
+karcie), `joinEventAsGuest()` w `lib/events.ts`, okno gościa w
+`app/wydarzenia/[id]/EventDetailClient.tsx`. Cena przez `priceForParticipant()`
+(`lib/payments.ts`).
+
 ### 2026-09-28 (2) — Gość dopisany ręcznie sam zostawia e-mail
 
 PROBLEM: organizator dopisujący gracza ręcznie („Dopisz osobę bez konta") zwykle nie zna
@@ -662,25 +683,3 @@ i numer BLIK (uprawnieniem jest token wpisu, reguła odsłonięcia jak dla konta
 komponent `TwojaPlatnosc.tsx` wspólny dla strony meczu i strony wpisu; `zl()`
 w `lib/kwota.ts`. Szczegóły → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md),
 W-4 i W-5.
-
-### 2026-09-25 — Pierwsza wizyta z linku: nic nie zasłania zapisu na mecz
-
-PROBLEM: gracz, który pierwszy raz otwierał link do meczu Bojo, po 6 sekundach
-dostawał baner o cookies przykrywający w całości przycisk „Dołącz bez konta". Świeży
-organizator logujący się linkiem z maila (nowa karta przeglądarki) dostawał nad
-kreatorem okno „Kim jesteś?", a gracz w tej samej sytuacji — nad oknem zapisu na mecz.
-Strona główna bojo.pl w polskiej strefie czasowej renderowała się dwa razy, a sekcja
-„Możesz dołączyć już dziś" pokazywała latem mecz jeszcze przez dwie godziny po starcie.
-
-ROZWIĄZANIE BOJO: baner o cookies czeka, aż człowiek wyjdzie z ekranu z własnym dolnym
-paskiem akcji (strona meczu przed zapisem, kreator), i pokazuje się na pierwszym
-zwykłym ekranie. Okno wyboru roli pokazuje się tylko na stronach ogólnych (strona
-główna, lista meczów, „Moje gry", mapa), nigdy nad kreatorem ani nad meczem. Strona
-główna liczy „czy mecz już się zaczął" w czasie polskim, a karty meczów pokazują
-„Dzisiaj"/„za 2 h" dopiero w przeglądarce.
-
-MECHANIKA: `useCookieBannerVisible()` (`lib/cookieConsent.ts`) czyta
-`useBottomNavHidden()`; `czyPokazacWyborRoli()` w `PostSignupRoleModal.tsx` sprawdza
-cel logowania i bieżącą ścieżkę; `lib/czasPolski.ts` (`terazWPolsce`,
-`czyPrzedStartemWPolsce`) i `lib/usePoMontazu.ts` dla `EventBrowseCard`. Szczegóły
-i uzasadnienie → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md), W-1…W-3.
