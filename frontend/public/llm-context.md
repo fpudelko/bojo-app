@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-27 · migracja `167` · 59 tabel
+**Stan na:** 2026-09-28 · migracja `168` · 59 tabel
 
 ---
 
@@ -455,6 +455,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-28 (2) — Gość dopisany ręcznie sam zostawia e-mail
+
+PROBLEM: organizator dopisujący gracza ręcznie („Dopisz osobę bez konta") zwykle nie zna
+jego adresu e-mail — na produkcji 29 z 29 takich wpisów w 60 dni było bez adresu. Taki
+gość nie dostawał od Bojo żadnej wiadomości: ani potwierdzenia zapisu, ani przypomnienia
+dzień przed meczem, ani informacji o odwołaniu. Jedynym wyjściem organizatora było
+„powiadom sam" — dokładnie to, co Bojo miało odciążyć.
+
+ROZWIĄZANIE BOJO: strona własnego zapisu gościa bez konta (link, który dostaje po
+dopisaniu) ma teraz formularz „Przypomnienie na e-mail" — sam gość zostawia tam adres,
+bez zakładania konta, i od razu dostaje potwierdzenie zapisu mailem. Adres da się ustawić
+tylko raz: token jest uprawnieniem do PIERWSZEGO adresu, nie hasłem, więc link, który
+komuś wyciekł, nie może przekierować cudzego kanału. Tekst zaproszenia, które organizator
+wysyła, i baner „N osób nie dostanie żadnej wiadomości" mówią teraz wprost, że pod tym
+linkiem da się zostawić adres.
+
+MECHANIKA: migracja `168` (funkcja `ustaw_email_goscia`, kolumna wynikowa `ma_email` w
+`podejrzyj_wpis_goscia`), `ustawEmailGoscia()` w `lib/guestClaim.ts`,
+`app/gracz/przejmij/[token]/PrzejmijClient.tsx`. Potwierdzenie leci istniejącym powodem
+„zapis" (migracja `133`), bez zmian we funkcji brzegowej.
+Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-5.
+
 ### 2026-09-28 — Podgląd linku, zaproszenie gościa i płatność bez wybranej metody mówią prawdę
 
 PROBLEM: podgląd meczu na WhatsAppie/Messengerze pokazywał „N wolnych miejsc" z odmianą
@@ -662,22 +684,3 @@ MECHANIKA: `useCookieBannerVisible()` (`lib/cookieConsent.ts`) czyta
 cel logowania i bieżącą ścieżkę; `lib/czasPolski.ts` (`terazWPolsce`,
 `czyPrzedStartemWPolsce`) i `lib/usePoMontazu.ts` dla `EventBrowseCard`. Szczegóły
 i uzasadnienie → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md), W-1…W-3.
-
-### 2026-09-24 (2) — Prośba o inny wygląd strony turnieju idzie wprost z panelu
-
-PROBLEM: organizator, który chciał inny wygląd strony turnieju (kolory, układ,
-dodatkowy element), nie miał gdzie tego napisać poza mailem czy Discordem — bez
-kontekstu, KTÓREGO turnieju dotyczy i bez adresu do jego panelu. Osobno: kliknięcie
-„+ Dodaj zdjęcia" na zakładce Info otwierało całą zakładkę Ustawienia (nazwa, opis,
-regulamin, BLIK, zapisy), nie samą galerię — etykieta zapowiadała węższy ekran, niż
-faktycznie się otwierał.
-
-ROZWIĄZANIE BOJO: nowa karta w panelu, pod Galerią i Sponsorami — organizator opisuje,
-czego brakuje, a zespół Bojo wprowadza zmianę ręcznie (świadomie nieautomatyczne).
-Prośba trafia do tego samego miejsca co zgłoszenia błędów, z linkiem prosto do panelu
-tego turnieju. Etykieta linku z zakładki Info zmieniła się na „+ Ustaw wygląd strony",
-a zakładka Ustawienia dostała jedno zdanie na górze, które mówi, co się na niej edytuje.
-
-MECHANIKA: `components/turnieje/PanelProsbaOWyglad.tsx`, `zglosZyczenieWygladu()`
-w `lib/bledy.ts`. Tabela `zgloszenia_bledow` jest z `099`; czwarty rodzaj `turniej_wyglad`
-i nowa kolumna `turniej_id` dokłada migracja `162`. Admin czyta w `/admin/bledy`.

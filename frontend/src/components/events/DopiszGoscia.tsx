@@ -124,7 +124,8 @@ export default function DopiszGoscia({
                 dostaje konkretną drogę (link do zapisu), nie samo „powiadom
                 sam" bez podpowiedzi, jak (Z-4, docs/faza1-runda10-plan.md). */}
             <p className="mt-2 text-[11px] text-slate-400">
-              Z adresem e-mail dostanie potwierdzenie i przypomnienie. Bez adresu wyślij mu link do zapisu.
+              Z adresem e-mail dostanie potwierdzenie i przypomnienie. Bez adresu wyślij mu link do
+              zapisu: poda tam adres sam.
             </p>
 
             <Button

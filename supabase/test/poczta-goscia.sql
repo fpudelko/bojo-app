@@ -359,4 +359,87 @@ SELECT _m_oczekuj('zmyślony token nie dostaje nic, także nowych kolumn',
   (SELECT count(*) FROM podejrzyj_wpis_goscia('dddddddd-0000-4000-8000-00000000dead'::uuid)), 0);
 RESET ROLE;
 
+-- ── Migracja 168: gość sam zostawia e-mail pod swoim linkiem (Z-5) ─────────
+
+DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Gość zostawia e-mail (migracja 168)'; END $$;
+
+\set M_EMAIL '''ffffffff-0000-4000-8000-0000000000e1'''
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title)
+VALUES (:M_EMAIL::uuid, :M_ORG::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko Poczta',
+        dzis_pl() + 1, '20:00', 10, 'public', 'Mecz bez adresów gości');
+
+INSERT INTO event_participants (event_id, name, is_guest, guest_email) VALUES
+  (:M_EMAIL::uuid, 'Dopisany Ręcznie', true, NULL);
+SELECT claim_token FROM event_participants
+ WHERE event_id = :M_EMAIL::uuid AND name = 'Dopisany Ręcznie' \gset dopisany_
+
+SELECT count(*) AS ile FROM notifications \gset notif_przed_
+
+SELECT _m_oczekuj('ustawienie adresu zwraca true',
+  (ustaw_email_goscia(:'dopisany_claim_token'::uuid, ' Dopisany.Reczny@Example.COM '))::int, 1);
+SELECT _m_oczekuj('adres zapisany małymi literami, bez spacji',
+  (SELECT count(*) FROM event_participants
+    WHERE claim_token = :'dopisany_claim_token'::uuid
+      AND guest_email = 'dopisany.reczny@example.com'), 1);
+SELECT _m_oczekuj('potwierdzenie zapisu poszło jednym mailem (powód „zapis”)',
+  (SELECT count(*) FROM maile_wyslane
+    WHERE uczestnik_id = (SELECT id FROM event_participants WHERE claim_token = :'dopisany_claim_token'::uuid)
+      AND powod = 'zapis'), 1);
+SELECT _m_oczekuj('żadne powiadomienie o składzie nie poszło — zmienił się tylko e-mail',
+  (SELECT count(*) FROM notifications), :notif_przed_ile);
+
+-- Drugie wywołanie: adres już jest, więc token nie może go nadpisać.
+SELECT _m_oczekuj('drugie wywołanie zwraca false — adres da się ustawić tylko raz',
+  (ustaw_email_goscia(:'dopisany_claim_token'::uuid, 'inny@example.com'))::int, 0);
+SELECT _m_oczekuj('adres zostaje ten sam co przy pierwszym wywołaniu',
+  (SELECT count(*) FROM event_participants
+    WHERE claim_token = :'dopisany_claim_token'::uuid
+      AND guest_email = 'dopisany.reczny@example.com'), 1);
+
+SELECT count(*) AS ile FROM maile_wyslane \gset maile_sprzed_zlego_adresu_
+
+-- Zły adres — wyjątek, żadna zmiana w bazie.
+DO $$ BEGIN
+  BEGIN
+    PERFORM ustaw_email_goscia('dddddddd-0000-4000-8000-00000000dead'::uuid, 'x@y');
+    RAISE EXCEPTION 'ustaw_email_goscia przyjęło niepoprawny adres';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'Nieprawidłowy adres e-mail' THEN RAISE; END IF;
+  END;
+END $$;
+SELECT _m_oczekuj('próba ze złym adresem nie wysłała żadnego maila',
+  (SELECT count(*) FROM maile_wyslane), :maile_sprzed_zlego_adresu_ile);
+
+-- Mecz ODWOŁANY — gość, którego mecz się nie odbędzie, nie zostawia adresu.
+\set M_EMAIL_ODW '''ffffffff-0000-4000-8000-0000000000e2'''
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name,
+                    event_date, event_time, max_players, visibility, title, status)
+VALUES (:M_EMAIL_ODW::uuid, :M_ORG::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko Poczta',
+        dzis_pl() + 1, '20:00', 10, 'public', 'Mecz odwołany dla e-maila', 'cancelled');
+INSERT INTO event_participants (event_id, name, is_guest, guest_email) VALUES
+  (:M_EMAIL_ODW::uuid, 'Gość Odwołanego', true, NULL);
+SELECT claim_token FROM event_participants
+ WHERE event_id = :M_EMAIL_ODW::uuid AND name = 'Gość Odwołanego' \gset odwolany_
+SELECT _m_oczekuj('mecz odwołany: adresu nie da się ustawić',
+  ustaw_email_goscia(:'odwolany_claim_token'::uuid, 'x@y.pl')::int, 0);
+
+-- Mecz ROZEGRANY (wczorajszy) — po pierwszym gwizdku adres też się nie zmienia.
+INSERT INTO event_participants (event_id, name, is_guest, guest_email) VALUES
+  (:M_WCZOR::uuid, 'Gość Rozegranego Bez Adresu', true, NULL);
+SELECT claim_token FROM event_participants
+ WHERE event_id = :M_WCZOR::uuid AND name = 'Gość Rozegranego Bez Adresu' \gset rozegrany_
+SELECT _m_oczekuj('mecz rozegrany: adresu nie da się ustawić',
+  ustaw_email_goscia(:'rozegrany_claim_token'::uuid, 'x@y.pl')::int, 0);
+
+-- `podejrzyj_wpis_goscia` mówi stronie, czy pokazać formularz adresu.
+SET ROLE anon;
+SELECT _m_oczekuj('podgląd: ma_email = false, zanim gość poda adres',
+  (SELECT count(*) FROM podejrzyj_wpis_goscia(:'odwolany_claim_token'::uuid) WHERE NOT ma_email), 1);
+SELECT _m_oczekuj('podgląd: ma_email = true, gdy adres już jest',
+  (SELECT count(*) FROM podejrzyj_wpis_goscia(:'dopisany_claim_token'::uuid) WHERE ma_email), 1);
+SELECT _m_oczekuj('zmyślony token nie ustawia niczego',
+  ustaw_email_goscia(gen_random_uuid(), 'x@y.pl')::int, 0);
+RESET ROLE;
+
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ POCZTA: wszystkie asercje przeszły.'; END $$;

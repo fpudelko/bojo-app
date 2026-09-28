@@ -7,6 +7,7 @@ import { kanonicznyOrigin } from './powrotPoLogowaniu';
 import type { DaneDoUdostepnienia } from './eventShare';
 import type { PaymentMethod } from '@/types';
 import { KORZYSCI_KONTA } from '@/content/kontoGoscia';
+import { validateEmail } from './validation';
 
 /**
  * Przejęcie wpisu gościa (migracja `066`).
@@ -60,6 +61,11 @@ export interface PodgladWpisuGoscia {
   blikTelefon: string | null;
   /** Numer będzie, ale dopiero godzinę przed meczem. */
   blikPozniej: boolean;
+  /** Czy wpis ma już adres e-mail (migracja `168`, Z-5) — sam FAKT, nie treść:
+   *  `guest_email` nie wychodzi przez to API do anon (migracja `127`). Zapas
+   *  `true`: bez migracji strona nie ma jak pokazać formularza, więc lepiej
+   *  milczeć niż zaprosić do wołania funkcji, której jeszcze nie ma. */
+  maEmail: boolean;
 }
 
 /** Co pokazać klikającemu, zanim się zaloguje. Zwraca null dla nieznanego tokenu. */
@@ -95,7 +101,26 @@ export async function podejrzyjWpisGoscia(token: string): Promise<PodgladWpisuGo
     oplacone: row.oplacone ?? false,
     blikTelefon: row.blik_telefon ?? null,
     blikPozniej: row.blik_pozniej ?? false,
+    maEmail: row.ma_email ?? true,
   };
+}
+
+/**
+ * Gość zostawia e-mail pod swoim linkiem (migracja `168`, Z-5).
+ *
+ * Token jest uprawnieniem, ale adres ustawia się TYLKO RAZ — baza odmawia
+ * (zwraca `false`), gdy wpis już ma adres, jest przejęty, mecz się skończył
+ * albo został odwołany. Link, który wyciekł, nie może przekierować
+ * istniejącego kanału.
+ */
+export async function ustawEmailGoscia(token: string, email: string): Promise<boolean> {
+  const safeEmail = validateEmail(email);
+  const { data, error } = await supabase.rpc('ustaw_email_goscia', {
+    p_token: token,
+    p_email: safeEmail,
+  });
+  if (error) throw new Error(error.message);
+  return data as boolean;
 }
 
 /**
@@ -263,14 +288,16 @@ export function tekstZaproszeniaGoscia(
     return `Cześć ${imieGoscia}! ${kto} na listę rezerwową meczu „${tytul}" (${kiedyZGodzina}).\n`
       + `Gdy zwolni się miejsce, zobaczysz to pod tym linkiem, bez zakładania konta:\n`
       + `• skład i Twoje miejsce w kolejce,\n`
-      + `• „Nie mogę grać", jeśli już nie chcesz czekać.\n`
+      + `• „Nie mogę grać", jeśli już nie chcesz czekać,\n`
+      + `• przypomnienie dzień przed na e-mail, jeśli zostawisz adres.\n`
       + `Otwórz tutaj:`;
   }
 
   return `Cześć ${imieGoscia}! ${kto} na mecz „${tytul}" (${kiedyZGodzina}).\n`
     + `Pod tym linkiem masz swój zapis, bez zakładania konta:\n`
     + `• skład, miejsce i koszt${k.blik ? ' oraz numer do BLIKA godzinę przed meczem' : ''},\n`
-    + `• „Nie mogę grać", gdyby coś wypadło: miejsce przejdzie na kolejną osobę.\n`
+    + `• „Nie mogę grać", gdyby coś wypadło: miejsce przejdzie na kolejną osobę,\n`
+    + `• przypomnienie dzień przed na e-mail, jeśli zostawisz adres.\n`
     + `Otwórz tutaj:`;
 }
 
