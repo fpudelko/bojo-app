@@ -1,6 +1,9 @@
 # Faza 1, runda 10: czy wiadomość od Bojo w ogóle dochodzi — plan
 
-> **Status (2026-09-28): PLAN, czeka na decyzje właściciela (§9). Nic nie jest wdrożone.**
+> **Status (2026-09-28): decyzje podjęte (§9) — D-9 zrobione ręcznie (SQL Editor,
+> nie workflow — patrz uwaga w Z-0), D-10 A, D-11 zostajemy na darmowym planie Resend
+> + dokładamy strażnik limitu (Z-1a, nowa pozycja), D-12 tylko raz, D-13 tak, na obrazku.
+> Implementacja PR-M/N/O/K jeszcze nie ruszona.**
 > Dziesiąta runda przejścia ścieżki organizatora i gracza. Poprzednie:
 > [faza1-runda9-plan.md](./faza1-runda9-plan.md) (`X-n`),
 > [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md) (`W-n`).
@@ -58,8 +61,9 @@ który organizator może im wysłać, obiecuje rzeczy nieprawdziwe.
 
 | # | Ustalenie | Wartość dla organizatora | Koszt | Migracja | PR |
 |---|---|---|---|---|---|
-| **Z-0** | Migracja `167` (ręczna, kasuje tabele gier cyklicznych) **czeka na kliknięcie** od 27.09. Zadanie produkcyjne zatrzymuje się przed nią razem z **każdą** kolejną migracją, więc Z-1 i Z-5 nie dojechałyby na produkcję | Nowe poprawki w ogóle trafiają do bazy | kliknięcie | — | przed N/O |
+| **Z-0** | Migracja `167` (ręczna, kasuje tabele gier cyklicznych) **czeka na kliknięcie** od 27.09. Zadanie produkcyjne zatrzymuje się przed nią razem z **każdą** kolejną migracją, więc Z-1 i Z-5 nie dojechałyby na produkcję | Nowe poprawki w ogóle trafiają do bazy | kliknięcie | — | **zrobione 2026-09-28** (SQL Editor; dziennik dogoni się sam przy PR-N, patrz §2) |
 | **Z-1** | 9/10 graczy i 7/9 organizatorów nie ma pusha, a przypomnienie dzień przed, oferta z rezerwy, zaproszenie na mecz i „domknij mecz” chodzą wyłącznie dzwonkiem + pushem. Gość z e-mailem dostaje te same rzeczy mailem | Przypomnienie, zaproszenie „Powtórz mecz” i oferta z rezerwy **dochodzą**; organizator nie musi dublować ich na WhatsAppie | średni | **tak** (tylko podmiana funkcji) | O |
+| **Z-1a** | Bezpiecznik 80 maili/dobę (Z-1) chroni limit Resend, ale cicho — nikt nie widzi, że limit został dobity, dopóki mail nie przestanie przychodzić | Widoczne ostrzeżenie, zanim organizatorzy zaczną tracić maile, nie po fakcie | mały | nie | O |
 | **Z-2** | Organizator nigdy nie dostaje propozycji włączenia powiadomień (zachęta startuje wyłącznie po zapisie gracza) | Prośba o dołączenie i komplet przychodzą na telefon | mały | nie | O |
 | **Z-3** | Podgląd linku na WhatsAppie: „**1 wolnych miejsc**”, „**2 wolnych miejsc**”; odwołany, rozegrany i zamknięty mecz dalej pokazuje „N wolnych miejsc”; nigdzie nie pada „zapis bez konta”; mecz prywatny ma tytuł „Mecz” | Pierwsze, co gracz widzi po wklejeniu linku, jest prawdziwe i niesie argument „bez konta” | mały | nie | M |
 | **Z-4** | Link, który organizator wysyła dopisanemu gościowi, obiecuje „dołączanie do ekipy”, „przeglądanie otwartych gier w okolicy”, „zakładanie własnych gier” (F-6 usunęło to wszędzie indziej), mówi „Masz miejsce w składzie” gościowi z rezerwy i przedstawia link jako **ścianę konta**, a nie jako stronę jego zapisu (skład, koszt, BLIK, „Nie mogę grać”). To samo w modalu po dopisaniu i w pasku nad składem | Organizator wysyła wiadomość, która jest prawdą i zdejmuje z niego obsługę „nie dam rady” | mały | nie | M |
@@ -89,14 +93,24 @@ istniejącym typom, Z-5 dokłada funkcję RPC na istniejącej kolumnie.
 `DROP COLUMN`) i czeka. Zgodnie z AGENTS.md zadanie produkcyjne zatrzymuje się przed
 pierwszą ręczną migracją **razem z całą resztą za nią**.
 
-**Rozwiązanie.** Właściciel: Actions → Migracje → Run workflow → cel `produkcja`
-(wszystko). Warunki bezpieczeństwa są spełnione: front nie czyta już tabel serii (PR-L),
-funkcje serii skasowała `164`, zadania `pg_cron` ich nie wołają (sprawdzone: aktywne są
-wyłącznie `bojo-kolejka-rezerwy`, `bojo-maile-gosci`, `bojo-przypomnienia`).
+**Zrobione (2026-09-28), ale inną drogą niż plan zakładał.** Właściciel wkleił treść
+`167` wprost w Supabase SQL Editor zamiast puścić ją przez Actions → Migracje. Skutek
+sprawdzony zapytaniami: `recurring_events`, `recurring_event_invites` i `player_stats`
+nie istnieją, `events.recurring_event_id` nie istnieje — migracja **poszła w całości**.
 
-**Bez tego:** PR-N i PR-O po merge'u działają na dev, a na produkcji front woła funkcje,
-których nie ma. Oba PR-y mają wartości zapasowe (§4, §5), więc nic się nie wywróci — ale
-też nic się nie poprawi.
+**Jedna rzecz, o którą trzeba zadbać przy najbliższym uruchomieniu workflow „Migracje”.**
+`schema_migracje` **nie ma wiersza dla `167`** — dziennik nie wie, że ktoś to zrobił poza
+nim. To jest dokładnie sytuacja odwrotna do pułapki z AGENTS.md („dziennik mówi
+zastosowana, a obiektu nie ma”): tu obiekt zniknął, a dziennik milczy. Konsekwencja jest
+łagodna, bo `167` jest w całości `IF EXISTS`/`DROP COLUMN IF EXISTS` — **idempotentna**:
+przy najbliższym uruchomieniu `migruj.sh` zobaczy `167` jako niezastosowaną, puści ją
+jeszcze raz (no-op, bo obiektów już nie ma) i **sam** dopisze brakujący wiersz z
+poprawną sumą kontrolną. Nie trzeba nic klikać ręcznie — wystarczy, że PR-N (pierwszy,
+który znowu dotyka `supabase/migrations/**`) przejdzie normalną ścieżką.
+
+**Bez tego kroku PR-N i PR-O nie mogłyby dojechać na produkcję automatem:** kolejka
+migracji nadal by się zatrzymywała przed `167`, teraz już tylko formalnie (obiektów do
+skasowania nie ma), ale zgodnie z regułą „ręczna blokuje całą resztę za nią”.
 
 ---
 
@@ -710,6 +724,57 @@ organizatora; bez zdarzenia → nic. Klikalność: `e2e/*.klikalnosc.spec.ts` �
 nie zasłania „Wyślij link znajomym” (test przez `click({ trial: true })` po wywołaniu
 zdarzenia).
 
+### Z-1a. Strażnik dziennego limitu Resend (decyzja D-11)
+
+**Po co.** Właściciel zostaje na darmowym planie Resend (100 maili/dzień, wspólne
+z mailami logowania — patrz README `powiadom-goscia`), a Z-1 dokłada cztery nowe powody
+wysyłki. Bezpiecznik `limit_dzienny` (domyślnie 80) w `wyslij_mail_do_konta()` chroni przed
+przekroczeniem, ale **cicho** — organizator/właściciel nie dowiaduje się, że limit został
+dobity, dopóki ktoś nie zapyta „czemu nie przyszedł mail”. To jest dokładnie ten sam wzorzec
+ryzyka, co brak strażnika `pg_cron` przed PR-H: cisza jako jedyny sygnał awarii.
+
+**Rozwiązanie.** Nowy krok w `.github/workflows/zdrowie-produkcji.yml` (ten sam job,
+ta sama zasada „zielono z adnotacją, gdy brak sekretu”), uruchamiany razem z pg_cron
+(17:00 UTC — po godzinie szczytu wysyłek, bliżej końca doby):
+
+```yaml
+      - name: Sprawdź dzienny limit poczty
+        if: always()
+        env:
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DB_URL_PROD:-}" ]; then
+            echo "SUPABASE_DB_URL_PROD nie jest ustawiony — pomijam." | tee /tmp/poczta.txt
+            exit 0
+          fi
+          ADRES="$(DB_URL="$DB_URL_PROD" ./scripts/sprawdz-adres-bazy.sh SUPABASE_DB_URL_PROD)"
+          WYNIK="$(psql "$ADRES" -v ON_ERROR_STOP=1 --single-transaction --pset=pager=off \
+            -c 'SET TRANSACTION READ ONLY' -tA -c "
+              SELECT count(*) FROM maile_wyslane WHERE created_at >= date_trunc('day', now());
+            ")"
+          echo "Dziś wysłano (zapisano w maile_wyslane): $WYNIK / 100 (plan darmowy Resend)." | tee /tmp/poczta.txt
+          # 70 = próg ostrzegawczy: 70% dziennego limitu Resend, nie samego `limit_dzienny`
+          # aplikacji (80) — chcemy sygnał, ZANIM organizator poczuje bezpiecznik na sobie.
+          if [ "$WYNIK" -ge 70 ]; then
+            echo "✗ Blisko dziennego limitu Resend — czas rozważyć płatny plan albo podnieść limit_dzienny." | tee -a /tmp/poczta.txt
+            exit 1
+          fi
+```
+
+Krok drugi dopisuje się do tego samego „Podsumowanie” (`GITHUB_STEP_SUMMARY`) obok
+wyniku pg_cron — jedna czerwona plakietka na workflow, nie dwie osobne rzeczy do
+sprawdzania. Próg `70` jest liczbą w kodzie workflowu, nie w bazie — zmiana progu to
+edycja pliku, nie migracja.
+
+**Gdy się zaświeci:** dwie opcje bez zmiany kodu — (1) podnieść `limit_dzienny` w
+`konfiguracja_poczty` (jeśli Resend już jest na płatnym planie), (2) przejść na płatny
+plan Resend i dopiero wtedy podnieść `limit_dzienny`. Kolejność ma znaczenie: podniesienie
+`limit_dzienny` bez zmiany planu Resend przywróci realne ryzyko ucięcia maili logowania.
+
+**Testy.** Bez testu jednostkowego (czysty workflow, jak reszta `zdrowie-produkcji.yml`).
+Sprawdzone ręcznie po wdrożeniu: `workflow_dispatch` na produkcji, odczyt kroku w Actions.
+
 ---
 
 ## 6. PR-K (Z-7) — przeniesione z rundy 9
@@ -769,22 +834,31 @@ Zakres i rozwiązanie bez zmian względem [faza1-runda9-plan.md §5](./faza1-run
 
 ## 9. Decyzje dla właściciela
 
+**Rozstrzygnięte 2026-09-28.** Poniżej pytania w brzmieniu, w jakim były zadane,
+z odpowiedzią.
+
 - **D-9 (Z-0).** Kliknąć teraz `167` na produkcji (Actions → Migracje → Run workflow →
-  produkcja)? **Rekomendacja: tak**, przed PR-N. Bez tego PR-N i PR-O dojadą tylko na dev.
+  produkcja)? **Rekomendacja: tak**, przed PR-N. → **Zrobione, ale inną drogą**:
+  właściciel wkleił treść migracji wprost w Supabase SQL Editorze zamiast puścić ją przez
+  workflow. Skutek sprawdzony zapytaniami (§2): tabele i kolumna zniknęły, migracja
+  faktycznie poszła. Jedyny ślad tego wyboru: `schema_migracje` nie ma wiersza dla `167` —
+  nieszkodliwe, bo `167` jest w całości idempotentna (`IF EXISTS`), więc dziennik dogoni
+  się sam przy najbliższym uruchomieniu workflow „Migracje” (pierwszy kandydat: PR-N).
 - **D-10 (Z-1).** Poczta do konta jako zapas: **(A)** cztery typy (przypomnienie, oferta
   z rezerwy, zaproszenie, „po meczu”), tylko bez pusha, z bezpiecznikiem 80/dobę;
   **(B)** jak A + `nowy_mecz_w_grupie`; **(C)** jak A, ale mail zawsze, także przy pushu;
-  **(D)** nic, zostaje decyzja z `140`. **Rekomendacja: A.** B podwaja wolumen przy
-  ekipach 15-osobowych; C dubluje wiadomość 10% osób, które push mają.
+  **(D)** nic, zostaje decyzja z `140`. **Rekomendacja: A.** → **Decyzja: A.**
 - **D-11 (Z-1).** Plan Resend: czy konto jest na planie darmowym (100/dzień, 3000/mies.)?
   Jeśli tak, bezpiecznik 80 zostaje; jeśli płatny, podnosimy `limit_dzienny` wpisem
-  w bazie (bez migracji). Potrzebna odpowiedź, nie zmiana kodu.
+  w bazie (bez migracji). → **Decyzja: zostajemy na darmowym planie na razie**, ale
+  dokładamy **widoczny strażnik** (nowa pozycja **Z-1a**, §5): codzienne ostrzeżenie
+  w workflow „Zdrowie produkcji”, gdy dzienna wysyłka zbliża się do limitu Resend —
+  wtedy przełączamy plan i/albo podnosimy `limit_dzienny`.
 - **D-12 (Z-5).** Gość może podać adres pod linkiem **tylko, gdy go nie ma** (rekomendacja)
-  czy także go **zmienić**? Zmiana otwiera przejęcie kanału przez kogoś, komu link
-  wyciekł (np. przekazany dalej na grupie).
+  czy także go **zmienić**? → **Decyzja: tylko raz** (rekomendacja), bez zmian.
 - **D-13 (Z-3).** Linia „Zapis bez zakładania konta” **na obrazku** podglądu (rekomendacja:
-  tak) czy wyłącznie w opisie tekstowym? Obrazek widać zawsze, opis nie w każdym
-  komunikatorze.
+  tak) czy wyłącznie w opisie tekstowym? → **Decyzja: tak, na obrazku** (rekomendacja),
+  bez zmian.
 
 ---
 
@@ -830,7 +904,8 @@ z kontem.
 **Co się zmienia.** Cztery istniejące powiadomienia idą mailem wyłącznie do kont bez
 pusha, z bezpiecznikiem dziennym (limit Resend jest wspólny z mailami logowania).
 Ustawienia maili w profilu w dwóch grupach. Organizator dostaje propozycję włączenia
-powiadomień po wysłaniu linku do nowego meczu.
+powiadomień po wysłaniu linku do nowego meczu. Workflow „Zdrowie produkcji” ostrzega,
+gdy dzienna wysyłka zbliża się do limitu darmowego planu Resend.
 
 **Migracja.** `169_poczta_do_kont_bez_pusha.sql` — podmiana dwóch funkcji, bezpieczna.
 **Funkcję brzegową `powiadom-goscia` trzeba wdrożyć PRZED merge'em** (gałąź
