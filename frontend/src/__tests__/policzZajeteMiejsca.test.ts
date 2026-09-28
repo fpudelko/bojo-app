@@ -36,7 +36,6 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-import { supabase } from '@/lib/supabase';
 import { policzZajeteMiejsca } from '@/app/wydarzenia/[id]/eventMeta';
 import { liczZajeteMiejsca } from '@/lib/zajeteMiejsca';
 
