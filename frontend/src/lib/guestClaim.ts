@@ -6,6 +6,7 @@ import { eventDisplayTitle } from './eventTitle';
 import { kanonicznyOrigin } from './powrotPoLogowaniu';
 import type { DaneDoUdostepnienia } from './eventShare';
 import type { PaymentMethod } from '@/types';
+import { KORZYSCI_KONTA } from '@/content/kontoGoscia';
 
 /**
  * Przejęcie wpisu gościa (migracja `066`).
@@ -184,29 +185,58 @@ export function linkPrzejeciaWpisu(token: string): string {
 }
 
 /**
+ * O czym zaproszenie ma mówić — bramka na treść `tekstZaproszeniaGoscia()`,
+ * bo trzy sytuacje potrzebują trzech różnych obietnic (Z-4,
+ * docs/faza1-runda10-plan.md).
+ */
+export interface KontekstZaproszenia {
+  /** Wpis jest na liście rezerwowej — nie ma jeszcze miejsca w składzie. */
+  naRezerwie: boolean;
+  /** Mecz już się odbył — to jest prośba o konto, nie o sprawdzenie zapisu na
+   *  mecz, którego już nie ma jak zmienić. */
+  poMeczu: boolean;
+  /** Mecz płatny i przyjmuje BLIK — link odsłoni numer godzinę przed meczem. */
+  blik: boolean;
+}
+
+/** „18:00" z „18:00:00" — tekst do wysłania nie potrzebuje sekund. */
+function godzinaZaproszenia(t?: string | null): string {
+  return (t ?? '').slice(0, 5);
+}
+
+/**
  * Tekst do wysłania RAZEM z linkiem przejęcia wpisu.
  *
  * Bez tego link trafiał na czat jako goły adres — dokładnie ten sam błąd, który
  * już raz naprawiono w głównym udostępnianiu meczu (patrz `eventShareText` w
  * `lib/eventShare.ts`). Tu ta naprawa po prostu nie dotarła.
  *
- * Trzy rzeczy, które ta treść musi robić dobrze — każda była zgłoszona jako
- * błąd poprzedniej wersji:
+ * DRUGA WERSJA (Z-4, docs/faza1-runda10-plan.md) — poprzednia zawsze mówiła
+ * „Masz miejsce w składzie" (nieprawda dla rezerwy i po meczu) i obiecywała
+ * konto trzema rzeczami, z których F-6 dwie uznało za nieprawdziwe i usunęło
+ * z pozostałych ekranów tej samej ścieżki (`content/kontoGoscia.ts`): konto
+ * nie dołącza samo do żadnej ekipy, a otwartych gier w okolicy jest dziś za
+ * mało. Tu te same dwie obietnice zostały, bo ten plik miał własną, odrębną
+ * treść — teraz korzysta z tej samej listy `KORZYSCI_KONTA`.
  *
- * 1. MÓWI, KTO ZAPRASZA. „Organizator dopisał Cię" to nikt konkretny; wiadomość
- *    od nieznajomego z linkiem wygląda jak spam. Dopisujący nie zawsze jest
- *    organizatorem — gdy mecz pozwala uczestnikom dopisywać znajomych, robi to
- *    kolega z drużyny.
- * 2. JEST W CZASIE PRZYSZŁYM. Poprzednia wersja mówiła „Zagraliście razem",
- *    a wpis gościa powstaje przed meczem, nie po nim — zaproszenie na przyszłą
- *    grę brzmiało jak podsumowanie rozegranej.
- * 3. OBIECUJE TO, CO MA WARTOŚĆ. „Zobaczysz swój udział" nie jest zachętą:
- *    skład widać bez konta, wystarczy otworzyć link do meczu. Konto daje
- *    grupę, powiadomienia o kolejnych meczach i własne gry.
+ * Przed meczem treść mówi wprost, co link daje BEZ KONTA (skład, koszt,
+ * „Nie mogę grać") — to jest dokładnie argument, którym organizator zdejmuje
+ * z siebie obsługę „nie dam rady": kliknij, sprawdzisz i sam się wypiszesz.
+ * Konto jest propozycją dopiero PO meczu, gdy gość już wie, że chce grać
+ * dalej — tam, i tylko tam, treść prosi o coś.
+ *
+ * Cztery rzeczy, które ta treść musi robić dobrze:
+ * 1. MÓWI, KTO ZAPRASZA — jak dotąd.
+ * 2. JEST W CZASIE PRZYSZŁYM przed meczem, w przeszłym po meczu.
+ * 3. OBIECUJE TO, CO MA WARTOŚĆ i CO JEST PRAWDĄ — bez konta przed meczem,
+ *    konto dopiero po.
+ * 4. NIE STAWIA ŚCIANY KONTA tam, gdzie nie trzeba — przed meczem to jest
+ *    strona JEGO zapisu, nie formularz rejestracji.
  */
 export function tekstZaproszeniaGoscia(
   imieGoscia: string,
   e: DaneDoUdostepnienia,
+  k: KontekstZaproszenia,
   ktoZaprasza?: string,
 ): string {
   const tytul = eventDisplayTitle({ title: e.title, sport: e.sport, maxPlayers: e.maxPlayers });
@@ -218,36 +248,51 @@ export function tekstZaproszeniaGoscia(
   }
 
   const zapraszajacy = ktoZaprasza?.trim();
-  const wstep = zapraszajacy
-    ? `Cześć ${imieGoscia}! ${zapraszajacy} zapisał(a) Cię na mecz`
-    : `Cześć ${imieGoscia}! Ktoś zapisał Cię na mecz`;
+  const kto = zapraszajacy ? `${zapraszajacy} zapisał(a) Cię` : 'Ktoś zapisał Cię';
+  const godzina = godzinaZaproszenia(e.time);
+  const kiedyZGodzina = godzina ? `${kiedy}, ${godzina}` : kiedy;
 
-  return `${wstep} „${tytul}" (${kiedy}) w Bojo.\n`
-    + `Masz miejsce w składzie, potwierdź, że to Ty, żeby mecz trafił na Twoją listę gier.\n`
-    + `Przy okazji odblokujesz:\n`
-    + `• dołączanie do ekipy i powiadomienia o kolejnych meczach,\n`
-    + `• zakładanie własnych gier,\n`
-    + `• przeglądanie otwartych gier w okolicy (tych wciąż przybywa).\n`
-    + `Konto zakładasz Google'em albo e-mailem, zajmuje 30 sekund:`;
+  if (k.poMeczu) {
+    return `Cześć ${imieGoscia}! Dzięki za mecz „${tytul}" (${kiedy}).\n`
+      + `Jeśli chcesz grać dalej, załóż konto (30 sekund, Google albo e-mail):\n`
+      + KORZYSCI_KONTA.map((k2) => `• ${k2},`).join('\n').replace(/,$/, '.') + '\n'
+      + `Załóż konto tutaj:`;
+  }
+
+  if (k.naRezerwie) {
+    return `Cześć ${imieGoscia}! ${kto} na listę rezerwową meczu „${tytul}" (${kiedyZGodzina}).\n`
+      + `Gdy zwolni się miejsce, zobaczysz to pod tym linkiem, bez zakładania konta:\n`
+      + `• skład i Twoje miejsce w kolejce,\n`
+      + `• „Nie mogę grać", jeśli już nie chcesz czekać.\n`
+      + `Otwórz tutaj:`;
+  }
+
+  return `Cześć ${imieGoscia}! ${kto} na mecz „${tytul}" (${kiedyZGodzina}).\n`
+    + `Pod tym linkiem masz swój zapis, bez zakładania konta:\n`
+    + `• skład, miejsce i koszt${k.blik ? ' oraz numer do BLIKA godzinę przed meczem' : ''},\n`
+    + `• „Nie mogę grać", gdyby coś wypadło: miejsce przejdzie na kolejną osobę.\n`
+    + `Otwórz tutaj:`;
 }
 
 /** Udostępnia link przejęcia wpisu gościa — Web Share API, z fallbackiem do
- *  schowka. Współdzielone przez przycisk „Zaproś do Bojo" w składzie
- *  (`EventDetailClient.tsx`) i modal zachęty pokazywany zaraz po dodaniu
- *  gościa (`GuestInviteNudge.tsx`), żeby obie ścieżki wysyłały dokładnie tę
- *  samą treść tym samym mechanizmem. */
+ *  schowka. Współdzielone przez przycisk w składzie (`EventDetailClient.tsx`)
+ *  i modal zachęty pokazywany zaraz po dodaniu gościa
+ *  (`GuestInviteNudge.tsx`), żeby obie ścieżki wysyłały dokładnie tę samą
+ *  treść tym samym mechanizmem. */
 export async function udostepnijZaproszenieGoscia(
   imieGoscia: string,
   token: string,
   event: DaneDoUdostepnienia,
+  k: KontekstZaproszenia,
   ktoZaprasza?: string,
 ): Promise<'shared' | 'copied' | 'failed'> {
   const url = linkPrzejeciaWpisu(token);
-  const text = tekstZaproszeniaGoscia(imieGoscia, event, ktoZaprasza);
+  const text = tekstZaproszeniaGoscia(imieGoscia, event, k, ktoZaprasza);
+  const title = k.poMeczu ? 'Zaproszenie do Bojo' : 'Twój zapis na mecz';
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
-      await navigator.share({ title: 'Zaproszenie do Bojo', text, url });
+      await navigator.share({ title, text, url });
       return 'shared';
     } catch {
       return 'failed'; // anulowane przez użytkownika — nic nie pokazujemy, jak w shareEvent()

@@ -21,7 +21,11 @@ import EventDetailClient from './EventDetailClient';
 // publiczny" siedzi TAM, w jednym miejscu i pod testem — nie tutaj.
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  return metadataDlaMeczu(params.id, await getEventMeta(params.id));
+  const ev = await getEventMeta(params.id);
+  // Liczymy skład tylko dla meczu publicznego (Z-3, docs/faza1-runda10-plan.md)
+  // — dla innych metadane i tak są bezcechowe, a zapytanie byłoby zbędne.
+  const zajete = ev?.visibility === 'public' ? await policzZajeteMiejsca(params.id) : undefined;
+  return metadataDlaMeczu(params.id, ev, zajete);
 }
 
 export default async function EventPage({ params }: { params: { id: string } }) {

@@ -26,6 +26,7 @@ export default function GuestInviteNudge({
   event,
   zapraszajacy,
   naRezerwie = false,
+  blik = false,
   onClose,
 }: {
   guestName: string;
@@ -36,12 +37,17 @@ export default function GuestInviteNudge({
    *  wprost, bo dotąd tę informację niósł wyłącznie toast, który ten modal
    *  teraz zastępuje (patrz `EventDetailClient.tsx#handleAddGuest`). */
   naRezerwie?: boolean;
+  /** Mecz płatny i przyjmuje BLIK (Z-4, docs/faza1-runda10-plan.md) — link
+   *  ma wtedy wspomnieć numer, który odsłoni się godzinę przed meczem. */
+  blik?: boolean;
   onClose: () => void;
 }) {
   const [wyslano, setWyslano] = useState(false);
 
   const wyslijZaproszenie = async () => {
-    const wynik = await udostepnijZaproszenieGoscia(guestName, claimToken, event, zapraszajacy);
+    const wynik = await udostepnijZaproszenieGoscia(
+      guestName, claimToken, event, { naRezerwie, poMeczu: false, blik }, zapraszajacy,
+    );
     if (wynik === 'copied' || wynik === 'shared') setWyslano(true);
   };
 
@@ -59,13 +65,13 @@ export default function GuestInviteNudge({
             {/* „Dodano „{imię}"", nie „{imię} dodany(a)" — polska odmiana imion
                 wymaga znajomości płci, a formularz jej nie zbiera. „dodany(a)"
                 jest widoczną łatą na ten problem, nie odpowiedzią na niego.
-                Zgłoszone wprost z sesji QA. Ten sam toast, który ten modal
-                zastępuje, mówił też o rezerwie — modal ma teraz nieść tę samą
-                informację, nie mniej. */}
-            <h2 className="font-semibold text-ink">Dodano „{guestName}" do składu ✓</h2>
-            {naRezerwie && (
-              <p className="mt-0.5 text-xs font-medium text-amber-700">Komplet, na rezerwę</p>
-            )}
+                Zgłoszone wprost z sesji QA. Rezerwa dostaje WŁASNY nagłówek
+                (Z-4, docs/faza1-runda10-plan.md) zamiast osobnej linijki pod
+                spodem — „do składu" przy kimś, kto jest na rezerwie, było
+                nieprawdą. */}
+            <h2 className="font-semibold text-ink">
+              {naRezerwie ? <>Dodano „{guestName}" na listę rezerwową</> : <>Dodano „{guestName}" do składu ✓</>}
+            </h2>
           </div>
           <button onClick={onClose} className="ml-auto shrink-0 text-slate-400 hover:text-slate-600" aria-label="Zamknij">
             <X className="h-5 w-5" />
@@ -73,20 +79,15 @@ export default function GuestInviteNudge({
         </div>
 
         <div className="space-y-3 px-5 py-4">
-          <p className="text-sm font-medium text-slate-700">
-            Zaproś go do Bojo i zautomatyzuj zarządzanie:
+          {/* Z-4 (docs/faza1-runda10-plan.md): dawne „Zaproś go do Bojo i
+              zautomatyzuj zarządzanie" + trzy punkty obiecywało powiadomienia
+              o zmianach, mimo że gość dostanie je dopiero po podaniu adresu
+              albo po założeniu konta — nie od samego kliknięcia. Zdanie mówi
+              teraz wyłącznie to, co ten link robi OD RAZU. */}
+          <p className="text-sm text-slate-600">
+            Wyślij mu link do jego zapisu. Bez zakładania konta sprawdzi tam skład i koszt,
+            a jeśli coś wypadnie, sam się wypisze i miejsce przejdzie na kolejną osobę.
           </p>
-          <ul className="space-y-2 text-sm text-slate-600">
-            <li>
-              • Powiadomienia o zmianach terminu i odwołaniu meczu
-            </li>
-            <li>
-              • Zapisy go w bazie graczy, następny raz jednym kliknięciem
-            </li>
-            <li>
-              • Sam potwierdzi lub się wypisze
-            </li>
-          </ul>
 
           <button
             type="button"
@@ -94,7 +95,7 @@ export default function GuestInviteNudge({
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 py-2.5 text-sm font-semibold text-white hover:bg-primary-800"
           >
             <Share2 className="h-4 w-4" />
-            {wyslano ? 'Zaproszenie gotowe do wysłania' : 'Wyślij zaproszenie'}
+            {wyslano ? 'Zaproszenie gotowe do wysłania' : 'Wyślij link do zapisu'}
           </button>
           <p className="text-center text-xs text-slate-400">
             Wyślij ten link w wiadomości prywatnej (SMS, Messenger, WhatsApp).

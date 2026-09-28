@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { sportEmoji } from '@/lib/sports';
 import { defaultEventTitle } from '@/lib/eventTitle';
-import { getEventMeta, policzZajeteMiejsca } from './eventMeta';
+import { getEventMeta, policzZajeteMiejsca, stanPodgladu } from './eventMeta';
 
 // Podgląd linku na WhatsAppie/Messengerze był zawsze generyczny (baner strony
 // głównej) — `openGraph.images` w page.tsx ustawiał się wyłącznie przy
@@ -51,11 +51,13 @@ export default async function Image({ params }: { params: { id: string } }) {
   const nazwa = ev.title || defaultEventTitle(ev.sport, ev.max_players ?? 0);
   const miejsce = ev.field_name || ev.custom_location_name || 'Boisko';
 
-  // Wolne miejsca — liczone tak samo jak wszędzie w produkcie: bez
-  // rezerwowych, bez wierszy czekających na akceptację i bez obserwujących.
+  // Stan podglądu — jedna prawda ze `stanPodgladu()` (Z-3,
+  // docs/faza1-runda10-plan.md): odmiana liczby, stan meczu (odwołany,
+  // rozegrany, zapisy zamknięte, komplet z rezerwą vs bez) i argument „zapis
+  // bez konta". Wcześniej ten sam obrazek mówił „N wolnych miejsc" nawet dla
+  // odwołanego czy rozegranego meczu, z odmianą na sztywno.
   const zajete = (await policzZajeteMiejsca(params.id)) ?? 0;
-  const wolne = Math.max(0, (ev.max_players ?? 0) - zajete);
-  const skladTekst = ev.max_players ? (wolne > 0 ? `${wolne} wolnych miejsc` : 'Komplet') : '';
+  const stan = stanPodgladu(ev, zajete);
 
   const cenaTekst = ev.cost_grosz && ev.cost_grosz > 0
     ? `${(ev.cost_grosz / 100).toFixed(2).replace('.', ',')} zł/os.`
@@ -130,36 +132,45 @@ export default async function Image({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        {/* Pigułki: skład + cena */}
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-          {skladTekst && (
+        {/* Pigułki: skład + cena, plus argument „bez konta" pod nimi (Z-3,
+            D-13: na samym obrazku, nie wyłącznie w opisie tekstowym — ten
+            drugi bywa niewidoczny w zależności od komunikatora). */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+            {stan.pigulka && (
+              <div
+                style={{
+                  background: stan.wyroznij ? '#F5A623' : 'rgba(255,255,255,0.12)',
+                  border: stan.wyroznij ? 'none' : '1.5px solid rgba(255,255,255,0.25)',
+                  borderRadius: '100px',
+                  padding: '14px 32px',
+                  fontSize: '24px',
+                  fontWeight: 700,
+                  color: stan.wyroznij ? '#1A1D21' : '#fff',
+                }}
+              >
+                {stan.pigulka}
+              </div>
+            )}
             <div
               style={{
-                background: wolne > 0 ? '#F5A623' : 'rgba(255,255,255,0.12)',
-                border: wolne > 0 ? 'none' : '1.5px solid rgba(255,255,255,0.25)',
+                background: 'rgba(255,255,255,0.12)',
+                border: '1.5px solid rgba(255,255,255,0.25)',
                 borderRadius: '100px',
                 padding: '14px 32px',
                 fontSize: '24px',
-                fontWeight: 700,
-                color: wolne > 0 ? '#1A1D21' : '#fff',
+                fontWeight: 600,
+                color: '#fff',
               }}
             >
-              {skladTekst}
+              {cenaTekst}
             </div>
-          )}
-          <div
-            style={{
-              background: 'rgba(255,255,255,0.12)',
-              border: '1.5px solid rgba(255,255,255,0.25)',
-              borderRadius: '100px',
-              padding: '14px 32px',
-              fontSize: '24px',
-              fontWeight: 600,
-              color: '#fff',
-            }}
-          >
-            {cenaTekst}
           </div>
+          {stan.bezKonta && (
+            <p style={{ fontSize: '26px', color: 'rgba(255,255,255,0.8)', margin: 0, fontWeight: 500 }}>
+              Zapis bez zakładania konta
+            </p>
+          )}
         </div>
       </div>
     ),
@@ -199,6 +210,12 @@ function KartaOgolna() {
         B
       </div>
       <p style={{ fontSize: '44px', fontWeight: 800, color: '#fff', margin: 0 }}>bojo</p>
+      {/* Mecz prywatny albo nieistniejący — ŻADNYCH danych meczu (Z-3): ten
+          adres jest publiczny, więc karta nie może zdradzić nic z tego, co
+          chroni kod dołączenia. */}
+      <p style={{ fontSize: '32px', color: 'rgba(255,255,255,0.8)', margin: 0, fontWeight: 500 }}>
+        Otwórz link, żeby zobaczyć szczegóły meczu
+      </p>
     </div>
   );
 }
