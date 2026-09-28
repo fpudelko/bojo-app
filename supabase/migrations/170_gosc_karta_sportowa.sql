@@ -1,4 +1,4 @@
--- 169: gość bez konta deklaruje kartę sportową tak samo jak gracz z kontem.
+-- 170: gość bez konta deklaruje kartę sportową tak samo jak gracz z kontem.
 --
 -- DLACZEGO. Mecz akceptujący Multisport pokazywał „Mam kartę sportową" w oknie
 -- zapisu dla zalogowanego, a w oknie „Dołącz do meczu bez logowania" nie miał

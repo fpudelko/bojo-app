@@ -450,12 +450,12 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
       p_bramkarz: false,
     }));
     // Bez karty klucza dostawcy nie ma wcale: zwykły zapis gościa nie może
-    // zależeć od tego, czy migracja `169` jest już na produkcji.
+    // zależeć od tego, czy migracja `170` jest już na produkcji.
     expect(mockRpc.mock.calls.find(([n]) => n === 'dolacz_do_meczu_jako_goscie')?.[1])
       .not.toHaveProperty('p_dostawca_karty');
   });
 
-  // Migracja 169: gość deklaruje kartę sportową tak samo jak konto
+  // Migracja 170: gość deklaruje kartę sportową tak samo jak konto
   // (`dolacz_do_meczu`) — z dostawcą, żeby organizator wiedział, którą kartę ma.
   it('karta sportowa gościa idzie do bazy razem z dostawcą', async () => {
     bazaOddaje({ claim_token: 'tok-3', event_id: 'e1', already_joined: false, has_account: false });

@@ -214,6 +214,23 @@ potwierdzony od razu, więc mail idzie natychmiast.
 
 Pełny opis decyzji: `docs/funkcje.md`, sekcja „Poczta do gościa bez konta".
 
+## Ta sama funkcja renderuje też pocztę do KONT (migracje `140`/`142`/`169`)
+
+`wyslij_mail_do_konta()` (baza) woła TĘ SAMĄ funkcję i TEN SAM `konfiguracja_poczty.url`
+co poczta do gości — `tresc()` rozróżnia odbiorcę przez pole `ma_konto` (link do
+ustawień w `/profil` zamiast do wpisu gościa). Osiem powodów, dwie zasady wysyłki:
+
+| Powód | Kiedy | Limit dzienny |
+|---|---|---|
+| `mecz_odwolany` / `zmiana_terminu` / `zmiana_warunkow_meczu` / `mecz_przywrocony` | zawsze, niezależnie od pusha (`140`) | brak |
+| `przypomnienie_o_meczu` / `reserve_claim_offered` / `zaproszenie_na_mecz` / `po_meczu_do_domkniecia` | wyłącznie gdy konto NIE MA subskrypcji w `push_subscriptions` (`169`, Z-1) | `konfiguracja_poczty.limit_dzienny`, domyślnie 80 |
+
+`przypomnienie_o_meczu` niesie dodatkowo `organizator` (temat i treść inne dla
+organizatora), `reserve_claim_offered` niesie policzone `oferta_do`, a trzy pozostałe
+z drugiej grupy niosą `tresc` — to samo zdanie, które i tak już widać pod dzwonkiem
+(`notifications.body`), bez drugiej kopii w SQL. Pełny opis: `docs/funkcje.md`,
+sekcja „Poczta do konta z KONTEM — zawsze cztery powody, zapasowo cztery kolejne”.
+
 ## Notatka organizatora przy odwołaniu (migracja `142`)
 
 `odwolanie` i `mecz_odwolany` mogą nieść dodatkowe pole `notatka` — tekst, który

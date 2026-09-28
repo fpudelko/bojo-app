@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-28 · migracja `169` · 59 tabel
+**Stan na:** 2026-09-28 · migracja `170` · 59 tabel
 
 ---
 
@@ -455,7 +455,7 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-09-28 (3) — Gracz bez konta deklaruje kartę sportową przy zapisie
+### 2026-09-28 (4) — Gracz bez konta deklaruje kartę sportową przy zapisie
 
 PROBLEM: mecz w Bojo, w którym organizator akceptuje kartę sportową (Multisport,
 FitProfit, Medicover), pokazywał pole „Mam kartę sportową" i zniżkę tylko graczowi
@@ -470,11 +470,38 @@ dla zalogowanego (z wyborem karty, gdy mecz akceptuje kilka), a koszt pokazuje c
 zniżce. Jedyna metoda płatności jest zaznaczona od razu. Przy meczu z akceptacją zapisów
 okno nie zapowiada rezerwy i nie blokuje wysłania prośby.
 
-MECHANIKA: migracja `169` dokłada `p_dostawca_karty` do `dolacz_do_meczu_jako_goscie()`
+MECHANIKA: migracja `170` dokłada `p_dostawca_karty` do `dolacz_do_meczu_jako_goscie()`
 (ta sama reguła co `dolacz_do_meczu()`: dostawca zapisywany tylko przy zaznaczonej
 karcie), `joinEventAsGuest()` w `lib/events.ts`, okno gościa w
 `app/wydarzenia/[id]/EventDetailClient.tsx`. Cena przez `priceForParticipant()`
 (`lib/payments.ts`).
+
+### 2026-09-28 (3) — Przypomnienie, zaproszenie i zwolnione miejsce dochodzą także bez powiadomień na telefonie
+
+PROBLEM: przypomnienie dzień przed meczem, zaproszenie imienne, oferta zwolnionego
+miejsca z rezerwy i przypomnienie o rozliczeniu po meczu chodziły wyłącznie dzwonkiem
+w aplikacji i pushem — na produkcji push ma 3 z 33 graczy i 2 z 9 organizatorów.
+Przypomnienie dzień przed czytało 5 z 12 osób (mediana po 19,5 h), 7 z 13 zaproszeń
+nie przeczytano wcale. Gość bez konta z podanym adresem dostawał te same rzeczy
+mailem — założenie konta paradoksalnie pogarszało dostarczalność wiadomości.
+
+ROZWIĄZANIE BOJO: te cztery rodzaje powiadomień idą teraz mailem także do kont
+Z kontem, ale WYŁĄCZNIE gdy konto nie ma żadnej aktywnej subskrypcji push — push
+zostaje kanałem podstawowym, mail jest zapasem, nie drugą kopią. Bezpiecznik
+dzienny chroni wspólny z mailami logowania limit Resend (100/dzień na darmowym
+planie): po przekroczeniu progu nowy powód jest po cichu pomijany, a cztery
+powody krytyczne (odwołanie, zmiana terminu, zmiana warunków, przywrócenie meczu)
+limitu nie mają. Ustawienia maili w profilu pokazują obie grupy osobno. Organizator
+dostaje teraz też propozycję włączenia powiadomień, po wysłaniu linku do nowego
+meczu — wcześniej ta zachęta pytała wyłącznie graczy.
+
+MECHANIKA: migracja `169` (`wyslij_mail_do_konta()` z bezpiecznikiem dziennym
+i treścią czytaną z `notifications.body`, `wyslij_mail_po_powiadomieniu()` z drugim
+warunkiem `NOT EXISTS push_subscriptions`), funkcja brzegowa `powiadom-goscia/tresc.ts`
+(cztery nowe warianty treści), `lib/ustawieniaPowiadomien.ts`
+(`RODZAJE_MAILOWE_ZAWSZE`/`RODZAJE_MAILOWE_BEZ_PUSHA`), `ZachetaPush.tsx` (prop
+`organizator`), `EventDetailClient.tsx` (`zaproponujPowiadomienia()` po `handleShare`).
+Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-1, Z-1a, Z-2.
 
 ### 2026-09-28 (2) — Gość dopisany ręcznie sam zostawia e-mail
 
@@ -663,23 +690,3 @@ liczy już obserwujących.
 MECHANIKA: `AuthForm.tsx` (`POWODY.kreator`, `POWODY.dolacz`, stała `BLAD_ZLE_DANE`
 z `lib/auth.tsx`), `app/g/[code]/ZaproszenieClient.tsx`, `lib/zajeteMiejsca.ts`.
 Szczegóły → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md), W-6…W-8.
-
-### 2026-09-25 (2) — Gracz bez konta widzi numer BLIK i status swojej wpłaty
-
-PROBLEM: w meczu płatnym gracz, który zapisał się w Bojo bez konta (imię i e-mail),
-nie miał skąd wziąć numeru BLIK organizatora ani sprawdzić, czy organizator odhaczył
-jego wpłatę. Okno zapisu pytało „Jak zapłacisz?”, ale nie pokazywało kwoty. Gracz
-z kontem widział to wszystko na karcie „Twoja płatność”, więc rozliczenie działało
-wyłącznie dla części składu, a organizator i tak rozsyłał numer na czacie.
-
-ROZWIĄZANIE BOJO: strona zapisu gracza bez konta (link „Mój zapis” i przycisk
-„Sprawdź skład” w każdym mailu) ma kartę „Twoja płatność”: kwota do zapłaty, sposób,
-numer BLIK od godziny przed meczem i status „Opłacone / Jeszcze nieopłacone”, jeśli
-organizator go pokazuje. Okno zapisu pokazuje kwotę i mówi, gdzie pojawi się numer
-BLIK. Bojo podaje wszędzie kwotę w jednej formie, np. „20,00 zł”.
-
-MECHANIKA: migracja `163` rozszerza `podejrzyj_wpis_goscia()` o pola płatności
-i numer BLIK (uprawnieniem jest token wpisu, reguła odsłonięcia jak dla konta);
-komponent `TwojaPlatnosc.tsx` wspólny dla strony meczu i strony wpisu; `zl()`
-w `lib/kwota.ts`. Szczegóły → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md),
-W-4 i W-5.
