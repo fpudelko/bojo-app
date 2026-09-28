@@ -57,12 +57,16 @@ describe('liczZajeteMiejsca — czysta funkcja', () => {
     expect(liczZajeteMiejsca(wiersze)).toBe(2);
   });
 
-  it('obsługuje puste i nullowe wartości', () => {
+  // Nie chodzi o to, żeby null znaczył „nie licz" — `is_reserve`/`pending_approval`
+  // traktujemy jak zwykły `false` (ta sama reguła co `winienWplate()` i
+  // `kolejkaRezerwy.ts`, patrz dokumentacja funkcji). Test pilnuje, żeby null
+  // nie wywalał funkcji, nie że ma dawać inny wynik niż `false`.
+  it('null w is_reserve/pending_approval liczy się jak false, nie wywala funkcji', () => {
     const wiersze = [
       { is_reserve: null, pending_approval: null, rsvp: null },
       { is_reserve: false, pending_approval: false, rsvp: 'yes' },
     ];
-    expect(liczZajeteMiejsca(wiersze)).toBe(1);
+    expect(liczZajeteMiejsca(wiersze)).toBe(2);
   });
 
   it('zwraca 0 na pusty array', () => {
