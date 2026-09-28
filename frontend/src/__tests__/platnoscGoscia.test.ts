@@ -61,6 +61,10 @@ describe('podejrzyjWpisGoscia — nowe pola płatności', () => {
     expect(w).toMatchObject({
       metodyPlatnosci: [], metodaPlatnosci: null, kartaSportowa: false, znizkaKartyGrosze: null,
       pokazStatusPlatnosci: false, oplacone: false, blikTelefon: null, blikPozniej: false,
+      // Z-5 (docs/faza1-runda10-plan.md, migracja 168): bez `ma_email` w wyniku
+      // strona ma zakładać "tak", nie pokazywać formularza, którego funkcja
+      // jeszcze nie obsłuży.
+      maEmail: true,
     });
   });
 
@@ -68,13 +72,13 @@ describe('podejrzyjWpisGoscia — nowe pola płatności', () => {
     rpc.mockResolvedValue({ data: [{
       ...stary, metody_platnosci: ['gotowka', 'blik'], metoda_platnosci: 'blik', karta_sportowa: true,
       znizka_karty_grosze: 500, pokaz_status_platnosci: true, oplacone: true,
-      blik_telefon: '600 123 456', blik_pozniej: false,
+      blik_telefon: '600 123 456', blik_pozniej: false, ma_email: false,
     }], error: null });
     const w = await podejrzyjWpisGoscia('t');
     expect(w).toMatchObject({
       metodyPlatnosci: ['gotowka', 'blik'], metodaPlatnosci: 'blik', kartaSportowa: true,
       znizkaKartyGrosze: 500, pokazStatusPlatnosci: true, oplacone: true,
-      blikTelefon: '600 123 456', blikPozniej: false,
+      blikTelefon: '600 123 456', blikPozniej: false, maEmail: false,
     });
   });
 });

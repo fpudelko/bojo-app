@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { Calendar, Check, MapPin, UserCheck, Loader2, Ban, Users, Wallet, TicketCheck } from 'lucide-react';
+import { Calendar, Check, MapPin, UserCheck, Loader2, Ban, Users, Wallet, TicketCheck, Mail } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName } from '@/lib/auth';
@@ -14,7 +14,7 @@ import TwojaPlatnosc from '@/components/events/TwojaPlatnosc';
 import { zl } from '@/lib/kwota';
 import {
   podejrzyjWpisGoscia, przejmijWpisGoscia, wypiszWpisGoscia,
-  przyjmijOferteGoscia, odpuscOferteGoscia, type PodgladWpisuGoscia,
+  przyjmijOferteGoscia, odpuscOferteGoscia, ustawEmailGoscia, type PodgladWpisuGoscia,
 } from '@/lib/guestClaim';
 import { zapomnijWpisGoscia } from '@/lib/mojWpisGoscia';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
@@ -51,6 +51,11 @@ export default function PrzejmijClient({ token }: { token: string }) {
   const [zajete, setZajete] = useState(false);
   const [wypisany, setWypisany] = useState(false);
   const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
+
+  const [emailInput, setEmailInput] = useState('');
+  const [zapisujeEmail, setZapisujeEmail] = useState(false);
+  const [emailBlad, setEmailBlad] = useState<string | null>(null);
+  const [emailZapisany, setEmailZapisany] = useState(false);
 
   useEffect(() => {
     let anulowane = false;
@@ -146,6 +151,35 @@ export default function PrzejmijClient({ token }: { token: string }) {
       setZajete(false);
     }
   }, [podglad, token, potwierdz]);
+
+  /** Gość zostawia e-mail pod swoim linkiem (migracja `168`, Z-5).
+   *
+   *  PO CO. Organizator dopisuje ludzi ręką i zwykle nie zna ich adresów —
+   *  na produkcji 29 z 29 takich wpisów w 60 dni jest bez e-maila, więc ci
+   *  ludzie nie dostają od Bojo NICZEGO (ani potwierdzenia, ani „jutro
+   *  grasz", ani informacji o odwołaniu). Ten formularz jest jedyną drogą,
+   *  jaką tacy goście mają, żeby to sobie naprawić — bez zakładania konta. */
+  const zapiszEmail = useCallback(async () => {
+    setZapisujeEmail(true);
+    setEmailBlad(null);
+    try {
+      const ok = await ustawEmailGoscia(token, emailInput);
+      if (!ok) {
+        // Ktoś inny zdążył ustawić adres w międzyczasie albo mecz się właśnie
+        // zaczął/odwołał — token jest uprawnieniem tylko do PIERWSZEGO adresu.
+        setEmailBlad('Nie udało się zapisać adresu. Odśwież stronę.');
+        const swiezy = await podejrzyjWpisGoscia(token);
+        setPodglad(swiezy);
+        return;
+      }
+      setPodglad((p) => (p ? { ...p, maEmail: true } : p));
+      setEmailZapisany(true);
+    } catch (e) {
+      setEmailBlad(e instanceof Error ? e.message : 'Nie udało się zapisać adresu.');
+    } finally {
+      setZapisujeEmail(false);
+    }
+  }, [token, emailInput]);
 
   // Auto-przejęcie: gdy link niesie `?auto=1` (wraca z zapisu jako gość na
   // Google/hasło z EventDetailClient), nie ma po co pytać jeszcze raz „czy to
@@ -317,6 +351,58 @@ export default function PrzejmijClient({ token }: { token: string }) {
         )}
       </div>
 
+      {/* GOŚĆ ZOSTAWIA E-MAIL (migracja `168`, Z-5). Jedyna droga, jaką ma
+          osoba dopisana ręką przez organizatora, żeby dostawać przypomnienia
+          i informację o odwołaniu — bez zakładania konta. Token jest
+          uprawnieniem, ale adres da się ustawić TYLKO RAZ (baza pilnuje
+          reszty), więc formularz znika, gdy adres już jest. */}
+      {(!podglad.maEmail || emailZapisany) && podglad.moznaZmieniac && podglad.statusMeczu !== 'cancelled' && (
+        <div className="mt-4 rounded-xl border border-slate-200 p-4">
+          {emailZapisany ? (
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-green-700">
+              <Check className="h-4 w-4 shrink-0" />
+              Gotowe. Potwierdzenie wysłaliśmy na podany adres.
+            </p>
+          ) : (
+            <>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+                <Mail className="h-4 w-4 shrink-0 text-slate-400" />
+                Przypomnienie na e-mail
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                Zostaw adres, a dzień przed meczem przypomnimy Ci o nim. Napiszemy też, gdyby
+                mecz się zmienił albo odwołał. Konto nie jest potrzebne.
+              </p>
+              <div className="mt-3 sm:flex sm:gap-2">
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder="Twój adres e-mail"
+                  className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 sm:flex-1"
+                />
+                <Button
+                  onClick={zapiszEmail}
+                  isLoading={zapisujeEmail}
+                  disabled={!emailInput.trim()}
+                  className="mt-2 w-full sm:mt-0 sm:w-auto"
+                >
+                  Zapisz adres
+                </Button>
+              </div>
+              {emailBlad && <p className="mt-2 text-xs text-red-600">{emailBlad}</p>}
+            </>
+          )}
+        </div>
+      )}
+      {podglad.maEmail && !emailZapisany && podglad.statusMeczu !== 'cancelled' && (
+        <p className="mt-3 text-xs text-slate-500">
+          Przypomnienie i wiadomości o zmianach przyjdą na e-mail podany przy zapisie.
+        </p>
+      )}
+
       {/* TWOJA PŁATNOŚĆ — ta sama karta co na stronie meczu u gracza z kontem.
           Do migracji `163` gość widział tu samą kwotę: ani sposobu, ani statusu
           wpłaty, ani numeru BLIK, którego nie miał skąd wziąć (RLS na
@@ -335,7 +421,8 @@ export default function PrzejmijClient({ token }: { token: string }) {
             && (podglad.metodaPlatnosci === 'blik' || (!podglad.metodaPlatnosci && podglad.metodyPlatnosci.includes('blik')))
             && (
             <p className="mb-2 text-xs text-slate-500">
-              Wróć tu przed meczem po numer BLIK: link do tej strony masz też w mailu.
+              Wróć tu przed meczem po numer BLIK.
+              {podglad.maEmail ? ' Link do tej strony masz też w mailu.' : ''}
             </p>
           )}
           <TwojaPlatnosc

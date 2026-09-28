@@ -61,6 +61,14 @@ describe('tekstZaproszeniaGoscia — przed meczem, w składzie', () => {
     expect(t).toContain('Nie mogę grać');
   });
 
+  // Z-5 (docs/faza1-runda10-plan.md): trzeci punkt zapowiada, że e-mail można
+  // zostawić pod tym samym linkiem (migracja 168) — bez tego zdania nikt by
+  // się nie domyślił, że strona wpisu ma teraz taką możliwość.
+  it('zapowiada przypomnienie mailowe, jeśli gość zostawi adres', () => {
+    const t = tekstZaproszeniaGoscia('Marek', bazowy, SKLAD);
+    expect(t).toContain('przypomnienie dzień przed na e-mail, jeśli zostawisz adres');
+  });
+
   it('nie stawia ściany konta — brak wezwania do zakładania konta', () => {
     const t = tekstZaproszeniaGoscia('Marek', bazowy, SKLAD);
     expect(t).not.toContain('Załóż konto');
@@ -101,6 +109,7 @@ describe('tekstZaproszeniaGoscia — przed meczem, na rezerwie', () => {
     expect(t).toContain('bez zakładania konta');
     expect(t).toContain('Twoje miejsce w kolejce');
     expect(t).toContain('Nie mogę grać');
+    expect(t).toContain('przypomnienie dzień przed na e-mail, jeśli zostawisz adres');
   });
 
   it('nie zawiera samego linku', () => {

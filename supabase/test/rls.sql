@@ -665,6 +665,12 @@ SELECT _oczekuj('podgląd wpisu przez token pokazuje stan meczu i składu',
                     AND w_skladzie = 2 AND max_graczy = 10 AND koszt_grosze = 1500), 1);
 SELECT _oczekuj_wyjatek('zmyślony token nie wypisuje nikogo',
   'SELECT wypisz_wpis_goscia(''dddddddd-0000-4000-8000-00000000dead''::uuid)');
+-- `ustaw_email_goscia` (migracja 168, Z-5) ma inny kontrakt niż wypisanie:
+-- zmyślony token nie jest błędem, tylko zwyczajnym „nie" — tak samo jak dla
+-- kogoś, kto próbuje nadpisać już ustawiony adres (poczta-goscia.sql).
+SELECT _oczekuj('zmyślony token nie ustawia adresu (ustaw_email_goscia)',
+                (SELECT CASE WHEN ustaw_email_goscia(
+                   'dddddddd-0000-4000-8000-00000000dead'::uuid, 'x@y.pl') THEN 1 ELSE 0 END), 0);
 SELECT _oczekuj('wypisanie przez własny token zwraca mecz',
                 (SELECT count(*) FROM (
                    SELECT wypisz_wpis_goscia(:'token_goscia'::uuid)) s), 1);

@@ -93,7 +93,8 @@ function WierszHarmonogramu({
           <IkonaKrag ikona={MailX} />
           <div className="min-w-0 flex-1">
             <p className="text-sm text-slate-700 dark:text-slate-300">
-              {withCount(pozycja.ile, 'osoba', 'osoby', 'osób')} w składzie nie dostanie żadnej wiadomości od Bojo.
+              {withCount(pozycja.ile, 'osoba', 'osoby', 'osób')} w składzie nie dostanie żadnej wiadomości
+              od Bojo. Wyślij im link do zapisu: zostawią tam e-mail.
             </p>
             <button
               type="button"
