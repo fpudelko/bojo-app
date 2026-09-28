@@ -137,23 +137,17 @@ SELECT _k_oczekuj('DRUGI mecz odwołany tego samego dnia wysyła własny mail',
       AND body ->> 'email' = 'konto-gracz-c2@example.com'), 2);
 
 -- ---------------------------------------------------------------------------
-DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Wąska lista powodów'; END $$;
+DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Osiem powodów i ani jednego więcej'; END $$;
 -- ---------------------------------------------------------------------------
--- Powód spoza czwórki nie ma prawa wyjść pocztą. Gdyby wyszedł, kanał
--- zamieniłby się w drugi dzwonek — a wtedy przestałby być czytany także przy
--- odwołanym meczu.
+-- Powód spoza ósemki (cztery krytyczne z `140` + cztery bez pusha z `169`)
+-- nie ma prawa wyjść pocztą. Gdyby wyszedł, kanał zamieniłby się w drugi
+-- dzwonek — a wtedy przestałby być czytany także przy odwołanym meczu.
 DELETE FROM net._wyslane;
 
 INSERT INTO notifications (user_id, type, title, body, event_id)
 VALUES (:K_GRACZ::uuid, 'komplet_skladu', 'Komplet', 'Skład pełny', :K_MECZ2::uuid);
 
 SELECT _k_oczekuj('komplet składu nie idzie pocztą',
-  (SELECT count(*) FROM net._wyslane), 0);
-
-INSERT INTO notifications (user_id, type, title, body, event_id)
-VALUES (:K_GRACZ::uuid, 'przypomnienie_o_meczu', 'Jutro grasz', 'Jutro 20:00', :K_MECZ2::uuid);
-
-SELECT _k_oczekuj('przypomnienie dzień przed świadomie nie idzie pocztą',
   (SELECT count(*) FROM net._wyslane), 0);
 
 -- Powiadomienie bez meczu (powitanie, prośba spoza meczu) też nie ma
@@ -165,14 +159,163 @@ SELECT _k_oczekuj('powiadomienie bez meczu nie wywraca wyzwalacza ani nic nie wy
   (SELECT count(*) FROM net._wyslane), 0);
 
 -- ---------------------------------------------------------------------------
-DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Pozostałe trzy powody'; END $$;
+DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Pozostałe trzy powody krytyczne (140)'; END $$;
 -- ---------------------------------------------------------------------------
 INSERT INTO notifications (user_id, type, title, body, event_id) VALUES
   (:K_GRACZ::uuid, 'zmiana_terminu',        'Nowy termin', 'x', :K_MECZ2::uuid),
   (:K_GRACZ::uuid, 'zmiana_warunkow_meczu', 'Zmiana',      'x', :K_MECZ2::uuid),
   (:K_GRACZ::uuid, 'mecz_przywrocony',      'Jednak gramy','x', :K_MECZ2::uuid);
 
-SELECT _k_oczekuj('pozostałe trzy powody wychodzą pocztą',
+SELECT _k_oczekuj('pozostałe trzy powody krytyczne wychodzą pocztą',
   (SELECT count(*) FROM net._wyslane), 3);
+
+-- ===========================================================================
+-- Poczta jako ZAPAS bez pusha (migracja 169, Z-1, docs/faza1-runda10-plan.md)
+-- ===========================================================================
+DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Poczta jako zapas bez pusha (migracja 169, Z-1)'; END $$;
+
+-- Grzegorz (K_GRACZ) nie ma żadnej subskrypcji push w tej bazie testowej —
+-- dokładnie ten stan (9/10 kont na produkcji), w którym Z-1 ma zadziałać.
+DELETE FROM net._wyslane;
+
+INSERT INTO notifications (user_id, type, title, body, event_id)
+VALUES (:K_GRACZ::uuid, 'przypomnienie_o_meczu', 'Jutro grasz', 'Jutro 20:00 · Orlik Testowy', :K_MECZ2::uuid);
+
+SELECT _k_oczekuj('(a) konto bez pusha dostaje przypomnienie mailem',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body ->> 'powod' = 'przypomnienie_o_meczu'
+      AND body ->> 'email' = 'konto-gracz-c2@example.com'), 1);
+
+SELECT _k_oczekuj('treść maila niesie to samo zdanie co dzwonek (v_tresc = notifications.body)',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body ->> 'powod' = 'przypomnienie_o_meczu'
+      AND body ->> 'tresc' = 'Jutro 20:00 · Orlik Testowy'), 1);
+
+SELECT _k_oczekuj('gracz (nie organizator tego meczu) dostaje organizator=false',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body ->> 'powod' = 'przypomnienie_o_meczu' AND (body ->> 'organizator')::boolean = false), 1);
+
+-- Ten sam typ, dla organizatora WŁASNEGO meczu — `organizator` czyta
+-- `e.organizer_id = p_user`, nie coś ustawiane ręcznie w payloadzie.
+INSERT INTO notifications (user_id, type, title, body, event_id)
+VALUES (:K_ORG::uuid, 'przypomnienie_o_meczu', 'Jutro Twój mecz', 'Jutro 20:00 · brakuje 2 (8/10)', :K_MECZ2::uuid);
+
+SELECT _k_oczekuj('organizator własnego meczu dostaje organizator=true',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body ->> 'powod' = 'przypomnienie_o_meczu'
+      AND body ->> 'email' = 'konto-org-c1@example.com'
+      AND (body ->> 'organizator')::boolean = true), 1);
+
+-- (b) Dopinamy Grzegorzowi subskrypcję push — od teraz ten sam typ NIE ma
+-- prawa iść mailem, bo push jest kanałem podstawowym, a poczta zapasem.
+DELETE FROM net._wyslane;
+INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
+VALUES (:K_GRACZ::uuid, 'https://push.test/gracz-c2', 'klucz-p256dh', 'klucz-auth');
+
+INSERT INTO notifications (user_id, type, title, body, event_id)
+VALUES (:K_GRACZ::uuid, 'zaproszenie_na_mecz', 'Ola zaprasza Cię na mecz', 'Drugi mecz — test.', :K_MECZ2::uuid);
+
+SELECT _k_oczekuj('(b) konto Z subskrypcją push nie dostaje tego samego typu mailem',
+  (SELECT count(*) FROM net._wyslane), 0);
+
+-- (c) Krytyczne powody z `140` idą mailem NIEZALEŻNIE od pusha — Grzegorz ma
+-- teraz subskrypcję, a mail o odwołaniu i tak wychodzi. Czyścimy najpierw
+-- wcześniejszy wiersz (K_GRACZ, mecz_odwolany, MECZ2) z sekcji „Idempotencja"
+-- wyżej — inaczej `unique_violation` po cichu połknie tę wysyłkę i test nic
+-- by nie sprawdzał.
+DELETE FROM maile_wyslane
+ WHERE user_id = :K_GRACZ::uuid AND powod = 'mecz_odwolany' AND event_id = :K_MECZ2::uuid;
+
+INSERT INTO notifications (user_id, type, title, body, event_id)
+VALUES (:K_GRACZ::uuid, 'mecz_odwolany', 'Odwołany mimo pusha', 'x', :K_MECZ2::uuid);
+
+SELECT _k_oczekuj('(c) mecz_odwolany wychodzi mailem, mimo że odbiorca ma push',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body ->> 'powod' = 'mecz_odwolany' AND body ->> 'email' = 'konto-gracz-c2@example.com'), 1);
+
+DELETE FROM push_subscriptions WHERE user_id = :K_GRACZ::uuid;
+
+-- (d) `mail_wylaczone` działa identycznie dla czterech nowych powodów —
+-- Czesław (K_CICHY) ma wyłączone `mecz_odwolany`; dopisujemy mu też
+-- `zaproszenie_na_mecz` i sprawdzamy, że TYLKO ten typ jest wyciszony.
+DELETE FROM net._wyslane;
+UPDATE profiles SET mail_wylaczone = ARRAY['mecz_odwolany', 'zaproszenie_na_mecz'] WHERE id = :K_CICHY::uuid;
+
+INSERT INTO event_participants (event_id, user_id, name) VALUES (:K_MECZ2::uuid, :K_CICHY::uuid, 'Cichy Czesław')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO notifications (user_id, type, title, body, event_id) VALUES
+  (:K_CICHY::uuid, 'zaproszenie_na_mecz',   'Zaproszenie',   'x', :K_MECZ2::uuid),
+  (:K_CICHY::uuid, 'po_meczu_do_domkniecia','Po meczu',      'x', :K_MECZ2::uuid);
+
+SELECT _k_oczekuj('(d) mail_wylaczone wycisza dokładnie ten typ, który wymienia',
+  (SELECT count(*) FROM net._wyslane WHERE body ->> 'email' = 'konto-cichy-c3@example.com'), 1);
+
+SELECT _k_oczekuj('(d) …a nie inne powody bez pusha',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body ->> 'email' = 'konto-cichy-c3@example.com' AND body ->> 'powod' = 'po_meczu_do_domkniecia'), 1);
+
+-- (g) `reserve_claim_offered` niesie `oferta_do`, policzone z `claim_offered_at`
+-- uczestnika i `reserve_claim_minutes` meczu.
+DELETE FROM net._wyslane;
+UPDATE event_participants SET claim_offered_at = now()
+ WHERE event_id = :K_MECZ2::uuid AND user_id = :K_GRACZ::uuid;
+
+INSERT INTO notifications (user_id, type, title, body, event_id)
+VALUES (:K_GRACZ::uuid, 'reserve_claim_offered', 'Zwolniło się miejsce!', 'Masz 3 godz. na przyjęcie.', :K_MECZ2::uuid);
+
+SELECT _k_oczekuj('(g) reserve_claim_offered niesie policzone oferta_do',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body ->> 'powod' = 'reserve_claim_offered' AND body ->> 'oferta_do' IS NOT NULL), 1);
+
+UPDATE event_participants SET claim_offered_at = NULL
+ WHERE event_id = :K_MECZ2::uuid AND user_id = :K_GRACZ::uuid;
+
+-- ---------------------------------------------------------------------------
+DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '── Bezpiecznik dzienny (Z-1, limit_dzienny)'; END $$;
+-- ---------------------------------------------------------------------------
+-- (e) 80 wierszy „dziś" w `maile_wyslane` → nowy powód pominięty, ale
+-- powód krytyczny (bez limitu) przechodzi mimo to.
+DELETE FROM net._wyslane;
+DELETE FROM maile_wyslane;
+INSERT INTO maile_wyslane (user_id, powod)
+SELECT :K_GRACZ::uuid, 'limit_test_' || g FROM generate_series(1, 80) AS g;
+
+INSERT INTO notifications (user_id, type, title, body, event_id)
+VALUES (:K_GRACZ::uuid, 'zaproszenie_na_mecz', 'Ola zaprasza Cię na mecz', 'Test limitu.', :K_MECZ2::uuid);
+
+SELECT _k_oczekuj('(e) przy 80 mailach dziś nowy powód bez pusha jest pominięty',
+  (SELECT count(*) FROM net._wyslane), 0);
+
+INSERT INTO notifications (user_id, type, title, body, event_id)
+VALUES (:K_GRACZ::uuid, 'mecz_odwolany', 'Odwołany mimo limitu', 'x', :K_MECZ2::uuid);
+
+SELECT _k_oczekuj('(e) …ale powód krytyczny nie ma limitu i przechodzi',
+  (SELECT count(*) FROM net._wyslane
+    WHERE body ->> 'powod' = 'mecz_odwolany' AND body ->> 'email' = 'konto-gracz-c2@example.com'), 1);
+
+-- (f) `limit_dzienny` zmienialny wpisem w `konfiguracja_poczty`, bez migracji.
+DELETE FROM net._wyslane;
+INSERT INTO konfiguracja_poczty (klucz, wartosc) VALUES ('limit_dzienny', '90')
+  ON CONFLICT (klucz) DO UPDATE SET wartosc = EXCLUDED.wartosc;
+
+INSERT INTO notifications (user_id, type, title, body, event_id)
+VALUES (:K_GRACZ::uuid, 'po_meczu_do_domkniecia', 'Po meczu', 'Test podniesionego limitu.', :K_MECZ2::uuid);
+
+SELECT _k_oczekuj('(f) podniesiony limit_dzienny odblokowuje wysyłkę',
+  (SELECT count(*) FROM net._wyslane WHERE body ->> 'powod' = 'po_meczu_do_domkniecia'), 1);
+
+DELETE FROM net._wyslane;
+INSERT INTO konfiguracja_poczty (klucz, wartosc) VALUES ('limit_dzienny', '5')
+  ON CONFLICT (klucz) DO UPDATE SET wartosc = EXCLUDED.wartosc;
+
+INSERT INTO notifications (user_id, type, title, body, event_id)
+VALUES (:K_GRACZ::uuid, 'zaproszenie_na_mecz', 'Ola zaprasza Cię na mecz', 'Test niskiego limitu.', :K_MECZ2::uuid);
+
+SELECT _k_oczekuj('(f) niski limit_dzienny (5, dziś już ponad 80 wierszy) blokuje wysyłkę',
+  (SELECT count(*) FROM net._wyslane), 0);
+
+DELETE FROM konfiguracja_poczty WHERE klucz = 'limit_dzienny';
+DELETE FROM maile_wyslane WHERE powod LIKE 'limit_test_%';
 
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ Poczta do kont: wszystkie asercje przeszły.'; END $$;

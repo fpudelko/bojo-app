@@ -14,6 +14,9 @@ const POWODY: Powod[] = [
   'zapis', 'zaakceptowano', 'odrzucono', 'oferta', 'odwolanie', 'zmiana',
   'jutro_grasz', 'zaloz_konto', 'powitanie',
   'mecz_odwolany', 'zmiana_terminu', 'zmiana_warunkow_meczu', 'mecz_przywrocony',
+  // Migracja 169 (Z-1): poczta jako zapas dla kont bez pusha.
+  'przypomnienie_o_meczu', 'reserve_claim_offered', 'zaproszenie_na_mecz',
+  'po_meczu_do_domkniecia',
 ];
 
 function dane(powod: Powod, nadpisz: Partial<Dane> = {}): Dane {
@@ -163,5 +166,52 @@ describe('maile — notatka organizatora przy odwołaniu', () => {
     // i `jutro_grasz` w ogóle nie czyta tego pola.
     const t = doTekstu(tresc(dane('zapis', { notatka: 'coś tam' } as Partial<Dane>), cfg)!);
     expect(t).not.toContain('Wiadomość od organizatora');
+  });
+});
+
+// Poczta jako ZAPAS dla kont bez pusha (migracja 169, Z-1,
+// docs/faza1-runda10-plan.md) — cztery istniejące powody dostają teraz
+// mailowy odpowiednik dzwonka/pusha.
+describe('maile — poczta jako zapas bez pusha (Z-1)', () => {
+  it('przypomnienie_o_meczu: gracz dostaje treść o graniu, nie o organizowaniu', () => {
+    const t = doTekstu(tresc(dane('przypomnienie_o_meczu'), cfg)!);
+    expect(t).toContain('Jutro masz mecz');
+    expect(t).toContain('Wypisz się w Bojo');
+  });
+
+  it('przypomnienie_o_meczu: organizator dostaje inny temat i treść dzwonka, gdy jest', () => {
+    const mail = tresc(dane('przypomnienie_o_meczu', {
+      organizator: true, tresc: 'Brakuje 2 (12/14).',
+    }), cfg)!;
+    expect(mail.temat).toContain('Jutro Twój mecz');
+    const t = doTekstu(mail);
+    expect(t).toContain('Jutro organizujesz mecz');
+    expect(t).toContain('Brakuje 2 (12/14).');
+  });
+
+  it('przypomnienie_o_meczu: organizator bez treści z dzwonka nie dostaje pustego akapitu', () => {
+    const t = doTekstu(tresc(dane('przypomnienie_o_meczu', { organizator: true }), cfg)!);
+    expect(t).not.toMatch(/\n\n\n/);
+  });
+
+  it('reserve_claim_offered: przycisk inny niż dla gościa („oferta”), link wraca do meczu bez tokenu', () => {
+    const mail = tresc(dane('reserve_claim_offered', { token: null }), cfg)!;
+    expect(doHtml(mail, cfg)).toContain('Wchodzę? Potwierdź w Bojo');
+    expect(doTekstu(mail)).toContain('/wydarzenia/aaaaaaaa-0000-4000-8000-00000000000a');
+  });
+
+  it('zaproszenie_na_mecz: niesie zdanie z dzwonka (kto zaprasza)', () => {
+    const t = doTekstu(tresc(dane('zaproszenie_na_mecz', {
+      tresc: 'Jan Kowalski zaprosił Cię na kolejny mecz.',
+    }), cfg)!);
+    expect(t).toContain('Jan Kowalski zaprosił Cię na kolejny mecz.');
+  });
+
+  it('po_meczu_do_domkniecia: ma przycisk do meczu i zdanie z dzwonka', () => {
+    const mail = tresc(dane('po_meczu_do_domkniecia', {
+      tresc: 'Mecz rozegrany. Odhacz wpłaty w rozliczeniu.',
+    }), cfg)!;
+    expect(doTekstu(mail)).toContain('Mecz rozegrany. Odhacz wpłaty w rozliczeniu.');
+    expect(doHtml(mail, cfg)).toContain('Otwórz mecz');
   });
 });

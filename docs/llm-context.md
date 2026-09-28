@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-28 · migracja `168` · 59 tabel
+**Stan na:** 2026-09-28 · migracja `169` · 59 tabel
 
 ---
 
@@ -455,6 +455,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-28 (3) — Przypomnienie, zaproszenie i zwolnione miejsce dochodzą także bez powiadomień na telefonie
+
+PROBLEM: przypomnienie dzień przed meczem, zaproszenie imienne, oferta zwolnionego
+miejsca z rezerwy i przypomnienie o rozliczeniu po meczu chodziły wyłącznie dzwonkiem
+w aplikacji i pushem — na produkcji push ma 3 z 33 graczy i 2 z 9 organizatorów.
+Przypomnienie dzień przed czytało 5 z 12 osób (mediana po 19,5 h), 7 z 13 zaproszeń
+nie przeczytano wcale. Gość bez konta z podanym adresem dostawał te same rzeczy
+mailem — założenie konta paradoksalnie pogarszało dostarczalność wiadomości.
+
+ROZWIĄZANIE BOJO: te cztery rodzaje powiadomień idą teraz mailem także do kont
+Z kontem, ale WYŁĄCZNIE gdy konto nie ma żadnej aktywnej subskrypcji push — push
+zostaje kanałem podstawowym, mail jest zapasem, nie drugą kopią. Bezpiecznik
+dzienny chroni wspólny z mailami logowania limit Resend (100/dzień na darmowym
+planie): po przekroczeniu progu nowy powód jest po cichu pomijany, a cztery
+powody krytyczne (odwołanie, zmiana terminu, zmiana warunków, przywrócenie meczu)
+limitu nie mają. Ustawienia maili w profilu pokazują obie grupy osobno. Organizator
+dostaje teraz też propozycję włączenia powiadomień, po wysłaniu linku do nowego
+meczu — wcześniej ta zachęta pytała wyłącznie graczy.
+
+MECHANIKA: migracja `169` (`wyslij_mail_do_konta()` z bezpiecznikiem dziennym
+i treścią czytaną z `notifications.body`, `wyslij_mail_po_powiadomieniu()` z drugim
+warunkiem `NOT EXISTS push_subscriptions`), funkcja brzegowa `powiadom-goscia/tresc.ts`
+(cztery nowe warianty treści), `lib/ustawieniaPowiadomien.ts`
+(`RODZAJE_MAILOWE_ZAWSZE`/`RODZAJE_MAILOWE_BEZ_PUSHA`), `ZachetaPush.tsx` (prop
+`organizator`), `EventDetailClient.tsx` (`zaproponujPowiadomienia()` po `handleShare`).
+Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-1, Z-1a, Z-2.
+
 ### 2026-09-28 (2) — Gość dopisany ręcznie sam zostawia e-mail
 
 PROBLEM: organizator dopisujący gracza ręcznie („Dopisz osobę bez konta") zwykle nie zna
@@ -663,24 +690,3 @@ komponent `TwojaPlatnosc.tsx` wspólny dla strony meczu i strony wpisu; `zl()`
 w `lib/kwota.ts`. Szczegóły → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md),
 W-4 i W-5.
 
-### 2026-09-25 — Pierwsza wizyta z linku: nic nie zasłania zapisu na mecz
-
-PROBLEM: gracz, który pierwszy raz otwierał link do meczu Bojo, po 6 sekundach
-dostawał baner o cookies przykrywający w całości przycisk „Dołącz bez konta". Świeży
-organizator logujący się linkiem z maila (nowa karta przeglądarki) dostawał nad
-kreatorem okno „Kim jesteś?", a gracz w tej samej sytuacji — nad oknem zapisu na mecz.
-Strona główna bojo.pl w polskiej strefie czasowej renderowała się dwa razy, a sekcja
-„Możesz dołączyć już dziś" pokazywała latem mecz jeszcze przez dwie godziny po starcie.
-
-ROZWIĄZANIE BOJO: baner o cookies czeka, aż człowiek wyjdzie z ekranu z własnym dolnym
-paskiem akcji (strona meczu przed zapisem, kreator), i pokazuje się na pierwszym
-zwykłym ekranie. Okno wyboru roli pokazuje się tylko na stronach ogólnych (strona
-główna, lista meczów, „Moje gry", mapa), nigdy nad kreatorem ani nad meczem. Strona
-główna liczy „czy mecz już się zaczął" w czasie polskim, a karty meczów pokazują
-„Dzisiaj"/„za 2 h" dopiero w przeglądarce.
-
-MECHANIKA: `useCookieBannerVisible()` (`lib/cookieConsent.ts`) czyta
-`useBottomNavHidden()`; `czyPokazacWyborRoli()` w `PostSignupRoleModal.tsx` sprawdza
-cel logowania i bieżącą ścieżkę; `lib/czasPolski.ts` (`terazWPolsce`,
-`czyPrzedStartemWPolsce`) i `lib/usePoMontazu.ts` dla `EventBrowseCard`. Szczegóły
-i uzasadnienie → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md), W-1…W-3.

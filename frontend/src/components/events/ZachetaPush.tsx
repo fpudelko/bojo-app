@@ -46,12 +46,16 @@ export function zaproponujPowiadomienia() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(ZDARZENIE_POWIADOMIEN));
 }
 
-export default function ZachetaPush({ widoczna }: {
-  /** Czy jest po co pytać — „gram w tym meczu i mecz się jeszcze nie odbył".
-   *  Warunek liczy strona meczu, żeby ten komponent nie musiał znać reguł
+export default function ZachetaPush({ widoczna, organizator }: {
+  /** Czy jest po co pytać — „gram w tym meczu i mecz się jeszcze nie odbył",
+   *  albo, dla organizatora, „to mój mecz i jeszcze się nie odbył". Warunek
+   *  liczy strona meczu, żeby ten komponent nie musiał znać reguł
    *  uczestnictwa. Sam w sobie NIE wystarcza do pokazania paska: trzeba jeszcze
-   *  zdarzenia zapisania się (patrz `zaproponujPowiadomienia`). */
+   *  zdarzenia zapisania się/wysłania linku (patrz `zaproponujPowiadomienia`). */
   widoczna: boolean;
+  /** Organizator dostaje inną treść — prośby o dołączenie i rozliczenie, nie
+   *  wiadomości i zwolnione miejsce (migracja `169`, Z-2). */
+  organizator?: boolean;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -140,12 +144,14 @@ export default function ZachetaPush({ widoczna }: {
 
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-ink dark:text-slate-100">
-            Damy znać, gdy coś się zmieni
+            {organizator ? 'Damy znać, gdy ktoś poprosi o miejsce' : 'Damy znać, gdy coś się zmieni'}
           </p>
-          {/* Konkret, nie „włącz powiadomienia": trzy rzeczy, które naprawdę
+          {/* Konkret, nie „włącz powiadomienia": rzeczy, które naprawdę
               przychodzą i których nie chce się przegapić. */}
           <p className="mt-0.5 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-            Ktoś napisze do ekipy, zwolni się miejsce, mecz zostanie odwołany.
+            {organizator
+              ? 'Prośba o dołączenie, komplet w składzie i przypomnienie o rozliczeniu po meczu.'
+              : 'Ktoś napisze do ekipy, zwolni się miejsce, mecz zostanie odwołany.'}
           </p>
 
           <div className="mt-2.5 flex items-center gap-2">

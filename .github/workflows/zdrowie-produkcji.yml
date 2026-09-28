@@ -112,6 +112,29 @@ jobs:
           echo "✓ Wszystkie zadania pg_cron z ostatnich 26 h przeszły." >> /tmp/wynik.txt
           cat /tmp/wynik.txt
 
+      - name: Sprawdź dzienny limit poczty
+        if: always()
+        env:
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DB_URL_PROD:-}" ]; then
+            echo "SUPABASE_DB_URL_PROD nie jest ustawiony — pomijam." | tee /tmp/poczta.txt
+            exit 0
+          fi
+          ADRES="$(DB_URL="$DB_URL_PROD" ./scripts/sprawdz-adres-bazy.sh SUPABASE_DB_URL_PROD)"
+          WYNIK="$(psql "$ADRES" -v ON_ERROR_STOP=1 --single-transaction --pset=pager=off \
+            -c 'SET TRANSACTION READ ONLY' -tA -c "
+              SELECT count(*) FROM maile_wyslane WHERE created_at >= date_trunc('day', now());
+            ")"
+          echo "Dziś wysłano (zapisano w maile_wyslane): $WYNIK / 100 (plan darmowy Resend)." | tee /tmp/poczta.txt
+          # 70 = próg ostrzegawczy: 70% dziennego limitu Resend, nie samego `limit_dzienny`
+          # aplikacji (80) — chcemy sygnał, ZANIM organizator poczuje bezpiecznik na sobie.
+          if [ "$WYNIK" -ge 70 ]; then
+            echo "✗ Blisko dziennego limitu Resend — czas rozważyć płatny plan albo podnieść limit_dzienny." | tee -a /tmp/poczta.txt
+            exit 1
+          fi
+
       - name: Podsumowanie
         if: always()
         run: |
@@ -120,5 +143,11 @@ jobs:
             echo ""
             echo '```'
             cat /tmp/wynik.txt 2>/dev/null || echo "(brak wyniku — przebieg padł wcześniej)"
+            echo '```'
+            echo ""
+            echo "### Zdrowie produkcji — dzienny limit poczty (Z-1a)"
+            echo ""
+            echo '```'
+            cat /tmp/poczta.txt 2>/dev/null || echo "(brak wyniku — przebieg padł wcześniej)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

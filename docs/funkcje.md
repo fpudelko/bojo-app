@@ -4314,6 +4314,68 @@ wpis w składzie albo konto).
 Testy: `supabase/test/poczta-goscia.sql` — kto dostaje, kto NIE, idempotencja przy drugim
 uruchomieniu i to, że zmiana samego opisu meczu nie generuje poczty.
 
+### Poczta do konta z KONTEM — zawsze cztery powody, zapasowo cztery kolejne (migracje `140`/`169`)
+
+Gość bez konta z podanym adresem był do 2026-09-27 lepiej poinformowany niż gracz
+Z KONTEM: dostawał mail przy zapisie, dzień przed meczem, przy zmianie warunków
+i przy odwołaniu (`133`/`137`), podczas gdy konto miało wyłącznie dzwonek w aplikacji
+i push — TYLKO wtedy, gdy sam go włączył w przeglądarce. Kto push wyłączył (albo nigdy
+nie włączył — **3 z 33 graczy i 2 z 9 organizatorów na produkcji**) i nie wchodził do
+aplikacji, o odwołaniu meczu nie dowiadywał się WCALE. Skutki brał na siebie organizator.
+
+**Dwie grupy powodów, jeden wyzwalacz (`wyslij_mail_po_powiadomieniu`), dwie zasady:**
+
+| Grupa | Powody | Kiedy mail |
+|---|---|---|
+| **Zawsze** (`140`) | `mecz_odwolany`, `zmiana_terminu`, `zmiana_warunkow_meczu`, `mecz_przywrocony` | zawsze, niezależnie od pusha — niedoręczenie kończy się czyimś wyjazdem na boisko |
+| **Zapas bez pusha** (`169`, Z-1) | `przypomnienie_o_meczu`, `reserve_claim_offered`, `zaproszenie_na_mecz`, `po_meczu_do_domkniecia` | wyłącznie, gdy konto **nie ma żadnej** subskrypcji w `push_subscriptions` |
+
+Świadomie POZA obiema listami: `prosba_o_dolaczenie` (organizatorzy czytają w 2 minuty),
+`komplet_skladu`, `wiadomosc_w_*`, `nowy_mecz_w_grupie`, `sklady_opublikowane` — żadne
+z nich nie kończy się czyimś wyjazdem na boisko bez meczu, a poczta wysyłana przy byle
+czym przestaje być czytana także przy rzeczach ważnych.
+
+**Treść z dzwonka, jedno źródło.** `wyslij_mail_do_konta()` czyta `notifications.body`
+tego samego wiersza, który wyzwolił wysyłkę (`v_tresc`; wyzwalacz jest `AFTER INSERT`,
+więc wiersz jest widoczny w tej samej transakcji) — zamiast utrzymywać to samo zdanie
+(„brakuje 2 (12/14)” u organizatora, kto zaprasza) w SQL po raz drugi. `reserve_claim_offered`
+dodatkowo liczy `oferta_do` z `claim_offered_at` uczestnika i `reserve_claim_minutes`
+meczu. `przypomnienie_o_meczu` niesie znacznik `organizator` (`e.organizer_id = p_user`):
+funkcja brzegowa (`powiadom-goscia/tresc.ts`) pokazuje organizatorowi inny temat i dokłada
+akapit ze stanem składu, gdy jest.
+
+**Bezpiecznik dzienny — WYŁĄCZNIE dla czterech powodów z `169`.** Resend na darmowym
+planie przepuszcza 100 maili dziennie **łącznie z mailami logowania** (SMTP Supabase
+idzie przez ten sam klucz). `wyslij_mail_do_konta()` wychodzi cicho, gdy `maile_wyslane`
+z bieżącej doby ma już `limit_dzienny` wierszy (domyślnie **80**, wpis w `konfiguracja_poczty`
+bez migracji). Cztery powody krytyczne z `140` limitu nie mają. Osobny, WIDOCZNY strażnik
+zbliżania się do limitu Resend (próg 70/100) → `zdrowie-produkcji.yml`, „Sprawdź dzienny
+limit poczty” (Z-1a) — bez niego organizator dowiaduje się o dobitym limicie dopiero, gdy
+ktoś zapyta „czemu nie przyszedł mail”.
+
+**Ustawienia w profilu** (`UstawieniaMaili.tsx`) pokazują obie grupy osobno, pod nagłówkami
+„Zawsze” i „Gdy nie masz powiadomień na telefonie” — `lib/ustawieniaPowiadomien.ts` trzyma
+je jako `RODZAJE_MAILOWE_ZAWSZE`/`RODZAJE_MAILOWE_BEZ_PUSHA` (`RODZAJE_MAILOWE` zostaje jako
+suma, dla wywołań, którym rozróżnienie jest niepotrzebne). Obie listy MUSZĄ zgadzać się
+z ostatnią definicją wyzwalacza w migracjach — pilnuje tego `ustawieniaPowiadomien.test.ts`,
+czytając wszystkie `supabase/migrations/*.sql` tym samym wzorcem co `harmonogramMeczu.test.ts`.
+
+**Propozycja pusha dla organizatora (Z-2).** `zaproponujPowiadomienia()` wołał dotąd
+wyłącznie zapis gracza (`handleJoin`) — organizator, który założył mecz, nigdy nie widział
+tej zachęty, mimo że traci najwięcej (prośby o dołączenie, komplet składu, rozliczenie po
+meczu). `EventDetailClient.tsx` woła ją dziś też po `handleShare` (wysłanie/skopiowanie
+linku do świeżo utworzonego meczu), a `ZachetaPush` dostaje `organizator={isOwner}` —
+nagłówek i opis paska zamieniają się na treść o prośbach o dołączenie i rozliczeniu.
+
+**Kolejność wdrożenia migracji `169` miała znaczenie: funkcja brzegowa PRZED migracją.**
+Odwrotna kolejność: `tresc()` dostaje nieznany powód, zwraca `null`, a `maile_wyslane`
+i tak zapisuje „wysłane” — mail przepada po cichu (ta sama pułapka co krok 4 w README
+funkcji brzegowej).
+
+Testy: `supabase/test/poczta-do-kont.sql` (osiem powodów, bezpiecznik dzienny, `oferta_do`),
+`frontend/src/__tests__/ustawieniaPowiadomien.test.ts`, `frontend/src/__tests__/mailePowiadomien.test.ts`,
+`frontend/src/__tests__/zachetaPush.test.tsx`.
+
 ---
 
 ## Przypomnienia — jedyne powiadomienia, które powstają same (migracja `129`)
