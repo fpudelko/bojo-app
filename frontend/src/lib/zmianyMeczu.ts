@@ -366,7 +366,7 @@ export function konsekwencjeOdwolania(komu: KomuDojdzie): string[] {
   const zdania: string[] = [];
 
   zdania.push(komu.zKontem > 0
-    ? `${withCount(komu.zKontem, 'osoba', 'osoby', 'osób')} z kontem dostanie powiadomienie w Bojo (i na telefon, jeśli je włączyła).`
+    ? `${withCount(komu.zKontem, 'osoba', 'osoby', 'osób')} z kontem dostanie powiadomienie w Bojo i e-mail.`
     : 'Nikt w składzie nie ma konta, więc powiadomienie w Bojo nie ma do kogo pójść.');
 
   if (komu.gosciezAdresem > 0) {

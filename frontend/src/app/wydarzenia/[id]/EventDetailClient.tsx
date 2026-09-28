@@ -1933,6 +1933,11 @@ export default function EventDetailClient() {
       toast('Skopiowano, wklej na czacie ze znajomymi');
     }
     // 'failed' obejmuje anulowanie arkusza przez użytkownika, więc milczymy.
+    // Zachęta do pusha PO wysłaniu linku, nie od razu: główna akcja panelu
+    // „Mecz gotowy” nie konkuruje z paskiem (Z-2, migracja `169`).
+    if ((wynik === 'shared' || wynik === 'copied') && swiezoUtworzony && isOwner) {
+      zaproponujPowiadomienia();
+    }
   };
 
   /** „Wyślij skład na czat" (F-4, docs/faza1-organizator-plan.md) — ponumerowana
@@ -3484,16 +3489,22 @@ export default function EventDetailClient() {
         )}
 
         {/* ── POWIADOMIENIA — propozycja, nie prośba na wejściu ──
-            Pytamy TYLKO tego, kto gra w tym meczu i tylko przed jego startem:
-            wtedy widać, po co to komu (wiadomość od ekipy, zwolnione miejsce,
-            odwołanie). Prośba na starcie aplikacji kończy się trwałym
-            „Zablokuj", którego nie da się cofnąć ze strony.
+            Pytamy tego, kto gra w tym meczu, ORAZ organizatora (migracja `169`,
+            Z-2 — wcześniej `zaproponujPowiadomienia()` wołał wyłącznie zapis
+            gracza, więc organizator nigdy nie widział tej zachęty), i tylko
+            przed startem meczu: wtedy widać, po co to komu (wiadomość od
+            ekipy, zwolnione miejsce, odwołanie — albo, dla organizatora,
+            prośba o dołączenie i rozliczenie). Prośba na starcie aplikacji
+            kończy się trwałym „Zablokuj", którego nie da się cofnąć ze strony.
 
             Pasek jest `fixed`, więc miejsce w drzewie nie ma znaczenia dla
             wyglądu — ale gate na zakładkę zostaje: w „Rozmowie" przykryłby
             pole pisania wiadomości, które też siedzi przy dolnej krawędzi. */}
         {tab === 'sklad' && (
-          <ZachetaPush widoczna={!!user && !!myParticipation && !eventStarted && !isCancelled} />
+          <ZachetaPush
+            widoczna={!!user && (!!myParticipation || isOwner) && !eventStarted && !isCancelled}
+            organizator={isOwner}
+          />
         )}
 
         {/* ── PLAYER COUNT BLOCK ── */}

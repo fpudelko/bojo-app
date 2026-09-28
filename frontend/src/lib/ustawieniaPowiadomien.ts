@@ -306,24 +306,39 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
 ];
 
 /**
- * Rodzaje, które chodzą TAKŻE POCZTĄ (migracja `140`) — wąska lista, ta sama
- * co w wyzwalaczu `wyslij_mail_po_powiadomieniu()`.
+ * Rodzaje, które chodzą TAKŻE POCZTĄ — dwie listy, ta sama para co
+ * w wyzwalaczu `wyslij_mail_po_powiadomieniu()` (migracje `140`/`169`).
  *
- * DLACZEGO TYLKO TYLE. Poczta jest kanałem, który przerywa dzień; wysyłana
- * przy byle czym przestaje być czytana, a wtedy przestaje działać także przy
- * rzeczach ważnych. Zostają więc te cztery, przy których niedoręczenie kończy
- * się CZYIMŚ WYJAZDEM NA BOISKO — i tylko one.
+ * DLACZEGO DWIE LISTY, NIE JEDNA. Poczta jest kanałem, który przerywa dzień;
+ * wysyłana przy byle czym przestaje być czytana, a wtedy przestaje działać
+ * także przy rzeczach ważnych. `RODZAJE_MAILOWE_ZAWSZE` (migracja `140`) to
+ * cztery rodzaje, przy których niedoręczenie kończy się CZYIMŚ WYJAZDEM NA
+ * BOISKO — mail idzie zawsze, niezależnie od pusha. `RODZAJE_MAILOWE_BEZ_PUSHA`
+ * (migracja `169`) to cztery rodzaje, które dziś chodzą wyłącznie pushem/
+ * dzwonkiem, a mailem dostają ZAPAS wyłącznie wtedy, gdy konto nie ma żadnej
+ * subskrypcji push — bo 9/10 kont jej nie ma.
  *
- * Ta lista MUSI zgadzać się z warunkiem w migracji `140`; pilnuje tego test
+ * Obie listy MUSZĄ zgadzać się z warunkami w migracji `169`; pilnuje tego test
  * `ustawieniaPowiadomien.test.ts`. Rozjazd oznaczałby ekran, który obiecuje
- * wyłączenie maila, jaki i tak przyjdzie — albo odwrotnie.
+ * (albo wyłączenie, albo wysyłkę) czegoś, co baza robi inaczej.
  */
-export const RODZAJE_MAILOWE = [
+export const RODZAJE_MAILOWE_ZAWSZE = [
   'mecz_odwolany',
   'zmiana_terminu',
   'zmiana_warunkow_meczu',
   'mecz_przywrocony',
 ] as const;
+
+export const RODZAJE_MAILOWE_BEZ_PUSHA = [
+  'przypomnienie_o_meczu',
+  'reserve_claim_offered',
+  'zaproszenie_na_mecz',
+  'po_meczu_do_domkniecia',
+] as const;
+
+/** Suma obu list — dla wywołań, którym wystarczy wiedzieć, co w ogóle chodzi
+ *  pocztą, bez rozróżniania „zawsze" od „tylko bez pusha". */
+export const RODZAJE_MAILOWE = [...RODZAJE_MAILOWE_ZAWSZE, ...RODZAJE_MAILOWE_BEZ_PUSHA] as const;
 
 export async function pobierzWylaczone(userId: string): Promise<string[]> {
   const { data, error } = await supabase
