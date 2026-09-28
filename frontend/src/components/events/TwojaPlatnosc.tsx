@@ -18,15 +18,22 @@ import { zl } from '@/lib/kwota';
  * stronie meczu, baza w `podejrzyj_wpis_goscia()` dla gościa) — tu przychodzi
  * już wynik: `blikTelefon` do pokazania albo `blikPozniej`, gdy numer będzie
  * godzinę przed meczem.
+ *
+ * `metodyMeczu` (Z-6, docs/faza1-runda10-plan.md) — sposoby, które mecz w
+ * ogóle przyjmuje. Osoba dopisana przez organizatora („Dopisz osobę bez
+ * konta") nie ma wybranej metody (`metoda === null`): karta pokazywała jej
+ * wtedy samą kwotę, bez numeru BLIK, mimo że baza go oddawała. Gdy metoda jest
+ * wybrana, `metodyMeczu` nie wpływa na nic — wygrywa konkretny wybór.
  */
 export default function TwojaPlatnosc({
-  kosztGrosze, znizkaKartyGrosze, kartaSportowa, metoda,
+  kosztGrosze, znizkaKartyGrosze, kartaSportowa, metoda, metodyMeczu,
   blikTelefon, blikPozniej, pokazStatus, oplacone,
 }: {
   kosztGrosze: number;
   znizkaKartyGrosze: number | null | undefined;
   kartaSportowa: boolean;
   metoda: PaymentMethod | null | undefined;
+  metodyMeczu: PaymentMethod[];
   blikTelefon: string | null | undefined;
   blikPozniej: boolean;
   /** `events.show_payment_status` — organizator może ukryć, kto już zapłacił. */
@@ -35,7 +42,8 @@ export default function TwojaPlatnosc({
 }) {
   // Cenę liczy wyłącznie `priceForParticipant()` (AGENTS.md, „Płatności”).
   const cena = priceForParticipant(kosztGrosze, znizkaKartyGrosze, kartaSportowa);
-  const pokazBlik = metoda === 'blik' && (!!blikTelefon || blikPozniej);
+  const blikWGrze = metoda === 'blik' || (!metoda && metodyMeczu.includes('blik'));
+  const pokazBlik = blikWGrze && (!!blikTelefon || blikPozniej);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6" data-twoja-platnosc>
@@ -56,10 +64,15 @@ export default function TwojaPlatnosc({
           {' '}· zniżka z karty sportowej
         </p>
       )}
-      {metoda && (
-        <div className="mt-2 flex items-center justify-between text-sm">
-          <span className="text-slate-500">Sposób</span>
-          <span className="text-ink">{PAYMENT_METHOD_LABELS[metoda]}</span>
+      {/* Bez wybranej metody (dopisany gość) pokazujemy, co mecz w ogóle
+          przyjmuje — lepsze niż milczenie, choć mniej konkretne niż wybór
+          samego uczestnika (Z-6, docs/faza1-runda10-plan.md). */}
+      {(metoda || metodyMeczu.length > 0) && (
+        <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+          <span className="shrink-0 text-slate-500">Sposób</span>
+          <span className="min-w-0 text-right text-ink">
+            {metoda ? PAYMENT_METHOD_LABELS[metoda] : metodyMeczu.map((m) => PAYMENT_METHOD_LABELS[m]).join(' albo ')}
+          </span>
         </div>
       )}
       {/* Numer do BLIKA tuż przy kwocie: „ile" i „na co przelać" to jedna

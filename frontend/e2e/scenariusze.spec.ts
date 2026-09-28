@@ -1014,7 +1014,9 @@ test.describe('numer BLIK', () => {
     await page.getByRole('button', { name: /^BLIK$/i }).click();
     // Dawniej w tym miejscu stał numer telefonu organizatora, pokazywany
     // każdemu, kto otworzył okno — łącznie z osobą, która się nie zapisze.
-    await expect(page.getByText(/numer do BLIKA zobaczysz po zapisaniu się/i)).toBeVisible();
+    // Y-3: numer widać dopiero godzinę przed meczem (migracja 163), nie od
+    // razu po zapisaniu — tekst to mówi wprost.
+    await expect(page.getByText(/numer do BLIKA zobaczysz na godzinę przed meczem/i)).toBeVisible();
   });
 });
 

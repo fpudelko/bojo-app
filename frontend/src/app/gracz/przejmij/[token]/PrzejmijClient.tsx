@@ -327,7 +327,13 @@ export default function PrzejmijClient({ token }: { token: string }) {
       {podglad.kosztGrosze > 0 && !podglad.naRezerwie && !podglad.czekaNaAkceptacje
         && podglad.statusMeczu !== 'cancelled' && (
         <div className="mt-4">
-          {podglad.blikPozniej && podglad.metodaPlatnosci === 'blik' && (
+          {/* Warunek liczy metodę WYBRANĄ, a bez niej — czy mecz w ogóle
+              przyjmuje BLIK (Z-6, docs/faza1-runda10-plan.md): gość dopisany
+              przez organizatora nie ma wybranej metody, ale kartę BLIK-a i tak
+              zobaczy, więc zapowiedź numeru ma się pojawić także dla niego. */}
+          {podglad.blikPozniej
+            && (podglad.metodaPlatnosci === 'blik' || (!podglad.metodaPlatnosci && podglad.metodyPlatnosci.includes('blik')))
+            && (
             <p className="mb-2 text-xs text-slate-500">
               Wróć tu przed meczem po numer BLIK: link do tej strony masz też w mailu.
             </p>
@@ -337,6 +343,7 @@ export default function PrzejmijClient({ token }: { token: string }) {
             znizkaKartyGrosze={podglad.znizkaKartyGrosze}
             kartaSportowa={podglad.kartaSportowa}
             metoda={podglad.metodaPlatnosci}
+            metodyMeczu={podglad.metodyPlatnosci}
             blikTelefon={podglad.blikTelefon}
             blikPozniej={podglad.blikPozniej}
             pokazStatus={podglad.pokazStatusPlatnosci}

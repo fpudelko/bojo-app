@@ -1840,7 +1840,16 @@ export default function EventDetailClient() {
       ?? (p.addedBy === event.organizerId ? event.organizerName : undefined)
       ?? event.organizerName;
 
-    const wynik = await udostepnijZaproszenieGoscia(p.name, token, event, zapraszajacy);
+    // `eventStarted` rozstrzyga, czy to jest strona ZAPISU (przed meczem, bez
+    // ściany konta) czy prośba o konto (po meczu) — ten sam próg, który
+    // przełącza widok składu między edytowalną listą organizatora
+    // a `ParticipantsList` (Z-4, docs/faza1-runda10-plan.md).
+    const kontekst = {
+      naRezerwie: p.isReserve,
+      poMeczu: eventStarted,
+      blik: event.costGrosze > 0 && event.acceptedPaymentMethods.includes('blik'),
+    };
+    const wynik = await udostepnijZaproszenieGoscia(p.name, token, event, kontekst, zapraszajacy);
     if (wynik === 'copied') {
       setSkopiowanyToken(p.id);
       setTimeout(() => setSkopiowanyToken(null), 2500);
@@ -2728,6 +2737,7 @@ export default function EventDetailClient() {
               znizkaKartyGrosze={event.sportsCardDiscountGrosze}
               kartaSportowa={myConfirmed.hasSportsCard}
               metoda={myConfirmed.paymentMethod}
+              metodyMeczu={event.acceptedPaymentMethods}
               blikTelefon={widacBlik ? event.blikPhone : null}
               blikPozniej={!!event.blikPhone && !widacBlik}
               pokazStatus={event.showPaymentStatus}
@@ -2750,6 +2760,7 @@ export default function EventDetailClient() {
               znizkaKartyGrosze={wpisGoscia.znizkaKartyGrosze ?? undefined}
               kartaSportowa={wpisGoscia.kartaSportowa}
               metoda={wpisGoscia.metodaPlatnosci}
+              metodyMeczu={event.acceptedPaymentMethods}
               blikTelefon={widacBlik ? wpisGoscia.blikTelefon : null}
               blikPozniej={wpisGoscia.blikPozniej}
               pokazStatus={wpisGoscia.pokazStatusPlatnosci}
@@ -3683,9 +3694,16 @@ export default function EventDetailClient() {
                       {/* X-11: zdanie liczyło skład i rezerwę razem, ale mówiło
                           wyłącznie „w składzie" — gość na rezerwie nie jest
                           w składzie, dopóki nie zwolni się miejsce. */}
-                      {niePrzejeciGoscie.some((p) => p.isReserve) ? 'w składzie i na rezerwie' : 'w składzie'}:
-                      kliknij „Zaproś do Bojo" przy imieniu. Po założeniu konta dołączą do ekipy
-                      i dostaną powiadomienie o kolejnym meczu.
+                      {niePrzejeciGoscie.some((p) => p.isReserve) ? 'w składzie i na rezerwie' : 'w składzie'}:{' '}
+                      {/* Z-4 (docs/faza1-runda10-plan.md): przed meczem link nie jest
+                          ścianą konta, więc zdanie mówi o tym, co robi OD RAZU
+                          (skład, koszt, „Nie mogę grać"), nie o koncie. Po meczu
+                          etykieta przycisku wraca do „Zaproś do Bojo" i zdanie
+                          znowu mówi o koncie — to jest jedyny moment, w którym
+                          konto jest tym, o co prosimy. */}
+                      {eventStarted
+                        ? <>kliknij „Zaproś do Bojo" przy imieniu: z kontem zapiszą się na kolejny mecz jednym kliknięciem.</>
+                        : <>kliknij „Wyślij link do zapisu" przy imieniu: zobaczą tam skład i koszt, a jeśli coś wypadnie, sami się wypiszą.</>}
                       {' '}<span className="font-semibold">
                         {wszyscyMaile ? (
                           <>Wszyscy dostaną wiadomość o odwołaniu meczu i zmianie terminu.</>
@@ -3788,6 +3806,10 @@ export default function EventDetailClient() {
                           pozwala każdemu uczestnikowi), nie tylko organizator —
                           to on zna gościa i ma z nim kontakt, organizator często
                           nie. */}
+                      {/* „Wyślij link do zapisu", nie „Zaproś do Bojo" — przed
+                          meczem ten link NIE jest ścianą konta, tylko stroną
+                          zapisu gościa (skład, koszt, „Nie mogę grać"),
+                          Z-4, docs/faza1-runda10-plan.md. */}
                       {mozeZaprosic(p) && doPrzejecia(p) && (
                         <button
                           type="button"
@@ -3795,7 +3817,7 @@ export default function EventDetailClient() {
                           className="mt-1 inline-flex items-center gap-1 self-start text-[11px] font-medium text-primary-700 hover:underline"
                         >
                           <LinkIcon className="h-3 w-3" />
-                          {skopiowanyToken === p.id ? 'Skopiowano link' : 'Zaproś do Bojo'}
+                          {skopiowanyToken === p.id ? 'Skopiowano link' : 'Wyślij link do zapisu'}
                         </button>
                       )}
                     </div>
@@ -3944,7 +3966,7 @@ export default function EventDetailClient() {
                               className="ml-9 mt-1 inline-flex items-center gap-1 self-start text-[11px] font-medium text-primary-700 hover:underline"
                             >
                               <LinkIcon className="h-3 w-3" />
-                              {skopiowanyToken === p.id ? 'Skopiowano link' : 'Zaproś do Bojo'}
+                              {skopiowanyToken === p.id ? 'Skopiowano link' : 'Wyślij link do zapisu'}
                             </button>
                           )}
                         </div>
@@ -6051,6 +6073,7 @@ export default function EventDetailClient() {
           guestName={nudgeGuest.name}
           claimToken={nudgeGuest.claimToken}
           naRezerwie={nudgeGuest.naRezerwie}
+          blik={event.costGrosze > 0 && event.acceptedPaymentMethods.includes('blik')}
           event={event}
           zapraszajacy={displayName(user) || event.organizerName}
         />

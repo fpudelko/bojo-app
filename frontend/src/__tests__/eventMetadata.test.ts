@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { metadataDlaMeczu, type EventMeta } from '@/app/wydarzenia/[id]/eventMeta';
+import { metadataDlaMeczu, stanPodgladu, type EventMeta } from '@/app/wydarzenia/[id]/eventMeta';
 
 // Bliźniak structuredData.test.ts, tylko dla metadanych. Powód osobnego pliku:
 // JSON-LD był chroniony progiem widoczności od początku, a <title>, description
@@ -104,5 +104,79 @@ describe('metadataDlaMeczu — polityka cyklu życia strony meczu (roadmapa poz.
   it('brak godziny traktuje dzień miniony jako miniony (domyślnie 00:00)', () => {
     const meta = metadataDlaMeczu('abc', mecz({ date: '2020-01-01', time: undefined }));
     expect(meta.robots).toEqual({ index: false, follow: true });
+  });
+});
+
+// Z-3 (docs/faza1-runda10-plan.md): podgląd linku na WhatsAppie/Messengerze
+// (opengraph-image.tsx) i metadane strony meczu czytają ten sam stan.
+describe('stanPodgladu — Z-3', () => {
+  it('odmienia liczbę wolnych miejsc (1 / 2-4 / 5+)', () => {
+    expect(stanPodgladu(mecz({ max_players: 14 }), 13).pigulka).toBe('1 wolne miejsce');
+    expect(stanPodgladu(mecz({ max_players: 14 }), 12).pigulka).toBe('2 wolne miejsca');
+    expect(stanPodgladu(mecz({ max_players: 14 }), 9).pigulka).toBe('5 wolnych miejsc');
+    expect(stanPodgladu(mecz({ max_players: 14 }), 2).pigulka).toBe('12 wolnych miejsc');
+  });
+
+  it('wolne miejsca: wyróżnia pigułkę i pozwala na argument bez konta', () => {
+    const stan = stanPodgladu(mecz({ max_players: 14 }), 12);
+    expect(stan.wyroznij).toBe(true);
+    expect(stan.bezKonta).toBe(true);
+  });
+
+  it('odwołany mecz — bez wolnych miejsc i bez argumentu bez konta, mimo wolnych miejsc', () => {
+    const stan = stanPodgladu(mecz({ max_players: 14, status: 'cancelled' }), 2);
+    expect(stan.pigulka).toBe('Mecz odwołany');
+    expect(stan.wyroznij).toBe(false);
+    expect(stan.bezKonta).toBe(false);
+  });
+
+  it('mecz rozegrany (data i godzina w przeszłości, liczone w czasie polskim)', () => {
+    const stan = stanPodgladu(mecz({ date: '2020-01-01', time: '18:00' }), 0);
+    expect(stan.pigulka).toBe('Mecz rozegrany');
+    expect(stan.bezKonta).toBe(false);
+  });
+
+  it('zapisy zamknięte wygrywają nad wolnymi miejscami', () => {
+    const stan = stanPodgladu(mecz({ max_players: 14, zapisy_zamkniete: true }), 2);
+    expect(stan.pigulka).toBe('Zapisy zamknięte');
+    expect(stan.bezKonta).toBe(false);
+  });
+
+  it('komplet z rezerwą pozwala na argument bez konta, komplet bez rezerwy — nie', () => {
+    const zRezerwa = stanPodgladu(mecz({ max_players: 14, reserve_enabled: true }), 14);
+    expect(zRezerwa.pigulka).toBe('Komplet, jest rezerwa');
+    expect(zRezerwa.bezKonta).toBe(true);
+
+    const bezRezerwy = stanPodgladu(mecz({ max_players: 14, reserve_enabled: false }), 14);
+    expect(bezRezerwy.pigulka).toBe('Komplet');
+    expect(bezRezerwy.bezKonta).toBe(false);
+  });
+
+  it('mecz bez limitu miejsc — bez pigułki, ale z argumentem bez konta', () => {
+    const stan = stanPodgladu(mecz({ max_players: undefined }), 0);
+    expect(stan.pigulka).toBe('');
+    expect(stan.bezKonta).toBe(true);
+  });
+});
+
+describe('metadataDlaMeczu — argument „bez konta” (Z-3)', () => {
+  it('mecz z wolnymi miejscami dopisuje zdanie o zapisie bez konta', () => {
+    const meta = metadataDlaMeczu('abc', mecz({ max_players: 14 }), 12);
+    expect(meta.description).toContain('Zapisujesz się bez zakładania konta.');
+    expect(meta.openGraph?.description).toContain('zapis bez konta');
+  });
+
+  it('odwołany mecz nie obiecuje zapisu bez konta', () => {
+    const meta = metadataDlaMeczu('abc', mecz({ max_players: 14, status: 'cancelled' }), 2);
+    expect(meta.description).not.toContain('bez zakładania konta');
+    expect(meta.openGraph?.description).not.toContain('zapis bez konta');
+  });
+
+  it('prywatny mecz nie zdradza tytułu, miejsca ani daty', () => {
+    const meta = metadataDlaMeczu('abc', mecz({ visibility: 'private' }));
+    const tekst = ujawnia(meta);
+    expect(tekst).not.toContain('Gierka na Ratajach');
+    expect(tekst).not.toContain('Orlik Rataje');
+    expect(tekst).not.toContain(jutro());
   });
 });

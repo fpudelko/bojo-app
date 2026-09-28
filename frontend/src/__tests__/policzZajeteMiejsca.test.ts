@@ -16,11 +16,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 //  3. CZYSTOŚĆ FUNKCJI. `liczZajeteMiejsca()` to czysta funkcja bez importów —
 //     można ją testować ze zmyślonym wierszami bazy.
 
-const { mockSelect, mockEq, mockData } = vi.hoisted(() => ({
+const { mockSelect, mockEq } = vi.hoisted(() => ({
   mockSelect: vi.fn(),
   mockEq: vi.fn(),
-  mockData: null as any,
 }));
+// `let`, nie `const` z `vi.hoisted()`: poszczególne testy podmieniają wiersze
+// zwracane przez zapytanie (przypisanie, nie deklaracja), a `mockData` nie jest
+// czytane wewnątrz fabryki `vi.mock()` niżej, więc nie musi być hoistowane
+// razem z `mockSelect`/`mockEq`. Naprawa pre-istniejącego błędu: `const` z
+// destrukturyzacji był w praktyce read-only, więc te trzy testy rzucały
+// „Assignment to constant variable" przy każdym uruchomieniu.
+let mockData: any = null;
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -30,7 +36,6 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-import { supabase } from '@/lib/supabase';
 import { policzZajeteMiejsca } from '@/app/wydarzenia/[id]/eventMeta';
 import { liczZajeteMiejsca } from '@/lib/zajeteMiejsca';
 
@@ -52,12 +57,16 @@ describe('liczZajeteMiejsca — czysta funkcja', () => {
     expect(liczZajeteMiejsca(wiersze)).toBe(2);
   });
 
-  it('obsługuje puste i nullowe wartości', () => {
+  // Nie chodzi o to, żeby null znaczył „nie licz" — `is_reserve`/`pending_approval`
+  // traktujemy jak zwykły `false` (ta sama reguła co `winienWplate()` i
+  // `kolejkaRezerwy.ts`, patrz dokumentacja funkcji). Test pilnuje, żeby null
+  // nie wywalał funkcji, nie że ma dawać inny wynik niż `false`.
+  it('null w is_reserve/pending_approval liczy się jak false, nie wywala funkcji', () => {
     const wiersze = [
       { is_reserve: null, pending_approval: null, rsvp: null },
       { is_reserve: false, pending_approval: false, rsvp: 'yes' },
     ];
-    expect(liczZajeteMiejsca(wiersze)).toBe(1);
+    expect(liczZajeteMiejsca(wiersze)).toBe(2);
   });
 
   it('zwraca 0 na pusty array', () => {

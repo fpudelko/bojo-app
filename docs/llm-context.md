@@ -455,6 +455,35 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-28 — Podgląd linku, zaproszenie gościa i płatność bez wybranej metody mówią prawdę
+
+PROBLEM: podgląd meczu na WhatsAppie/Messengerze pokazywał „N wolnych miejsc" z odmianą
+liczby na sztywno („1 wolnych miejsc"), nie znał odwołania, rozegrania ani zapisów
+zamkniętych — odwołany mecz wyglądał na podglądzie jak mecz z wolnymi miejscami.
+Argument „zapisujesz się bez zakładania konta" nigdzie na podglądzie nie padał. Link,
+który organizator wysyłał osobie dopisanej ręcznie do składu, obiecywał „dołączanie do
+ekipy" i „przeglądanie otwartych gier w okolicy" — dwie obietnice, które produkt już raz
+uznał za nieprawdziwe i usunął z innych ekranów tej samej ścieżki — mówił „Masz miejsce
+w składzie" także gościowi na liście rezerwowej i przedstawiał link jako zakładanie
+konta, zamiast jako stronę jego własnego zapisu. Karta „Twoja płatność" nie pokazywała
+numeru BLIK ani sposobu płatności osobie dopisanej przez organizatora, bo ta nie ma
+wybranej metody — mimo że baza numer oddawała.
+
+ROZWIĄZANIE BOJO: obrazek podglądu i opis strony meczu liczą stan (odwołany, rozegrany,
+zapisy zamknięte, komplet z rezerwą albo bez) jedną wspólną funkcją i dopisują „Zapis
+bez zakładania konta" wprost na obrazku, gdy mecz jeszcze kogoś przyjmuje. Zaproszenie
+dla dopisanego gościa ma teraz trzy prawdziwe warianty: przed meczem w składzie (co link
+daje bez konta — skład, koszt, „Nie mogę grać"), przed meczem na rezerwie (kolejka,
+„Nie mogę grać") i dopiero po meczu prośbę o konto, tą samą listą korzyści co reszta
+ścieżki. Karta płatności pokazuje numer BLIK i akceptowane sposoby także bez wybranej
+metody, opierając się na tym, co mecz w ogóle przyjmuje.
+
+MECHANIKA: `stanPodgladu()` w `app/wydarzenia/[id]/eventMeta.ts` (używana przez
+`opengraph-image.tsx` i `metadataDlaMeczu()`), `KontekstZaproszenia` i przebudowane
+`tekstZaproszeniaGoscia()`/`udostepnijZaproszenieGoscia()` w `lib/guestClaim.ts`,
+`TwojaPlatnosc.tsx` (nowy prop `metodyMeczu`). Bez migracji.
+Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-3, Z-4, Z-6.
+
 ### 2026-09-27 (3) — Gry cykliczne usunięte całkowicie
 
 PROBLEM: moduł gier cyklicznych (szablon meczu powtarzanego co tydzień, „stała gierka")
@@ -652,26 +681,3 @@ a zakładka Ustawienia dostała jedno zdanie na górze, które mówi, co się na
 MECHANIKA: `components/turnieje/PanelProsbaOWyglad.tsx`, `zglosZyczenieWygladu()`
 w `lib/bledy.ts`. Tabela `zgloszenia_bledow` jest z `099`; czwarty rodzaj `turniej_wyglad`
 i nowa kolumna `turniej_id` dokłada migracja `162`. Admin czyta w `/admin/bledy`.
-
-### 2026-09-24 — Turniej po grupach nie ogłasza już własnego końca
-
-PROBLEM: audyt przeszedł pełny łuk turnieju i trafił na moment, w którym publiczna
-strona pokazywała „Zakończony" tuż po fazie grupowej. Przyczyna: stan turnieju uznawał
-za koniec sytuację, w której rozegrano wszystkie ISTNIEJĄCE mecze, a przy formacie
-„grupy → puchar" to jest chwila przed powstaniem drabinki. Kapitanowie czytali koniec
-turnieju przed ćwierćfinałem. Osobno: karta na liście turniejów liczyła drużyny
-czwartą już regułą (wliczała zgłoszenia czekające), panel odmieniał liczebniki
-dwoma formami zamiast trzech („2 zgłoszeń czeka"), przebieg meczu nie pokazywał minuty,
-a zakończenie meczu wymagało trzech stuknięć.
-
-ROZWIĄZANIE BOJO: stan „Grupy rozegrane, czeka na drabinkę" jest osobnym stanem, nie
-udawanym końcem ani udawanym „trwa". Liczenie drużyn zeszło do mapowania wiersza z bazy,
-więc żadna powierzchnia nie musi już o tej regule pamiętać. Minuta zdarzenia liczy się
-z zegara meczu, bo prowadzący nie ma jak jej wpisywać. Zakończenie meczu ma jedno
-potwierdzenie, a zdanie o kolejnej rundzie pokazuje się wyłącznie w meczu pucharowym.
-Po rozegranym meczu układanie terminarza od nowa jest wyłączone, a nie tylko ostrzegane.
-
-MECHANIKA: `stanTurnieju()` i `maDrabinke()` w `lib/turniejEtykiety.ts`, `toTurniej()`
-w `lib/turnieje.ts` (osadzone zapytania wciągają `status`), `lib/turniejPulpit.ts`,
-konsola w `app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Kolumna
-`turniej_zdarzenia.minuta` istniała od migracji `147` i była dotąd zawsze pusta.
