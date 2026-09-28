@@ -163,7 +163,11 @@ export function doHtml(mail: Mail, cfg: Konfiguracja): string {
 
 export type Powod = 'zapis' | 'zaakceptowano' | 'odrzucono' | 'odwolanie' | 'zmiana'
   | 'jutro_grasz' | 'zaloz_konto' | 'powitanie' | 'oferta'
-  | 'mecz_odwolany' | 'zmiana_terminu' | 'zmiana_warunkow_meczu' | 'mecz_przywrocony';
+  | 'mecz_odwolany' | 'zmiana_terminu' | 'zmiana_warunkow_meczu' | 'mecz_przywrocony'
+  // Cztery nowe od migracji 169 (Z-1) — poczta jako ZAPAS dla kont bez pusha,
+  // te same typy co `notifications.type` (129/062/067/160).
+  | 'przypomnienie_o_meczu' | 'reserve_claim_offered' | 'zaproszenie_na_mecz'
+  | 'po_meczu_do_domkniecia';
 
 export interface Dane {
   powod: Powod;
@@ -183,6 +187,14 @@ export interface Dane {
    *  `null`/nieobecna = organizator nic nie wpisał, blok w mailu się nie pojawia. */
   notatka?: string | null;
   token: string | null;
+  /** Odbiorca jest organizatorem tego meczu (migracja 169) — wyłącznie dla
+   *  `przypomnienie_o_meczu`, gdzie treść dla organizatora różni się od treści
+   *  dla gracza. */
+  organizator?: boolean;
+  /** Gotowe zdanie z dzwonka (`notifications.body`) — jedno źródło zamiast
+   *  drugiej wersji tego samego zdania w mailu (migracja 169). `null`/nieobecne
+   *  = akapit się nie pojawia. */
+  tresc?: string | null;
 }
 
 function przywitaj(imie: string | null): string {
@@ -338,6 +350,53 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
         kartaMeczu(d),
         { typ: 'akapit', tekst: 'Jeśli nie dasz rady — daj znać jak najszybciej, żeby ktoś zdążył wejść na Twoje miejsce.' },
         ...zamkniecie(d, cfg),
+      ] };
+
+    // Migracja 169 (Z-1): to samo przypomnienie co dzwonek/push, mailem —
+    // WYŁĄCZNIE gdy konto nie ma żadnej subskrypcji push (patrz
+    // `wyslij_mail_po_powiadomieniu()`). Push ma 3 z 33 graczy na produkcji.
+    case 'przypomnienie_o_meczu':
+      if (d.organizator) {
+        return { temat: `Jutro Twój mecz: ${d.tytul}`, naglowek, bloki: [
+          { typ: 'akapit', tekst: 'Jutro organizujesz mecz:' },
+          kartaMeczu(d),
+          ...(d.tresc ? [{ typ: 'akapit', tekst: d.tresc } as Blok] : []),
+          ...zamkniecie(d, cfg),
+        ] };
+      }
+      return { temat: `Jutro grasz: ${d.tytul}`, naglowek, bloki: [
+        { typ: 'akapit', tekst: 'Jutro masz mecz:' },
+        kartaMeczu(d),
+        { typ: 'akapit', tekst: 'Nie dasz rady? Wypisz się w Bojo jak najszybciej, żeby ktoś zdążył wejść na Twoje miejsce.' },
+        ...zamkniecie(d, cfg),
+      ] };
+
+    // Lustro `oferta` (gość) dla konta bez pusha — inny przycisk, bo konto ma
+    // dokąd wrócić bez tokenu (`wpis()` spada na `/wydarzenia/{id}`, gdy
+    // `token` jest `null`).
+    case 'reserve_claim_offered':
+      return { temat: `Zwolniło się miejsce: ${d.tytul}`, naglowek, bloki: [
+        { typ: 'akapit', tekst: 'Ktoś się wypisał i miejsce jest Twoje, jeśli je potwierdzisz:' },
+        kartaMeczu(d),
+        { typ: 'akapit', tekst: d.oferta_do
+          ? `Masz czas do ${d.oferta_do}. Później miejsce przejdzie do kolejnej osoby, a Ty wrócisz na koniec kolejki.`
+          : 'Potwierdź jak najszybciej — miejsce czeka tylko przez chwilę.' },
+        { typ: 'przycisk', etykieta: 'Wchodzę? Potwierdź w Bojo', opis: 'Potwierdzasz tym linkiem:', url: wpis(d, cfg) },
+      ] };
+
+    case 'zaproszenie_na_mecz':
+      return { temat: `Zaproszenie na mecz: ${d.tytul}`, naglowek, bloki: [
+        ...(d.tresc ? [{ typ: 'akapit', tekst: d.tresc } as Blok] : []),
+        kartaMeczu(d),
+        ...zamkniecie(d, cfg),
+      ] };
+
+    case 'po_meczu_do_domkniecia':
+      return { temat: `Po meczu: ${d.tytul}`, naglowek, bloki: [
+        ...(d.tresc ? [{ typ: 'akapit', tekst: d.tresc } as Blok] : []),
+        kartaMeczu(d),
+        { typ: 'przycisk', etykieta: 'Otwórz mecz', opis: 'Rozliczenie i wynik znajdziesz tutaj:',
+          url: `${cfg.strona}/wydarzenia/${d.event_id}` },
       ] };
 
     case 'zaloz_konto':
