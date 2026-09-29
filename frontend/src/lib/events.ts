@@ -907,14 +907,27 @@ export async function joinEventAsGuest(
   const safeName = validateName(name, 'Imię i nazwisko', 80);
   const safeEmail = validateEmail(email);
 
-  const { data, error } = await supabase.rpc('dolacz_do_meczu_jako_goscie', {
+  const argumenty: Record<string, unknown> = {
     p_event_id: eventId,
     p_imie: safeName,
     p_email: safeEmail,
     p_bramkarz: asGoalkeeper,
     p_metoda_platnosci: payment?.method ?? null,
     p_karta_sportowa: payment?.hasSportsCard ?? false,
-  });
+  };
+  // `p_dostawca_karty` exists only from migration `170`, which waits in the
+  // production queue behind the manual `167`. Sent only with a ticked card,
+  // and on PGRST202 (unknown signature) retried without it: the card itself
+  // still gets saved, only the provider is lost until `170` runs.
+  if (payment?.hasSportsCard && payment.sportsCardProvider) {
+    argumenty.p_dostawca_karty = payment.sportsCardProvider;
+  }
+  let { data, error } = await supabase.rpc('dolacz_do_meczu_jako_goscie', argumenty);
+  if (error?.code === 'PGRST202' && 'p_dostawca_karty' in argumenty) {
+    const bezDostawcy = { ...argumenty };
+    delete bezDostawcy.p_dostawca_karty;
+    ({ data, error } = await supabase.rpc('dolacz_do_meczu_jako_goscie', bezDostawcy));
+  }
 
   if (error) throw new Error(error.message);
   const row = Array.isArray(data) ? data[0] : data;

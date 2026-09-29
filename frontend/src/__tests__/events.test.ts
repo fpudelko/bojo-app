@@ -449,6 +449,48 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
       p_email: 'jan@example.com',
       p_bramkarz: false,
     }));
+    // Bez karty klucza dostawcy nie ma wcale: zwykły zapis gościa nie może
+    // zależeć od tego, czy migracja `170` jest już na produkcji.
+    expect(mockRpc.mock.calls.find(([n]) => n === 'dolacz_do_meczu_jako_goscie')?.[1])
+      .not.toHaveProperty('p_dostawca_karty');
+  });
+
+  // Migracja 170: gość deklaruje kartę sportową tak samo jak konto
+  // (`dolacz_do_meczu`) — z dostawcą, żeby organizator wiedział, którą kartę ma.
+  it('karta sportowa gościa idzie do bazy razem z dostawcą', async () => {
+    bazaOddaje({ claim_token: 'tok-3', event_id: 'e1', already_joined: false, has_account: false });
+
+    await joinEventAsGuest('e1', 'Jan', 'jan@example.com', false,
+      { method: 'blik', hasSportsCard: true, sportsCardProvider: 'multisport' });
+    expect(mockRpc).toHaveBeenCalledWith('dolacz_do_meczu_jako_goscie', expect.objectContaining({
+      p_metoda_platnosci: 'blik',
+      p_karta_sportowa: true,
+      p_dostawca_karty: 'multisport',
+    }));
+  });
+
+  // Produkcja bez `170` (kolejka stoi przed ręczną `167`): baza nie zna
+  // `p_dostawca_karty` i odpowiada PGRST202. Gość z kartą nie może wtedy
+  // stracić możliwości zapisu — ponawiamy bez dostawcy, karta zostaje.
+  it('baza bez migracji 170 — zapis z kartą ponowiony bez dostawcy', async () => {
+    const wywolania: Record<string, unknown>[] = [];
+    mockRpc.mockImplementation((nazwa: string, argumenty: Record<string, unknown>) => {
+      if (nazwa === 'dolacz_do_meczu_jako_goscie') {
+        wywolania.push(argumenty);
+        if ('p_dostawca_karty' in argumenty) {
+          return Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } });
+        }
+        return Promise.resolve({ data: [{ claim_token: 'tok-4', event_id: 'e1', already_joined: false, has_account: false }], error: null });
+      }
+      return Promise.resolve({ data: [], error: null });
+    });
+
+    await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com', false,
+      { method: 'blik', hasSportsCard: true, sportsCardProvider: 'multisport' }))
+      .resolves.toMatchObject({ claimToken: 'tok-4' });
+    expect(wywolania).toHaveLength(2);
+    expect(wywolania[1]).not.toHaveProperty('p_dostawca_karty');
+    expect(wywolania[1]).toMatchObject({ p_karta_sportowa: true, p_metoda_platnosci: 'blik' });
   });
 
   // Sedno migracji 088: e-mail z kontem dostaje ekran namawiający na LOGOWANIE,

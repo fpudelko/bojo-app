@@ -569,6 +569,8 @@ export default function EventDetailClient() {
   const [guestEmail, setGuestEmail] = useState('');
   const [guestRole, setGuestRole] = useState<'player' | 'goalkeeper'>('player');
   const [guestPaymentMethod, setGuestPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
+  const [guestHasSportsCard, setGuestHasSportsCard] = useState(false);
+  const [guestSportsCardProvider, setGuestSportsCardProvider] = useState<SportsCardProvider | undefined>(undefined);
   const [guestBusy, setGuestBusy] = useState(false);
   const [showAccountPrompt, setShowAccountPrompt] = useState(false);
   // Zachęta do zaproszenia dopiero co dodanego gościa do Bojo
@@ -1339,9 +1341,11 @@ export default function EventDetailClient() {
     setGuestBusy(true);
     try {
       const { joinEventAsGuest } = await import('@/lib/events');
-      const payment = guestPaymentMethod ? {
+      const payment = {
         method: guestPaymentMethod,
-      } : undefined;
+        hasSportsCard: guestHasSportsCard,
+        sportsCardProvider: guestSportsCardProvider,
+      };
       const result = await joinEventAsGuest(
         event.id,
         guestName,
@@ -2388,6 +2392,14 @@ export default function EventDetailClient() {
     }
     setJoinDialogOpen(true);
   };
+  // Ta sama zasada dla gościa bez konta: jego okno pytało o jedyną metodę
+  // płatności i blokowało „Zapisz się", dopóki jej nie kliknął.
+  const otworzOknoZapisuGoscia = () => {
+    if (event.costGrosze > 0 && event.acceptedPaymentMethods.length === 1) {
+      setGuestPaymentMethod(event.acceptedPaymentMethods[0]);
+    }
+    setJoinAsGuestDialogOpen(true);
+  };
 
   const rolaPelna = joinAsReserve || (gkEnabled
     ? (joinRole === 'goalkeeper' ? wolne.bramkarze === 0 : wolne.pole === 0)
@@ -2401,9 +2413,16 @@ export default function EventDetailClient() {
   const pozycjaPoZapisieWKolejce = pozycjaPoZapisie(reserves, gkEnabled, joinRole === 'goalkeeper');
   // To samo dla dialogu gościa bez konta — osobna rola (`guestRole`), bo dialog
   // gościa nie ma przełącznika „zapisz mnie od razu na rezerwę".
-  const guestRolaPelna = gkEnabled
+  //
+  // Przy meczu z akceptacją zapisów komplet gościa NIE dotyczy: prośba czeka
+  // w poczekalni i nie zajmuje miejsca (`dolacz_do_meczu_jako_goscie`, `115`),
+  // tak jak w oknie zalogowanego (`!event.requireApproval && rolaPelna`).
+  // Bez tego warunku gość czytał „zapiszesz się na listę rezerwową" albo
+  // „zapisy są zamknięte" z wyszarzonym przyciskiem, choć baza przyjęłaby
+  // jego prośbę.
+  const guestRolaPelna = !event.requireApproval && (gkEnabled
     ? (guestRole === 'goalkeeper' ? wolne.bramkarze === 0 : wolne.pole === 0)
-    : wolne.razem === 0;
+    : wolne.razem === 0);
   const guestPozycjaWKolejce = pozycjaPoZapisie(reserves, gkEnabled, guestRole === 'goalkeeper');
 
   // Po starcie meczu rozliczenie idzie przed składem/wynikiem — to wtedy
@@ -4482,7 +4501,7 @@ export default function EventDetailClient() {
               ) : !authLoading && !user ? (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setJoinAsGuestDialogOpen(true)}
+                    onClick={otworzOknoZapisuGoscia}
                     className="flex h-12 flex-1 items-center justify-center rounded-2xl bg-accent-500 text-[15px] font-bold text-primary-950 transition active:scale-[0.99]"
                   >
                     {/* Przy komplecie mówimy to WPROST na przycisku, a nie
@@ -5499,6 +5518,55 @@ export default function EventDetailClient() {
               </div>
             )}
 
+            {/* Karta sportowa — to samo pole co w oknie dla zalogowanego.
+                Wcześniej gość go nie dostawał wcale: mecz przyjmujący
+                Multisport pokazywał gościowi pełną cenę, a organizator nie
+                wiedział, że gość wejdzie na kartę. Zgłoszone z produkcji. */}
+            {event.costGrosze > 0 && event.acceptedSportsCards.length > 0 && (
+              <div className="mb-4">
+                <label className="flex items-center gap-2 text-sm text-ink select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={guestHasSportsCard}
+                    disabled={guestBusy}
+                    onChange={(e) => {
+                      setGuestHasSportsCard(e.target.checked);
+                      setGuestSportsCardProvider(
+                        e.target.checked && event.acceptedSportsCards.length === 1
+                          ? event.acceptedSportsCards[0]
+                          : undefined,
+                      );
+                    }}
+                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  Mam kartę sportową
+                </label>
+                <p className="mt-1 ml-6 text-xs text-slate-500 dark:text-slate-400">
+                  Akceptowane: {event.acceptedSportsCards.map((c) => sportsCardLabel(c, event.sportsCardOtherName)).join(', ')}
+                </p>
+                {guestHasSportsCard && event.acceptedSportsCards.length > 1 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {event.acceptedSportsCards.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setGuestSportsCardProvider(c)}
+                        disabled={guestBusy}
+                        className={[
+                          'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50',
+                          guestSportsCardProvider === c
+                            ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                            : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-slate-300',
+                        ].join(' ')}
+                      >
+                        {sportsCardLabel(c, event.sportsCardOtherName)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Metoda płatności — tylko gdy `costGrosze > 0` */}
             {event.costGrosze > 0 && event.acceptedPaymentMethods.length > 0 && (
               <div className="mb-4">
@@ -5536,13 +5604,32 @@ export default function EventDetailClient() {
             )}
 
             {/* Kwota WPROST, jak w oknie dla zalogowanego („Koszt”). Wcześniej
-                gość wybierał sposób płatności, nie widząc, ile zapłaci. */}
-            {event.costGrosze > 0 && (
-              <div className="mb-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm dark:bg-slate-700/50">
-                <span className="text-slate-500 dark:text-slate-400">Koszt</span>
-                <span className="font-semibold text-ink">{zl(event.costGrosze)}</span>
-              </div>
-            )}
+                gość wybierał sposób płatności, nie widząc, ile zapłaci.
+                Cena przez `priceForParticipant()`, jak wszędzie: zniżka za
+                kartę sportową musi być widać TUTAJ, nie dopiero po zapisie. */}
+            {event.costGrosze > 0 && (() => {
+              const price = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, guestHasSportsCard);
+              return (
+                <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-sm dark:bg-slate-700/50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Koszt</span>
+                    {price.discountApplied ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-slate-400 line-through">{zl(event.costGrosze)}</span>
+                        <span className="font-semibold text-green-700">{zl(price.priceGrosze)}</span>
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-ink">{zl(event.costGrosze)}</span>
+                    )}
+                  </div>
+                  {price.discountUnspecified && (
+                    <p className="mt-1.5 text-xs text-amber-700">
+                      Karta sportowa daje zniżkę, o dokładną kwotę zapytaj organizatora.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Czego brakuje do zapisu — WPROST, zamiast wyszarzonego przycisku
                 bez słowa wyjaśnienia. Zgłoszone z audytu UX: „użytkownik może
