@@ -667,6 +667,15 @@ a największy turniej ma 8 drużyn po 7 zawodników. Konta bierze się CO ÓSMĄ
 nie po kolei — przy siedmiu kolejnych indeksach cała drużyna trafiała w ten sam blok
 nazwisk i wychodziło siedmiu Krawczyków w jednym składzie.
 
+`supabase/seed_nagranie_organizator.sql` — **6 meczów i ekipa pod NAGRANIA EKRANU**
+(animacja „dla organizatorów” na landingu), organizator `j4n.brz0@gmail.com`: skład
+z gośćmi bez konta, komplet z rezerwą i drużynami, prośby o dołączenie, mecz wczorajszy
+do rozliczenia na żywo i mecz już rozliczony (wynik, strzelcy, nieobecny). **Celowo BEZ
+markera** w opisach i tytułach, bo wszystko jest na ekranie; sprząta się po stałych
+identyfikatorach `md5('bojo-nagranie-<n>')`, więc adresy nie zmieniają się między
+uruchomieniami. Domyślnie mecze prywatne (poza listą otwartych gier). Rezerwowi mają
+konta: gość bez konta na rezerwie dostaje czerwone ostrzeżenie o braku e-maila.
+
 `supabase/wyczysc-testowe.sql` — sprząta WSZYSTKIE seedy po markerach, przed
 wpuszczeniem ludzi. Trzy sekcje: podgląd (liczy), kasowanie (zakomentowane, trzeba
 odkomentować świadomie) i lista meczów BEZ markera — czyli tych zrobionych ręką przy

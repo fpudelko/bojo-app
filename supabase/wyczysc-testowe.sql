@@ -22,6 +22,9 @@
 --   [PRZED]         seed_przedpremiera.sql
 --   [DWA]           seed_dwa_konta.sql
 --   [TUR]           seed_turnieje.sql  (turnieje, nie mecze — patrz sekcja 2b)
+--   (bez markera)   seed_nagranie_organizator.sql — mecze idą na nagrania
+--                   ekranu, więc marker w opisie byłoby widać; kasujemy je po
+--                   stałych identyfikatorach `md5('bojo-nagranie-<n>')`
 --
 -- Uczestnicy, rozmowy, wyniki, numery BLIK i wpisy w kolejce znikają razem
 -- z meczem (`ON DELETE CASCADE`) — nie trzeba ich kasować osobno.
@@ -63,6 +66,12 @@ WHERE description LIKE '[TEST]%' OR description LIKE '[TEST-G]%'
 GROUP BY 1
 ORDER BY 1;
 
+-- Mecze do nagrań (seed_nagranie_organizator.sql) — bez markera, po id.
+SELECT 'seed_nagranie_organizator' AS skad, count(*) AS meczow,
+       min(event_date) AS od, max(event_date) AS do
+FROM events
+WHERE id IN (SELECT md5('bojo-nagranie-' || n)::uuid FROM generate_series(1, 6) n);
+
 -- Turnieje liczone osobno — inna tabela, inny marker.
 SELECT
   left(opis, 20)  AS marker,
@@ -85,6 +94,11 @@ DELETE FROM events
     OR description LIKE '[TAK]%' OR description LIKE '[WIZ]%'
     OR description LIKE '[DEMO-LANDING]%' OR description LIKE '[PRZED]%'
     OR description LIKE '[DWA]%';
+
+-- Mecze i ekipa do nagrań — stałe identyfikatory zamiast markera.
+DELETE FROM events
+ WHERE id IN (SELECT md5('bojo-nagranie-' || n)::uuid FROM generate_series(1, 6) n);
+DELETE FROM groups WHERE id = md5('bojo-nagranie-grupa')::uuid;
 
 -- Ekipy z seedów. Nazwy, nie markery — grupy nie mają kolumny na opis testu
 -- w tym samym kształcie, a te nazwy są jednoznaczne.
@@ -120,6 +134,7 @@ SELECT
 FROM events e
 LEFT JOIN profiles p ON p.id = e.organizer_id
 WHERE coalesce(e.description, '') NOT LIKE '[%'
+  AND e.id NOT IN (SELECT md5('bojo-nagranie-' || n)::uuid FROM generate_series(1, 6) n)
 ORDER BY e.event_date DESC
 LIMIT 100;
 
