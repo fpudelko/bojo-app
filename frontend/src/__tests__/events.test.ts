@@ -469,6 +469,30 @@ describe('joinEventAsGuest — kontrakt z bazą', () => {
     }));
   });
 
+  // Produkcja bez `170` (kolejka stoi przed ręczną `167`): baza nie zna
+  // `p_dostawca_karty` i odpowiada PGRST202. Gość z kartą nie może wtedy
+  // stracić możliwości zapisu — ponawiamy bez dostawcy, karta zostaje.
+  it('baza bez migracji 170 — zapis z kartą ponowiony bez dostawcy', async () => {
+    const wywolania: Record<string, unknown>[] = [];
+    mockRpc.mockImplementation((nazwa: string, argumenty: Record<string, unknown>) => {
+      if (nazwa === 'dolacz_do_meczu_jako_goscie') {
+        wywolania.push(argumenty);
+        if ('p_dostawca_karty' in argumenty) {
+          return Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } });
+        }
+        return Promise.resolve({ data: [{ claim_token: 'tok-4', event_id: 'e1', already_joined: false, has_account: false }], error: null });
+      }
+      return Promise.resolve({ data: [], error: null });
+    });
+
+    await expect(joinEventAsGuest('e1', 'Jan', 'jan@example.com', false,
+      { method: 'blik', hasSportsCard: true, sportsCardProvider: 'multisport' }))
+      .resolves.toMatchObject({ claimToken: 'tok-4' });
+    expect(wywolania).toHaveLength(2);
+    expect(wywolania[1]).not.toHaveProperty('p_dostawca_karty');
+    expect(wywolania[1]).toMatchObject({ p_karta_sportowa: true, p_metoda_platnosci: 'blik' });
+  });
+
   // Sedno migracji 088: e-mail z kontem dostaje ekran namawiający na LOGOWANIE,
   // a nie na zakładanie drugiego konta. Bez tej flagi frontend nie ma tej wiedzy.
   it('świeży zapis e-mailem, który ma już konto — hasAccount true', async () => {
