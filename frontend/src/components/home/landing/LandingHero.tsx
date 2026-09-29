@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { LANDING_CTA, LANDING_HERO } from './content';
-import RotatingBadge from './RotatingBadge';
+import HeroChip from './hero/HeroChip';
 import WczesnyEtapBadge from './WczesnyEtapBadge';
-import PhoneCarousel from './PhoneCarousel';
+import HeroTelefon from './hero/HeroTelefon';
 import TrustRow from './TrustRow';
 
 export default function LandingHero() {
@@ -22,7 +22,7 @@ export default function LandingHero() {
           {/* Wrapper keeps the pill hugging its text: as a direct flex child
               of .hero-first-screen it would stretch to the full column width. */}
           <div>
-            <RotatingBadge messages={LANDING_HERO.badges} />
+            <HeroChip />
           </div>
 
           {/* 2.5rem is the largest size that keeps this at 2 lines (not 3)
@@ -72,13 +72,15 @@ export default function LandingHero() {
 
         {/* Telefon w normalnym przepływie, zaraz za blokiem tekstu — na pierwszy
             ekran wystaje tylko jego górna krawędź (zachęta do przewinięcia),
-            a przewinięcie odsłania całość.
+            a przewinięcie odsłania całość. Animacja rusza dopiero, gdy telefon
+            jest widoczny w połowie, i zawsze od rozdziału 1 (`heroSilnik.ts`).
 
-            Bez `rotate`: makieta jest teraz karuzelą przewijaną w poziomie,
-            a obrócony kontener przewijany w bok to mylące trafienia palcem
-            i przekrzywione kropki nawigacji. */}
+            Rozmiar slotu liczy CSS (`.ha-slot` w hero/hero.css): od 768 px tak,
+            żeby telefon, podpis i paski zmieściły się na ekranie razem
+            z nagłówkiem strony. Bez `rotate`: obrócony kontener z paskami do
+            kliknięcia to mylące trafienia palcem. */}
         <div className="mt-6 md:mt-0 md:w-5/12">
-          <PhoneCarousel className="mx-auto w-[248px] md:w-full md:max-w-[280px]" />
+          <HeroTelefon className="mx-auto w-full" />
         </div>
       </div>
       {/* Sentinel for StickyCta's IntersectionObserver — appears once this

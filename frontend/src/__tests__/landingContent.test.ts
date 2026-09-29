@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   LANDING_CTA,
   LANDING_HERO,
+  LANDING_ANIMACJA,
   LANDING_STEPS,
   LANDING_VALUES,
   LANDING_FAQ,
@@ -19,10 +20,23 @@ import { ZAKAZANE_NA_LANDINGU as FORBIDDEN_PHRASES } from '@/content/zakazaneFra
 // flagowana albo nie istnieje — see docs/llm-context.md, sekcja
 // "Czego Bojo NIE robi".
 
+/** Wszystko, co animacja z pierwszego ekranu pokazuje POZA telefonem: nazwy
+ *  rozdziałów, podpisy scen i etykiety pasków. Napisy wewnątrz makiety telefonu
+ *  to obrazek aplikacji (patrz hero/heroEkrany.ts), nie tekst strony. */
+function napisyAnimacji(): string[] {
+  return [
+    ...LANDING_ANIMACJA.rozdzialy.flatMap((r) => [r.nazwa, r.spoczynek]),
+    ...Object.values(LANDING_ANIMACJA.podpisy),
+    LANDING_ANIMACJA.paskiGrupa,
+    LANDING_ANIMACJA.paskiPrzycisk,
+  ];
+}
+
 function allLandingText(): string {
   return [
     LANDING_DIRECT_ANSWER,
-    ...LANDING_HERO.badges,
+    LANDING_HERO.badge,
+    ...napisyAnimacji(),
     ...LANDING_HERO.h1,
     LANDING_HERO.lead,
     ...LANDING_HERO.trust,
@@ -127,7 +141,8 @@ describe('misja na landingu — spójna ze strategią „organizator, nie targow
 // — it belongs only in FAQ, disclosed plainly, not folded into the pitch.
 describe('zasięg — katalog jest ogólnopolski, więc nazwa miasta nie pada nigdzie', () => {
   const salesCopy = [
-    ...LANDING_HERO.badges,
+    LANDING_HERO.badge,
+    ...napisyAnimacji(),
     ...LANDING_HERO.h1,
     LANDING_HERO.lead,
     ...LANDING_HERO.trust,
@@ -175,6 +190,53 @@ describe('FAQ ↔ JSON-LD — zero rozjazdu', () => {
   it('każda odpowiedź jest wystarczająco treściwa dla schema (≥40 znaków)', () => {
     for (const { a } of LANDING_FAQ) {
       expect(a.length).toBeGreaterThanOrEqual(40);
+    }
+  });
+});
+
+// Animacja telefonu na pierwszym ekranie (hero/): nagłówek i przyciski są stałe,
+// a to, co się zmienia, ma trzymać się zasad z wytycznych do makiety.
+describe('animacja pierwszego ekranu: nazwy rozdziałów i podpisy', () => {
+  const { rozdzialy, podpisy } = LANDING_ANIMACJA;
+
+  it('ma pięć rozdziałów, bo tyle jest pasków pod telefonem (nie tyle, ile scen)', () => {
+    expect(rozdzialy).toHaveLength(5);
+  });
+
+  it('podpis sceny ma najwyżej 40 znaków, żeby mieścił się w jednej linii bez ucięcia', () => {
+    for (const t of Object.values(podpisy)) expect(t.length, t).toBeLessThanOrEqual(40);
+  });
+
+  it('podpis spoczynkowy rozdziału (klatka przy reduced-motion) jest jednym z podpisów scen', () => {
+    for (const r of rozdzialy) expect(Object.values(podpisy), r.nazwa).toContain(r.spoczynek);
+  });
+
+  it('rozdział trwa 6-12 s, cała pętla najwyżej 60 s', () => {
+    for (const r of rozdzialy) {
+      expect(r.czasMs, r.nazwa).toBeGreaterThanOrEqual(6000);
+      expect(r.czasMs, r.nazwa).toBeLessThanOrEqual(12000);
+    }
+    expect(rozdzialy.reduce((suma, r) => suma + r.czasMs, 0)).toBeLessThanOrEqual(60000);
+  });
+
+  it('nazwy rozdziałów są różne (plakietka przełącza się po nazwie)', () => {
+    expect(new Set(rozdzialy.map((r) => r.nazwa)).size).toBe(rozdzialy.length);
+  });
+});
+
+describe('zakazana fraza „blik”: granica słowa', () => {
+  const blik = FORBIDDEN_PHRASES.find((f) => f.includes('blik'));
+  const wzor = new RegExp(blik ?? '(?!)', 'i');
+
+  it('łapie BLIK w każdej odmianie', () => {
+    for (const t of ['BLIK', 'płatność BLIKiem', 'Zapłać BLIK-iem', 'blik na telefon']) {
+      expect(wzor.test(t), t).toBe(true);
+    }
+  });
+
+  it('nie łapie „publikować” i pokrewnych', () => {
+    for (const t of ['Sprawdzasz i publikujesz', 'przed publikacją', 'opublikowany mecz', 'Publiczne']) {
+      expect(wzor.test(t), t).toBe(false);
     }
   });
 });

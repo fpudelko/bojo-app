@@ -52,7 +52,10 @@ export const ZAKAZANE_NA_LANDINGU = [
   // meczów na `/wydarzenia`.
   'alert',
   'rezerwacj[aeę] boisk', // FEATURE_RESERVATIONS = false
-  'blik', // no payment integration
+  // `\bblik`, nie `blik`: bez granicy słowa fraza łapała środek „pu-blik-ować”
+  // (2026-09-29, podpis animacji „Sprawdzasz i publikujesz”), a słowo „publikować”
+  // pada w każdym opisie kreatora. „BLIK” i „BLIKiem” dalej się łapią.
+  '\\bblik', // no payment integration
   'zapłać przez', // no payment integration
   'automatyczn[iy].*(awans|wskocz)', // no reserve auto-promotion, by design
   'ranking', // does not exist

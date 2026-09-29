@@ -33,18 +33,56 @@ export const LANDING_CTA = {
 } as const;
 
 export const LANDING_HERO = {
-  // Rotates in the hero eyebrow slot (RotatingBadge). First entry is what
-  // server-rendered HTML and reduced-motion visitors see.
-  badges: [
-    'Mecz gdziekolwiek w Polsce',
-    'Skład i rezerwa liczą się same',
-    'Rozliczenie w jednym miejscu',
-  ],
+  // Stała plakietka nad nagłówkiem: na telefonie zawsze, na komputerze przy
+  // `prefers-reduced-motion`. Na komputerze przy animacji plakietka pokazuje
+  // nazwę rozdziału (LANDING_ANIMACJA.rozdzialy[].nazwa).
+  badge: 'Mecz gdziekolwiek w Polsce',
   h1: ['Zorganizuj mecz', 'w dwie minuty'],
   lead:
     'Stwórz grę i wyślij ekipie jeden link. Brakuje ludzi do składu? ' +
     'Otwórz mecz publicznie: trafi na listę otwartych gier w Bojo.',
   trust: ['Za darmo', 'Google lub e-mail', 'Bez instalacji'],
+} as const;
+
+// Animacja telefonu na pierwszym ekranie (components/home/landing/hero/).
+//
+// Zasada: nagłówek, opis i przyciski są STAŁE i to one niosą obietnicę;
+// animacja tylko ją potwierdza. Pięć rozdziałów (nie dziesięć scen) to pięć
+// pasków pod telefonem, więc dołożenie sceny nie rozmywa przekazu na 1/10.
+// Nazwa rozdziału mówi, CO robi organizator; podpis (do 40 znaków) mówi, co
+// widać na ekranie w tej chwili.
+//
+// Każdy napis przechodzi te same testy co reszta landingu (zakazane frazy,
+// długi myślnik) — dlatego leżą tu, a nie w kodzie silnika. Nie wolno w nich
+// obiecywać automatycznego awansu z rezerwy ani wymieniać kanałów
+// powiadomień (content/zakazaneFrazy.ts).
+export const LANDING_ANIMACJA = {
+  rozdzialy: [
+    { nazwa: 'Zakładasz mecz',        czasMs: 12000, spoczynek: 'Termin, miejsca i koszt boiska' },
+    { nazwa: 'Wysyłasz link',         czasMs: 8000,  spoczynek: 'Wrzucasz go tam, gdzie już piszecie' },
+    { nazwa: 'Gracze się zapisują',   czasMs: 10500, spoczynek: 'Od razu jest w składzie' },
+    { nazwa: 'Skład pod kontrolą',    czasMs: 12000, spoczynek: 'Komplet? Kolejni czekają na rezerwie' },
+    { nazwa: 'Drużyny i rozliczenie', czasMs: 12000, spoczynek: 'Po meczu wszystko w jednym miejscu' },
+  ],
+  podpisy: {
+    termin: 'Termin, miejsca i koszt boiska',
+    boisko: 'Boisko wybierasz z listy albo mapy',
+    publikacja: 'Sprawdzasz i publikujesz',
+    link: 'Jeden link dla całej ekipy',
+    czat: 'Wrzucasz go tam, gdzie już piszecie',
+    gracz: 'Gracz dołącza bez zakładania konta',
+    dane: 'Wystarczy imię i e-mail, bez hasła',
+    wSkladzie: 'Od razu jest w składzie',
+    sklad: 'Widzisz, kto gra i ile jest miejsc',
+    dopisz: 'Kumpla bez konta dopisujesz sam',
+    rezerwa: 'Komplet? Kolejni czekają na rezerwie',
+    losowanie: 'Losujesz składy jednym kliknięciem',
+    wplaty: 'Widzisz, kto już oddał pieniądze',
+    poMeczu: 'Po meczu wszystko w jednym miejscu',
+  },
+  // Etykiety dostępności (czytniki ekranu); sama makieta telefonu jest ukryta.
+  paskiGrupa: 'Rozdziały animacji',
+  paskiPrzycisk: 'Pokaż:',
 } as const;
 
 export const LANDING_STEPS = [
