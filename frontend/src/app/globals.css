@@ -220,6 +220,10 @@ a {
 .hero-surface-deep {
   background-color: #08301D;
   background-image:
+    /* Pasy koszenia: co 5rem jaśniejszy, prawie niewidoczny (3,5% bieli). Sama
+       nazwa „boisko” bez żadnej linii, więc neutralne też dla siatkówki
+       i koszykówki. Wyłącznie tło, nic nie wpływa na kontrast tekstu. */
+    repeating-linear-gradient(90deg, transparent 0 5rem, rgba(255, 255, 255, 0.035) 5rem 10rem),
     radial-gradient(55rem 38rem at 6% 106%, rgba(34, 163, 97, 0.30), transparent 62%),
     radial-gradient(42rem 34rem at 94% 2%, rgba(21, 102, 62, 0.55), transparent 64%),
     linear-gradient(168deg, #0F5537 0%, #0B3E28 52%, #07291A 100%);

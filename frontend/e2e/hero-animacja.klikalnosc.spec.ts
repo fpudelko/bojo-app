@@ -60,6 +60,24 @@ test.describe('hero: stałe elementy', () => {
   });
 });
 
+test.describe('hero: rozmiar telefonu na komputerze', () => {
+  test('na wysokim oknie paski kończą się na wysokości rzędu „Za darmo / Google lub e-mail”', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'układ dwukolumnowy jest od 768 px');
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await otworz(page);
+    const { paski: dol, zaufanie, szer } = await page.evaluate(() => {
+      const ostatni = Array.from(document.querySelectorAll('.hero-first-screen > *')).pop()!.getBoundingClientRect();
+      return {
+        paski: document.querySelector('[role=group]')!.getBoundingClientRect().bottom,
+        zaufanie: ostatni.bottom,
+        szer: document.querySelector('.ha-slot')!.getBoundingClientRect().width,
+      };
+    });
+    expect(Math.abs(dol - zaufanie)).toBeLessThanOrEqual(2);
+    expect(szer).toBeGreaterThan(280);
+  });
+});
+
 test.describe('hero: paski rozdziałów', () => {
   test('jest ich pięć i każdy ma czytelną nazwę', async ({ page }) => {
     await otworz(page);

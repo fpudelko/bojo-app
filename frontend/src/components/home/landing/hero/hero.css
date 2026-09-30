@@ -588,12 +588,17 @@
  * 376 x 796 wypychał slot i podpis z paskami lądowały za nisko).
  * Rozmiar liczony w CSS (bez JS), więc miejsce jest
  * zarezerwowane już w HTML-u z serwera i nic się nie przesuwa po hydracji.
- * Telefon ma proporcje 376 x 796. Na telefonie stała szerokość 248 px.
- * Od 768 px szerokość wynika z wysokości okna: cały blok (telefon, podpis,
- * paski) musi zmieścić się na ekranie razem z nagłówkiem strony (64 px)
- * i górnym oddechem sekcji (80 px), czyli 144 px od góry, plus 66 px na
- * podpis (12+20) i paski (10+24). 0.4724 = 376/796. Górna granica 280 px
- * jak w poprzednim układzie, dolna 151 px odpowiada wysokości 320 px. */
+ * Telefon ma proporcje 376 x 796 (0.4724). Na telefonie stała szerokość 248 px.
+ *
+ * Od 768 px kolumna telefonu (`.ha-kolumna`) jest rozciągnięta na wysokość
+ * kolumny tekstu, więc dolna krawędź pasków leży na dole rzędu „Za darmo /
+ * Google lub e-mail / Bez instalacji”, a górna na wysokości plakietki. Wysokość
+ * slotu to reszta tej kolumny po odjęciu 66 px na podpis (12+20) i paski
+ * (10+24). Dwa bezpieczniki: telefon nie schodzi poniżej dawnej wysokości
+ * 593 px (na niskim oknie kolumna tekstu jest krótsza, a telefon ma tylko
+ * rosnąć), a cały blok nie wychodzi poza ekran (`100svh` minus 144 px od góry,
+ * czyli 64 px nagłówka i 80 px oddechu sekcji, minus te same 66 px).
+ * Szerokość nie przekracza kolumny ani 380 px. */
 .ha-slot {
   position: relative;
   flex: none;
@@ -601,8 +606,19 @@
   aspect-ratio: 376 / 796;
 }
 @media (min-width: 768px) {
+  .ha-kolumna {
+    align-self: stretch;
+    /* Wysokość kolumny wynika wyłącznie z kolumny tekstu (rozciągnięcie),
+       treść telefonu jej nie rozpycha. Daje też jednostki cqh / cqw. */
+    container-type: size;
+  }
+  /* Własność na dzieciach kolumny: jednostki cq* liczą się względem
+     kontenera-przodka, więc na samej kolumnie nie zadziałałyby. */
+  .ha-kolumna > * {
+    --ha-h: min(100vh - 210px, max(100cqh - 66px, 593px));
+    --ha-h: min(100svh - 210px, max(100cqh - 66px, 593px));
+  }
   .ha-slot {
-    width: clamp(151px, calc((100vh - 210px) * 0.4724), 280px);
-    width: clamp(151px, calc((100svh - 210px) * 0.4724), 280px);
+    width: clamp(151px, min(var(--ha-h) * 0.4724, 100cqw), 380px);
   }
 }
