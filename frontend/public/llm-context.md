@@ -455,6 +455,32 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-09-29 — Pierwszy ekran strony głównej pokazuje drogę organizatora w telefonie
+
+PROBLEM: pierwszy ekran bojo.pl pokazywał statyczne zrzuty aplikacji w karuzeli
+(7 ekranów bez związku z tym, co czyta się obok), więc odwiedzający nie widział,
+jak wygląda założenie i poprowadzenie meczu w Bojo, a zrzuty starzały się razem
+z interfejsem.
+
+ROZWIĄZANIE BOJO: obok nagłówka „Zorganizuj mecz w dwie minuty” telefon odtwarza
+w pętli (ok. 54 s) drogę organizatora w pięciu rozdziałach: zakładasz mecz (kreator w
+trzech krokach), wysyłasz link, gracze zapisują się bez konta, skład pod kontrolą
+(dopisanie gościa, lista rezerwowa) oraz drużyny i rozliczenie po meczu. Nagłówek, opis,
+przyciski i rząd „Za darmo, Google lub e-mail, Bez instalacji” są stałe. Pod telefonem
+stoi jednolinijkowy podpis bieżącej sceny i pięć klikalnych pasków, po jednym na
+rozdział. Na komputerze plakietka nad nagłówkiem pokazuje nazwę rozdziału, na
+telefonie zawsze „Mecz gdziekolwiek w Polsce”. Animacja rusza dopiero, gdy telefon
+jest widoczny, i zawsze od rozdziału 1. Przy ustawieniu systemu „ogranicz ruch”
+pokazuje statyczną klatkę. Data meczu w animacji to zawsze najbliższy czwartek, liczony
+od dziś w Polsce. Napisy nie obiecują automatycznego awansu z rezerwy ani nie
+wymieniają kanałów powiadomień.
+
+MECHANIKA: `components/home/landing/hero/` (`HeroTelefon.tsx`, `HeroChip.tsx`,
+`heroSilnik.ts`, `heroEkrany.ts`, `hero.css`, stan współdzielony w `heroStan.ts`),
+napisy w `LANDING_ANIMACJA` (`landing/content.ts`, sprawdzane testem zakazanych fraz),
+daty w `lib/datyHero.ts`. Zastępuje `PhoneCarousel` i `RotatingBadge`. Test
+klikalności: `e2e/hero-animacja.klikalnosc.spec.ts`. Bez migracji.
+
 ### 2026-09-28 (4) — Gracz bez konta deklaruje kartę sportową przy zapisie
 
 PROBLEM: mecz w Bojo, w którym organizator akceptuje kartę sportową (Multisport,
@@ -671,22 +697,3 @@ MECHANIKA: `slugBoiska(name, id)` z `lib/utils.ts` w `app/sitemap-boiska/[plik]/
 i w trzech hubach `app/boiska/…` (link i `ItemList` w JSON-LD). Test
 `linkiObiektuKanoniczne.test.ts` odrzuca budowanie adresu obiektu przez `slugify(name)`.
 Wykryte przy analizie Search Console → [seo-geo-strategia.md](./seo-geo-strategia.md).
-
-### 2026-09-25 (3) — Zapis bez konta nie udaje, że nie jest skończony; zaproszenie do ekipy prowadzi do meczu
-
-PROBLEM: po zapisie na mecz bez konta Bojo pisało „Ostatni krok, 15 sekund”, więc gracz
-nie wiedział, czy jest zapisany. Nowy organizator, który na ekranie logowania wpisał
-e-mail i nowe hasło, dostawał samo „Nieprawidłowy e-mail lub hasło.”. Zaproszenie do
-ekipy (link `/g/…`) wymagało założenia konta, choć najbliższy mecz tej ekipy przyjmuje
-zapis bez konta.
-
-ROZWIĄZANIE BOJO: ekran po zapisie mówi „Zapis gotowy, organizator Cię widzi. Konto nie
-jest potrzebne”, a odrzucenie brzmi „Nie teraz, zostaję bez konta”. Przy złych danych
-logowania Bojo proponuje „Pierwszy raz tutaj? Załóż konto na ten adres”, a ekran
-logowania mówi organizatorowi z kreatora, gdzie założyć konto. Zaproszenie do ekipy ma
-przycisk „Zapisz się na ten mecz bez konta” przy najbliższym meczu; licznik miejsc nie
-liczy już obserwujących.
-
-MECHANIKA: `AuthForm.tsx` (`POWODY.kreator`, `POWODY.dolacz`, stała `BLAD_ZLE_DANE`
-z `lib/auth.tsx`), `app/g/[code]/ZaproszenieClient.tsx`, `lib/zajeteMiejsca.ts`.
-Szczegóły → [faza1-przejscie-e2e-plan.md](./faza1-przejscie-e2e-plan.md), W-6…W-8.

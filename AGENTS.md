@@ -497,6 +497,22 @@ wpisów sitemapy wychodziło ~10,6 tys. różnych adresów, każdy przez przekie
 a kliknięcie na liście miasta otwierało boisko z innej miejscowości. Pilnuje tego
 `linkiObiektuKanoniczne.test.ts`.
 
+**Animacja na pierwszym ekranie (`components/home/landing/hero/`) — cztery rzeczy,
+które wyszły przy przenoszeniu makiety.** (1) Napisy poza telefonem (nazwy rozdziałów,
+podpisy) żyją w `LANDING_ANIMACJA` w `landing/content.ts`, żeby test zakazanych fraz je
+widział; nie wpisuj ich w silnik. Zasada: nagłówek i przyciski są STAŁE, zmienia się
+tylko plakietka (nazwa rozdziału, tylko od 768 px) i podpis pod telefonem, a pasków jest
+tyle co rozdziałów (5), nie scen. (2) **Daty w telefonie liczy `lib/datyHero.ts` od dziś
+w Polsce**, po zamontowaniu; makieta miała „01.10.2026” wpisane na sztywno. Telefon jest
+komponentem wyłącznie klienckim (serwer daje pustą ramkę o zarezerwowanym rozmiarze),
+inaczej wracają błędy hydracji. (3) Rozmiar slotu wylicza CSS (`.ha-slot`), a ramka
+`.phone` jest `position:absolute`: gdy wraca do przepływu, jej pełne 376×796 px wypycha
+slot, a podpis i paski lądują poniżej ekranu. Od 768 px blok telefon+podpis+paski ma się
+zmieścić w `100svh` (144 px od góry + 66 px na podpis i paski). (4) Zrzut całej strony
+głównej maskuje tę kolumnę (`data-zrzut-maskuj`), bo animacja idzie silnikiem JS, którego
+`uspokoj()` w `wizualne.spec.ts` nie wycisza. W testach ruchu ograniczonego używaj
+`page.emulateMedia({ reducedMotion: 'reduce' })`: `test.use({ reducedMotion })` nie działa.
+
 **Martwy kod:** `components/map/MapView.tsx`, `LeafletMapImpl.tsx`, `EventsMapView.tsx`,
 `EventsMapImpl.tsx` — nic ich nie importuje. Aktywna mapa to `VenueExplorer.tsx`
 (strona `/mapa`) i pickery lokalizacji.
