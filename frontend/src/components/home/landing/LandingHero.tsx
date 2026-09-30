@@ -4,6 +4,7 @@ import { LANDING_CTA, LANDING_HERO } from './content';
 import HeroChip from './hero/HeroChip';
 import WczesnyEtapBadge from './WczesnyEtapBadge';
 import HeroTelefon from './hero/HeroTelefon';
+import HeroKolo from './hero/HeroKolo';
 import TrustRow from './TrustRow';
 
 export default function LandingHero() {
@@ -75,11 +76,13 @@ export default function LandingHero() {
             a przewinięcie odsłania całość. Animacja rusza dopiero, gdy telefon
             jest widoczny w połowie, i zawsze od rozdziału 1 (`heroSilnik.ts`).
 
-            Rozmiar slotu liczy CSS (`.ha-slot` w hero/hero.css): od 768 px tak,
-            żeby telefon, podpis i paski zmieściły się na ekranie razem
-            z nagłówkiem strony. Bez `rotate`: obrócony kontener z paskami do
+            Rozmiar slotu liczy CSS (`.ha-slot` w hero/hero.css): od 768 px kolumna
+            telefonu ma wysokość kolumny tekstu, więc paski kończą się na
+            wysokości rzędu „Za darmo / Google lub e-mail / Bez instalacji”,
+            a blok nie wychodzi poza ekran. Bez `rotate`: obrócony kontener z paskami do
             kliknięcia to mylące trafienia palcem. */}
-        <div className="mt-6 md:mt-0 md:w-5/12">
+        <div className="ha-kolumna relative mt-6 md:mt-0 md:w-5/12">
+          <HeroKolo />
           <HeroTelefon className="mx-auto w-full" />
         </div>
       </div>
