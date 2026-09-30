@@ -66,7 +66,7 @@ test.describe('hero: rozmiar telefonu na komputerze', () => {
     await page.setViewportSize({ width: 1600, height: 1000 });
     await otworz(page);
     const { paski: dol, zaufanie, szer } = await page.evaluate(() => {
-      const ostatni = [...document.querySelectorAll('.hero-first-screen > *')].pop()!.getBoundingClientRect();
+      const ostatni = Array.from(document.querySelectorAll('.hero-first-screen > *')).pop()!.getBoundingClientRect();
       return {
         paski: document.querySelector('[role=group]')!.getBoundingClientRect().bottom,
         zaufanie: ostatni.bottom,
