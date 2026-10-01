@@ -42,8 +42,12 @@ export function splitMyEvents(items: MyEventRow[]): SplitMyEvents {
   const history = items
     .filter(({ event }) => event.status === 'cancelled' || !isUpcoming(event))
     .sort((a, b) => -wgTerminuRosnaco(a, b));
-  const playing = upcoming.filter(({ relation }) => relation.status !== 'observing');
-  const observing = upcoming.filter(({ relation }) => relation.status === 'observing');
+  // Organizator nigdy nie ląduje w „Obserwuję": to jego mecz, nawet gdy sam
+  // się wypisał ze składu i został w nim jako obserwujący. Trafia do
+  // `playing`, a strona rysuje go w sekcji „Organizujesz".
+  const obserwujeTylko = ({ relation }: MyEventRow) => relation.status === 'observing' && !relation.isOrganizer;
+  const playing = upcoming.filter((r) => !obserwujeTylko(r));
+  const observing = upcoming.filter(obserwujeTylko);
   return { upcoming, history, playing, observing };
 }
 

@@ -2900,6 +2900,21 @@ export default function EventDetailClient() {
             <h1 className="min-w-0 flex-1 truncate text-lg font-extrabold tracking-tight text-ink">
               {eventDisplayTitle(event)}
             </h1>
+            {/* Stały skrót do „Wyślij link znajomym". Panel „Mecz gotowy" żyje
+                tylko tuż po publikacji (`?utworzono=1`), a organizator wraca
+                do składu i chce wysłać link ponownie, więc akcja musi
+                być pod ręką na każdej zakładce, nad zgięciem ekranu. */}
+            {(isOwner || canManageEvent) && !eventStarted && !isCancelled && (
+              <button
+                type="button"
+                onClick={handleShare}
+                aria-label="Wyślij link znajomym"
+                title="Wyślij link znajomym"
+                className="-mr-2 shrink-0 inline-flex items-center rounded-xl p-2 text-slate-600 transition hover:bg-slate-100 hover:text-primary-700 active:scale-95"
+              >
+                <Share2 className="h-5 w-5" strokeWidth={2.25} />
+              </button>
+            )}
           </div>
 
           {/* Zakładki — analogicznie do /grupy/[id], dostosowane do pojedynczego
