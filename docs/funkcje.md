@@ -1437,6 +1437,15 @@ mają własną zakładkę):
 Kubełki są rozłączne i razem pokrywają całe `playing`, więc żaden mecz nie może wypaść
 z listy przy zmianie statusu.
 
+Organizator nigdy nie trafia do zakładki „Obserwuję" na własnym meczu: `splitMyEvents()`
+(`lib/myEvents.ts`) wlicza wiersz z `isOrganizer` do `playing` nawet przy
+`status === 'observing'` (organizator wypisał się ze składu), więc mecz zostaje w
+„Najbliższe", w sekcji „Organizujesz".
+
+Na stronie meczu organizator (i delegat z pełną edycją) ma w górnym pasku stałą ikonę
+udostępnienia (`handleShare`), widoczną na każdej zakładce do startu meczu. Panel „Mecz
+gotowy" nadal pokazuje się tylko tuż po publikacji (`?utworzono=1`).
+
 **„Grasz" jest jedyną z trzech sekcją, która NIE znika przy pustej liście** (2026-08-28,
 zgłoszone wprost: „niech będzie na stałe «grasz»"). `MyMatchesSection` dostał opcjonalny
 prop `emptyState` — gdy podany, nagłówek zostaje widoczny, a zamiast kart renderuje się

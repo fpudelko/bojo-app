@@ -74,6 +74,16 @@ describe('splitMyEvents', () => {
     expect(observing.map((r) => r.event.id)).toEqual(['b']);
   });
 
+  it('organizator, który wypisał się ze składu, zostaje w nadchodzących, nie w obserwowanych', () => {
+    const items = [
+      row({ id: 'moj' }, { status: 'observing', isOrganizer: true }),
+      row({ id: 'cudzy' }, { status: 'observing', isOrganizer: false }),
+    ];
+    const { playing, observing } = splitMyEvents(items);
+    expect(playing.map((r) => r.event.id)).toEqual(['moj']);
+    expect(observing.map((r) => r.event.id)).toEqual(['cudzy']);
+  });
+
   it('przeszły mecz trafia do historii', () => {
     const items = [row({ id: 'a', date: ymd(addDays(-3)) })];
     const { upcoming, history } = splitMyEvents(items);
