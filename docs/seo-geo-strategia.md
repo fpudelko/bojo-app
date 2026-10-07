@@ -1687,6 +1687,15 @@ tego samego obiektu z OSM. To pytanie o jakość danych katalogu, nie o kod stro
 (`SELECT name, address, count(*) FROM fields GROUP BY name, address HAVING
 count(*) > 1`), nie w tej rundzie.
 
+*Sprostowanie 2026-10-07: to zapytanie jest mylące i nie wolno z niego wnioskować.*
+`fields.address` to często sama dzielnica albo miasto („Warszawa", „Bielany"), więc
+grupowanie po nazwie i adresie dało 3 998 grup (7 278 nadmiarowych wierszy w Tier 1+2):
+to różne obiekty o nazwie rodzajowej, nie duplikaty. Dopiero dołożenie współrzędnych
+(zaokrąglonych do 4 miejsc, ok. 10 m) wskazuje realne duplikaty: **25 grup, 33 nadmiarowe
+wiersze na 32 096 obiektów w sitemapie**. Hipoteza „podwójny import OSM" tłumaczy więc
+najwyżej ułamek z 149 adresów „Duplikat bez canonicala" (odczyt 2026-10-07); reszta
+wymaga przykładowych adresów z GSC.
+
 **Poza raportem *Strony* — sygnał, którego jeszcze nie ma tu wpisanego:**
 `Wykres.csv` niesie też dzienne wyświetlenia, i tam jest druga duża zmiana: z
 poziomu kilkunastu/dzień przez cały sierpień i początek września, **10–14.09 skacze

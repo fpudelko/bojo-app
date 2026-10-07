@@ -12,12 +12,57 @@ i tam zostają.
 
 | Termin | Co sprawdzić | Gdzie | Skąd się wzięło |
 |---|---|---|---|
-| 2026-09-29 | Strony: czy 17 473 zaindeksowanych rośnie dalej; udział R1 | eksport Indeksowanie → Strony | termin z 7a.2 |
+| 2026-10-14 | Strony: przykładowe adresy trzech przyczyn (Duplikat bez canonicala 149, Inny błąd 4xx 77, Przekierowanie 131) oraz kolejny punkt wykresu (po 2026-10-04 brak danych) | eksport Strony: kliknąć przyczynę → Eksportuj | 2026-10-07 |
 | 2026-10-08 | Wydarzenia: wynik 5 weryfikacji (rozpoczęte 2026-09-24) | Ulepszenia → Wydarzenia | 2026-09-24 |
 | 2026-10-10 | Mapy witryn i Strony po poprawce adresów obiektów: „Strona zawiera przekierowanie”, zaindeksowane, Statystyki indeksowania (udział 307, wykrywanie) | eksport Strony + Statystyki indeksowania | 2026-09-26 |
 | 2026-10-24 | jw., drugi odczyt; Skuteczność: kliknięcia i wyświetlenia stron obiektów (28 dni przed i po) | eksport Skuteczność (z porównaniem) albo API | 2026-09-26 |
 
 ## Wpisy
+
+### 2026-10-07 — Strony: zaindeksowane 24 214, trzy przyczyny bez przykładów
+
+Źródło: eksport „Indeksowanie → Strony” z 2026-10-07 (wykres do 2026-10-04, sitemap
+„Wszystkie znane strony”). Eksport nie niesie przykładowych adresów, tylko liczby.
+
+| | 2026-09-21 | 2026-10-04 |
+|---|---|---|
+| Zindeksowane | 16 938 | **24 214** (skok 2026-09-22, od tej daty płasko) |
+| Niezindeksowane | 1 478 | 2 579 |
+| Wyświetlenia / dzień | 890 | 2 769 (max 2 989 w dniu 2026-10-03) |
+
+Przyczyny (2026-10-04): alternatywna z canonicalem 1 904; noindex 162; duplikat bez
+canonicala 149 (poprzednie odczyty: 54, potem 78); przekierowanie 131; robots.txt 91; inny błąd 4xx 77;
+zeskanowana bez indeksu 65 (było 85 na 2026-09-14, 0,2% znanych adresów).
+
+Odczyt:
+- Spadek z 2026-09-15…19 (17 473 → 16 938) odwrócony i przebity: +7 276 w jednym
+  punkcie wykresu po PR #435 (2026-09-26 sitemapa; skok datowany 2026-09-22, więc
+  część wzrostu poprzedza tę poprawkę, a wykres Google jest punktowy i opóźniony:
+  **nie przypisywać całości #435**).
+- R1 nie ruszył: „zeskanowano bez indeksu” maleje (85 → 65), a „wykryto bez indeksu”
+  nie występuje. Sygnał spokojny.
+- Znane adresy 26 793 z ok. 32 tys. w sitemapie: ok. 5,3 tys. Google jeszcze nie odkrył.
+- **Hipoteza „podwójny import OSM” dla duplikatów jest w większości fałszywa.** Zapytanie
+  `GROUP BY name, address` z `przyczyny.mjs` daje 3 998 grup, bo `fields.address` to
+  często sama dzielnica albo miasto. Z współrzędnymi (4 miejsca): 25 grup, 33 nadmiarowe
+  wiersze. Zapytanie poprawione w skillu i w strategii (rozdz. 7a.2).
+- Kolizje końcówki sluga (12 znaków id): tylko 2, oba dla ręcznie zasianych
+  obiektów `00000000-…` i `c0000000-…` (hidden, Tier 3, nie w sitemapie), a w slugu jest
+  też nazwa, więc nie powodują 404.
+- Nie znaleziono błędu w kodzie, który wyjaśniałby 149 duplikatów albo 77 × 4xx.
+  Hipoteza dla 4xx, NIEZWERYFIKOWANA: odpowiedzi 402/429 z Vercela przy wyczerpanym
+  limicie CPU (komentarz przy `revalidate` w `boisko/[id]/page.tsx`; 24 tys. nowych
+  stron do pierwszego wyrenderowania). Sprawdza ją tylko lista przykładowych adresów
+  oraz Statystyki indeksowania (kody odpowiedzi) i wykres zużycia w Vercelu.
+- Strona meczu nadal linkuje obiekt po UUID (mapa SEO, pkt 6.7), co daje część z 1 904
+  „alternatywnych”. Nie naprawiam: `event.fieldName` bywa inne niż `fields.name`, a
+  resolver slugów wymaga dokładnej nazwy, więc błędny slug dałby 404 zamiast
+  nieszkodliwego canonicala. Poprawka wymagałaby pobrania nazwy z `fields` w zapytaniu
+  o mecz.
+
+Do zrobienia przez właściciela (minuty): w GSC wejść w trzy przyczyny (duplikat bez
+canonicala, inny błąd 4xx, przekierowanie) → „Eksportuj” i wrzucić przykładowe adresy.
+Ponowny odczyt: 2026-10-14.
 
 ### 2026-09-26 (2) — „Brakujące pole endDate”: zbadane, nie jest błędem kodu
 

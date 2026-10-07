@@ -39,7 +39,7 @@ export const PRZYCZYNY = [
     bojo:
       'Każda strona obiektu, meczu i treści ma własny canonical, więc zwykle to DWA RÓŻNE wiersze fields o niemal tej samej treści (podwójny import OSM) albo strona bez canonical (listy aplikacji).',
     sprawdz:
-      "Sklasyfikuj przykłady. Obiekty: SELECT name, address, count(*) FROM fields GROUP BY 1,2 HAVING count(*) > 1. Listy (/wydarzenia, /grupy): sprawdź, czy mają alternates.canonical.",
+      "Sklasyfikuj przykłady. Obiekty: SELECT name, address, round(lat::numeric,4), round(lng::numeric,4), count(*) FROM fields WHERE map_visibility='public' AND seo_tier IN (1,2) GROUP BY 1,2,3,4 HAVING count(*) > 1 (BEZ współrzędnych wynik jest bezwartościowy: fields.address to często sama dzielnica albo miasto, więc 4 tys. grup to różne obiekty o nazwie rodzajowej, nie duplikaty; 2026-10-07 realnych duplikatów było 25 grup, 33 nadmiarowe wiersze). Listy (/wydarzenia, /grupy): sprawdź, czy mają alternates.canonical.",
     walidowac: true,
   },
   {
