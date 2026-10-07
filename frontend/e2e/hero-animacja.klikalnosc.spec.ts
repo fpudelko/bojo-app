@@ -110,18 +110,28 @@ test.describe('hero: paski rozdziałów', () => {
 });
 
 test.describe('hero: plakietka nad nagłówkiem', () => {
-  test('na komputerze zmienia się z rozdziałem, na telefonie zostaje stały napis', async ({ page, isMobile }) => {
+  // Obie siatki nazw (telefon i komputer) są w DOM naraz, tylko jedna widoczna
+  // przez breakpoint — jak przy liście na /wydarzenia (patrz AGENTS.md),
+  // `filter({ visible: true })` odróżnia aktywną kopię od ukrytej.
+  test('na komputerze zmienia się z rozdziałem', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'na komputerze plakietka śledzi klik w pasek — telefon ma osobny test niżej');
     await otworz(page);
     await page.locator('.ha-slot').scrollIntoViewIfNeeded();
     await paski(page).nth(3).click();
-    const stala = page.getByText(LANDING_HERO.badge, { exact: true });
-    const nazwa = page.getByText(R[3].nazwa, { exact: true }).first();
-    if (isMobile) {
-      await expect(stala.first()).toBeVisible();
-    } else {
-      await expect(nazwa).toBeVisible();
-      await expect(stala.first()).toBeHidden();
-    }
+    const stala = page.getByText(LANDING_HERO.badge, { exact: true }).filter({ visible: true });
+    const nazwa = page.getByText(R[3].nazwa, { exact: true }).filter({ visible: true });
+    await expect(nazwa).toBeVisible();
+    await expect(stala).toHaveCount(0);
+  });
+
+  test('na telefonie zmienia się sama, niezależnie od pasków', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'własny zegar plakietki działa tylko w układzie telefonu (md:hidden)');
+    await otworz(page);
+    // Podpis pod telefonem pokazuje te same nazwy rozdziałów — zawężamy do
+    // samej plakietki (`aria-live="off"`), żeby nie złapać obu naraz.
+    const plakietka = page.locator('span[aria-live="off"]');
+    await expect(plakietka.getByText(R[0].nazwa, { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(plakietka.getByText(R[1].nazwa, { exact: true }).filter({ visible: true })).toBeVisible();
   });
 });
 
