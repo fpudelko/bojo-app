@@ -2635,25 +2635,26 @@ export default function EventDetailClient() {
               {placacy.map((p) => {
                 const price = priceForParticipant(event.costGrosze, event.sportsCardDiscountGrosze, p.hasSportsCard);
                 return (
-                  <li key={p.id} className="flex items-center gap-2.5 py-2.5">
+                  // One line per player (amount beside the name, not under it),
+                  // so a typical 10-14 person squad fits on one phone screen.
+                  <li key={p.id} className="flex items-center gap-2.5 py-1.5">
                     {p.avatarUrl
                       ? <img src={p.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
                       : <span className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">{p.name.charAt(0).toUpperCase()}</span>
                     }
-                    <div className="flex-1 min-w-0">
-                      <span className="flex items-center gap-1.5 text-sm text-ink">
-                        <span className="truncate">{p.name}</span>
-                        {p.hasSportsCard && (
-                          <span title={p.sportsCardProvider ? sportsCardLabel(p.sportsCardProvider, event.sportsCardOtherName) : 'Karta sportowa'} className="text-xs shrink-0">💳</span>
-                        )}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {price.discountUnspecified
-                          ? 'Zniżka z karty, ustal kwotę'
-                          : zl(price.priceGrosze)}
-                        {p.paymentMethod && <> · {PAYMENT_METHOD_LABELS[p.paymentMethod]}</>}
-                      </span>
-                    </div>
+                    <span className="flex flex-1 min-w-0 items-center gap-1.5 text-sm text-ink">
+                      <span className="truncate">{p.name}</span>
+                      {p.hasSportsCard && (
+                        <span title={p.sportsCardProvider ? sportsCardLabel(p.sportsCardProvider, event.sportsCardOtherName) : 'Karta sportowa'} className="text-xs shrink-0">💳</span>
+                      )}
+                    </span>
+                    <span
+                      className="shrink-0 text-xs text-slate-400 tabular-nums"
+                      title={price.discountUnspecified ? 'Zniżka z karty, ustal kwotę' : undefined}
+                    >
+                      {price.discountUnspecified ? 'ustal kwotę' : zl(price.priceGrosze)}
+                      {p.paymentMethod && <> · {PAYMENT_METHOD_LABELS[p.paymentMethod]}</>}
+                    </span>
                     <Switch
                       checked={p.hasPaid}
                       onChange={() => handleTogglePayment(p)}
