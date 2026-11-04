@@ -648,6 +648,16 @@ Które pliki już poszły, wie **dziennik `schema_migracje`** — wpis powstaje 
 samej transakcji co sama migracja. Tabelę tworzy skrypt, nie migracja z katalogu:
 musi istnieć, zanim cokolwiek stąd ruszy.
 
+**Dziennik ma włączone RLS i odebrane uprawnienia `anon`/`authenticated`** —
+od 2026-11-04, po alercie Supabase `rls_disabled_in_public` (2026-10-31). Leżał
+w `public`, który PostgREST wystawia pod jawnym kluczem `anon`, więc każdy mógł
+go czytać i kasować wiersze; skasowany wpis znaczy dla `migruj.sh` „ta migracja
+jeszcze nie poszła”, czyli ponowne puszczenie jej na produkcji. `migruj.sh`
+powtarza `ENABLE ROW LEVEL SECURITY` + `REVOKE` przy każdym przebiegu, więc
+istniejąca baza naprawia się sama. Żeby kolejna tabela bez RLS nie przeszła
+po cichu, `supabase/test/rls.sql` sprawdza na końcu, że **każda** tabela
+w `public` po migracjach ma RLS włączone.
+
 Po dodaniu migracji uruchom też `node scripts/build-db-bundles.mjs` i zacommituj
 paczki — inaczej następne stawianie bazy od zera pominie twój plik.
 

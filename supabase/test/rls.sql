@@ -1652,4 +1652,24 @@ SELECT _oczekuj('anon nie przestawia współrzędnych cudzego alertu',
                 (SELECT count(*) FROM game_alerts
                   WHERE id = :ALERT_ID::uuid AND lat = 52.4), 1);
 
+-- ── Każda tabela w `public` ma włączone RLS ─────────────────────────────────
+-- Schemat `public` wystawia PostgREST pod jawnym kluczem `anon`, więc tabela
+-- bez RLS jest do czytania, zmiany i kasowania przez każdego. Supabase zgłosił
+-- to 2026-10-31 (`rls_disabled_in_public`) dla dziennika `schema_migracje`,
+-- który zakłada `scripts/migruj.sh` poza migracjami (poprawione tam). Ta
+-- asercja pilnuje, żeby żadna przyszła migracja nie dołożyła drugiej takiej.
+SELECT _sekcja('Każda tabela w public ma włączone RLS');
+DO $$
+DECLARE
+  bez_rls TEXT;
+BEGIN
+  SELECT string_agg(c.relname, ', ' ORDER BY c.relname) INTO bez_rls
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND NOT c.relrowsecurity;
+  IF bez_rls IS NOT NULL THEN
+    RAISE EXCEPTION 'RLS: tabele w public bez RLS (dostępne dla anon): %', bez_rls;
+  END IF;
+  RAISE NOTICE '  ✓ żadna tabela w public nie ma wyłączonego RLS';
+END $$;
+
 DO $$ BEGIN RAISE NOTICE ''; RAISE NOTICE '✓ RLS: wszystkie asercje przeszły.'; END $$;

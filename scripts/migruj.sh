@@ -91,6 +91,22 @@ CREATE TABLE IF NOT EXISTS schema_migracje (
 );
 COMMENT ON TABLE schema_migracje IS
   'Które pliki z supabase/migrations/ poszły na tej bazie. Pisze scripts/migruj.sh.';
+-- The journal lives in `public`, which PostgREST exposes to the public `anon`
+-- key. Without RLS anyone could read it or DELETE rows, and a missing row makes
+-- this script re-run that migration on production. Supabase flagged it as
+-- `rls_disabled_in_public` (2026-10-31). No policies on purpose: nobody but the
+-- owner (this script) has any business here, and the owner bypasses RLS.
+-- Repeated on every run, so an existing database heals itself.
+ALTER TABLE schema_migracje ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  -- Roles exist on every Supabase database; the guard only keeps a bare
+  -- Postgres (no shim) from failing here.
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon')
+     AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON TABLE schema_migracje FROM anon, authenticated;
+  END IF;
+END $$;
 SQL
 
 ZASTOSOWANE="$(psql_cicho -c 'SELECT plik FROM schema_migracje ORDER BY plik')"
