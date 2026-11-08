@@ -9,11 +9,13 @@ import Button from '@/components/ui/Button';
 import { useToast } from '@/lib/toast';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { useWstecz } from '@/lib/historia';
+import { withCount } from '@/lib/plural';
 import { getTurniej } from '@/lib/turnieje';
 import { getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
 import {
   getMecz, getMecze, getAreny, getZdarzenia, dodajZdarzenie, cofnijOstatnieZdarzenie,
   rozpocznijMecz, zakonczMecz, updateMecz, czyProwadziMecz, walkowerMeczu, wpiszWynikMeczu,
+  wpiszWynikZeStrzelcami,
 } from '@/lib/turniejMecze';
 import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
@@ -50,15 +52,12 @@ export default function MeczClient() {
   const [ladowanie, setLadowanie] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  // Arkusz składu zastąpił dwa natywne `<select>` (strzelec + asysta) —
-  // `krok` mówi, o co właśnie pytamy, a `wTrakcie` trzyma zdarzenie do
-  // zapisania, dopóki prowadzący nie odpowie na oba pytania.
+  // Arkusz składu zastąpił natywny `<select>` strzelca; trzyma zdarzenie do
+  // zapisania, dopóki prowadzący nie wskaże zawodnika albo nie pominie.
   const [arkusz, setArkusz] = useState<{
-    krok: 'strzelec' | 'asysta';
     druzynaId: string;
     typ: ZdarzenieTyp;
     wartosc: number;
-    zawodnikId?: string;
   } | null>(null);
   const [aktualnySet, setAktualnySet] = useState({ a: 0, b: 0 });
   const [menuOtwarte, setMenuOtwarte] = useState(false);
@@ -73,6 +72,8 @@ export default function MeczClient() {
   // Szybkie wpisanie wyniku końcowego (bez prowadzenia meczu na żywo).
   const [wpisA, setWpisA] = useState(0);
   const [wpisB, setWpisB] = useState(0);
+  // Strzelcy wskazani przy szybkim wyniku: opcjonalni (2026-11-08).
+  const [strzelcyWpis, setStrzelcyWpis] = useState<{ a: string[]; b: string[] }>({ a: [], b: [] });
   const [zapisujeWynik, setZapisujeWynik] = useState(false);
 
   const wczytaj = useCallback(async () => {
@@ -231,27 +232,15 @@ export default function MeczClient() {
   /** Zdarzenie wymagające wskazania człowieka otwiera arkusz; reszta (kartka
    *  bez nazwiska, samobójczy) zapisuje się od razu. */
   const zapytajOZawodnika = (druzynaId: string, typ: ZdarzenieTyp, wartosc = 1) => {
-    setArkusz({ krok: 'strzelec', druzynaId, typ, wartosc });
+    setArkusz({ druzynaId, typ, wartosc });
   };
 
   const odpowiedzArkusza = (zawodnikId: string | undefined) => {
     if (!arkusz) return;
-    // Piłkarski gol pyta jeszcze o asystę — ale tylko wtedy, gdy strzelec jest
-    // wskazany. „Asysta przy golu nieznanego strzelca" to dane, których nikt
-    // nie potrzebuje, a jedno pytanie mniej to sekunda na boisku.
-    const pytacOAsyste = arkusz.krok === 'strzelec'
-      && arkusz.typ === 'gol'
-      && !koszykowka
-      && !!zawodnikId
-      && skladDruzyny(arkusz.druzynaId).length > 1;
-    if (pytacOAsyste) {
-      setArkusz({ ...arkusz, krok: 'asysta', zawodnikId });
-      return;
-    }
-    const strzelec = arkusz.krok === 'asysta' ? arkusz.zawodnikId : zawodnikId;
-    const asysta = arkusz.krok === 'asysta' ? zawodnikId : undefined;
+    // Bez pytania o asystę: asysty wypadły z modułu (decyzja właściciela
+    // z 2026-11-08). Jedno pytanie mniej to sekunda na boisku.
     setArkusz(null);
-    void dodajZdarzenieAkcja(arkusz.druzynaId, arkusz.typ, strzelec, asysta, arkusz.wartosc);
+    void dodajZdarzenieAkcja(arkusz.druzynaId, arkusz.typ, zawodnikId, undefined, arkusz.wartosc);
   };
 
   const walkowerAkcja = async (zwyciezcaId: string, nazwaZwyciezcy: string) => {
@@ -319,19 +308,51 @@ export default function MeczClient() {
   const wpisWymagaKarnych = wymaganeKarne(mecz.faza, wpisA, wpisB);
   const jednostkaWyniku = setowy ? 'Wygrane sety' : koszykowka ? 'Punkty' : 'Gole';
 
+  // Strzelców pytamy tylko w sportach z golami i tylko, gdy jest kogo wskazać.
+  const strzelcyMozliwi = !setowy && !koszykowka
+    && ((druzynaA?.zawodnicy?.length ?? 0) > 0 || (druzynaB?.zawodnicy?.length ?? 0) > 0);
+  const ustawWpis = (strona: 'a' | 'b', wartosc: number) => {
+    const n = Math.max(0, Math.min(99, Math.floor(wartosc) || 0));
+    (strona === 'a' ? setWpisA : setWpisB)(n);
+    // Mniej goli niż wskazanych strzelców: obcinamy od końca listy.
+    setStrzelcyWpis((st) => ({ ...st, [strona]: st[strona].slice(0, n) }));
+  };
+
   const zapiszWynikAkcja = async () => {
     if (wpisWymagaKarnych && karneA === karneB) {
       toast('Remis w tej fazie musi mieć rozstrzygnięcie: wpisz różne wyniki karnych', 'error');
       return;
     }
+    // Pytanie z prośby właściciela: „na pewno chcesz wpisać wynik bez wpisania
+    // wszystkich strzelców?". Raz, przy zapisie, nie przy każdym golu.
+    const bezStrzelca = strzelcyMozliwi
+      ? Math.max(0, wpisA - strzelcyWpis.a.length) + Math.max(0, wpisB - strzelcyWpis.b.length)
+      : 0;
+    if (bezStrzelca > 0) {
+      const wynik = await potwierdz({
+        tytul: 'Zapisać wynik bez wszystkich strzelców?',
+        konsekwencje: [
+          `${withCount(bezStrzelca, 'gol zostanie', 'gole zostaną', 'goli zostanie')} bez strzelca`,
+          'Takie gole liczą się do wyniku, ale nie do klasyfikacji strzelców',
+        ],
+        potwierdzLabel: 'Zapisz wynik',
+      });
+      if (wynik !== 'tak') return;
+    }
     setZapisujeWynik(true);
     try {
-      await wpiszWynikMeczu(meczId, {
+      const wynik = {
         wynikA: wpisA,
         wynikB: wpisB,
         karneA: wpisWymagaKarnych ? karneA : undefined,
         karneB: wpisWymagaKarnych ? karneB : undefined,
-      });
+      };
+      const saStrzelcy = strzelcyWpis.a.length + strzelcyWpis.b.length > 0;
+      if (saStrzelcy && mecz?.druzynaAId && mecz.druzynaBId) {
+        await wpiszWynikZeStrzelcami(meczId, { a: mecz.druzynaAId, b: mecz.druzynaBId }, wynik, strzelcyWpis);
+      } else {
+        await wpiszWynikMeczu(meczId, wynik);
+      }
       await wczytaj();
       toast('Wynik zapisany');
     } catch (e) {
@@ -482,20 +503,32 @@ export default function MeczClient() {
             <p className="text-sm font-semibold text-ink">Wpisz wynik końcowy</p>
             <div className="grid grid-cols-2 gap-3">
               {([
-                ['a', druzynaA?.nazwa, wpisA, setWpisA],
-                ['b', druzynaB?.nazwa, wpisB, setWpisB],
-              ] as const).map(([strona, nazwa, wartosc, ustaw]) => (
+                ['a', druzynaA?.nazwa, wpisA],
+                ['b', druzynaB?.nazwa, wpisB],
+              ] as const).map(([strona, nazwa, wartosc]) => (
                 <div key={strona} className="flex flex-col items-center gap-2">
                   <span className="line-clamp-2 min-h-[2.5rem] text-center text-sm font-medium text-ink">{nazwa ?? 'TBD'}</span>
-                  <span className="font-mono text-4xl font-bold text-ink" aria-live="polite">{wartosc}</span>
+                  {/* Liczbę da się WPISAĆ, nie tylko wyklikać (2026-11-08):
+                      przy 7:5 stukanie plusa dwanaście razy to strata czasu. */}
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={99}
+                    value={wartosc}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => ustawWpis(strona, Number(e.target.value))}
+                    aria-label={`${jednostkaWyniku}, ${nazwa ?? 'drużyna'}`}
+                    className="w-20 rounded-xl border border-slate-200 dark:border-slate-600 bg-transparent py-1 text-center font-mono text-4xl font-bold text-ink focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
                   <div className="flex gap-2">
                     <button
-                      onClick={() => ustaw(Math.max(0, wartosc - 1))}
+                      onClick={() => ustawWpis(strona, wartosc - 1)}
                       aria-label={`Odejmij, ${nazwa ?? 'drużyna'}`}
                       className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 active:bg-slate-200"
                     ><Minus className="h-5 w-5" /></button>
                     <button
-                      onClick={() => ustaw(wartosc + 1)}
+                      onClick={() => ustawWpis(strona, wartosc + 1)}
                       aria-label={`Dodaj, ${nazwa ?? 'drużyna'}`}
                       className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 active:bg-primary-100"
                     ><Plus className="h-5 w-5" /></button>
@@ -504,6 +537,55 @@ export default function MeczClient() {
               ))}
             </div>
             <p className="text-center text-xs text-slate-400">{jednostkaWyniku}</p>
+            {/* STRZELCY OPCJONALNIE. Wskazani zapisują się jako gole ze
+                strzelcem, reszta jako gole bez strzelca (`goleZWyniku()`),
+                więc wynik zawsze równa się sumie goli w historii meczu. */}
+            {strzelcyMozliwi && wpisA + wpisB > 0 && (
+              <div className="space-y-2 border-t border-slate-100 dark:border-slate-700 pt-3">
+                <p className="text-sm font-medium text-ink">Strzelcy <span className="font-normal text-slate-400">(opcjonalnie)</span></p>
+                {([
+                  ['a', druzynaA, wpisA],
+                  ['b', druzynaB, wpisB],
+                ] as const).map(([strona, druzyna, gole]) => {
+                  if (!druzyna || gole === 0) return null;
+                  const wybrani = strzelcyWpis[strona];
+                  const sklad = druzyna.zawodnicy ?? [];
+                  return (
+                    <div key={strona}>
+                      <p className="text-xs text-slate-500">
+                        {druzyna.nazwa}: {wybrani.length} z {gole}
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {wybrani.map((zid, i) => (
+                          <button
+                            key={`${zid}-${i}`}
+                            onClick={() => setStrzelcyWpis((st) => ({ ...st, [strona]: st[strona].filter((_, k) => k !== i) }))}
+                            className="rounded-full bg-primary-50 dark:bg-primary-950 px-2.5 py-1 text-xs font-medium text-primary-700 dark:text-primary-300"
+                            aria-label={`Usuń strzelca ${sklad.find((z) => z.id === zid)?.imie ?? ''}`}
+                          >
+                            ⚽ {sklad.find((z) => z.id === zid)?.imie ?? 'zawodnik'} ×
+                          </button>
+                        ))}
+                        {wybrani.length < gole && sklad.length > 0 && (
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              const zid = e.target.value;
+                              if (zid) setStrzelcyWpis((st) => ({ ...st, [strona]: [...st[strona], zid] }));
+                            }}
+                            aria-label={`Dodaj strzelca, ${druzyna.nazwa}`}
+                            className="rounded-full border border-slate-300 dark:border-slate-600 px-2.5 py-1 text-xs dark:bg-slate-700 dark:text-slate-100"
+                          >
+                            <option value="">+ strzelec</option>
+                            {sklad.map((z) => <option key={z.id} value={z.id}>{z.imie}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {wpisWymagaKarnych && (
               <div>
                 <p className="text-sm font-medium text-ink">Remis: potrzebny wynik karnych</p>
@@ -646,18 +728,20 @@ export default function MeczClient() {
                     </div>
                   </div>
                 )}
+                {/* Zawodnik meczu: zwinięty, bo bardzo opcjonalny (2026-11-08). */}
                 {wszyscyZawodnicy.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-ink">MVP meczu (opcjonalnie)</label>
+                  <details>
+                    <summary className="cursor-pointer text-sm text-slate-500">Zawodnik meczu (opcjonalnie)</summary>
                     <select
                       value={mvpId}
                       onChange={(e) => setMvpId(e.target.value)}
+                      aria-label="Zawodnik meczu"
                       className="mt-1.5 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-2.5 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100"
                     >
                       <option value="">Bez wskazania</option>
                       {wszyscyZawodnicy.map((z) => <option key={z.id} value={z.id}>{z.imie}</option>)}
                     </select>
-                  </div>
+                  </details>
                 )}
                 <div className="rounded-lg bg-slate-50 dark:bg-slate-700/40 px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
                   Wyniku nie da się później cofnąć.
@@ -682,7 +766,6 @@ export default function MeczClient() {
             {zdarzenia.map((z) => {
               const nazwaDruzyny = z.druzynaId === mecz.druzynaAId ? druzynaA?.nazwa : druzynaB?.nazwa;
               const zawodnik = wszyscyZawodnicy.find((zw) => zw.id === z.zawodnikId);
-              const asysta = wszyscyZawodnicy.find((zw) => zw.id === z.asystaZawodnikId);
               return (
                 /* Dwukropek stał tu ZAWSZE, także gdy po nim nie było nazwiska
                    (drużyna bez wpisanego składu), więc wiersz czytał się
@@ -695,7 +778,6 @@ export default function MeczClient() {
                   <span className="shrink-0">{ETYKIETA_ZDARZENIA[z.typ]}</span>
                   <span className="min-w-0 truncate">
                     {zawodnik ? `${zawodnik.imie} (${nazwaDruzyny})` : nazwaDruzyny}
-                    {asysta && <span className="text-slate-400"> · asysta: {asysta.imie}</span>}
                   </span>
                 </div>
               );
@@ -733,21 +815,14 @@ export default function MeczClient() {
 
       {arkusz && (
         <ArkuszSkladu
-          tytul={arkusz.krok === 'asysta' ? 'Asysta?' : TYTUL_ARKUSZA[arkusz.typ]}
+          tytul={TYTUL_ARKUSZA[arkusz.typ]}
           podtytul={nazwaDruzyny(arkusz.druzynaId)}
-          zawodnicy={
-            arkusz.krok === 'asysta'
-              ? skladDruzyny(arkusz.druzynaId).filter((z) => z.id !== arkusz.zawodnikId)
-              : skladDruzyny(arkusz.druzynaId)
-          }
-          etykietaPominiecia={arkusz.krok === 'asysta' ? 'Bez asysty' : 'Nie wiem kto, zapisz bez nazwiska'}
+          zawodnicy={skladDruzyny(arkusz.druzynaId)}
+          etykietaPominiecia="Nie wiem kto, zapisz bez nazwiska"
           onWybor={odpowiedzArkusza}
           onZamknij={() => {
-            // Zamknięcie arkusza STRZELCA anuluje całe zdarzenie (prowadzący
-            // pomylił drużynę), zamknięcie arkusza ASYSTY zapisuje gol bez
-            // niej — bo gol już padł i cofanie go byłoby zaskoczeniem.
-            if (arkusz.krok === 'asysta') odpowiedzArkusza(undefined);
-            else setArkusz(null);
+            // Zamknięcie arkusza anuluje zdarzenie (prowadzący pomylił drużynę).
+            setArkusz(null);
           }}
         />
       )}

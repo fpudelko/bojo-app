@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { ArrowLeft, Copy, Download, Plus, Check, X as XIcon, Trash2, Ban, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
-import ToggleRow from '@/components/ui/ToggleRow';
 import CoverUpload from '@/components/ui/CoverUpload';
 import PanelGaleria from '@/components/turnieje/PanelGaleria';
 import PanelSponsorzy from '@/components/turnieje/PanelSponsorzy';
@@ -17,8 +16,8 @@ import { useToast } from '@/lib/toast';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { blikPhoneDigits, formatBlikPhone } from '@/lib/payments';
 import {
-  getTurniej, uprawnieniaTurnieju, getOsobyTurnieju, setUprawnieniaOsoby,
-  usunOsobeZTurnieju, updateTurniej, setStatusTurnieju, deleteTurniej,
+  getTurniej, uprawnieniaTurnieju, getOsobyTurnieju, czyTurniejProbny, utworzProbeTurnieju,
+  updateTurniej, setStatusTurnieju, deleteTurniej,
   getBlikTurnieju, ustawBlikTurnieju, setOkladkaTurnieju,
 } from '@/lib/turnieje';
 import {
@@ -27,13 +26,14 @@ import {
 } from '@/lib/turniejDruzyny';
 import {
   getGrupy, dodajGrupe, usunGrupe, getAreny, dodajArene, zmienNazweAreny, usunArene,
-  getMecze, zapiszTerminarz, przesunTerminarz,
+  getMecze, zapiszTerminarz,
 } from '@/lib/turniejMecze';
 import {
   domyslnaLiczbaGrup, rozlosujGrupy, meczeKazdyZKazdym, zbudujDrabinke, ulozHarmonogram,
+  zamienDruzynyWDrabince, type MiejsceWDrabince,
   szacunekCzasu, type NowyMecz,
 } from '@/lib/turniejFormat';
-import { odmienZawodnikow, odmienDruzyny, etykietaTerminu } from '@/lib/turniejEtykiety';
+import { odmienZawodnikow, odmienDruzyny, etykietaTerminu, FORMAT_LABEL } from '@/lib/turniejEtykiety';
 import {
   pulpitPrzedTurniejem, postepTurnieju, meczeDoWpisania, mozeRozpoczacTurniej,
 } from '@/lib/turniejPulpit';
@@ -41,8 +41,14 @@ import { plural, withCount } from '@/lib/plural';
 import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz } from '@/types';
 import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
 import { czyWolnyLos } from '@/lib/turniejWynik';
+import ZasadyGry, { type WartosciZasad } from '@/components/turnieje/ZasadyGry';
+import SegmentedToggle from '@/components/ui/SegmentedToggle';
+import type { TurniejCreate } from '@/types';
 
-type PanelTab = 'pulpit' | 'druzyny' | 'ludzie' | 'terminarz' | 'ustawienia';
+// Bez zakładki „Ludzie” (decyzja właściciela z 2026-11-08): na start jedna
+// rola, organizator. Uprawnienia współorganizatorów zostają w bazie
+// (`turniej_osoby`, 145), gdyby sędzia albo inna rola wróciła później.
+type PanelTab = 'pulpit' | 'druzyny' | 'terminarz' | 'ustawienia';
 
 // Etykiety, nie surowe klucze z CSS-owym `capitalize`. Tamto wypisywało
 // `Druzyny` bez ogonka, bo klucz jest bez polskich znaków (i musi być, bo
@@ -50,7 +56,6 @@ type PanelTab = 'pulpit' | 'druzyny' | 'ludzie' | 'terminarz' | 'ustawienia';
 const ETYKIETY_PANELU: Record<PanelTab, string> = {
   pulpit: 'Pulpit',
   druzyny: 'Drużyny',
-  ludzie: 'Ludzie',
   terminarz: 'Terminarz',
   ustawienia: 'Ustawienia',
 };
@@ -84,14 +89,15 @@ export default function PanelClient() {
   const [mecze, setMecze] = useState<TurniejMecz[]>([]);
   const [ladowanie, setLadowanie] = useState(true);
   const [nowaNazwa, setNowaNazwa] = useState('');
-  const [szukajOsoby, setSzukajOsoby] = useState('');
   const [nowaArenaNazwa, setNowaArenaNazwa] = useState('');
   const [liczbaGrupWybor, setLiczbaGrupWybor] = useState<number | null>(null);
   const [podglad, setPodglad] = useState<NowyMecz[] | null>(null);
-  const [przesunMeczId, setPrzesunMeczId] = useState('');
-  const [przesunMinuty, setPrzesunMinuty] = useState(15);
+  // Pierwsza dotknięta drużyna przy ręcznej zamianie par w drabince.
+  const [doZamiany, setDoZamiany] = useState<MiejsceWDrabince | null>(null);
   const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
   const [blikWpis, setBlikWpis] = useState('');
+  // Zasady gry w trakcie edycji; `null` = pokaż to, co jest w bazie.
+  const [zasadyEdycja, setZasadyEdycja] = useState<WartosciZasad | null>(null);
 
   const tabParam = searchParams.get('tab');
   // Domyślnie PULPIT, nie „Drużyny": organizator wchodzi w panel z pytaniem
@@ -99,7 +105,6 @@ export default function PanelClient() {
   // a nie po to, żeby przeczytać listę drużyn.
   const zakladka: PanelTab =
     tabParam === 'druzyny' ? 'druzyny'
-      : tabParam === 'ludzie' ? 'ludzie'
       : tabParam === 'ustawienia' ? 'ustawienia'
       : tabParam === 'terminarz' ? 'terminarz'
       : 'pulpit';
@@ -133,20 +138,6 @@ export default function PanelClient() {
     () => (turniej ? uprawnieniaTurnieju(turniej, osoby.find((o) => o.userId === user?.id) ?? null, user?.id) : null),
     [turniej, osoby, user],
   );
-
-  const kandydaci = useMemo(() => {
-    const wKlubie = new Set(osoby.map((o) => o.userId));
-    const widziani = new Map<string, string>();
-    druzyny.forEach((d) => {
-      d.zawodnicy?.forEach((z) => {
-        if (z.userId && !wKlubie.has(z.userId)) widziani.set(z.userId, z.imie);
-      });
-    });
-    const lista = Array.from(widziani, ([userId, imie]) => ({ userId, imie }));
-    if (!szukajOsoby.trim()) return lista;
-    const q = szukajOsoby.trim().toLowerCase();
-    return lista.filter((k) => k.imie.toLowerCase().includes(q));
-  }, [druzyny, osoby, szukajOsoby]);
 
   if (authLoading || ladowanie) {
     return (
@@ -194,6 +185,32 @@ export default function PanelClient() {
       <PanelProsbaOWyglad turniejId={id} />
     </>
   );
+
+  /**
+   * Każdy zapis ustawień kończy się komunikatem, sukcesem albo błędem.
+   * Do 2026-11-08 pola zapisywały się po wyjściu z nich bez żadnego sygnału,
+   * a błąd (np. CHECK w bazie) ginął w konsoli: organizator nie wiedział,
+   * czy zmiana poszła.
+   */
+  const zapiszUstawienie = async (dane: Partial<TurniejCreate>) => {
+    try {
+      await updateTurniej(id, dane);
+      await wczytaj();
+      toast('Zapisano');
+      return true;
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać zmiany', 'error');
+      return false;
+    }
+  };
+  const zasadyTurnieju: WartosciZasad = {
+    czasMeczuMin: turniej.czasMeczuMin,
+    przerwaMin: turniej.przerwaMin,
+    punktyZaWygrana: turniej.punktyZaWygrana,
+    punktyZaRemis: turniej.punktyZaRemis,
+    awansujeZGrupy: turniej.awansujeZGrupy,
+    meczO3Miejsce: turniej.meczO3Miejsce,
+  };
 
   const kopiuj = async (tekst: string, etykieta = 'Link') => {
     try { await navigator.clipboard.writeText(tekst); toast(`${etykieta} skopiowany`); }
@@ -266,16 +283,6 @@ export default function PanelClient() {
     }
   };
 
-  const dodajOsobe = async (userId: string) => {
-    try { await setUprawnieniaOsoby(id, userId, { mozeProwadzic: true }); await wczytaj(); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się dodać osoby', 'error'); }
-  };
-
-  const zmienUprawnienie = async (userId: string, pole: 'mozeEdytowac' | 'mozeProwadzic' | 'mozeZarzadzacDruzynami', wartosc: boolean) => {
-    try { await setUprawnieniaOsoby(id, userId, { [pole]: wartosc }); await wczytaj(); }
-    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się zapisać uprawnienia', 'error'); }
-  };
-
   const zamknijLubOtworzZapisy = async () => {
     const nowyStatus = turniej.status === 'zamkniete_zapisy' ? 'zapisy' : 'zamkniete_zapisy';
     try { await setStatusTurnieju(id, nowyStatus); await wczytaj(); }
@@ -324,7 +331,21 @@ export default function PanelClient() {
   const potrzebujeGrup = turniej.format === 'grupy_puchar';
   const liczbaGrupDomyslna = domyslnaLiczbaGrup(wTurnieju.length);
 
-  const losujGrupy = async () => {
+  /** Przeniesienie drużyny do innej grupy po losowaniu (2026-11-08). */
+  const przeniesDoGrupy = async (druzyna: TurniejDruzyna, grupaId: string) => {
+    if (druzyna.grupaId === grupaId) return;
+    try {
+      await ustawGrupeDruzyny(druzyna.id, grupaId);
+      setPodglad(null);
+      await wczytaj();
+      const g = grupy.find((x) => x.id === grupaId);
+      toast(`${druzyna.nazwa} w grupie ${g?.nazwa ?? ''}`.trim());
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się przenieść drużyny', 'error');
+    }
+  };
+
+  const losujGrupy = async (bezLosowania = false) => {
     const n = liczbaGrupWybor ?? liczbaGrupDomyslna;
     if (grupy.length > 0) {
       const wynik = await potwierdz({
@@ -336,14 +357,18 @@ export default function PanelClient() {
     }
     try {
       for (const g of grupy) await usunGrupe(g.id);
-      const podzial = rozlosujGrupy(wTurnieju, n);
+      // „Ustaw ręcznie" dzieli drużyny po kolei (bez losowania), a resztę
+      // organizator przestawia wyborem grupy przy każdej drużynie.
+      const podzial = bezLosowania
+        ? Array.from({ length: Math.max(1, n) }, (_, i) => wTurnieju.filter((_, k) => k % Math.max(1, n) === i))
+        : rozlosujGrupy(wTurnieju, n);
       for (let i = 0; i < podzial.length; i++) {
         const g = await dodajGrupe(id, LITERY_GRUP[i] ?? `G${i + 1}`);
         await Promise.all(podzial[i].map((d) => ustawGrupeDruzyny(d.id, g.id)));
       }
       setPodglad(null);
       await wczytaj();
-      toast('Grupy wylosowane');
+      toast(bezLosowania ? 'Grupy utworzone, przestaw drużyny niżej' : 'Grupy wylosowane');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się wylosować grup', 'error');
     }
@@ -460,6 +485,40 @@ export default function PanelClient() {
     catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się rozpocząć turnieju', 'error'); }
   };
 
+  const proba = czyTurniejProbny(turniej);
+
+  const przetestuj = async () => {
+    const wynik = await potwierdz({
+      tytul: 'Przetestować dzień turnieju?',
+      konsekwencje: [
+        'Powstanie kopia z tym samym terminarzem, od razu „w trakcie”',
+        'Wpisujesz w niej wyniki jak w dniu turnieju',
+        'Prawdziwy turniej i zawodnicy nic nie zobaczą ani nie dostaną',
+      ],
+      potwierdzLabel: 'Przetestuj',
+    });
+    if (wynik !== 'tak') return;
+    try {
+      const kopia = await utworzProbeTurnieju(id);
+      toast('Próba gotowa. Klikaj śmiało');
+      router.push(`/turnieje/${kopia}/panel`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się przygotować próby', 'error');
+    }
+  };
+
+  const zakonczProbe = async () => {
+    const wynik = await potwierdz({
+      tytul: 'Zakończyć próbę?',
+      konsekwencje: ['Kopia turnieju i wpisane w niej wyniki znikną', 'Prawdziwy turniej zostaje bez zmian'],
+      potwierdzLabel: 'Zakończ próbę',
+      wariant: 'destrukcyjny',
+    });
+    if (wynik !== 'tak') return;
+    try { await deleteTurniej(id); toast('Próba usunięta'); router.push('/turnieje'); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się usunąć próby', 'error'); }
+  };
+
   const zakonczTurniej = async () => {
     const zostalo = postep.wszystkie - postep.rozegrane;
     const wynik = await potwierdz({
@@ -472,17 +531,6 @@ export default function PanelClient() {
     if (wynik !== 'tak') return;
     try { await setStatusTurnieju(id, 'zakonczony'); await wczytaj(); toast('Turniej zakończony'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się zakończyć turnieju', 'error'); }
-  };
-
-  const przesunAkcja = async () => {
-    if (!przesunMeczId) return;
-    try {
-      await przesunTerminarz(id, przesunMeczId, przesunMinuty);
-      await wczytaj();
-      toast('Terminarz przesunięty');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Nie udało się przesunąć terminarza', 'error');
-    }
   };
 
   const druzynyPoId = new Map(druzyny.map((d) => [d.id, d.nazwa]));
@@ -507,7 +555,7 @@ export default function PanelClient() {
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-canvas to-transparent md:hidden" />
           <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
-          {(['pulpit', 'druzyny', 'ludzie', 'terminarz', 'ustawienia'] as PanelTab[]).map((z) => (
+          {(['pulpit', 'druzyny', 'terminarz', 'ustawienia'] as PanelTab[]).map((z) => (
             <button
               key={z}
               onClick={() => router.push(`/turnieje/${id}/panel?tab=${z}`)}
@@ -531,7 +579,18 @@ export default function PanelClient() {
                 jesteśmy spóźnieni" z przyciskiem „Przesuń resztę", liczone
                 z godzin terminarza. Wycofane decyzją właściciela: turniejem
                 steruje klikanie, a godziny i tak rozjeżdżają się od pierwszego
-                meczu. Ręczne przesunięcie zostaje w zakładce Terminarz. */}
+                meczu. Ręczne „Przesuń od meczu" z zakładki Terminarz też wypadło: godziny
+                są orientacyjne i niczego nie uruchamiają. */}
+            {proba && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-4 space-y-2">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">To jest próba</p>
+                <p className="text-sm text-amber-800 dark:text-amber-300">
+                  Wpisuj wyniki, zmieniaj, sprawdzaj drabinkę. Nic z tego nie trafia do prawdziwego
+                  turnieju, a zawodnicy nie dostają powiadomień.
+                </p>
+                <Button variant="outline" onClick={zakonczProbe} className="w-full">Zakończ próbę i usuń kopię</Button>
+              </div>
+            )}
             {turniej.status === 'trwa' ? (
               <>
                 <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4">
@@ -571,9 +630,11 @@ export default function PanelClient() {
                   </div>
                 )}
 
-                <Button variant="outline" onClick={zakonczTurniej} className="w-full">
-                  Zakończ turniej
-                </Button>
+                {!proba && (
+                  <Button variant="outline" onClick={zakonczTurniej} className="w-full">
+                    Zakończ turniej
+                  </Button>
+                )}
               </>
             ) : (
               <>
@@ -605,13 +666,22 @@ export default function PanelClient() {
                   </ul>
                 </div>
 
+                {/* „Przetestuj" OBOK „Rozpocznij" (decyzja właściciela
+                    z 2026-11-08): widok dnia turnieju organizator ma zobaczyć
+                    wcześniej, na kopii, a nie pierwszy raz w sobotę o 10:00. */}
                 {mozeRozpoczac && (
-                  <Button onClick={rozpocznijTurniej} className="w-full">Rozpocznij turniej</Button>
+                  <div className="flex gap-2">
+                    <Button onClick={rozpocznijTurniej} className="flex-1">Rozpocznij turniej</Button>
+                    <Button variant="outline" onClick={przetestuj} className="flex-1">Przetestuj</Button>
+                  </div>
+                )}
+                {mozeRozpoczac && (
+                  <p className="text-xs text-slate-500">
+                    „Przetestuj” robi kopię z tym samym terminarzem. Wpiszesz w niej wyniki jak w dniu
+                    turnieju, a prawdziwy turniej i zawodnicy niczego nie zobaczą.
+                  </p>
                 )}
 
-                <Link href={`/turnieje/${id}`}>
-                  <Button variant="outline" className="w-full">Zobacz turniej oczami kapitana</Button>
-                </Link>
               </>
             )}
           </div>
@@ -641,9 +711,15 @@ export default function PanelClient() {
             <div className="space-y-2">
               <h2 className="text-sm font-semibold text-slate-500">W turnieju ({wTurnieju.length})</h2>
               {wTurnieju.map((d) => (
-                <div key={d.id} className="flex items-center gap-2 rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
-                  <span className="min-w-0 flex-1 truncate text-ink">{d.nazwa}</span>
-                  <span className="text-xs text-slate-400">{odmienZawodnikow(d.liczbaZawodnikow ?? 0)}</span>
+                <div key={d.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
+                  {/* Nazwa prowadzi na ekran drużyny: tam organizator wpisuje
+                      skład, wskazuje kapitana i wysyła link (2026-11-08). */}
+                  <Link href={`/turnieje/${id}/druzyna/${d.id}`} className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-ink">{d.nazwa}</span>
+                    <span className="block text-xs text-slate-400">
+                      {odmienZawodnikow(d.liczbaZawodnikow ?? 0)} · {d.kapitanId ? 'ma kapitana' : 'bez kapitana'}
+                    </span>
+                  </Link>
                   {turniej.wpisoweGrosze > 0 && (
                     <button
                       onClick={() => przelaczOplacone(d)}
@@ -652,8 +728,17 @@ export default function PanelClient() {
                       {d.wpisoweOplaconeAt ? 'Opłacone ✓' : 'Nieopłacone'}
                     </button>
                   )}
-                  <button onClick={() => kopiuj(`${window.location.origin}/t/${d.kodDolaczenia}`, 'Link drużyny')} className="text-slate-400 hover:text-ink" aria-label="Kopiuj link"><Copy className="h-4 w-4" /></button>
-                  <button onClick={() => usunDruzyneZTurnieju(d)} className="text-slate-400 hover:text-red-500" aria-label="Usuń drużynę"><XIcon className="h-4 w-4" /></button>
+                  {/* Podpisany przycisk zamiast samej ikonki. Ikona kopiowania
+                      stała tuż obok krzyżyka usuwania: łatwo było trafić nie
+                      w to, co trzeba. Usuwanie drużyny jest dalej tutaj, ale
+                      z odstępem i z oknem potwierdzenia. */}
+                  <button
+                    onClick={() => kopiuj(`Dołącz do drużyny ${d.nazwa} w turnieju ${turniej.nazwa}: ${window.location.origin}/t/${d.kodDolaczenia}`, 'Link drużyny')}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-600 px-2 py-1 text-xs font-medium text-slate-600 dark:text-slate-300"
+                  >
+                    <Copy className="h-3.5 w-3.5" /> Link do drużyny
+                  </button>
+                  <button onClick={() => usunDruzyneZTurnieju(d)} className="ml-2 text-slate-400 hover:text-red-500" aria-label={`Usuń drużynę ${d.nazwa}`}><XIcon className="h-4 w-4" /></button>
                 </div>
               ))}
               {wTurnieju.length === 0 && <p className="text-sm text-slate-400">Jeszcze nikogo.</p>}
@@ -682,44 +767,6 @@ export default function PanelClient() {
                 <Download className="h-4 w-4" /> Pobierz kontakty (CSV)
               </button>
             </div>
-          </div>
-        )}
-
-        {zakladka === 'ludzie' && (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h2 className="text-sm font-semibold text-slate-500">Uprawnieni</h2>
-              {osoby.length === 0 && <p className="text-sm text-slate-400">Tylko Ty zarządzasz tym turniejem.</p>}
-              {osoby.map((o) => (
-                <div key={o.userId} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate font-medium text-ink">{o.imie ?? 'Osoba'}</span>
-                    <button onClick={() => usunOsobeZTurnieju(id, o.userId).then(wczytaj)} className="text-slate-400 hover:text-red-500" aria-label="Usuń uprawnienia"><XIcon className="h-4 w-4" /></button>
-                  </div>
-                  <ToggleRow label="Może prowadzić mecze" desc="Rozpoczyna i kończy mecze, wpisuje gole" checked={o.mozeProwadzic} onChange={(v) => zmienUprawnienie(o.userId, 'mozeProwadzic', v)} />
-                  <ToggleRow label="Może zarządzać drużynami" desc="Przyjmuje zgłoszenia, dodaje i wycofuje drużyny" checked={o.mozeZarzadzacDruzynami} onChange={(v) => zmienUprawnienie(o.userId, 'mozeZarzadzacDruzynami', v)} />
-                  {uprawnienia?.jestOrganizatorem && (
-                    <ToggleRow label="Może edytować turniej" desc="Wszystko powyżej plus ustawienia i terminarz" checked={o.mozeEdytowac} onChange={(v) => zmienUprawnienie(o.userId, 'mozeEdytowac', v)} />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {uprawnienia?.jestOrganizatorem && (
-              <div className="space-y-2">
-                <h2 className="text-sm font-semibold text-slate-500">Dodaj osobę</h2>
-                <input value={szukajOsoby} onChange={(e) => setSzukajOsoby(e.target.value)} placeholder="Szukaj wśród kapitanów i zawodników…" className={inputCls} />
-                <div className="space-y-1.5">
-                  {kandydaci.slice(0, 8).map((k) => (
-                    <button key={k.userId} onClick={() => dodajOsobe(k.userId)} className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-ink hover:bg-slate-50 dark:hover:bg-slate-800">
-                      <span className="truncate">{k.imie}</span>
-                      <Plus className="h-4 w-4 text-primary-600" />
-                    </button>
-                  ))}
-                  {szukajOsoby && kandydaci.length === 0 && <p className="text-sm text-slate-400">Nikogo nie znaleziono.</p>}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -761,7 +808,8 @@ export default function PanelClient() {
                       onBlur={() => setLiczbaGrupWybor((v) => (v ? Math.max(1, v) : null))}
                       className={`${inputCls} w-20`}
                     />
-                    <Button size="sm" onClick={losujGrupy} disabled={wTurnieju.length < 2}>Losuj grupy</Button>
+                    <Button size="sm" onClick={() => losujGrupy()} disabled={wTurnieju.length < 2}>Losuj grupy</Button>
+                    <Button size="sm" variant="outline" onClick={() => losujGrupy(true)} disabled={wTurnieju.length < 2}>Ustaw ręcznie</Button>
                     {/* Szary znaczy w tej apce „ta droga jest zamknięta, nic
                         się nie zepsuło", ale bez podanego warunku czyta się to
                         jako „chyba nie działa". Organizator utyka właśnie tutaj,
@@ -774,16 +822,61 @@ export default function PanelClient() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {grupy.map((g) => (
-                      <div key={g.id} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
-                        <p className="text-xs font-semibold text-slate-400">Grupa {g.nazwa}</p>
-                        <p className="text-sm text-ink">
-                          {odmienDruzyny(wTurnieju.filter((d) => d.grupaId === g.id).length)}:{' '}
-                          {wTurnieju.filter((d) => d.grupaId === g.id).map((d) => d.nazwa).join(', ') || '-'}
-                        </p>
+                    {/* EDYCJA PO LOSOWANIU (decyzja właściciela z 2026-11-08):
+                        losowanie jest punktem wyjścia, organizator przestawia
+                        drużyny wyborem grupy. Po pierwszym rozegranym meczu
+                        wybór jest zablokowany, tak jak układanie terminarza. */}
+                    {grupy.map((g) => {
+                      const wGrupie = wTurnieju.filter((d) => d.grupaId === g.id);
+                      return (
+                        <div key={g.id} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
+                          <p className="text-xs font-semibold text-slate-400">Grupa {g.nazwa} · {odmienDruzyny(wGrupie.length)}</p>
+                          {wGrupie.length === 0 && <p className="mt-1 text-sm text-slate-400">Pusta</p>}
+                          <ul className="mt-1 space-y-1">
+                            {wGrupie.map((d) => (
+                              <li key={d.id} className="flex items-center gap-2">
+                                <span className="min-w-0 flex-1 truncate text-sm text-ink">{d.nazwa}</span>
+                                <select
+                                  value={g.id}
+                                  disabled={rozegranych > 0}
+                                  onChange={(e) => przeniesDoGrupy(d, e.target.value)}
+                                  aria-label={`Grupa drużyny ${d.nazwa}`}
+                                  className="shrink-0 rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1 text-xs dark:bg-slate-700 dark:text-slate-100"
+                                >
+                                  {grupy.map((x) => <option key={x.id} value={x.id}>Grupa {x.nazwa}</option>)}
+                                </select>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                    {wTurnieju.some((d) => !d.grupaId) && (
+                      <div className="rounded-xl border border-amber-100 bg-amber-50/60 dark:bg-amber-950/30 p-3">
+                        <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Bez grupy</p>
+                        <ul className="mt-1 space-y-1">
+                          {wTurnieju.filter((d) => !d.grupaId).map((d) => (
+                            <li key={d.id} className="flex items-center gap-2">
+                              <span className="min-w-0 flex-1 truncate text-sm text-ink">{d.nazwa}</span>
+                              <select
+                                value=""
+                                disabled={rozegranych > 0}
+                                onChange={(e) => e.target.value && przeniesDoGrupy(d, e.target.value)}
+                                aria-label={`Grupa drużyny ${d.nazwa}`}
+                                className="shrink-0 rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1 text-xs dark:bg-slate-700 dark:text-slate-100"
+                              >
+                                <option value="">Wybierz…</option>
+                                {grupy.map((x) => <option key={x.id} value={x.id}>Grupa {x.nazwa}</option>)}
+                              </select>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                    ))}
-                    <button onClick={losujGrupy} className="text-sm font-medium text-primary-600">Losuj ponownie</button>
+                    )}
+                    {mecze.length > 0 && rozegranych === 0 && (
+                      <p className="text-xs text-slate-500">Po zmianie grup wygeneruj terminarz od nowa.</p>
+                    )}
+                    <button onClick={() => losujGrupy()} className="text-sm font-medium text-primary-600">Losuj ponownie</button>
                   </div>
                 )}
               </div>
@@ -806,12 +899,49 @@ export default function PanelClient() {
                     );
                   })()}
                   <div className="space-y-2">
-                    {podglad.map((m) => (
+                    {podglad.some((m) => m.faza !== 'grupa' && m.faza !== 'liga' && !m.zrodloAMeczId && !m.zrodloBMeczId) && (
+                      <p className="text-xs text-slate-500">
+                        Chcesz inne pary? Dotknij dwóch drużyn w pierwszej rundzie, a zamienią się miejscami.
+                      </p>
+                    )}
+                    {podglad.map((m) => {
+                      const pierwszaRunda = m.faza !== 'grupa' && m.faza !== 'liga' && !m.zrodloAMeczId && !m.zrodloBMeczId;
+                      const slot = (strona: 'a' | 'b') => {
+                        const druzynaId = strona === 'a' ? m.druzynaAId : m.druzynaBId;
+                        const zrodlo = strona === 'a' ? m.zrodloAMeczId : m.zrodloBMeczId;
+                        const typ = strona === 'a' ? m.zrodloATyp : m.zrodloBTyp;
+                        if (!druzynaId) {
+                          const nr = zrodlo ? podglad.find((x) => x.id === zrodlo)?.numer : undefined;
+                          return (
+                            <span className="text-slate-400">
+                              {zrodlo ? `${typ === 'przegrany' ? 'Przegrany' : 'Zwycięzca'} M${nr ?? '?'}` : 'wolny los'}
+                            </span>
+                          );
+                        }
+                        const nazwa = druzynyPoId.get(druzynaId) ?? '-';
+                        if (!pierwszaRunda) return <span className="text-ink">{nazwa}</span>;
+                        const zaznaczona = doZamiany?.meczId === m.id && doZamiany.strona === strona;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!doZamiany) { setDoZamiany({ meczId: m.id, strona }); return; }
+                              if (zaznaczona) { setDoZamiany(null); return; }
+                              setPodglad((p) => (p ? zamienDruzynyWDrabince(p, doZamiany, { meczId: m.id, strona }) : p));
+                              setDoZamiany(null);
+                            }}
+                            className={`rounded-md px-1.5 py-0.5 font-medium ${zaznaczona ? 'bg-primary-600 text-white' : 'text-ink underline decoration-dotted underline-offset-4'}`}
+                          >
+                            {nazwa}
+                          </button>
+                        );
+                      };
+                      return (
                       <div key={m.id} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm">
                         <span className="text-xs text-slate-400">M{m.numer}</span>{' '}
-                        <span className="text-ink">{druzynyPoId.get(m.druzynaAId ?? '') ?? (m.zrodloAMeczId ? 'TBD' : '-')}</span>
+                        {slot('a')}
                         {' vs '}
-                        <span className="text-ink">{druzynyPoId.get(m.druzynaBId ?? '') ?? (m.zrodloBMeczId ? 'TBD' : '-')}</span>
+                        {slot('b')}
                         {m.zaplanowanyAt && (
                           /* `toLocaleString` dawało „24.10.2026, 10:00:00”:
                              sekundy w terminarzu nic nie znaczą, a data
@@ -822,11 +952,12 @@ export default function PanelClient() {
                           </span>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={zapiszPodgladTerminarza}>Zapisz terminarz</Button>
-                    <Button size="sm" variant="outline" onClick={() => setPodglad(null)}>Anuluj</Button>
+                    <Button size="sm" onClick={() => { setDoZamiany(null); zapiszPodgladTerminarza(); }}>Zapisz terminarz</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setDoZamiany(null); setPodglad(null); }}>Anuluj</Button>
                   </div>
                 </div>
               ) : (
@@ -875,26 +1006,6 @@ export default function PanelClient() {
                       onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
                     />
                   ))}
-                  <div className="flex flex-wrap items-end gap-2 pt-2">
-                    <div>
-                      <label className="block text-xs text-slate-500">Przesuń od meczu</label>
-                      <select value={przesunMeczId} onChange={(e) => setPrzesunMeczId(e.target.value)} className={`${inputCls} py-1.5`}>
-                        <option value="">Wybierz…</option>
-                        {mecze.filter((m) => m.status === 'zaplanowany').map((m) => (
-                          <option key={m.id} value={m.id}>M{m.numer}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-500">O ile minut</label>
-                      <input
-                        type="number" value={przesunMinuty || ''}
-                        onChange={(e) => setPrzesunMinuty(e.target.value === '' ? 0 : Number(e.target.value))}
-                        className={`${inputCls} w-24 py-1.5`}
-                      />
-                    </div>
-                    <Button size="sm" variant="outline" onClick={przesunAkcja} disabled={!przesunMeczId}>Przesuń</Button>
-                  </div>
                 </div>
               )}
             </div>
@@ -914,10 +1025,8 @@ export default function PanelClient() {
               elementy, które widzi każdy na zakładce Info) oraz ustawienia zapisów.
             </p>
 
-            {/* Okładka pojawia się dziś jedynie jako miniatura na liście
-                turniejów (`t.okladkaUrl` w `KartaTurnieju`) — pole i
-                `setOkladkaTurnieju()` istniały od Etapu 0 modułu, ale bez
-                miejsca w interfejsie, żeby je ustawić. */}
+            {/* Okładka: miniatura na liście `/turnieje` i (od 2026-11-08)
+                szeroki baner na górze strony turnieju. */}
             <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
               <h2 className="mb-3 text-sm font-semibold text-ink">Okładka</h2>
               <div className="relative h-28 overflow-hidden rounded-xl bg-gradient-to-br from-primary-700 to-primary-900">
@@ -944,23 +1053,143 @@ export default function PanelClient() {
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nazwa turnieju</label>
               <input
                 defaultValue={turniej.nazwa}
-                onBlur={(e) => e.target.value.trim() !== turniej.nazwa && updateTurniej(id, { nazwa: e.target.value }).then(wczytaj)}
+                onBlur={(e) => { if (e.target.value.trim() !== turniej.nazwa) zapiszUstawienie({ nazwa: e.target.value }); }}
                 className={inputCls}
               />
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Opis</label>
               <textarea
                 defaultValue={turniej.opis ?? ''}
-                onBlur={(e) => updateTurniej(id, { opis: e.target.value }).then(wczytaj)}
+                onBlur={(e) => { if (e.target.value !== (turniej.opis ?? '')) zapiszUstawienie({ opis: e.target.value }); }}
                 rows={3}
                 className={inputCls}
               />
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Regulamin</label>
               <textarea
                 defaultValue={turniej.regulamin ?? ''}
-                onBlur={(e) => updateTurniej(id, { regulamin: e.target.value }).then(wczytaj)}
+                onBlur={(e) => { if (e.target.value !== (turniej.regulamin ?? '')) zapiszUstawienie({ regulamin: e.target.value }); }}
                 rows={3}
                 className={inputCls}
               />
+            </div>
+
+            {/* TERMIN, MIEJSCE I DRUŻYNY. Do 2026-11-08 po utworzeniu turnieju
+                nie dało się zmienić żadnej z tych rzeczy: „jednak start o 9:00"
+                kończyło się kasowaniem turnieju. Format zmienia się tylko przed
+                pierwszym terminarzem, bo od niego zależy układ meczów. */}
+            <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
+              <h2 className="text-sm font-semibold text-ink">Termin, miejsce i drużyny</h2>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Data startu</label>
+                  <input
+                    type="date"
+                    defaultValue={turniej.dataStartu}
+                    onBlur={(e) => { if (e.target.value && e.target.value !== turniej.dataStartu) zapiszUstawienie({ dataStartu: e.target.value }); }}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Godzina startu</label>
+                  <input
+                    type="time"
+                    defaultValue={(turniej.godzinaStartu ?? '').slice(0, 5)}
+                    onBlur={(e) => { if (e.target.value && e.target.value !== (turniej.godzinaStartu ?? '').slice(0, 5)) zapiszUstawienie({ godzinaStartu: e.target.value }); }}
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Miejsce</label>
+              <input
+                defaultValue={turniej.miejsceNazwa ?? ''}
+                maxLength={80}
+                onBlur={(e) => { if (e.target.value.trim() !== (turniej.miejsceNazwa ?? '')) zapiszUstawienie({ miejsceNazwa: e.target.value }); }}
+                className={inputCls}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Ile drużyn najwyżej</label>
+                  <input
+                    type="number" min={2} max={64}
+                    defaultValue={turniej.maxDruzyn}
+                    onBlur={(e) => {
+                      const n = Math.min(64, Math.max(2, Number(e.target.value) || 2));
+                      if (n !== turniej.maxDruzyn) zapiszUstawienie({ maxDruzyn: n });
+                    }}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Zawodników w drużynie</label>
+                  <input
+                    type="number" min={1} max={40}
+                    defaultValue={turniej.maxZawodnikow}
+                    onBlur={(e) => {
+                      const n = Math.min(40, Math.max(1, Number(e.target.value) || 1));
+                      // Minimalny skład wypadł z modułu; wysyłamy 1, żeby CHECK
+                      // `min <= max` (145) nie odrzucił małego składu w starym turnieju.
+                      if (n !== turniej.maxZawodnikow) zapiszUstawienie({ maxZawodnikow: n, minZawodnikow: 1 });
+                    }}
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Wpisowe za drużynę (zł)</label>
+              <input
+                type="text" inputMode="decimal"
+                defaultValue={turniej.wpisoweGrosze > 0 ? String(turniej.wpisoweGrosze / 100) : ''}
+                placeholder="0"
+                onBlur={(e) => {
+                  const grosze = Math.max(0, Math.round((parseFloat(e.target.value.replace(',', '.')) || 0) * 100));
+                  if (grosze !== turniej.wpisoweGrosze) zapiszUstawienie({ wpisoweGrosze: grosze });
+                }}
+                className={inputCls}
+              />
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Format</label>
+                <select
+                  value={turniej.format}
+                  disabled={mecze.length > 0}
+                  onChange={(e) => zapiszUstawienie({ format: e.target.value as Turniej['format'] })}
+                  className={inputCls}
+                >
+                  {(['grupy_puchar', 'puchar', 'liga'] as const).map((f) => (
+                    <option key={f} value={f}>{FORMAT_LABEL[f]}</option>
+                  ))}
+                </select>
+                {mecze.length > 0 && (
+                  <p className="mt-1 text-xs text-slate-500">Format zmienisz po usunięciu terminarza (Terminarz → Wygeneruj od nowa).</p>
+                )}
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Kto widzi turniej</label>
+                <SegmentedToggle
+                  value={turniej.widocznosc}
+                  onChange={(v) => zapiszUstawienie({ widocznosc: v })}
+                  ariaLabel="Widoczność turnieju"
+                  options={[
+                    { value: 'publiczny', label: 'Na liście turniejów' },
+                    { value: 'na_link', label: 'Tylko z linku' },
+                  ]}
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  „Tylko z linku": turnieju nie ma na liście w Bojo, ale każdy, kto dostanie link, go zobaczy.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
+              <h2 className="text-sm font-semibold text-ink">Zasady gry</h2>
+              <ZasadyGry
+                format={turniej.format}
+                wartosci={zasadyEdycja ?? zasadyTurnieju}
+                onChange={(z) => setZasadyEdycja((w) => ({ ...(w ?? zasadyTurnieju), ...z }))}
+                onZatwierdz={async (z) => {
+                  const klucz = Object.keys(z)[0] as keyof WartosciZasad;
+                  if (zasadyTurnieju[klucz] === z[klucz]) return;
+                  if (await zapiszUstawienie(z)) setZasadyEdycja(null);
+                }}
+              />
+              <p className="text-xs text-slate-500">Czas meczu i przerwa liczą orientacyjne godziny w terminarzu. Niczego nie uruchamiają same.</p>
             </div>
 
             {turniej.wpisoweGrosze > 0 && (
@@ -997,7 +1226,7 @@ export default function PanelClient() {
                 onBlur={(e) => {
                   const nowa = e.target.value ? `${e.target.value}T23:59:59` : '';
                   if ((turniej.zapisyDo ?? '').slice(0, 10) === e.target.value) return;
-                  updateTurniej(id, { zapisyDo: nowa }).then(wczytaj);
+                  zapiszUstawienie({ zapisyDo: nowa });
                 }}
                 className={inputCls}
               />

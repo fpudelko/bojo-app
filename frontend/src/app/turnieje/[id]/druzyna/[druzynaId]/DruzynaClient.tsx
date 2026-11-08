@@ -33,16 +33,15 @@ import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { useWstecz } from '@/lib/historia';
-import { withCount } from '@/lib/plural';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { getTurniej, getBlikTurnieju } from '@/lib/turnieje';
 import {
   getDruzyna, getDruzyny, dodajZawodnika, usunZawodnika, updateDruzyne,
-  usunDruzyne, zamienDruzyneWEkipe, mozeEdytowacSklad, brakiWSkladzie,
+  usunDruzyne, zamienDruzyneWEkipe, mozeEdytowacSklad, ustawKapitana,
 } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny } from '@/lib/turniejMecze';
 import { getZaproszeniaDruzyny } from '@/lib/turniejZaproszenia';
-import { STATUS_DRUZYNY, etykietaTerminu, odmienZawodnikow } from '@/lib/turniejEtykiety';
+import { STATUS_DRUZYNY, etykietaTerminu } from '@/lib/turniejEtykiety';
 import { sportEmoji } from '@/lib/sports';
 import ZaprosZEkipyDialog from '@/components/turnieje/ZaprosZEkipyDialog';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
@@ -113,6 +112,12 @@ export default function DruzynaClient() {
   }, [user, id, druzynaId]);
 
   const jestKapitanem = !!user && druzyna?.kapitanId === user.id;
+  // Organizator prowadzi skład tak samo jak kapitan (decyzja z 2026-11-08):
+  // drużyny dodane ręcznie w panelu nie mają kapitana, a organizator dostaje
+  // składy na kartce i chce je wpisać sam. RLS przepuszczało go od `145`
+  // (`czy_kapitan_druzyny()` obejmuje zarządzających), brakowało interfejsu.
+  const jestOrganizatorem = !!user && turniej?.organizatorId === user.id;
+  const prowadziSklad = jestKapitanem || jestOrganizatorem;
   const link = typeof window !== 'undefined' && druzyna
     ? `${window.location.origin}/t/${druzyna.kodDolaczenia}`
     : '';
@@ -155,6 +160,17 @@ export default function DruzynaClient() {
       toast(e instanceof Error ? e.message : 'Nie udało się dopisać', 'error');
     } finally {
       setDopisuje(false);
+    }
+  };
+
+  const mianujKapitanem = async (zawodnikId: string, imie: string) => {
+    if (!druzyna) return;
+    try {
+      await ustawKapitana(druzyna.id, zawodnikId);
+      await wczytaj();
+      toast(`${imie} jest kapitanem`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się ustawić kapitana', 'error');
     }
   };
 
@@ -252,12 +268,15 @@ export default function DruzynaClient() {
   }
 
   const zawodnicy = druzyna.zawodnicy ?? [];
-  const brakuje = brakiWSkladzie(turniej, zawodnicy.length);
   const wolnoZmieniac = mozeEdytowacSklad(turniej, druzyna);
   const komplet = turniej.maxZawodnikow > 0 && zawodnicy.length >= turniej.maxZawodnikow;
-  const procent = turniej.minZawodnikow > 0
-    ? Math.min(100, Math.round((zawodnicy.length / turniej.minZawodnikow) * 100))
+  // Licznik do MAKSIMUM: minimalny skład wypadł z modułu (2026-11-08), bo
+  // niczego nie blokował, a pasek „do minimum" pokazywał pełny skład przy
+  // połowie miejsc.
+  const procent = turniej.maxZawodnikow > 0
+    ? Math.min(100, Math.round((zawodnicy.length / turniej.maxZawodnikow) * 100))
     : 100;
+  const wolneMiejsca = Math.max(0, turniej.maxZawodnikow - zawodnicy.length);
   const status = STATUS_DRUZYNY[druzyna.status];
   const naszeMecze = mecze.filter(
     (m) => m.druzynaAId === druzyna.id || m.druzynaBId === druzyna.id,
@@ -295,7 +314,7 @@ export default function DruzynaClient() {
         {/* ── Kompletowanie składu — serce tego ekranu ──────────────────────
             Licznik zamienia bierne czekanie w czynność: widać, ilu brakuje,
             i stoi obok jeden przycisk, żeby to zmienić. */}
-        {jestKapitanem && wolnoZmieniac && (
+        {prowadziSklad && wolnoZmieniac && (
           <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4 space-y-3">
             <div>
               <p className="text-sm font-semibold text-ink">
@@ -304,25 +323,31 @@ export default function DruzynaClient() {
                     przepełniony albo na zepsuty licznik: „Skład: 7 z 5"
                     czyta się jak przekroczenie limitu, a nie jak spełniony
                     warunek (audyt 4). */}
-                Skład: {withCount(zawodnicy.length, 'osoba', 'osoby', 'osób')} (od {turniej.minZawodnikow} do {turniej.maxZawodnikow})
+                Skład: {zawodnicy.length} z {turniej.maxZawodnikow}
               </p>
               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800">
                 <div className="h-full rounded-full bg-primary-600 transition-all" style={{ width: `${procent}%` }} />
               </div>
               <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
-                {brakuje > 0
-                  ? `Brakuje ${odmienZawodnikow(brakuje)} do pełnego składu.`
-                  : 'Skład kompletny, możecie grać.'}
+                {wolneMiejsca > 0
+                  ? `Wolne miejsca: ${wolneMiejsca}.`
+                  : 'Skład pełny.'}
               </p>
             </div>
 
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Wyślij link zawodnikom. Kto go otworzy i się zaloguje, wybierze swoje imię
+              z listy (przejmie wpis) albo dopisze się sam.
+            </p>
             <div className="flex gap-2">
               <Button onClick={wyslij} className="flex-1 inline-flex items-center justify-center gap-1.5">
-                <Share2 className="h-4 w-4" /> Wyślij link
+                <Share2 className="h-4 w-4" /> Wyślij link do drużyny
               </Button>
-              <Button variant="outline" onClick={() => setPokazZaproszenia(true)} className="flex-1 inline-flex items-center justify-center gap-1.5">
-                <Users className="h-4 w-4" /> Zaproś z ekipy
-              </Button>
+              {jestKapitanem && (
+                <Button variant="outline" onClick={() => setPokazZaproszenia(true)} className="flex-1 inline-flex items-center justify-center gap-1.5">
+                  <Users className="h-4 w-4" /> Zaproś z ekipy
+                </Button>
+              )}
             </div>
 
             <button
@@ -345,8 +370,8 @@ export default function DruzynaClient() {
             <SciankaLogowania tytul={`Skład drużyny ${druzyna.nazwa}`} />
           ) : zawodnicy.length === 0 ? (
             <p className="py-4 text-center text-sm text-slate-400">
-              {jestKapitanem
-                ? 'Skład jest jeszcze pusty. Wyślij link kolegom albo dopisz ich niżej.'
+              {prowadziSklad
+                ? 'Skład jest jeszcze pusty. Wyślij link zawodnikom albo dopisz ich niżej.'
                 : 'Skład jeszcze pusty.'}
             </p>
           ) : (
@@ -372,7 +397,15 @@ export default function DruzynaClient() {
                     </span>
                   )}
                   {z.kapitan && <span className="shrink-0 text-xs text-slate-400">kapitan</span>}
-                  {jestKapitanem && wolnoZmieniac && !z.kapitan && (
+                  {prowadziSklad && wolnoZmieniac && !z.kapitan && z.userId && (
+                    <button
+                      onClick={() => mianujKapitanem(z.id, z.imie)}
+                      className="shrink-0 px-2 text-xs font-medium text-primary-600"
+                    >
+                      Ustaw kapitanem
+                    </button>
+                  )}
+                  {prowadziSklad && wolnoZmieniac && !z.kapitan && (
                     <button
                       onClick={() => usunZeSkladu(z.id, z.imie)}
                       className="shrink-0 px-2 text-xs font-medium text-slate-400 hover:text-red-600"
@@ -385,7 +418,7 @@ export default function DruzynaClient() {
             </ul>
           )}
 
-          {jestKapitanem && wolnoZmieniac && !komplet && (
+          {prowadziSklad && wolnoZmieniac && !komplet && (
             <div className="mt-3 flex gap-2 border-t border-slate-100 dark:border-slate-700 pt-3">
               <input
                 value={noweImie}
@@ -400,12 +433,12 @@ export default function DruzynaClient() {
               </Button>
             </div>
           )}
-          {jestKapitanem && wolnoZmieniac && !komplet && (
+          {prowadziSklad && wolnoZmieniac && !komplet && (
             <p className="mt-1.5 text-xs text-slate-400">
-              Dopisujesz kogoś bez konta: nie zobaczy terminarza ani swoich goli w aplikacji.
+              Dopisujesz kogoś bez konta. Gdy otworzy link do drużyny i się zaloguje, przejmie ten wpis.
             </p>
           )}
-          {jestKapitanem && komplet && (
+          {prowadziSklad && komplet && (
             <p className="mt-3 border-t border-slate-100 dark:border-slate-700 pt-3 text-xs text-slate-400">
               Skład pełny ({turniej.maxZawodnikow} zawodników), nikogo więcej nie dopiszesz.
             </p>

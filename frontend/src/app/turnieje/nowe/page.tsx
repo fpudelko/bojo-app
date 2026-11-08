@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Copy, Loader2, Share2, Timer } from 'lucide-react';
+import { withCount } from '@/lib/plural';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import ToggleRow from '@/components/ui/ToggleRow';
@@ -13,6 +14,8 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { useWstecz } from '@/lib/historia';
 import { createTurniej } from '@/lib/turnieje';
+import { dodajArene } from '@/lib/turniejMecze';
+import ZasadyGry, { DOMYSLNE_ZASADY, type WartosciZasad } from '@/components/turnieje/ZasadyGry';
 import { szacunekZParametrow, zdanieOCzasie } from '@/lib/turniejKreator';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
 import { FORMAT_LABEL, FORMAT_OPIS } from '@/lib/turniejEtykiety';
@@ -33,7 +36,6 @@ export default function NowyTurniejPage() {
   const [nazwa, setNazwa] = useState('');
   const [sport, setSport] = useState<string>(FOCUS_SPORTS[0]);
   const [dataStartu, setDataStartu] = useState('');
-  const [dataKonca, setDataKonca] = useState('');
   const [zapisyDo, setZapisyDo] = useState('');
   const [godzinaStartu, setGodzinaStartu] = useState('10:00');
   const [location, setLocation] = useState<LocationResult>({ venue: null, lat: null, lng: null, address: '' });
@@ -41,12 +43,14 @@ export default function NowyTurniejPage() {
 
   const [format, setFormat] = useState<TurniejFormat>('grupy_puchar');
   const [maxDruzyn, setMaxDruzyn] = useState(8);
-  // 0 znaczy „nie podano" i tak trafia do bazy (NULL). Minimum jest
-  // informacją organizatora dla kapitanów, nie warunkiem, który Bojo
-  // egzekwuje — ta sama decyzja co przy SHOW_MIN_PLAYERS_THRESHOLD.
-  const [minDruzyn, setMinDruzyn] = useState(0);
-  const [minZawodnikow, setMinZawodnikow] = useState(5);
+  // Bez minimum drużyn, minimalnego składu i daty końca (decyzja właściciela
+  // z 2026-11-08): żadne z nich niczego nie blokowało, a każde było jeszcze
+  // jednym polem do zrozumienia. Kolumny zostają w bazie z wartościami
+  // domyślnymi, minimalny skład wysyłamy jako 1, żeby CHECK `min <= max`
+  // nie odrzucił małego składu.
   const [maxZawodnikow, setMaxZawodnikow] = useState(12);
+  const [zasady, setZasady] = useState<WartosciZasad>(DOMYSLNE_ZASADY);
+  const [liczbaBoisk, setLiczbaBoisk] = useState(1);
 
   const [widocznosc, setWidocznosc] = useState<TurniejWidocznosc>('publiczny');
   const [wymagaAkceptacji, setWymagaAkceptacji] = useState(true);
@@ -60,10 +64,11 @@ export default function NowyTurniejPage() {
   const [utworzony, setUtworzony] = useState<string | null>(null);
 
   const nazwaOk = nazwa.trim().length >= 3;
-  const dataOk = !!dataStartu && (!dataKonca || dataKonca >= dataStartu);
+  const dataOk = !!dataStartu;
   const zapisyOk = !zapisyDo || !dataStartu || zapisyDo <= dataStartu;
-  const skladOk = minZawodnikow > 0 && minZawodnikow <= maxZawodnikow;
-  const gotowe = nazwaOk && dataOk && zapisyOk && skladOk && maxDruzyn >= 2;
+  const skladOk = maxZawodnikow > 0;
+  const zasadyOk = Object.values(zasady).every((v) => typeof v === 'boolean' || Number.isFinite(v));
+  const gotowe = nazwaOk && dataOk && zapisyOk && skladOk && zasadyOk && maxDruzyn >= 2;
 
   const handleSubmit = async () => {
     if (!user || !gotowe) return;
@@ -83,15 +88,14 @@ export default function NowyTurniejPage() {
           lat: location.lat ?? undefined,
           lng: location.lng ?? undefined,
           dataStartu,
-          dataKonca: dataKonca || undefined,
           // Koniec DNIA, nie północ na jego początku: „zapisy do 16
           // października" znaczy dla każdego „jeszcze szesnastego".
           zapisyDo: zapisyDo ? `${zapisyDo}T23:59:59` : undefined,
           godzinaStartu,
           maxDruzyn,
-          minDruzyn: minDruzyn || undefined,
-          minZawodnikow,
+          minZawodnikow: 1,
           maxZawodnikow,
+          ...zasady,
           wymagaAkceptacji,
           wpisoweGrosze: Number.isFinite(wpisoweGrosze) ? wpisoweGrosze : 0,
           regulamin: regulamin || undefined,
@@ -99,6 +103,13 @@ export default function NowyTurniejPage() {
         },
         user.id,
       );
+      // Pierwsze boisko zakłada wyzwalacz `utworz_domyslna_arene()` (146),
+      // kolejne dokładamy tutaj. Błąd tego kroku nie cofa turnieju: boiska
+      // da się dodać w panelu, więc mówimy o tym wprost, zamiast udawać sukces.
+      for (let i = 2; i <= liczbaBoisk; i++) {
+        try { await dodajArene(id, `Boisko ${i}`, i); }
+        catch { toast('Nie wszystkie boiska się dodały, uzupełnisz je w panelu (Terminarz)', 'error'); break; }
+      }
       toast('Turniej utworzony 🏆');
       // NIE do panelu. Organizator przyszedł tu po rzecz do wysłania
       // kapitanom, a panel to ekran zarządzania — wychodził z narzędzia bez
@@ -117,9 +128,9 @@ export default function NowyTurniejPage() {
     // Kreator nie pyta o boiska — wyzwalacz `utworz_domyslna_arene()` (146)
     // zakłada jedno „Boisko 1". Organizator dokłada kolejne w panelu i tam
     // szacunek przelicza się na prawdziwej liczbie aren.
-    liczbaAren: 1,
-    czasMeczuMin: 15,
-    przerwaMin: 5,
+    liczbaAren: Math.max(1, liczbaBoisk),
+    czasMeczuMin: Number.isFinite(zasady.czasMeczuMin) ? zasady.czasMeczuMin : DOMYSLNE_ZASADY.czasMeczuMin,
+    przerwaMin: Number.isFinite(zasady.przerwaMin) ? zasady.przerwaMin : DOMYSLNE_ZASADY.przerwaMin,
     dataStartu: dataStartu || undefined,
     godzinaStartu,
   });
@@ -250,19 +261,10 @@ export default function NowyTurniejPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}>Data startu *</label>
-              <input type="date" value={dataStartu} onChange={(e) => setDataStartu(e.target.value)} className={inputCls} />
-            </div>
-            <div>
-              <label className={labelCls}>Data końca</label>
-              <input type="date" value={dataKonca} onChange={(e) => setDataKonca(e.target.value)} min={dataStartu || undefined} className={inputCls} />
-            </div>
+          <div>
+            <label className={labelCls}>Data startu *</label>
+            <input type="date" value={dataStartu} onChange={(e) => setDataStartu(e.target.value)} className={inputCls} />
           </div>
-          {dataKonca && dataKonca < dataStartu && (
-            <p className="-mt-3 text-xs text-red-600">Data końca nie może być wcześniejsza niż data startu.</p>
-          )}
 
           {/* TERMIN GRANICZNY ZAPISÓW. Kolumna `zapisy_do` istniała w bazie od
               migracji `145` i nie miała ani pola w kreatorze, ani skutku
@@ -330,56 +332,45 @@ export default function NowyTurniejPage() {
             </div>
           </div>
 
-          <div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelCls}>Ile drużyn najwyżej</label>
-                <input
-                  type="number" min={2} max={64} value={maxDruzyn || ''}
-                  onChange={(e) => setMaxDruzyn(e.target.value === '' ? 0 : Number(e.target.value))}
-                  onBlur={() => setMaxDruzyn((v) => Math.min(64, Math.max(2, v || 2)))}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Minimum (opcjonalnie)</label>
-                <input
-                  type="number" min={2} max={maxDruzyn || 64} placeholder="nie podaję" value={minDruzyn || ''}
-                  onChange={(e) => setMinDruzyn(e.target.value === '' ? 0 : Number(e.target.value))}
-                  onBlur={() => setMinDruzyn((v) => (v ? Math.min(maxDruzyn || 64, Math.max(2, v)) : 0))}
-                  className={inputCls}
-                />
-              </div>
-            </div>
-            <p className="mt-1.5 text-xs text-slate-400">
-              Minimum zobaczą kapitanowie przy zapisach. Bojo go nie pilnuje: decyzję,
-              czy gracie w takim składzie, podejmujesz sam.
-            </p>
-          </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Min. skład</label>
+              <label className={labelCls}>Ile drużyn najwyżej</label>
               <input
-                type="number" min={1} max={30} value={minZawodnikow || ''}
-                onChange={(e) => setMinZawodnikow(e.target.value === '' ? 0 : Number(e.target.value))}
-                onBlur={() => setMinZawodnikow((v) => Math.min(30, Math.max(1, v || 1)))}
+                type="number" min={2} max={64} value={maxDruzyn || ''}
+                onChange={(e) => setMaxDruzyn(e.target.value === '' ? 0 : Number(e.target.value))}
+                onBlur={() => setMaxDruzyn((v) => Math.min(64, Math.max(2, v || 2)))}
                 className={inputCls}
               />
             </div>
             <div>
-              <label className={labelCls}>Maks. skład</label>
+              <label className={labelCls}>Zawodników w drużynie</label>
               <input
                 type="number" min={1} max={40} value={maxZawodnikow || ''}
                 onChange={(e) => setMaxZawodnikow(e.target.value === '' ? 0 : Number(e.target.value))}
                 onBlur={() => setMaxZawodnikow((v) => Math.min(40, Math.max(1, v || 1)))}
                 className={inputCls}
               />
+              <p className="mt-1 text-xs text-slate-400">Najwyżej, razem z rezerwowymi.</p>
             </div>
           </div>
-          {!skladOk && (
-            <p className="-mt-3 text-xs text-red-600">Minimalny skład nie może być większy niż maksymalny.</p>
-          )}
+
+          <div>
+            <p className={labelCls}>Zasady gry</p>
+            <div className="space-y-3 rounded-xl border border-slate-100 dark:border-slate-700 p-3.5">
+              <div>
+                <label className={labelCls} htmlFor="liczba-boisk">Boiska</label>
+                <input
+                  id="liczba-boisk"
+                  type="number" min={1} max={12} value={liczbaBoisk || ''}
+                  onChange={(e) => setLiczbaBoisk(e.target.value === '' ? 0 : Number(e.target.value))}
+                  onBlur={() => setLiczbaBoisk((v) => Math.min(12, Math.max(1, v || 1)))}
+                  className={inputCls}
+                />
+              </div>
+              <ZasadyGry format={format} wartosci={zasady} onChange={(z) => setZasady((w) => ({ ...w, ...z }))} />
+              <p className="text-xs text-slate-400">Wszystko zmienisz później w panelu, w Ustawieniach.</p>
+            </div>
+          </div>
 
           {/* Zapisy */}
           <div>
@@ -435,16 +426,12 @@ export default function NowyTurniejPage() {
               grał finału po ciemku. Liczy się PRAWDZIWYMI generatorami
               terminarza na atrapach drużyn (`lib/turniejKreator.ts`), więc nie
               może rozjechać się z tym, co pokaże panel. */}
-          <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3.5">
-            <p className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
-              <Timer className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-              <span>{zdanieOCzasie(szacunek)}</span>
-            </p>
-            <p className="mt-1 pl-6 text-xs text-slate-400">
-              Przy jednym boisku, meczach 15 min i 5 min przerwy. Boiska, czas meczu
-              i format zmienisz w panelu przed wygenerowaniem terminarza.
-            </p>
-          </div>
+          <p className="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <Timer className="mt-px h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <span>
+              {zdanieOCzasie(szacunek)} ({withCount(Math.max(1, liczbaBoisk), 'boisko', 'boiska', 'boisk')})
+            </span>
+          </p>
 
           <Button onClick={handleSubmit} disabled={!gotowe || submitting} className="w-full inline-flex items-center justify-center gap-2">
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Utwórz turniej'}

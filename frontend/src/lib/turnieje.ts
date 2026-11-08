@@ -488,3 +488,24 @@ export async function getTurniejeGracza(userId: string, limit = 3): Promise<Turn
     goli: r.goli ?? 0,
   }));
 }
+
+/** Opis turnieju próbnego zaczyna się od tego markera (migracja 173,
+ *  `supabase/zadania/kopia-turnieju-do-testow.sql`, `wyczysc-testowe.sql`). */
+export const MARKER_PROBY = '[TURNIEJ-TEST]';
+
+/** Turniej próbny: kopia do przećwiczenia dnia turnieju, bez skutków. */
+export function czyTurniejProbny(t: Pick<Turniej, 'opis'> | null | undefined): boolean {
+  return !!t?.opis?.startsWith(MARKER_PROBY);
+}
+
+/**
+ * „Przetestuj" obok „Rozpocznij turniej" (2026-11-08) — RPC
+ * `utworz_probe_turnieju` (173). Kopia z tym samym terminarzem, od razu
+ * w stanie „trwa", składy bez kont, więc nikt nie dostaje powiadomień.
+ * Zwraca id kopii; poprzednia próba tego turnieju znika.
+ */
+export async function utworzProbeTurnieju(turniejId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('utworz_probe_turnieju', { p_turniej: turniejId });
+  if (error) throw new Error(error.message);
+  return data as string;
+}

@@ -374,3 +374,64 @@ export async function wpiszWynikMeczu(
   await updateMecz(meczId, { wynikA: wynik.wynikA, wynikB: wynik.wynikB });
   await zakonczMecz(meczId, { karneA: wynik.karneA, karneB: wynik.karneB });
 }
+
+/** Strzelcy wskazani przy szybkim wpisie wyniku: id zawodników, po jednym na gola. */
+export interface StrzelcyWyniku {
+  a: readonly string[];
+  b: readonly string[];
+}
+
+/**
+ * Gole do zapisania przy szybkim wyniku ze strzelcami: najpierw wskazani
+ * strzelcy, resztę do wyniku uzupełniają gole BEZ strzelca. Czysta funkcja,
+ * żeby regułę „wynik zawsze równa się sumie goli" dało się sprawdzić testem.
+ * Strzelców ponad wynik obcina: wynik wpisany liczbą jest nadrzędny.
+ */
+export function goleZWyniku(
+  druzynaAId: string,
+  druzynaBId: string,
+  wynik: { wynikA: number; wynikB: number },
+  strzelcy: StrzelcyWyniku,
+): NoweZdarzenie[] {
+  const druzyna = (druzynaId: string, ile: number, wskazani: readonly string[]): NoweZdarzenie[] =>
+    Array.from({ length: Math.max(0, ile) }, (_, i) => ({
+      druzynaId,
+      typ: 'gol' as const,
+      wartosc: 1,
+      zawodnikId: wskazani[i],
+    }));
+  return [
+    ...druzyna(druzynaAId, wynik.wynikA, strzelcy.a),
+    ...druzyna(druzynaBId, wynik.wynikB, strzelcy.b),
+  ];
+}
+
+/**
+ * Szybki wynik ZE STRZELCAMI (2026-11-08). Wynik powstaje z goli w historii
+ * meczu, tak jak przy prowadzeniu na żywo (`przelicz_wynik_meczu()`, 147),
+ * więc tabela, klasyfikacja strzelców i podium nigdy się nie rozjadą.
+ * Dotychczasowe gole tego meczu są najpierw kasowane, a nowe wchodzą jednym
+ * INSERT-em: ponowne „Zapisz wynik" po błędzie sieci niczego nie zdubluje.
+ * Bez wskazanych strzelców wystarcza `wpiszWynikMeczu()`.
+ */
+export async function wpiszWynikZeStrzelcami(
+  meczId: string,
+  druzyny: { a: string; b: string },
+  wynik: { wynikA: number; wynikB: number; karneA?: number; karneB?: number },
+  strzelcy: StrzelcyWyniku,
+): Promise<void> {
+  const { error: bladKasowania } = await supabase.from('turniej_zdarzenia').delete().eq('mecz_id', meczId);
+  if (bladKasowania) throw new Error(bladKasowania.message);
+  const gole = goleZWyniku(druzyny.a, druzyny.b, wynik, strzelcy);
+  if (gole.length > 0) {
+    const { error } = await supabase.from('turniej_zdarzenia').insert(gole.map((g) => ({
+      mecz_id: meczId,
+      druzyna_id: g.druzynaId,
+      typ: g.typ,
+      wartosc: g.wartosc ?? 1,
+      zawodnik_id: g.zawodnikId ?? null,
+    })));
+    if (error) throw new Error(error.message);
+  }
+  await zakonczMecz(meczId, { karneA: wynik.karneA, karneB: wynik.karneB });
+}

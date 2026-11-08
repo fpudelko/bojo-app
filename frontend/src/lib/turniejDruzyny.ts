@@ -149,12 +149,19 @@ export async function getKontakty(turniejId: string): Promise<KontaktDruzyny[]> 
  * "idx_druzyna_nazwa_w_turnieju"`. Z tego nie wynika, że wystarczy zmienić
  * nazwę, więc zgłoszenie kończyło się w tym miejscu.
  */
-function czytelnyBladDruzyny(wiadomosc: string): string {
+export function czytelnyBladDruzyny(wiadomosc: string): string {
   if (wiadomosc.includes('idx_druzyna_nazwa_w_turnieju')) {
     return 'Taka nazwa jest już zajęta w tym turnieju. Wybierz inną.';
   }
   if (wiadomosc.includes('idx_zawodnik_raz_w_turnieju')) {
     return 'Ta osoba gra już w innej drużynie tego turnieju.';
+  }
+  // Komunikat techniczny z bazy (nazwa kolumny, funkcji, kod PostgREST) nigdy
+  // nie idzie na ekran. Gracz z linku dostał 2026-11-08 wprost `column
+  // reference "druzyna_id" is ambiguous`. Zdania z `RAISE EXCEPTION` w naszych
+  // funkcjach są po polsku i przechodzą bez zmian.
+  if (/column|relation|function|syntax|violates|PGRST|permission denied|does not exist/i.test(wiadomosc)) {
+    return 'Coś poszło nie tak po naszej stronie. Spróbuj jeszcze raz za chwilę.';
   }
   return wiadomosc;
 }
@@ -262,21 +269,21 @@ export async function usunZawodnika(id: string): Promise<void> {
 }
 
 /** Jedyna droga wejścia do drużyny — RPC `dolacz_do_druzyny_kodem` (145).
- *  Kapitanat, przypisanie do wolnego wpisu („to ja") albo dopisanie nowego
- *  — wszystkie trzy sprawdzają w JEDNEJ transakcji stan turnieju, limit
- *  składu i unikalność osoby, żeby te reguły nie rozjechały się między
- *  trzema osobnymi ścieżkami po stronie klienta. */
+ *  Przypisanie do wolnego wpisu („to ja") albo dopisanie nowego zawodnika,
+ *  w JEDNEJ transakcji ze sprawdzeniem stanu turnieju, limitu składu
+ *  i unikalności osoby. Kapitanatu link nie nadaje od migracji `172`:
+ *  kapitana wskazuje organizator, `ustawKapitana()` niżej. */
 export async function dolaczDoDruzyny(
   kod: string,
-  opcje: { jakoKapitan?: boolean; zawodnikId?: string; imie?: string } = {},
+  opcje: { zawodnikId?: string; imie?: string } = {},
 ): Promise<{ druzynaId: string; turniejId: string; zostalKapitanem: boolean; zawodnikId: string }> {
   const { data, error } = await supabase.rpc('dolacz_do_druzyny_kodem', {
     p_kod: kod,
-    p_jako_kapitan: opcje.jakoKapitan ?? false,
+    p_jako_kapitan: false,
     p_zawodnik_id: opcje.zawodnikId ?? null,
     p_imie: opcje.imie ?? null,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(czytelnyBladDruzyny(error.message));
   const wiersz = Array.isArray(data) ? data[0] : data;
   track('turniej_dolaczyl_do_druzyny', { druzynaId: wiersz.druzyna_id, zostalKapitanem: wiersz.zostal_kapitanem });
   return {
@@ -285,6 +292,19 @@ export async function dolaczDoDruzyny(
     zostalKapitanem: wiersz.zostal_kapitanem,
     zawodnikId: wiersz.zawodnik_id,
   };
+}
+
+/** Wskazanie kapitana drużyny — RPC `ustaw_kapitana_druzyny` (172).
+ *  Woła organizator (drużyny dodane ręcznie nie mają kapitana) albo obecny
+ *  kapitan, który przekazuje funkcję. Kapitanem zostaje tylko zawodnik
+ *  z kontem: kapitan zarządza składem w aplikacji. */
+export async function ustawKapitana(druzynaId: string, zawodnikId: string): Promise<void> {
+  const { error } = await supabase.rpc('ustaw_kapitana_druzyny', {
+    p_druzyna: druzynaId,
+    p_zawodnik: zawodnikId,
+  });
+  if (error) throw new Error(error.message);
+  track('turniej_kapitan_ustawiony', { druzynaId });
 }
 
 /** „Zamień drużynę w ekipę" — RPC `zamien_druzyne_w_ekipe` (150). Tylko
@@ -311,7 +331,3 @@ export function mozeEdytowacSklad(t: Pick<Turniej, 'status'>, d: Pick<TurniejDru
   return true;
 }
 
-/** Braki w składzie względem `minZawodnikow` — do plakietki „brakuje N osób". */
-export function brakiWSkladzie(t: Pick<Turniej, 'minZawodnikow'>, liczba: number): number {
-  return Math.max(0, t.minZawodnikow - liczba);
-}
