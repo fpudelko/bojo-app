@@ -40,6 +40,7 @@ import {
 import { plural, withCount } from '@/lib/plural';
 import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz } from '@/types';
 import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
+import { czyWolnyLos } from '@/lib/turniejWynik';
 
 type PanelTab = 'pulpit' | 'druzyny' | 'ludzie' | 'terminarz' | 'ustawienia';
 
@@ -313,8 +314,10 @@ export default function PanelClient() {
   const wTurnieju = druzyny.filter((d) => d.status === 'przyjeta');
   // Rozegrany mecz zamyka drogę do układania terminarza od nowa: baza broni
   // wyniku (`zapisz_terminarz` odmawia), więc interfejs ma tego nie proponować.
+  // Wolny los się nie liczy (migracja 171): wstawia go sam generator, nikt
+  // w nim nie zagrał, a liczony dawał „Rozegrano już 2 mecze" przed startem.
   const rozegranych = mecze.filter(
-    (m) => m.status === 'zakonczony' || m.status === 'walkower' || m.status === 'trwa',
+    (m) => (m.status === 'zakonczony' || m.status === 'walkower' || m.status === 'trwa') && !czyWolnyLos(m),
   ).length;
   const rezerwa = druzyny.filter((d) => d.status === 'rezerwa');
 
@@ -844,8 +847,7 @@ export default function PanelClient() {
                   </Button>
                   {rozegranych > 0 && (
                     <p className="text-xs text-slate-400">
-                      {plural(rozegranych, 'Rozegrano już', 'Rozegrano już', 'Rozegrano już')}{' '}
-                      {withCount(rozegranych, 'mecz', 'mecze', 'meczów')}, więc terminarz da się
+                      Rozegrano już {withCount(rozegranych, 'mecz', 'mecze', 'meczów')}, więc terminarz da się
                       tylko przesuwać, nie układać od nowa.
                     </p>
                   )}
@@ -869,6 +871,7 @@ export default function PanelClient() {
                       druzynyPoId={druzynyPoId}
                       meczePoId={meczePoId}
                       arenyPoId={arenyPoId}
+                      przygaszona={czyWolnyLos(m)}
                       onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
                     />
                   ))}

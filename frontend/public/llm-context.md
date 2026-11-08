@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-28 · migracja `170` · 59 tabel
+**Stan na:** 2026-11-08 · migracja `171` · 59 tabel
 
 ---
 
@@ -482,6 +482,26 @@ MECHANIKA: `wpiszWynikMeczu()` w `lib/turniejMecze.ts` (wynik z `wynik_recznie`,
 w `lib/turniejPulpit.ts`, `app/turnieje/[id]/panel/PanelClient.tsx`,
 `app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Bez migracji.
 
+### 2026-11-08 — Dołączenie do drużyny turnieju z linku działa, wolny los nie blokuje terminarza
+
+PROBLEM: zawodnik, który otworzył link do drużyny turnieju w Bojo (`/t/[kod]`) i wybrał
+siebie z listy, dopisał się albo chciał zostać kapitanem, dostawał komunikat techniczny
+`column reference "druzyna_id" is ambiguous` i nie trafiał do składu. Organizator
+turnieju pucharowego z liczbą drużyn inną niż 4, 8 albo 16 widział w terminarzu mecz
+„Walkower 0:0 TBD" i napis „Rozegrano już 2 mecze", choć nikt nie zagrał, a przycisk
+„Wygeneruj terminarz od nowa" był wyłączony na stałe.
+
+ROZWIĄZANIE BOJO: wszystkie trzy drogi dołączenia z linku drużyny (kapitan, „to ja",
+nowy zawodnik) zapisują zawodnika w składzie. Wolny los w drabince Bojo jest pokazany
+jako „Wolny los" z drużyną awansującą bez gry, bez wyniku, przygaszony; nie trafia na
+listę meczów na publicznej stronie turnieju i nie liczy się jako rozegrany mecz, więc
+terminarz da się ułożyć od nowa aż do pierwszego prawdziwego meczu.
+
+MECHANIKA: migracja `171` (`dolacz_do_druzyny_kodem()` z kwalifikowanymi kolumnami,
+`czy_wolny_los()` w `zapisz_terminarz()`), `czyWolnyLos()` w `lib/turniejWynik.ts`
+używane przez `KartaMeczu`, `Drabinka`, panel i publiczną stronę turnieju. Testy:
+`supabase/test/rls.sql`, `turniejWolnyLos.test.ts`.
+
 ### 2026-09-29 — Pierwszy ekran strony głównej pokazuje drogę organizatora w telefonie
 
 PROBLEM: pierwszy ekran bojo.pl pokazywał statyczne zrzuty aplikacji w karuzeli
@@ -683,25 +703,4 @@ MECHANIKA: `ofertyWToku()` w `lib/events.ts` (dołączana do składu przed
 `wolneMiejscaWgRol()`), `podejrzyjWpisGoscia()` (`lib/guestClaim.ts`) wołane po zmianie
 `mojTokenGoscia`, `handleRemove(id, komunikat)` w `EventDetailClient.tsx`. Bez migracji.
 Szczegóły → [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-1, X-3, X-4, X-5, X-9.
-
-### 2026-09-26 (2) — Przypomnienia o meczu i szukanie boiska bez ogonków znowu działają
-
-PROBLEM: przypomnienie „jutro grasz" i prośba „domknij mecz" dzień po nie wychodziły
-na produkcji ANI RAZU przez dwa tygodnie (2026-09-12…2026-09-26) — zadanie w bazie
-padało codziennie, bo brakowało jednej wewnętrznej funkcji. Osobno: szukanie obiektu
-po nazwie miasta bez polskich znaków („lodz", „poznan") nie działało wcale albo prawie
-wcale, bo brakowało kolumny, na której się ono opiera. Przyczyna obu: jednorazowe
-uzupełnienie dziennika migracji (backfill) rozpoznaje wyłącznie TABELE, więc migracja,
-która dokłada samą funkcję albo kolumnę, mogła zostać uznana za zastosowaną, choć
-nigdy realnie nie poszła.
-
-ROZWIĄZANIE BOJO: migracja odtwarza brakujące obiekty. Przypomnienia i szukanie działają
-znowu tak, jak działały wcześniej — to naprawa rozjazdu, nie nowa funkcja. Dwa nowe
-automatyczne sprawdzenia pilnują, żeby taka cisza nie powtórzyła się bez wiedzy zespołu:
-jedno porównuje bazę z repozytorium po każdej zmianie schematu, drugie codziennie
-sprawdza, czy zaplanowane zadania w bazie faktycznie przechodzą.
-
-MECHANIKA: migracja `164`, `scripts/odcisk-schematu.sh`,
-`.github/workflows/zdrowie-produkcji.yml`. Szczegóły →
-[faza1-runda9-plan.md](./faza1-runda9-plan.md), X-0.
 

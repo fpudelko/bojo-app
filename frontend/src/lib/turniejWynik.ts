@@ -29,6 +29,27 @@ export function wynikZeZdarzen(
   return { wynikA, wynikB };
 }
 
+/**
+ * Wolny los: miejsce w pierwszej rundzie drabinki bez przeciwnika. Generator
+ * (`zbudujDrabinke()`) zapisuje go jako `walkower` z jedną drużyną, żeby baza
+ * od razu przepchnęła ją do drugiej rundy, ale to NIE jest rozegrany mecz:
+ * nie blokuje układania terminarza od nowa, nie ma wyniku i nie ląduje
+ * w „Rozegranych". Do 2026-11-08 panel liczył go jako rozegrany, karta
+ * pokazywała „0:0 … TBD", a przycisk „Wygeneruj od nowa" gasł na zawsze.
+ *
+ * Ta sama definicja co `czy_wolny_los()` w bazie (migracja 171): jedna strona
+ * pusta i ŻADNEGO meczu-źródła. Bez warunku na źródła łapałby prawdziwy
+ * walkower z konsoli w meczu, którego druga strona czeka jeszcze na zwycięzcę.
+ */
+export function czyWolnyLos(
+  mecz: Pick<TurniejMecz, 'status' | 'druzynaAId' | 'druzynaBId' | 'zrodloAMeczId' | 'zrodloBMeczId'>,
+): boolean {
+  return mecz.status === 'walkower'
+    && !mecz.druzynaAId !== !mecz.druzynaBId
+    && !mecz.zrodloAMeczId
+    && !mecz.zrodloBMeczId;
+}
+
 /** Mecz da się prowadzić (rozpocząć/zapisywać zdarzenia), dopóki nie jest rozstrzygnięty. */
 export function mozeZapisywacZdarzenia(status: MeczStatus): boolean {
   return status === 'zaplanowany' || status === 'trwa';
