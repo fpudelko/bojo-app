@@ -348,3 +348,29 @@ export async function zakonczMecz(
   if (error) throw new Error(error.message);
   track('turniej_mecz_poprowadzony', { meczId });
 }
+
+/**
+ * Szybka ścieżka: sam wynik końcowy, bez prowadzenia meczu na żywo.
+ *
+ * Organizator amatorskiego turnieju w praktyce NIE stoi z telefonem przy
+ * każdym golu. Po gwizdku podchodzi ktoś z drużyny i mówi „3:1". Dotąd
+ * jedyną drogą do wyniku było „Rozpocznij mecz” i stukanie GOL przy każdej
+ * bramce, czyli dokładnie to, czego nikt na boisku nie robi.
+ *
+ * Dwa zapisy zamiast jednego RPC: najpierw wynik (`wynik_recznie = true`),
+ * potem `zakoncz_mecz()` (147), który wyznacza zwycięzcę z tych kolumn
+ * i przenosi go do drabinki. Gdy drugi zapis padnie, mecz zostaje
+ * `zaplanowany` z wpisanym wynikiem, więc ponowne „Zapisz wynik” kończy
+ * sprawę bez żadnej szkody. Ta sama funkcja służy siatkówce: wynikiem są
+ * wtedy wygrane sety.
+ */
+export async function wpiszWynikMeczu(
+  meczId: string,
+  wynik: { wynikA: number; wynikB: number; karneA?: number; karneB?: number },
+): Promise<void> {
+  if (!Number.isInteger(wynik.wynikA) || !Number.isInteger(wynik.wynikB) || wynik.wynikA < 0 || wynik.wynikB < 0) {
+    throw new Error('Wynik musi być liczbą całkowitą, nie mniejszą niż zero.');
+  }
+  await updateMecz(meczId, { wynikA: wynik.wynikA, wynikB: wynik.wynikB });
+  await zakonczMecz(meczId, { karneA: wynik.karneA, karneB: wynik.karneB });
+}

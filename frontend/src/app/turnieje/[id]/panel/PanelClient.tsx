@@ -34,7 +34,9 @@ import {
   szacunekCzasu, type NowyMecz,
 } from '@/lib/turniejFormat';
 import { odmienZawodnikow, odmienDruzyny, etykietaTerminu } from '@/lib/turniejEtykiety';
-import { pulpitPrzedTurniejem, opoznienieWMinutach, arenyTeraz } from '@/lib/turniejPulpit';
+import {
+  pulpitPrzedTurniejem, postepTurnieju, meczeDoWpisania, mozeRozpoczacTurniej,
+} from '@/lib/turniejPulpit';
 import { plural, withCount } from '@/lib/plural';
 import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz } from '@/types';
 import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
@@ -429,28 +431,44 @@ export default function PanelClient() {
   const pozycjePulpitu = turniej
     ? pulpitPrzedTurniejem(turniej, druzyny, mecze, !!blikTelefon)
     : [];
-  const opoznienie = opoznienieWMinutach(mecze);
-  const areny_teraz = arenyTeraz(areny, mecze);
-  const meczeDoPrzesuniecia = mecze
-    .filter((m) => m.status === 'zaplanowany' && m.zaplanowanyAt)
-    .sort((a, b) => a.zaplanowanyAt!.localeCompare(b.zaplanowanyAt!));
+  // STEROWANIE KLIKANIEM, NIE ZEGAREM (decyzja właściciela z 2026-11-08).
+  // Godziny w terminarzu na amatorskim turnieju rozjeżdżają się od pierwszego
+  // meczu, więc pulpit nie liczy już „opóźnienia". Turniej startuje, gdy
+  // organizator kliknie „Rozpocznij turniej", a mecz kończy się, gdy ktoś
+  // wpisze jego wynik.
+  const postep = postepTurnieju(mecze);
+  const doWpisania = meczeDoWpisania(mecze);
+  const mozeRozpoczac = mozeRozpoczacTurniej(turniej, mecze);
   const nazwaDruzynyPanel = (druzynaId?: string) =>
     (druzynaId ? druzyny.find((d) => d.id === druzynaId)?.nazwa : undefined) ?? 'TBD';
 
-  /** Obsuwa do pełnych pięciu minut — organizator myśli „o dziesięć", nie
-   *  „o siedem". Minimum pięć, żeby przycisk nigdy nie proponował zera. */
-  const zaokraglijDo5 = (minuty: number) => Math.max(5, Math.round(minuty / 5) * 5);
+  const rozpocznijTurniej = async () => {
+    const wynik = await potwierdz({
+      tytul: 'Rozpocząć turniej?',
+      konsekwencje: [
+        'Zapisy zostaną zamknięte',
+        'Od teraz wpisujesz wyniki meczów',
+        'Zawodnicy z kontami dostaną powiadomienie przed swoim kolejnym meczem',
+      ],
+      potwierdzLabel: 'Rozpocznij turniej',
+    });
+    if (wynik !== 'tak') return;
+    try { await setStatusTurnieju(id, 'trwa'); await wczytaj(); toast('Turniej rozpoczęty'); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się rozpocząć turnieju', 'error'); }
+  };
 
-  const przesunOdNajblizszego = async () => {
-    const pierwszy = meczeDoPrzesuniecia[0];
-    if (!pierwszy || opoznienie === null) return;
-    try {
-      await przesunTerminarz(id, pierwszy.id, zaokraglijDo5(opoznienie));
-      await wczytaj();
-      toast('Terminarz przesunięty');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Nie udało się przesunąć terminarza', 'error');
-    }
+  const zakonczTurniej = async () => {
+    const zostalo = postep.wszystkie - postep.rozegrane;
+    const wynik = await potwierdz({
+      tytul: 'Zakończyć turniej?',
+      konsekwencje: zostalo > 0
+        ? [`${withCount(zostalo, 'mecz zostaje', 'mecze zostają', 'meczów zostaje')} bez wyniku`, 'Turniej pokaże się jako zakończony']
+        : ['Turniej pokaże się jako zakończony'],
+      potwierdzLabel: 'Zakończ turniej',
+    });
+    if (wynik !== 'tak') return;
+    try { await setStatusTurnieju(id, 'zakonczony'); await wczytaj(); toast('Turniej zakończony'); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się zakończyć turnieju', 'error'); }
   };
 
   const przesunAkcja = async () => {
@@ -505,13 +523,12 @@ export default function PanelClient() {
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-5">
         {zakladka === 'pulpit' && (
           <div className="space-y-4">
-            {/* W DNIU TURNIEJU pulpit jest wieżą kontrolną, a nie listą zadań:
-                co trwa na każdej arenie, co jest następne i o ile jesteśmy
-                spóźnieni. „Przesuń resztę" stoi TUTAJ, a nie w zakładce
-                Terminarz, bo to jest ekran, w który organizator zagląda co
-                kwadrans — plan modułu nazywa ten przycisk najmocniejszą
-                funkcją organizatorską i trzymanie go dwa dotknięcia dalej
-                było jej marnowaniem. */}
+            {/* W DNIU TURNIEJU pulpit jest wieżą kontrolną: ile rozegrano
+                i które mecze czekają na wynik. Do 2026-11-08 stało tu „o ile
+                jesteśmy spóźnieni" z przyciskiem „Przesuń resztę", liczone
+                z godzin terminarza. Wycofane decyzją właściciela: turniejem
+                steruje klikanie, a godziny i tak rozjeżdżają się od pierwszego
+                meczu. Ręczne przesunięcie zostaje w zakładce Terminarz. */}
             {turniej.status === 'trwa' ? (
               <>
                 <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4">
@@ -519,48 +536,41 @@ export default function PanelClient() {
                     <span className="inline-block h-2 w-2 rounded-full bg-primary-600" /> Turniej trwa
                   </p>
                   <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
-                    {opoznienie === null
-                      ? 'Idziecie zgodnie z planem.'
-                      : `Opóźnienie: +${opoznienie} min względem terminarza.`}
+                    Rozegrane {postep.rozegrane} z {withCount(postep.wszystkie, 'meczu', 'meczów', 'meczów')}.
                   </p>
-                  {opoznienie !== null && meczeDoPrzesuniecia.length > 0 && (
-                    <Button
-                      variant="outline"
-                      onClick={przesunOdNajblizszego}
-                      className="mt-3 w-full"
-                    >
-                      Przesuń resztę o {zaokraglijDo5(opoznienie)} min
-                    </Button>
-                  )}
                 </div>
 
-                {areny_teraz.map(({ arena, trwa, nastepny }) => (
-                  <div key={arena.id} className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{arena.nazwa}</p>
-                    {trwa && (
-                      <button
-                        onClick={() => router.push(`/turnieje/${id}/mecz/${trwa.id}`)}
-                        className="mt-1 flex w-full items-center gap-2 text-left"
-                      >
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-                          ▶ {nazwaDruzynyPanel(trwa.druzynaAId)} – {nazwaDruzynyPanel(trwa.druzynaBId)}
-                        </span>
-                        <span className="shrink-0 font-mono text-base font-bold text-ink">
-                          {trwa.wynikA}:{trwa.wynikB}
-                        </span>
-                      </button>
-                    )}
-                    {nastepny && (
-                      <button
-                        onClick={() => router.push(`/turnieje/${id}/mecz/${nastepny.id}`)}
-                        className="mt-1 block w-full truncate text-left text-sm text-slate-500 dark:text-slate-400"
-                      >
-                        {nastepny.zaplanowanyAt ? `${nastepny.zaplanowanyAt.slice(11, 16)} ` : 'potem '}
-                        {nazwaDruzynyPanel(nastepny.druzynaAId)} – {nazwaDruzynyPanel(nastepny.druzynaBId)}
-                      </button>
-                    )}
+                {/* Lista meczów do wpisania zamiast „co na której arenie o której".
+                    Organizator po gwizdku stuka w mecz, wpisuje wynik i wraca. */}
+                {doWpisania.length > 0 && (
+                  <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Wpisz wynik</p>
+                    <ul className="mt-1 divide-y divide-slate-100 dark:divide-slate-700">
+                      {doWpisania.map((m) => (
+                        <li key={m.id}>
+                          <button
+                            onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
+                            className="flex min-h-[48px] w-full items-center gap-2 text-left"
+                          >
+                            <span className="shrink-0 font-mono text-xs text-slate-400">M{m.numer}</span>
+                            <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+                              {m.status === 'trwa' && '▶ '}
+                              {nazwaDruzynyPanel(m.druzynaAId)} – {nazwaDruzynyPanel(m.druzynaBId)}
+                            </span>
+                            {m.status === 'trwa' && (
+                              <span className="shrink-0 font-mono text-base font-bold text-ink">{m.wynikA}:{m.wynikB}</span>
+                            )}
+                            <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                ))}
+                )}
+
+                <Button variant="outline" onClick={zakonczTurniej} className="w-full">
+                  Zakończ turniej
+                </Button>
               </>
             ) : (
               <>
@@ -591,6 +601,10 @@ export default function PanelClient() {
                     ))}
                   </ul>
                 </div>
+
+                {mozeRozpoczac && (
+                  <Button onClick={rozpocznijTurniej} className="w-full">Rozpocznij turniej</Button>
+                )}
 
                 <Link href={`/turnieje/${id}`}>
                   <Button variant="outline" className="w-full">Zobacz turniej oczami kapitana</Button>

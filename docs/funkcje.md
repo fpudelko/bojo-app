@@ -4847,13 +4847,28 @@ trwającego meczu i jego areną.
 **Pulpit organizatora — nowa, domyślna zakładka panelu.** Panel wyglądał identycznie trzy
 tygodnie przed turniejem i w sobotę o 11:40. Przed turniejem pulpit jest listą blokad
 (drużyny, czekające zgłoszenia, terminarz, wpisowe, BLIK — `pulpitPrzedTurniejem()`),
-w dniu turnieju wieżą kontrolną: co trwa i co następne na każdej arenie
-(`arenyTeraz()`), obsuwa względem planu (`opoznienieWMinutach()`) i przycisk „Przesuń
-resztę o N min" — plan nazywa go najmocniejszą funkcją organizatorską, a stał dwie
-zakładki dalej, w miejscu, do którego w sobotę nikt nie zagląda. Wszystko w
-`lib/turniejPulpit.ts` jako czyste funkcje z podawanym „teraz", bo dzień turnieju to
+w dniu turnieju wieżą kontrolną. Wszystko w
+`lib/turniejPulpit.ts` jako czyste funkcje, bo dzień turnieju to
 jedyny stan, którego nie da się obejrzeć bez czekania na sobotę.
 
+
+**Dopisane 2026-11-08: sterowanie klikaniem, nie zegarem.** Decyzja właściciela.
+(1) Panel nie miał przycisku startu turnieju: status `trwa` dało się ustawić wyłącznie
+z bazy, więc warunek „turniej trwa" z migracji `155` (powiadomienie „Wasz mecz jest
+następny") w praktyce nigdy nie był spełniony. Dziś pulpit ma „Rozpocznij turniej"
+(`mozeRozpoczacTurniej()`: stan `zapisy`/`zamkniete_zapisy` i gotowy terminarz; data
+i godzina startu NIE są sprawdzane) oraz „Zakończ turniej" w trakcie. (2) Wpisywanie
+wyników (szybkie i na żywo) jest dostępne dopiero w turnieju o statusie `trwa`; wcześniej
+strona meczu mówi, gdzie turniej rozpocząć. (3) Główna droga do wyniku to „Wpisz wynik
+końcowy" na stronie meczu (`wpiszWynikMeczu()`: `wynik_a`/`wynik_b` z `wynik_recznie`,
+potem `zakoncz_mecz()`); prowadzenie na żywo z golami i strzelcami zostało pod
+przyciskiem „Prowadź mecz na żywo". (4) Pulpit w trakcie turnieju pokazuje postęp
+(`postepTurnieju()`) i listę meczów do wpisania (`meczeDoWpisania()`, kolejność po numerze,
+nie po godzinie). Wypadły `opoznienieWMinutach()`, `arenyTeraz()` i przycisk „Przesuń
+resztę o N min": godziny terminarza na amatorskim turnieju rozjeżdżają się od pierwszego
+meczu, więc komunikat o spóźnieniu był szumem. Ręczne „Przesuń od meczu" zostaje
+w zakładce Terminarz. Do testów ręcznych: `supabase/zadania/kopia-turnieju-do-testow.sql`
+(kopia istniejącego turnieju z kompletem drużyn, terminarzem i statusem `trwa`).
 
 ### Etap C przebudowy UX (migracja `156`) — początek i koniec łuku
 
