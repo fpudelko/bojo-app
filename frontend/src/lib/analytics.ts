@@ -49,8 +49,10 @@ export type AnalyticsEvent =
   | 'turniej_utworzony'
   /** Drużyna zgłoszona (samodzielnie albo dodana ręcznie). */
   | 'turniej_druzyna_zgloszona'
-  /** Ktoś dołączył do drużyny linkiem `/t/[kod]` — kapitanat, „to ja" albo nowy wpis. */
+  /** Ktoś dołączył do drużyny linkiem `/t/[kod]`: „to ja" albo nowy wpis (kapitanatu link nie nadaje od 172). */
   | 'turniej_dolaczyl_do_druzyny'
+  /** Organizator wskazał kapitana albo kapitan przekazał funkcję (migracja 172). */
+  | 'turniej_kapitan_ustawiony'
   /** Mecz poprowadzony do końca konsolą prowadzącego (Etap 2). */
   | 'turniej_mecz_poprowadzony'
   /** Organizator wysłał link do turnieju/drużyny dalej. */

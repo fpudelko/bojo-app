@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-08 · migracja `171` · 59 tabel
+**Stan na:** 2026-11-08 · migracja `173` · 59 tabel
 
 ---
 
@@ -263,25 +263,37 @@ po każdym meczu. Nic z tego nie liczy tabeli ani statystyk automatycznie, a dru
 widzą planu na bieżąco.
 
 **Rozwiązanie w Bojo.** Organizator zakłada turniej (`/turnieje/nowe`), ustala format
-(grupy + puchar, sam puchar albo liga), liczbę drużyn, skład min/max i wpisowe. Może podać
+(grupy + puchar, sam puchar albo liga), liczbę drużyn, maksymalny skład, liczbę boisk,
+wpisowe i ZASADY GRY (czas meczu, przerwa, punkty za wygraną i remis, ile drużyn wychodzi
+z grupy, mecz o 3. miejsce). Wszystko to organizator zmienia później w panelu, a każdy
+zapis potwierdza komunikat „Zapisano”. Może podać
 TERMIN GRANICZNY ZAPISÓW — po tym dniu nikt nie zgłosi drużyny, niezależnie od wolnych
 miejsc. Kapitani zgłaszają drużyny linkiem, a potem kompletują skład na własnym ekranie
-drużyny (`/turnieje/[id]/druzyna/[id]`): stały link do wysłania kolegom, licznik „5 z 8",
+drużyny (`/turnieje/[id]/druzyna/[id]`): stały link do wysłania kolegom, licznik „5 z 12",
 dopisywanie zawodników bez konta, wpisowe z numerem BLIK, lista własnych meczów. Drugą
 drogą obok linku jest IMIENNE ZAPROSZENIE: kapitan zaprasza ludzi ze swoich ekip Bojo,
 a zaproszony widzi kartę „Dołączam / Nie mogę" na `/moje-gry`, obok zaproszeń na mecz.
 Zaproszenie nie zajmuje miejsca w składzie i gaśnie samo, gdy człowiek wejdzie do drużyny.
-Kapitan może też przekazać kapitanat dalej albo wycofać drużynę.
-Organizator losuje grupy, generuje terminarz jednym przyciskiem (rozkłada mecze na
-dostępne areny/boiska bez kolizji drużyny w jednym slocie) i może go przesunąć w całości,
-gdy dzień się opóźnia. Turniej startuje, gdy organizator kliknie „Rozpocznij turniej"
+Kapitan może też przekazać kapitanat dalej albo wycofać drużynę. Organizator może sam
+dodać drużynę i wpisać jej skład; link do takiej drużyny tylko DOŁĄCZA: gracz wybiera swoje
+imię z listy (przejmuje wpis) albo dopisuje się sam. Link nie nadaje kapitanatu, kapitana
+wskazuje organizator przyciskiem „Ustaw kapitanem” przy zawodniku z kontem.
+Organizator losuje grupy albo ustawia je ręcznie i może przenieść drużynę do innej grupy
+po losowaniu. Generuje terminarz jednym przyciskiem (rozkłada mecze na dostępne
+areny/boiska bez kolizji drużyny w jednym slocie), a w podglądzie pucharu zamienia
+miejscami dwie drużyny pierwszej rundy dotknięciem. Godziny w terminarzu są orientacyjne
+i niczego nie uruchamiają same. Obok „Rozpocznij turniej” stoi „Przetestuj”: kopia turnieju
+z tym samym terminarzem, od razu w trakcie, w której organizator ćwiczy wpisywanie wyników;
+prawdziwy turniej i zawodnicy niczego z niej nie widzą. Turniej startuje, gdy organizator kliknie „Rozpocznij turniej"
 w pulpicie panelu (warunek: gotowy terminarz; data i godzina startu nie są sprawdzane),
 a kończy przyciskiem „Zakończ turniej". Wyniki wpisuje się dopiero w trwającym turnieju.
-Główna droga to SAM WYNIK KOŃCOWY: na stronie meczu przyciski −/+ przy obu drużynach
-i „Zapisz wynik 3:1" (przy remisie w fazie pucharowej także karne). Opcją dla chętnych
+Główna droga to SAM WYNIK KOŃCOWY: na stronie meczu liczba wpisana z klawiatury albo
+przyciski −/+ przy obu drużynach i „Zapisz wynik 3:1" (przy remisie w fazie pucharowej
+także karne). Strzelcy są opcjonalni: pod wynikiem można wskazać strzelca każdego gola,
+a gdy części brakuje, Bojo pyta raz, czy zapisać wynik bez wszystkich strzelców. Opcją dla chętnych
 jest „Prowadź mecz na żywo": „Rozpocznij",
 dwa wielkie przyciski „GOL" (po jednym na drużynę), a po dotknięciu arkusz ze składem
-— kto strzelił, potem opcjonalnie kto asystował, po jednym dotknięciu. Nad wynikiem
+— kto strzelił, jednym dotknięciem (asysty Bojo nie zbiera). Nad wynikiem
 tyka zegar meczu liczony od pierwszego gwizdka (bez pauzy, świadomie). Są też „Cofnij
 ostatnie", walkower dla drużyny, która nie dojechała, „Zakończ" (karne przy remisie
 w fazie pucharowej) i karta „następny na tej arenie", która prowadzi wprost do kolejnego
@@ -293,7 +305,7 @@ rzeczy do zrobienia (drużyny, zgłoszenia, terminarz, wpisowe, BLIK) i przycisk
 „Rozpocznij turniej", w trakcie turnieju licznik „Rozegrane X z Y meczów" i listę
 meczów czekających na wynik (najpierw trwające, potem po numerze meczu, nie po
 godzinie). Pulpit nie liczy opóźnienia względem godzin terminarza: turniejem steruje
-klikanie organizatora, nie zegar. Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
+klikanie organizatora, nie zegar. Tabela grupy, drabinka i klasyfikacja strzelców (i zawodników meczu, gdy organizator ich wskazał)
 liczą się same z zapisanych wyników. Strona turnieju ma cztery zakładki — Info, Mecze
 (przełącznik Najbliższe/Rozegrane, a dla grającego dodatkowo Nasze/Wszystkie), Tabela
 i drabinka, Drużyny. Która otwiera się domyślnie, zależy od stanu turnieju: w zapisach
@@ -303,7 +315,7 @@ zwycięzca meczu jest pogrubiony, a pod wynikiem stoją rzuty karne, gdy to one
 rozstrzygnęły; w tabeli grupy miejsca awansujące mają pasek przy pozycji, a podpis,
 ile pierwszych miejsc wychodzi do fazy pucharowej, stoi raz pod kompletem tabel. Organizator może dopisać ogłoszenie widoczne dla
 wszystkich drużyn i podać numer BLIK do wpisowego. Po ostatnim meczu strona
-turnieju pokazuje PODIUM: trzy pierwsze drużyny, króla strzelców, MVP i przycisk
+turnieju pokazuje PODIUM: trzy pierwsze drużyny, króla strzelców, zawodnika turnieju (gdy wskazywano) i przycisk
 „Udostępnij wyniki". Stamtąd kapitan jednym przyciskiem zamienia drużynę w trwałą ekipę
 Bojo (grupę) z całym zapisanym składem, a ktoś, kto właśnie obejrzał cudzy turniej,
 znajduje wejście do własnego. Kreator turnieju liczy na bieżąco, ile meczów wyjdzie
@@ -461,6 +473,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-11-08 (3) — Prostszy moduł turniejowy: jedna rola, zasady gry, próba, kapitan wskazany przez organizatora
+
+PROBLEM: organizator turnieju w Bojo (turniej pokazowy w Luboniu) gubił się w opcjach:
+pola, które niczego nie robiły (data końca, minimum drużyn, minimalny skład), zakładka
+uprawnień, zapis ustawień bez potwierdzenia, brak pól na czas meczu i punktację, a widok
+dnia turnieju widział pierwszy raz w dniu turnieju. Pierwsza osoba z linku drużyny
+zostawała jej kapitanem, a do wyniku trzeba było klikać plus przy każdym golu i podawać
+asysty.
+
+ROZWIĄZANIE BOJO: kreator i panel turnieju mają sekcję „Zasady gry” i pola terminu,
+miejsca, drużyn, wpisowego, formatu i widoczności z potwierdzeniem „Zapisano”. Turniejem
+zarządza tylko organizator. Link do drużyny tylko dołącza, kapitana wskazuje organizator,
+który sam może wpisać skład. Grupy da się ustawić ręcznie i przestawić po losowaniu, pary
+pierwszej rundy pucharu zamienić w podglądzie. Wynik wpisuje się liczbą, strzelcy są
+opcjonalni (z jednym pytaniem przy zapisie), asysty wypadły, zawodnik meczu jest opcją.
+„Przetestuj” obok „Rozpocznij turniej” robi kopię turnieju do przećwiczenia wyników.
+Okładka stoi na górze strony turnieju.
+
+MECHANIKA: migracje `172` (`ustaw_kapitana_druzyny()`, link bez kapitanatu) i `173`
+(`utworz_probe_turnieju()`), `components/turnieje/ZasadyGry.tsx`,
+`zamienDruzynyWDrabince()` w `lib/turniejFormat.ts`, `goleZWyniku()` /
+`wpiszWynikZeStrzelcami()` w `lib/turniejMecze.ts`, `czyTurniejProbny()` w
+`lib/turnieje.ts`. Szczegóły → [funkcje.md](./funkcje.md), plan →
+[turnieje-poprawki-lubon.md](./turnieje-poprawki-lubon.md).
 
 ### 2026-11-08 — Turniej startuje kliknięciem, wynik meczu wpisuje się jednym ruchem
 
@@ -674,33 +711,4 @@ MECHANIKA: `EventDetailClient.tsx` (układ wiersza składu, `konsekwencjeZapisu(
 przy liczniku i przycisku wypisania), `lib/toast.tsx` (pozycja i animacja),
 `BottomNav.tsx`, `GroupDetailClient.tsx`. Bez migracji.
 Szczegóły → [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-2, X-6, X-10, X-11.
-
-### 2026-09-27 — Strona meczu mówi prawdę o Twoim zapisie
-
-PROBLEM: rezerwowy z aktywną ofertą zwolnionego miejsca widział na dole ekranu pasek
-„Rezerwa: 1. w kolejce · Wypisz się", który zasłaniał kartę oferty z przyciskiem
-„Wchodzę" i godziną na decyzję — akcja z terminem chowała się pod paskiem, który mówił
-coś przeciwnego. Osoba z zewnątrz w trakcie takiej oferty widziała „Zostało 1 wolne
-miejsce" i okno „Zapisać się na mecz?", choć zapis i tak kończył się na rezerwie —
-licznik obiecywał miejsce, którego nie było. Gość, którego wpis zniknął (organizator
-usunął albo odrzucił prośbę), dalej widział „Jesteś zapisany(a) · Mój zapis →" bez
-żadnej drogi do ponownego zapisu. Po zapisie gościa pasek „Dołącz bez konta" wracał aż
-do odświeżenia strony. Wypisanie się samemu dawało toast „Uczestnik usunięty" — zdanie
-opisujące decyzję organizatora, nie własną.
-
-ROZWIĄZANIE BOJO: pasek stanu rozpoznaje aktywną ofertę jako odrębny, priorytetowy stan
-(„Zwolniło się miejsce, jest Twoje · Masz czas do HH:MM", przycisk „Wchodzę") — to samo
-dla gościa bez konta. Licznik miejsc liczy trzymaną ofertę jako zajętą dla swojej roli,
-więc „Zostało N wolnych miejsc" i tytuł okna zapisu zgadzają się z tym, co faktycznie
-zrobi baza; gdy jedyne wolne miejsce jest właśnie oferowane, licznik mówi to wprost
-(„1 miejsce czeka na osobę z rezerwy"). Strona sama sprawdza, czy zapamiętany wpis
-gościa wciąż istnieje, i wraca do „Dołącz", gdy nie — z komunikatem, że można zapisać
-się ponownie. Token gościa zapamiętuje się od razu po zapisie. Toast po wypisaniu mówi
-„Wypisano Cię z meczu" (pasek/okno) albo „Zrezygnowano z rezerwy" (kosz na liście
-rezerwowej); organizator usuwający kogoś innego dostaje „Uczestnik usunięty" bez zmian.
-
-MECHANIKA: `ofertyWToku()` w `lib/events.ts` (dołączana do składu przed
-`wolneMiejscaWgRol()`), `podejrzyjWpisGoscia()` (`lib/guestClaim.ts`) wołane po zmianie
-`mojTokenGoscia`, `handleRemove(id, komunikat)` w `EventDetailClient.tsx`. Bez migracji.
-Szczegóły → [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-1, X-3, X-4, X-5, X-9.
 

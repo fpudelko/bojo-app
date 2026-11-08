@@ -335,3 +335,54 @@ export function szacunekCzasu(
   }
   return wynik;
 }
+
+/** Miejsce drużyny w pierwszej rundzie drabinki: mecz i strona. */
+export interface MiejsceWDrabince {
+  meczId: string;
+  strona: 'a' | 'b';
+}
+
+const czyPierwszaRundaPucharu = (m: NowyMecz) =>
+  m.faza !== 'grupa' && m.faza !== 'liga' && !m.zrodloAMeczId && !m.zrodloBMeczId;
+
+/**
+ * Ręczna zmiana par w pierwszej rundzie pucharu: zamienia miejscami dwie
+ * DRUŻYNY w podglądzie terminarza, zanim organizator go zapisze.
+ *
+ * Losowanie drabinki zostaje punktem wyjścia, ale organizator zna drużyny
+ * i chce np. rozdzielić dwie z tego samego klubu (decyzja właściciela
+ * z 2026-11-08). Zamiana działa wyłącznie między dwoma zajętymi miejscami:
+ * liczba i pozycja wolnych losów się nie zmienia, więc godziny i boiska
+ * z harmonogramu zostają ważne. Wolny los po zamianie dostaje nowego
+ * zwycięzcę (drużynę, która na nim stoi), inaczej `zapisz_terminarz()`
+ * przepchnęłaby do drugiej rundy drużynę, której tam już nie ma.
+ *
+ * Zwraca NOWĄ tablicę; przy niedozwolonej zamianie zwraca wejście bez zmian.
+ */
+export function zamienDruzynyWDrabince(
+  mecze: readonly NowyMecz[],
+  pierwsze: MiejsceWDrabince,
+  drugie: MiejsceWDrabince,
+): NowyMecz[] {
+  const kopia = mecze.map((m) => ({ ...m }));
+  const znajdz = (x: MiejsceWDrabince) => kopia.find((m) => m.id === x.meczId);
+  const m1 = znajdz(pierwsze);
+  const m2 = znajdz(drugie);
+  if (!m1 || !m2 || !czyPierwszaRundaPucharu(m1) || !czyPierwszaRundaPucharu(m2)) return [...mecze];
+  const pole = (s: 'a' | 'b'): 'druzynaAId' | 'druzynaBId' => (s === 'a' ? 'druzynaAId' : 'druzynaBId');
+  const d1 = m1[pole(pierwsze.strona)];
+  const d2 = m2[pole(drugie.strona)];
+  if (!d1 || !d2 || (m1 === m2 && pierwsze.strona === drugie.strona)) return [...mecze];
+
+  m1[pole(pierwsze.strona)] = d2;
+  m2[pole(drugie.strona)] = d1;
+
+  for (const m of m1 === m2 ? [m1] : [m1, m2]) {
+    if (m.status === 'walkower') {
+      const zostaje = m.druzynaAId ?? m.druzynaBId;
+      m.zwyciezcaId = zostaje;
+      m.walkowerDla = zostaje;
+    }
+  }
+  return kopia;
+}

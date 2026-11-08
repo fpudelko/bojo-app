@@ -13,8 +13,7 @@ import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import {
   getTurniej, uprawnieniaTurnieju, getMojaOsobe, przyjmujeZgloszenia,
   getOgloszenia, dodajOgloszenie, usunOgloszenie, getBlikTurnieju,
-  domyslnaZakladka,
-} from '@/lib/turnieje';
+  domyslnaZakladka, czyTurniejProbny } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
 import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy } from '@/lib/turniejEtykiety';
@@ -398,7 +397,6 @@ export default function TurniejClient() {
   const klasyfikacje = obliczKlasyfikacje(zdarzenia, mvpPoMeczach, zawodnicyDoStatystyk, druzynyPoId);
   const strzelcy = posortujKlasyfikacje(klasyfikacje, 'gole');
   const zdobycz = etykietaZdobyczy(turniej?.sport ?? '');
-  const asystenci = posortujKlasyfikacje(klasyfikacje, 'asysty');
   const mvpList = posortujKlasyfikacje(klasyfikacje, 'mvp');
   const dojazd = linkDojazdu({ lat: turniej.lat, lng: turniej.lng, adres: turniej.miejsceAdres });
 
@@ -507,8 +505,25 @@ export default function TurniejClient() {
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 py-5">
         {turniej.status === 'szkic' && uprawnienia.mozeEdytowac && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-sm text-amber-800 dark:text-amber-300">
-            Ten turniej jest szkicem, nikt poza Tobą go nie widzi.
+            Ten turniej jest szkicem: nie ma go na liście turniejów, ale każdy, kto ma link, go zobaczy.
           </div>
+        )}
+        {czyTurniejProbny(turniej) && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-sm text-amber-800 dark:text-amber-300">
+            To jest próba turnieju. Wyniki wpisane tutaj nie trafiają do prawdziwego turnieju.
+          </div>
+        )}
+
+        {/* OKŁADKA na stronie turnieju, nie tylko jako miniatura na liście
+            (decyzja właściciela z 2026-11-08). Organizator wgrywał ją
+            w Ustawieniach i nie widział jej nigdzie poza `/turnieje`. */}
+        {turniej.okladkaUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={turniej.okladkaUrl}
+            alt=""
+            className="h-36 w-full rounded-2xl object-cover sm:h-48"
+          />
         )}
 
         {/* Pasek tożsamości — widoczny na KAŻDEJ zakładce, w jednej linii.
@@ -663,19 +678,12 @@ export default function TurniejClient() {
                     : `Dodatkowo ${czekajace} zgłoszenia czekają na decyzję organizatora.`}
                 </p>
               )}
-              {/* Informacja, nie werdykt: Bojo nie rozstrzyga, czy turniej się
-                  odbędzie. Organizator podał liczbę, my ją pokazujemy. */}
-              {turniej.minDruzyn !== undefined && liczbaWTurnieju < turniej.minDruzyn && (
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Organizator planuje turniej od {turniej.minDruzyn} drużyn.
-                </p>
-              )}
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300">
               {turniej.wpisoweGrosze > 0
                 ? `${(turniej.wpisoweGrosze / 100).toFixed(0)} zł od drużyny · `
                 : 'Bez wpisowego · '}
-              skład {turniej.minZawodnikow}–{turniej.maxZawodnikow} osób
+              skład do {turniej.maxZawodnikow} osób
             </p>
           </div>
         )}
@@ -787,12 +795,13 @@ export default function TurniejClient() {
             <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <div className="min-w-0">
-                <div>{withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn} · skład {turniej.minZawodnikow}–{turniej.maxZawodnikow} osób</div>
+                <div>{withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn} · skład do {turniej.maxZawodnikow} osób</div>
                 <div className="text-xs text-slate-400">
                   Mecz {turniej.czasMeczuMin} min
                   {turniej.przerwaMin > 0 && `, przerwa ${turniej.przerwaMin} min`}
                   {' · '}zwycięstwo {turniej.punktyZaWygrana} pkt, remis {turniej.punktyZaRemis}
-                  {turniej.karnePrzyRemisie && ' · remis w fazie pucharowej rozstrzygają karne'}
+                  {turniej.format !== 'liga' && ' · remis w fazie pucharowej rozstrzygają karne'}
+                  {turniej.format !== 'liga' && turniej.meczO3Miejsce && ' · gramy mecz o 3. miejsce'}
                 </div>
               </div>
             </div>
@@ -950,14 +959,15 @@ export default function TurniejClient() {
                       <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{zdobycz.naglowek}</h3>
                       <Klasyfikacja wpisy={strzelcy} klucz="gole" etykietaKolumny={zdobycz.kolumna} pusteMiejsce={zdobycz.puste} />
                     </div>
-                    <div>
-                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej asyst</h3>
-                      <Klasyfikacja wpisy={asystenci} klucz="asysty" etykietaKolumny="Asysty" pusteMiejsce="Jeszcze nikt nie zaliczył asysty." />
-                    </div>
-                    <div>
-                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Najwięcej tytułów MVP</h3>
-                      <Klasyfikacja wpisy={mvpList} klucz="mvp" etykietaKolumny="MVP" pusteMiejsce="MVP jeszcze nie wybrano." />
-                    </div>
+                    {/* Bez klasyfikacji asyst (asysty wypadły z modułu 2026-11-08).
+                        Zawodnik meczu jest opcjonalny, więc jego lista pokazuje
+                        się dopiero, gdy ktoś go faktycznie wskazał. */}
+                    {mvpList.some((w) => w.mvp > 0) && (
+                      <div>
+                        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Zawodnik meczu</h3>
+                        <Klasyfikacja wpisy={mvpList.filter((w) => w.mvp > 0)} klucz="mvp" etykietaKolumny="Razy" pusteMiejsce="" />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

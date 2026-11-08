@@ -53,8 +53,8 @@ export default function DolaczDoDruzynyPage() {
     setBlad(null);
     try {
       const wynik = await dolaczDoDruzyny(kod, opcje);
-      router.push(`/turnieje/${wynik.turniejId}?tab=druzyny`);
-      toast(wynik.zostalKapitanem ? 'Jesteś kapitanem tej drużyny!' : 'Dołączyłeś do drużyny!');
+      router.push(`/turnieje/${wynik.turniejId}/druzyna/${wynik.druzynaId}`);
+      toast('Jesteś w składzie!');
     } catch (e) {
       setBlad(e instanceof Error ? e.message : 'Nie udało się dołączyć');
       setWTrakcie(false);
@@ -162,18 +162,15 @@ export default function DolaczDoDruzynyPage() {
         <div className="space-y-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
           {blad && <p className="text-sm text-red-600">{blad}</p>}
 
-          {!druzyna.kapitanId ? (
+          {/* Link do drużyny tylko DOŁĄCZA (migracja `172`). Do 2026-11-08
+              pierwsza osoba, która otworzyła link drużyny bez kapitana,
+              dostawała „Zostań kapitanem tej drużyny" jako główny przycisk,
+              czyli kapitanem drużyny wpisanej przez organizatora zostawał
+              ktokolwiek, komu link przesłano dalej. Kapitana wskazuje dziś
+              organizator na ekranie drużyny. */}
+          {wolneWpisy.length > 0 ? (
             <div className="space-y-2">
-              <Button onClick={() => wykonaj({ jakoKapitan: true })} disabled={wTrakcie} className="w-full inline-flex items-center justify-center gap-2">
-                {wTrakcie ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Zostań kapitanem tej drużyny'}
-              </Button>
-              <Button variant="outline" onClick={() => wykonaj({})} disabled={wTrakcie} className="w-full">
-                Dołącz jako zawodnik
-              </Button>
-            </div>
-          ) : wolneWpisy.length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-ink">Jesteś na tej liście?</p>
+              <p className="text-sm font-medium text-ink">Jesteś na tej liście? Wybierz swoje imię</p>
               {wolneWpisy.map((z) => (
                 <button
                   key={z.id}

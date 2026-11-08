@@ -1677,7 +1677,7 @@ SELECT _oczekuj('anon nie przestawia współrzędnych cudzego alertu',
                 (SELECT count(*) FROM game_alerts
                   WHERE id = :ALERT_ID::uuid AND lat = 52.4), 1);
 
-SELECT _sekcja('Turniej: dołączenie do drużyny z linku, wszystkie trzy drogi (migracje 145, 171)');
+SELECT _sekcja('Turniej: dołączenie do drużyny z linku i kapitan wskazany przez organizatora (migracje 145, 171, 172)');
 
 -- Do 2026-11-08 KAŻDE wywołanie `dolacz_do_druzyny_kodem()` kończyło się
 -- `column reference "druzyna_id" is ambiguous`: kolumny wyniku z `RETURNS
@@ -1697,16 +1697,18 @@ VALUES (:TJ_DRUZYNA::uuid, :TJ_TURNIEJ::uuid, 'Drużyna z linku', 'przyjeta', 'T
 INSERT INTO turniej_zawodnicy (id, druzyna_id, turniej_id, imie)
 VALUES (:TJ_WOLNY::uuid, :TJ_DRUZYNA::uuid, :TJ_TURNIEJ::uuid, 'Maciej');
 
--- Droga 1: „Zostań kapitanem" (po przejęciu funkcja dopisuje też wiersz składu).
+-- Od 172 link NIE nadaje kapitanatu: pierwsza osoba z linku nie zostaje
+-- kapitanem drużyny wpisanej przez organizatora. Kapitana wskazuje
+-- organizator przez `ustaw_kapitana_druzyny()`.
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
-SELECT _oczekuj('kapitan z linku: funkcja zwraca zostal_kapitanem',
-  (SELECT count(*) FROM dolacz_do_druzyny_kodem('tjkod1', true) WHERE zostal_kapitanem), 1);
+SELECT _oczekuj_wyjatek('link drużyny nie nadaje kapitanatu (172)',
+  'SELECT * FROM dolacz_do_druzyny_kodem(''tjkod1'', true)');
+SELECT _oczekuj('dołączenie z linku jako zawodnik: jeden wiersz',
+  (SELECT count(*) FROM dolacz_do_druzyny_kodem('tjkod1', false) WHERE NOT zostal_kapitanem), 1);
 RESET ROLE;
-SELECT _oczekuj('kapitan z linku: drużyna ma kapitana i jest w składzie',
-                (SELECT count(*) FROM turniej_druzyny d JOIN turniej_zawodnicy z ON z.druzyna_id = d.id
-                  WHERE d.id = :TJ_DRUZYNA::uuid AND d.kapitan_id = :T_PROWADZACY::uuid
-                    AND z.user_id = :T_PROWADZACY::uuid AND z.kapitan), 1);
+SELECT _oczekuj('po dołączeniu z linku drużyna dalej NIE ma kapitana',
+                (SELECT count(*) FROM turniej_druzyny WHERE id = :TJ_DRUZYNA::uuid AND kapitan_id IS NULL), 1);
 
 -- Droga 2: „to ja" — przejęcie wolnego wpisu wpisanego wcześniej z ręki.
 SET ROLE authenticated;
@@ -1733,6 +1735,72 @@ SELECT _oczekuj('nowy zawodnik: dokładnie jeden wiersz „Bartek" z kontem',
                   WHERE druzyna_id = :TJ_DRUZYNA::uuid AND user_id = :UCZESTNIK::uuid AND imie = 'Bartek'), 1);
 SELECT _oczekuj('skład drużyny z linku: 3 osoby',
                 (SELECT count(*) FROM turniej_zawodnicy WHERE druzyna_id = :TJ_DRUZYNA::uuid), 3);
+
+-- Kapitana wskazuje organizator (172). Obcy ani zwykły zawodnik tego nie zrobi,
+-- a wpis bez konta nie może zostać kapitanem.
+SELECT id AS tj_wpis_bartka FROM turniej_zawodnicy
+ WHERE druzyna_id = :TJ_DRUZYNA::uuid AND user_id = :UCZESTNIK::uuid \gset
+INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, imie)
+VALUES (:TJ_DRUZYNA::uuid, :TJ_TURNIEJ::uuid, 'Bez konta') RETURNING id AS tj_wpis_bez_konta \gset
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT _oczekuj_wyjatek('zawodnik nie mianuje się kapitanem', format(
+  'SELECT ustaw_kapitana_druzyny(%L, %L)', :TJ_DRUZYNA, :'tj_wpis_bartka'));
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('wpis bez konta nie zostaje kapitanem', format(
+  'SELECT ustaw_kapitana_druzyny(%L, %L)', :TJ_DRUZYNA, :'tj_wpis_bez_konta'));
+SELECT ustaw_kapitana_druzyny(:TJ_DRUZYNA::uuid, :'tj_wpis_bartka'::uuid);
+RESET ROLE;
+SELECT _oczekuj('organizator wskazał kapitana: kolumna i flaga zgodne',
+                (SELECT count(*) FROM turniej_druzyny d JOIN turniej_zawodnicy z ON z.druzyna_id = d.id
+                  WHERE d.id = :TJ_DRUZYNA::uuid AND d.kapitan_id = :UCZESTNIK::uuid
+                    AND z.id = :'tj_wpis_bartka'::uuid AND z.kapitan), 1);
+
+-- Kapitan przekazuje kapitanat komuś ze składu.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT ustaw_kapitana_druzyny(:TJ_DRUZYNA::uuid, :TJ_WOLNY::uuid);
+RESET ROLE;
+SELECT _oczekuj('kapitan przekazał kapitanat: dokładnie jeden kapitan w składzie',
+                (SELECT count(*) FROM turniej_zawodnicy WHERE druzyna_id = :TJ_DRUZYNA::uuid AND kapitan), 1);
+SELECT _oczekuj('nowy kapitan w kolumnie drużyny',
+                (SELECT count(*) FROM turniej_druzyny WHERE id = :TJ_DRUZYNA::uuid AND kapitan_id = :CZLONEK::uuid), 1);
+
+SELECT _sekcja('Turniej: próba organizatora, kopia z terminarzem (migracja 173)');
+
+-- Turniej drabinkowy TD ma już rozegrany półfinał i wolny los. Próba ma
+-- zacząć od zera: wszystko zaplanowane poza wolnym losem, finał zna tylko
+-- drużynę z wolnego losu, składy bez kont, nic w zwykłej liście turniejów.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie zrobi próby cudzego turnieju', format(
+  'SELECT utworz_probe_turnieju(%L)', :TD_TURNIEJ));
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT utworz_probe_turnieju(:TD_TURNIEJ::uuid) AS proba_1 \gset
+SELECT utworz_probe_turnieju(:TD_TURNIEJ::uuid) AS proba_id \gset
+RESET ROLE;
+SELECT _oczekuj('druga próba zastępuje pierwszą (jedna kopia na organizatora)',
+                (SELECT count(*) FROM turnieje WHERE opis LIKE '[TURNIEJ-TEST]%' AND organizator_id = :T_ORGANIZATOR::uuid), 1);
+SELECT _oczekuj('próba trwa i jest tylko z linku',
+                (SELECT count(*) FROM turnieje WHERE id = :'proba_id'::uuid AND status = 'trwa' AND widocznosc = 'na_link'), 1);
+SELECT _oczekuj('próba ma ten sam terminarz co oryginał',
+                (SELECT count(*) FROM turniej_mecze WHERE turniej_id = :'proba_id'::uuid),
+                (SELECT count(*) FROM turniej_mecze WHERE turniej_id = :TD_TURNIEJ::uuid));
+SELECT _oczekuj('w próbie nic nie jest rozegrane poza wolnym losem',
+                (SELECT count(*) FROM turniej_mecze WHERE turniej_id = :'proba_id'::uuid AND status NOT IN ('zaplanowany','walkower')), 0);
+SELECT _oczekuj('finał próby zna drużynę z wolnego losu, ale nie zwycięzcę półfinału',
+                (SELECT count(*) FROM turniej_mecze m JOIN turniej_druzyny d ON d.id = m.druzyna_b_id
+                  WHERE m.turniej_id = :'proba_id'::uuid AND m.faza = 'final'
+                    AND m.druzyna_a_id IS NULL AND d.nazwa = 'Drabinka C'), 1);
+SELECT _oczekuj('składy próby nie mają kont (nikt nie dostanie powiadomienia)',
+                (SELECT count(*) FROM turniej_zawodnicy WHERE turniej_id = :'proba_id'::uuid AND user_id IS NOT NULL), 0);
+SELECT _oczekuj('każda drużyna próby ma kogo wskazać jako strzelca',
+                (SELECT count(*) FROM turniej_druzyny d WHERE d.turniej_id = :'proba_id'::uuid
+                  AND NOT EXISTS (SELECT 1 FROM turniej_zawodnicy z WHERE z.druzyna_id = d.id)), 0);
+SELECT _oczekuj('oryginał nietknięty: półfinał dalej rozegrany',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :TD_POLFINAL::uuid AND status = 'zakonczony'), 1);
+DELETE FROM turnieje WHERE id = :'proba_id'::uuid;
 
 -- ── Każda tabela w `public` ma włączone RLS ─────────────────────────────────
 -- Schemat `public` wystawia PostgREST pod jawnym kluczem `anon`, więc tabela

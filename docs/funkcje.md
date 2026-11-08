@@ -4958,6 +4958,63 @@ sformatowaną przez system; zostaje wysyłka i link do skopiowania.
 
 ---
 
+### Uproszczenie modułu przed turniejem w Luboniu (2026-11-08, migracje `171`–`173`)
+
+Decyzje właściciela po turnieju pokazowym („Gramy dla Marysi”), plan →
+[turnieje-poprawki-lubon.md](./turnieje-poprawki-lubon.md).
+
+**Wycięte z kreatora i strony:** data końca, minimum drużyn, minimalny skład (kolumny
+zostają w bazie; kreator wysyła `min_zawodnikow = 1`, żeby CHECK `min <= max` nie odrzucał
+małego składu). Licznik składu na ekranie drużyny liczy do maksimum („5 z 12”, „Wolne
+miejsca: 7”). Szacunek czasu w kreatorze to jedna linijka pod formularzem.
+
+**Zasady gry** (`components/turnieje/ZasadyGry.tsx`), w kreatorze i w panelu → Ustawienia:
+czas meczu, przerwa, punkty za wygraną i remis (liga, grupy), ile drużyn wychodzi z grupy
+(grupy → puchar), mecz o 3. miejsce (puchar). Kreator pyta też o liczbę boisk i zakłada je
+od razu. Wcześniej kreator wpisywał 15 + 5 min na sztywno, a reszta szła z wartości
+domyślnych bazy bez żadnego pola.
+
+**Panel: jedna rola, organizator.** Zakładka „Ludzie” zniknęła (uprawnienia w
+`turniej_osoby` zostają w bazie). Zniknęły też „Zobacz turniej oczami kapitana” i „Przesuń
+od meczu”: godziny w terminarzu są orientacyjne i niczego nie uruchamiają. Ustawienia
+edytują teraz datę i godzinę startu, miejsce, liczbę drużyn i zawodników, wpisowe, format
+(przed pierwszym terminarzem) i widoczność. **Każdy zapis kończy się komunikatem
+„Zapisano” albo błędem** (`zapiszUstawienie()`), wcześniej pola zapisywały się po cichu.
+Okładka stoi też na górze strony turnieju, nie tylko jako miniatura na `/turnieje`.
+
+**Kapitan: link tylko dołącza** (migracja `172`). `/t/[kod]` nie ma już „Zostań kapitanem”:
+gracz wybiera swoje imię z listy (przejmuje wpis dopisany ręcznie) albo dopisuje się sam.
+Kapitana wskazuje organizator przyciskiem „Ustaw kapitanem” przy zawodniku z kontem na
+ekranie drużyny (RPC `ustaw_kapitana_druzyny()`; obecny kapitan może tak samo przekazać
+funkcję). Organizator prowadzi skład każdej drużyny jak kapitan: dopisuje, usuwa, wysyła
+link („Wyślij link do drużyny”). W panelu → Drużyny nazwa prowadzi na ekran drużyny,
+pod nią „ma kapitana / bez kapitana”, a link kopiuje podpisany przycisk zamiast ikonki
+obok krzyżyka usuwania. Błędy techniczne z bazy nie trafiają na ekran
+(`czytelnyBladDruzyny()`).
+
+**Grupy i pary.** Po losowaniu każda drużyna ma wybór grupy (przeniesienie bez losowania
+od nowa), „Ustaw ręcznie” zakłada grupy bez losowania; po pierwszym rozegranym meczu wybór
+jest zablokowany. W podglądzie terminarza pucharu dotknięcie dwóch drużyn pierwszej rundy
+zamienia je miejscami (`zamienDruzynyWDrabince()` w `lib/turniejFormat.ts`, wolny los
+dostaje nowego zwycięzcę).
+
+**Wynik meczu.** Szybki wynik (PR #462) przyjmuje liczbę wpisaną z klawiatury, nie tylko
+`−/+`. **Strzelcy są opcjonalni**: pod wynikiem „Strzelcy (opcjonalnie)” z wyborem
+zawodnika na każdego gola; przy zapisie, gdy część goli nie ma strzelca, pada jedno pytanie
+„Zapisać wynik bez wszystkich strzelców?”. Ze strzelcami wynik zapisuje się jako gole
+w historii meczu (`wpiszWynikZeStrzelcami()`, reszta jako gole bez strzelca), więc tabela
+i klasyfikacja zawsze się zgadzają. **Asysty wypadły całkowicie** (konsola nie pyta,
+strona nie pokazuje klasyfikacji; kolumna `asysta_zawodnik_id` zostaje w bazie).
+**Zawodnik meczu** jest zwiniętą opcją przy zakończeniu meczu, a jego lista na stronie
+turnieju pokazuje się dopiero, gdy ktoś go wskazał.
+
+**„Przetestuj” obok „Rozpocznij turniej”** (migracja `173`). RPC
+`utworz_probe_turnieju()` robi kopię z tym samym terminarzem, od razu w stanie „trwa”,
+tylko z linku, ze składami bez kont (nikt nie dostaje powiadomień). Panel i strona kopii
+mają baner „To jest próba”, a „Zakończ próbę i usuń kopię” ją kasuje. Opis kopii zaczyna
+się od `[TURNIEJ-TEST]` (`czyTurniejProbny()`), więc sprząta ją też
+`supabase/wyczysc-testowe.sql`.
+
 ## Pomiar produktowy — co mierzymy i gdzie to czytać
 
 Tabela `analytics_events` (migracja `047`), zapis przez `track()` w

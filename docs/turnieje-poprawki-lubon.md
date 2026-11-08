@@ -85,6 +85,8 @@ boisk albo godziny startu po wygenerowaniu jest niemożliwe bez kasowania turnie
 
 ### P0-3. Turniej nigdy nie przechodzi w stan „trwa" ani „zakończony"
 
+**ZROBIONE 2026-11-08** w #462: „Rozpocznij turniej” i „Zakończ turniej” na pulpicie.
+
 **Przyczyna (do potwierdzenia na bazie dev):** w repo nie ma żadnego miejsca, które
 ustawia `turnieje.status = 'trwa'` lub `'zakonczony'`: ani przycisku w panelu, ani
 wyzwalacza po pierwszym/ostatnim meczu. Panel zmienia status tylko na
@@ -103,6 +105,8 @@ ostatni mecz rozstrzygnięty (finał albo cała liga) → `zakonczony`. Do tego 
 Test w bazie testowej: zakończenie finału przestawia status.
 
 ### P0-4. Organizator nie może poprawić składu drużyny
+
+**ZROBIONE 2026-11-08** (ekran drużyny, `172`).
 
 `DruzynaClient.tsx` pokazuje dopisywanie i usuwanie zawodników wyłącznie kapitanowi
 (`jestKapitanem`), choć RLS (`czy_kapitan_druzyny()` w `145`) przepuszcza też
@@ -271,3 +275,30 @@ kapitana o link" z kontaktem przez Bojo (wiadomość prywatna, `125`).
 
 Każda zmiana zachowania widocznego dla gracza → wpis w [llm-context.md](./llm-context.md);
 migracje → [baza-danych.md](./baza-danych.md).
+
+---
+
+## Decyzje właściciela z 2026-11-08 i co z nich zrobiono
+
+Zrobione w jednym PR po #461 i #462 (migracje `172`, `173`), szczegóły w
+[funkcje.md](./funkcje.md) („Uproszczenie modułu przed turniejem w Luboniu”):
+
+| Decyzja | Stan |
+|---|---|
+| Wywalić datę końca, minimum drużyn, minimalny skład | zrobione (kolumny zostają w bazie) |
+| Szacunek czasu mniej widoczny, nic na sztywno | zrobione: jedna linijka, liczy z „Zasad gry” i liczby boisk |
+| Widok dnia turnieju do zobaczenia wcześniej: „Przetestuj” obok „Rozpocznij” | zrobione (`173`) |
+| „Zobacz oczami kapitana” wypada | zrobione |
+| Drużyna dodana ręcznie: link, przez który gracz przejmuje wpis albo dołącza | zrobione: „Wyślij link do drużyny”, organizator wpisuje skład |
+| Pierwsza osoba z linku nie zostaje kapitanem | zrobione (`172`), kapitana wskazuje organizator |
+| Tylko organizator, bez innych ról na start | zrobione: zakładka „Ludzie” schowana |
+| Grupy: losowanie albo ręcznie, edycja po losowaniu | zrobione, plus zamiana par w 1. rundzie pucharu |
+| Godzina niczego nie uruchamia, wszystko klikane | zrobione: bez „Przesuń od meczu” i licznika opóźnienia (start kliknięciem z #462) |
+| Potwierdzenie zapisu ustawień | zrobione: „Zapisano” albo błąd przy każdym polu |
+| Okładka na stronie turnieju | zrobione |
+| Strzelcy opcjonalni, wynik wpisywany ręcznie, pytanie o brakujących strzelców | zrobione |
+| Asysty całkowicie wywalić, zawodnik meczu bardzo opcjonalny | zrobione |
+
+Zostaje na później z tej listy: P2-3 (gracz bez linku prosi o dołączenie), P4 (zbiórka,
+tablica na hali, plakat z QR). Termin zapisów zostaje świadomie, bo to decyzja
+organizatora, a nie zegar sterujący rozgrywką.

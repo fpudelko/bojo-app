@@ -945,7 +945,22 @@ wierszy naraz, wstawianych jedną partią.
 drużyną i bez meczu-źródła po żadnej stronie). Nie blokuje `zapisz_terminarz()`, nie
 liczy się do „Rozegrano już N meczów" w panelu, nie trafia na listę meczów publicznej
 strony, a `KartaMeczu` pokazuje go jako „Wolny los" bez wyniku. Do 2026-11-08 pierwsza
-wygenerowana drabinka z wolnym losem była przez to ostateczna. Propagacja
+wygenerowana drabinka z wolnym losem była przez to ostateczna.
+
+**Kapitan drużyny (od `172`).** Link `/t/[kod]` wyłącznie dołącza: „to ja” przy wpisie
+dopisanym ręcznie albo nowy zawodnik. Kapitanem drużyny zgłoszonej przez `/zglos` jest
+zgłaszający; drużynę dodaną ręcznie prowadzi organizator i on wskazuje kapitana
+(`ustaw_kapitana_druzyny()`, tylko zawodnik z kontem). Kapitan może przekazać funkcję.
+
+**Szybki wynik ze strzelcami.** Wynik zawsze wynika z goli w historii meczu
+(`przelicz_wynik_meczu()`, `147`). Szybki wynik bez strzelców zapisuje same kolumny
+(`wpiszWynikMeczu()`, `wynik_recznie`); ze strzelcami kasuje dotychczasowe zdarzenia meczu
+i wstawia jednym INSERT-em gole wskazanych strzelców plus gole bez strzelca do wyniku
+(`goleZWyniku()` + `wpiszWynikZeStrzelcami()` w `lib/turniejMecze.ts`). Asysty nie są już
+zbierane (od 2026-11-08), kolumna zostaje.
+
+**Turniej próbny** (`173`) to zwykły turniej z markerem `[TURNIEJ-TEST]` na początku opisu
+(`czyTurniejProbny()` w `lib/turnieje.ts`): bez kont w składach, więc bez powiadomień. Propagacja
 zwycięzcy do kolejnej rundy siedzi w `propaguj_zwyciezce_dla()`, WOŁANEJ WPROST przez
 `zapisz_terminarz()` dla każdego świeżo wstawionego meczu innego niż `zaplanowany` — nie
 przez wyzwalacz `AFTER UPDATE`. Pierwsza wersja tej migracji próbowała odpalić propagację
