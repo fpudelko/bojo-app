@@ -14,7 +14,7 @@
 
 import { liczDruzynyWTurnieju } from './turniejEtykiety';
 import { plural, withCount } from './plural';
-import type { Turniej, TurniejArena, TurniejDruzyna, TurniejMecz } from '@/types';
+import type { Turniej, TurniejDruzyna, TurniejMecz } from '@/types';
 
 export type StanPozycji = 'gotowe' | 'uwaga' | 'brak';
 
@@ -96,55 +96,43 @@ export function pulpitPrzedTurniejem(
 }
 
 /**
- * O ile minut turniej jest spóźniony względem planu.
+ * Ile meczów turnieju jest już rozstrzygniętych (wynik albo walkower).
  *
- * Miarą jest NAJWCZEŚNIEJSZY mecz, który wciąż czeka na rozpoczęcie: jeśli
- * jego godzina już minęła, tyle właśnie wynosi obsuwa. `null`, gdy nie ma
- * czego mierzyć albo wszystko idzie zgodnie z planem.
- *
- * Świadomie NIE liczymy średniej ze wszystkich meczów: organizatora interesuje
- * to, co widzi na boisku teraz, a nie statystyka dnia.
+ * ZASTĄPIŁO `opoznienieWMinutach()`. Pulpit w dniu turnieju mówił „Opóźnienie:
+ * +40 min" i proponował „Przesuń resztę", licząc obsuwę z godzin w terminarzu.
+ * Decyzja właściciela z 2026-11-08: turniejem steruje KLIKANIE organizatora,
+ * nie zegar. Godziny w terminarzu na amatorskim turnieju rozjeżdżają się od
+ * pierwszego meczu, więc komunikat o spóźnieniu był szumem, a nie informacją.
+ * Postęp „rozegrane X z Y" mówi prawdę niezależnie od tego, co pokazuje zegar.
  */
-export function opoznienieWMinutach(
-  mecze: readonly Pick<TurniejMecz, 'status' | 'zaplanowanyAt'>[],
-  teraz: Date = new Date(),
-): number | null {
-  const czekajace = mecze
-    .filter((m) => m.status === 'zaplanowany' && m.zaplanowanyAt)
-    .sort((a, b) => a.zaplanowanyAt!.localeCompare(b.zaplanowanyAt!));
-  if (czekajace.length === 0) return null;
-
-  const plan = new Date(czekajace[0].zaplanowanyAt!).getTime();
-  if (Number.isNaN(plan)) return null;
-
-  const roznica = Math.floor((teraz.getTime() - plan) / 60_000);
-  return roznica > 0 ? roznica : null;
-}
-
-export interface ArenaTeraz {
-  arena: TurniejArena;
-  trwa?: TurniejMecz;
-  nastepny?: TurniejMecz;
+export function postepTurnieju(
+  mecze: readonly Pick<TurniejMecz, 'status'>[],
+): { rozegrane: number; wszystkie: number } {
+  const rozegrane = mecze.filter((m) => m.status === 'zakonczony' || m.status === 'walkower').length;
+  return { rozegrane, wszystkie: mecze.filter((m) => m.status !== 'odwolany').length };
 }
 
 /**
- * Co się dzieje na każdej arenie: mecz w toku i pierwszy czekający.
- *
- * Areny bez czegokolwiek do pokazania wypadają z listy — pusty wiersz „Boisko 3:
- * nic" zabiera miejsce na ekranie, na który patrzy się w biegu.
+ * Mecze, w które organizator może teraz wpisać wynik: obie drużyny znane,
+ * mecz jeszcze nierozstrzygnięty. Najpierw te w toku, potem po NUMERZE
+ * meczu, nie po godzinie: kolejność gry na boisku i tak ustala organizator.
  */
-export function arenyTeraz(
-  areny: readonly TurniejArena[],
-  mecze: readonly TurniejMecz[],
-): ArenaTeraz[] {
-  return areny
-    .map((arena) => {
-      const naArenie = mecze.filter((m) => m.arenaId === arena.id);
-      const trwa = naArenie.find((m) => m.status === 'trwa');
-      const nastepny = naArenie
-        .filter((m) => m.status === 'zaplanowany')
-        .sort((a, b) => (a.zaplanowanyAt ?? '').localeCompare(b.zaplanowanyAt ?? '') || a.numer - b.numer)[0];
-      return { arena, trwa, nastepny };
-    })
-    .filter((w) => w.trwa || w.nastepny);
+export function meczeDoWpisania<T extends Pick<TurniejMecz, 'status' | 'numer' | 'druzynaAId' | 'druzynaBId'>>(
+  mecze: readonly T[],
+): T[] {
+  return mecze
+    .filter((m) => (m.status === 'zaplanowany' || m.status === 'trwa') && m.druzynaAId && m.druzynaBId)
+    .sort((a, b) => (a.status === 'trwa' ? 0 : 1) - (b.status === 'trwa' ? 0 : 1) || a.numer - b.numer);
+}
+
+/**
+ * Czy organizator może kliknąć „Rozpocznij turniej". Warunkiem jest gotowy
+ * terminarz i stan przed startem. Data i godzina startu NIE są sprawdzane:
+ * turniej zaczyna się, kiedy organizator tak zdecyduje.
+ */
+export function mozeRozpoczacTurniej(
+  t: Pick<Turniej, 'status'>,
+  mecze: readonly unknown[],
+): boolean {
+  return (t.status === 'zapisy' || t.status === 'zamkniete_zapisy') && mecze.length > 0;
 }

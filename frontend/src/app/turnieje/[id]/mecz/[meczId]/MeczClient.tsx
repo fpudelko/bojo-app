@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Undo2, Timer, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, MapPin, Undo2, Timer, ChevronRight, MoreHorizontal, Minus, Plus } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/lib/toast';
@@ -13,7 +13,7 @@ import { getTurniej } from '@/lib/turnieje';
 import { getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
 import {
   getMecz, getMecze, getAreny, getZdarzenia, dodajZdarzenie, cofnijOstatnieZdarzenie,
-  rozpocznijMecz, zakonczMecz, updateMecz, czyProwadziMecz, walkowerMeczu,
+  rozpocznijMecz, zakonczMecz, updateMecz, czyProwadziMecz, walkowerMeczu, wpiszWynikMeczu,
 } from '@/lib/turniejMecze';
 import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
@@ -70,6 +70,10 @@ export default function MeczClient() {
   const [karneA, setKarneA] = useState(0);
   const [karneB, setKarneB] = useState(0);
   const [mvpId, setMvpId] = useState('');
+  // Szybkie wpisanie wyniku końcowego (bez prowadzenia meczu na żywo).
+  const [wpisA, setWpisA] = useState(0);
+  const [wpisB, setWpisB] = useState(0);
+  const [zapisujeWynik, setZapisujeWynik] = useState(false);
 
   const wczytaj = useCallback(async () => {
     const m = await getMecz(meczId);
@@ -149,7 +153,11 @@ export default function MeczClient() {
   const koszykowka = jestKoszykowka(sport);
   const obieDruzynyZnane = !!mecz.druzynaAId && !!mecz.druzynaBId;
   const trwajacy = mecz.status === 'trwa';
-  const mozeZaczac = mecz.status === 'zaplanowany' && obieDruzynyZnane;
+  // Wyniki wpisuje się dopiero po kliknięciu „Rozpocznij turniej" w panelu.
+  // Godzina meczu w terminarzu NIE jest sprawdzana: kolejność i tempo gry
+  // ustala organizator na boisku (decyzja właściciela z 2026-11-08).
+  const turniejTrwa = turniej?.status === 'trwa';
+  const mozeZaczac = mecz.status === 'zaplanowany' && obieDruzynyZnane && turniejTrwa;
   const wszyscyZawodnicy = [...(druzynaA?.zawodnicy ?? []), ...(druzynaB?.zawodnicy ?? [])];
   const skladDruzyny = (druzynaId: string) =>
     (druzynaId === mecz.druzynaAId ? druzynaA?.zawodnicy : druzynaB?.zawodnicy) ?? [];
@@ -308,6 +316,30 @@ export default function MeczClient() {
   };
 
   const wymagaKarnych = wymaganeKarne(mecz.faza, mecz.wynikA, mecz.wynikB);
+  const wpisWymagaKarnych = wymaganeKarne(mecz.faza, wpisA, wpisB);
+  const jednostkaWyniku = setowy ? 'Wygrane sety' : koszykowka ? 'Punkty' : 'Gole';
+
+  const zapiszWynikAkcja = async () => {
+    if (wpisWymagaKarnych && karneA === karneB) {
+      toast('Remis w tej fazie musi mieć rozstrzygnięcie: wpisz różne wyniki karnych', 'error');
+      return;
+    }
+    setZapisujeWynik(true);
+    try {
+      await wpiszWynikMeczu(meczId, {
+        wynikA: wpisA,
+        wynikB: wpisB,
+        karneA: wpisWymagaKarnych ? karneA : undefined,
+        karneB: wpisWymagaKarnych ? karneB : undefined,
+      });
+      await wczytaj();
+      toast('Wynik zapisany');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać wyniku', 'error');
+    } finally {
+      setZapisujeWynik(false);
+    }
+  };
 
   const zakonczMeczAkcja = async () => {
     if (wymagaKarnych && karneA === karneB) {
@@ -434,8 +466,71 @@ export default function MeczClient() {
           )}
         </div>
 
+        {prowadzi && mecz.status === 'zaplanowany' && obieDruzynyZnane && !turniejTrwa && (
+          <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
+            Turniej jeszcze się nie zaczął. Wyniki wpiszesz po kliknięciu „Rozpocznij turniej”{' '}
+            <Link href={`/turnieje/${id}/panel`} className="font-medium text-primary-600">w panelu</Link>.
+          </div>
+        )}
+
+        {/* WYNIK KOŃCOWY JEDNYM RUCHEM. Główna ścieżka prowadzącego: po meczu
+            wpisuje „3:1" i gotowe. Gole ze strzelcami to opcja dla chętnych,
+            pod przyciskiem niżej, bo przy kilku boiskach naraz nikt nie stoi
+            z telefonem przy każdej bramce. */}
         {prowadzi && mozeZaczac && (
-          <Button onClick={rozpocznijAkcja} className="w-full">Rozpocznij mecz</Button>
+          <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-4">
+            <p className="text-sm font-semibold text-ink">Wpisz wynik końcowy</p>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                ['a', druzynaA?.nazwa, wpisA, setWpisA],
+                ['b', druzynaB?.nazwa, wpisB, setWpisB],
+              ] as const).map(([strona, nazwa, wartosc, ustaw]) => (
+                <div key={strona} className="flex flex-col items-center gap-2">
+                  <span className="line-clamp-2 min-h-[2.5rem] text-center text-sm font-medium text-ink">{nazwa ?? 'TBD'}</span>
+                  <span className="font-mono text-4xl font-bold text-ink" aria-live="polite">{wartosc}</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => ustaw(Math.max(0, wartosc - 1))}
+                      aria-label={`Odejmij, ${nazwa ?? 'drużyna'}`}
+                      className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 active:bg-slate-200"
+                    ><Minus className="h-5 w-5" /></button>
+                    <button
+                      onClick={() => ustaw(wartosc + 1)}
+                      aria-label={`Dodaj, ${nazwa ?? 'drużyna'}`}
+                      className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 active:bg-primary-100"
+                    ><Plus className="h-5 w-5" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-xs text-slate-400">{jednostkaWyniku}</p>
+            {wpisWymagaKarnych && (
+              <div>
+                <p className="text-sm font-medium text-ink">Remis: potrzebny wynik karnych</p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <input type="number" min={0} inputMode="numeric" value={karneA} onChange={(e) => setKarneA(Number(e.target.value) || 0)}
+                    aria-label={`Karne, ${druzynaA?.nazwa ?? 'drużyna A'}`}
+                    className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 px-2.5 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100" />
+                  <span className="text-slate-400">:</span>
+                  <input type="number" min={0} inputMode="numeric" value={karneB} onChange={(e) => setKarneB(Number(e.target.value) || 0)}
+                    aria-label={`Karne, ${druzynaB?.nazwa ?? 'drużyna B'}`}
+                    className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 px-2.5 py-1.5 text-sm dark:bg-slate-700 dark:text-slate-100" />
+                </div>
+              </div>
+            )}
+            <Button onClick={zapiszWynikAkcja} disabled={zapisujeWynik} className="w-full">
+              Zapisz wynik {wpisA}:{wpisB}
+            </Button>
+            <p className="text-xs text-slate-400">
+              {meczPucharowy ? 'Zwycięzca przejdzie do kolejnej rundy. ' : ''}Wyniku nie da się później cofnąć.
+            </p>
+          </div>
+        )}
+
+        {prowadzi && mozeZaczac && (
+          <Button variant="outline" onClick={rozpocznijAkcja} className="w-full">
+            {setowy ? 'Prowadź mecz na żywo (punkty w setach)' : 'Prowadź mecz na żywo (gole i strzelcy)'}
+          </Button>
         )}
 
         {/* DWA WIELKIE PRZYCISKI OBOK SIEBIE, po jednym na drużynę. Sześć

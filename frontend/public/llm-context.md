@@ -274,7 +274,12 @@ Zaproszenie nie zajmuje miejsca w składzie i gaśnie samo, gdy człowiek wejdzi
 Kapitan może też przekazać kapitanat dalej albo wycofać drużynę.
 Organizator losuje grupy, generuje terminarz jednym przyciskiem (rozkłada mecze na
 dostępne areny/boiska bez kolizji drużyny w jednym slocie) i może go przesunąć w całości,
-gdy dzień się opóźnia. Wyznaczony prowadzący obsługuje mecz z telefonu: „Rozpocznij",
+gdy dzień się opóźnia. Turniej startuje, gdy organizator kliknie „Rozpocznij turniej"
+w pulpicie panelu (warunek: gotowy terminarz; data i godzina startu nie są sprawdzane),
+a kończy przyciskiem „Zakończ turniej". Wyniki wpisuje się dopiero w trwającym turnieju.
+Główna droga to SAM WYNIK KOŃCOWY: na stronie meczu przyciski −/+ przy obu drużynach
+i „Zapisz wynik 3:1" (przy remisie w fazie pucharowej także karne). Opcją dla chętnych
+jest „Prowadź mecz na żywo": „Rozpocznij",
 dwa wielkie przyciski „GOL" (po jednym na drużynę), a po dotknięciu arkusz ze składem
 — kto strzelił, potem opcjonalnie kto asystował, po jednym dotknięciu. Nad wynikiem
 tyka zegar meczu liczony od pierwszego gwizdka (bez pauzy, świadomie). Są też „Cofnij
@@ -284,9 +289,11 @@ meczu. W dniu turnieju strona odświeża się sama co 20 sekund, a nad zakładka
 tablica „Na żywo" z wynikiem każdego trwającego meczu i jego boiskiem. Zawodnicy dostają
 powiadomienie „Wasz mecz jest następny — Boisko 2, ok. 11:20" w chwili, gdy kończy się
 poprzedni mecz na ich arenie. Organizator ma w panelu pulpit: przed turniejem listę
-rzeczy do zrobienia (drużyny, zgłoszenia, terminarz, wpisowe, BLIK), w dniu turnieju
-— co trwa i co następne na każdym boisku, obsuwę względem planu i przycisk „Przesuń
-resztę o N minut". Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
+rzeczy do zrobienia (drużyny, zgłoszenia, terminarz, wpisowe, BLIK) i przycisk
+„Rozpocznij turniej", w trakcie turnieju licznik „Rozegrane X z Y meczów" i listę
+meczów czekających na wynik (najpierw trwające, potem po numerze meczu, nie po
+godzinie). Pulpit nie liczy opóźnienia względem godzin terminarza: turniejem steruje
+klikanie organizatora, nie zegar. Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
 liczą się same z zapisanych wyników. Strona turnieju ma cztery zakładki — Info, Mecze
 (przełącznik Najbliższe/Rozegrane, a dla grającego dodatkowo Nasze/Wszystkie), Tabela
 i drabinka, Drużyny. Która otwiera się domyślnie, zależy od stanu turnieju: w zapisach
@@ -454,6 +461,26 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-11-08 — Turniej startuje kliknięciem, wynik meczu wpisuje się jednym ruchem
+
+PROBLEM: w Bojo nie było przycisku rozpoczęcia turnieju (status „trwa" ustawiał się
+wyłącznie z bazy), a jedyną drogą do wyniku meczu było prowadzenie go na żywo, gol po
+golu. Organizator amatorskiego turnieju po meczu chce wpisać „3:1", a nie stać przy
+boisku z telefonem. Pulpit w dniu turnieju mówił też o „opóźnieniu" liczonym z godzin
+terminarza, które na amatorskim turnieju rozjeżdżają się od pierwszego meczu.
+
+ROZWIĄZANIE BOJO: organizator klika „Rozpocznij turniej" w pulpicie panelu, gdy ma gotowy
+terminarz. Od tej chwili na stronie każdego meczu widzi „Wpisz wynik końcowy" z przyciskami
+−/+ i „Zapisz wynik" (przy remisie w fazie pucharowej także karne). Gole ze strzelcami
+zostają jako opcja „Prowadź mecz na żywo". Pulpit trwającego turnieju pokazuje „Rozegrane
+X z Y meczów", listę meczów do wpisania i przycisk „Zakończ turniej". Godziny meczów
+niczego nie blokują.
+
+MECHANIKA: `wpiszWynikMeczu()` w `lib/turniejMecze.ts` (wynik z `wynik_recznie`, potem RPC
+`zakoncz_mecz()`), `postepTurnieju()`, `meczeDoWpisania()`, `mozeRozpoczacTurniej()`
+w `lib/turniejPulpit.ts`, `app/turnieje/[id]/panel/PanelClient.tsx`,
+`app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Bez migracji.
 
 ### 2026-09-29 — Pierwszy ekran strony głównej pokazuje drogę organizatora w telefonie
 
@@ -678,22 +705,3 @@ MECHANIKA: migracja `164`, `scripts/odcisk-schematu.sh`,
 `.github/workflows/zdrowie-produkcji.yml`. Szczegóły →
 [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-0.
 
-### 2026-09-26 — Lista boisk w mieście otwiera boisko, które kliknięto
-
-PROBLEM: huby katalogu Bojo (`/boiska/[sport]`, `/boiska/[sport]/[miasto]`,
-`/boiska/woj/[wojewodztwo]`) i sitemapy boisk budowały adres obiektu z samej nazwy.
-Nazwy z importu OpenStreetMap powtarzają się tysiące razy („Boisko piłkarskie" ponad
-10 tys. razy), a adres z samej nazwy prowadzi przez przekierowanie do jednego,
-przypadkowego obiektu o tej nazwie. Kliknięcie obiektu na liście miasta mogło otworzyć
-boisko z innej miejscowości, a z 32 tys. wpisów w sitemapach boisk wyszukiwarka
-dostawała około 10,6 tys. różnych adresów, każdy przez przekierowanie.
-
-ROZWIĄZANIE BOJO: każdy link do strony obiektu i każdy wpis sitemapy boisk używa adresu
-kanonicznego: nazwa plus końcówka identyfikatora obiektu
-(`/boisko/boisko-pilkarskie-741e4f384561`). Adres z samej nazwy nadal działa dla starych
-linków i przekierowuje na adres kanoniczny.
-
-MECHANIKA: `slugBoiska(name, id)` z `lib/utils.ts` w `app/sitemap-boiska/[plik]/route.ts`
-i w trzech hubach `app/boiska/…` (link i `ItemList` w JSON-LD). Test
-`linkiObiektuKanoniczne.test.ts` odrzuca budowanie adresu obiektu przez `slugify(name)`.
-Wykryte przy analizie Search Console → [seo-geo-strategia.md](./seo-geo-strategia.md).

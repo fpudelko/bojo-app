@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { pulpitPrzedTurniejem, opoznienieWMinutach, arenyTeraz } from '@/lib/turniejPulpit';
-import type { TurniejArena, TurniejMecz } from '@/types';
+import {
+  pulpitPrzedTurniejem, postepTurnieju, meczeDoWpisania, mozeRozpoczacTurniej,
+} from '@/lib/turniejPulpit';
+import type { TurniejMecz } from '@/types';
 
 // Pulpit organizatora liczy stan dnia turnieju — jedynego stanu w tym module,
 // którego nie da się obejrzeć bez czekania na sobotę. Dlatego „teraz" jest
@@ -12,6 +14,7 @@ const druzyna = (status: string, oplacone = false) =>
 const mecz = (n: Partial<TurniejMecz> = {}): TurniejMecz => ({
   id: `m${n.numer ?? 1}`, turniejId: 't1', numer: n.numer ?? 1, faza: 'grupa',
   status: 'zaplanowany', wynikA: 0, wynikB: 0, wynikRecznie: false,
+  druzynaAId: 'dA', druzynaBId: 'dB',
   createdAt: '2026-10-01T08:00:00Z', ...n,
 } as TurniejMecz);
 
@@ -92,67 +95,50 @@ describe('pulpitPrzedTurniejem', () => {
   });
 });
 
-describe('opoznienieWMinutach', () => {
-  const teraz = new Date('2026-10-18T11:07:00Z');
-
-  it('mierzy obsuwę najwcześniejszym CZEKAJĄCYM meczem', () => {
+describe('postepTurnieju', () => {
+  it('liczy wynik i walkower jako rozegrane, odwołanych nie liczy wcale', () => {
     const mecze = [
-      mecz({ numer: 1, status: 'zakonczony', zaplanowanyAt: '2026-10-18T10:00:00Z' }),
-      mecz({ numer: 2, status: 'zaplanowany', zaplanowanyAt: '2026-10-18T10:55:00Z' }),
-      mecz({ numer: 3, status: 'zaplanowany', zaplanowanyAt: '2026-10-18T11:20:00Z' }),
+      mecz({ numer: 1, status: 'zakonczony' }),
+      mecz({ numer: 2, status: 'walkower' }),
+      mecz({ numer: 3, status: 'trwa' }),
+      mecz({ numer: 4, status: 'zaplanowany' }),
+      mecz({ numer: 5, status: 'odwolany' }),
     ];
-    expect(opoznienieWMinutach(mecze, teraz)).toBe(12);
-  });
-
-  it('zgodnie z planem = null, nie zero', () => {
-    const mecze = [mecz({ numer: 2, status: 'zaplanowany', zaplanowanyAt: '2026-10-18T11:20:00Z' })];
-    expect(opoznienieWMinutach(mecze, teraz)).toBeNull();
-  });
-
-  it('mecze bez godziny nie liczą się do obsuwy', () => {
-    const mecze = [mecz({ numer: 2, status: 'zaplanowany', zaplanowanyAt: undefined })];
-    expect(opoznienieWMinutach(mecze, teraz)).toBeNull();
-  });
-
-  it('turniej rozegrany do końca nie jest spóźniony', () => {
-    const mecze = [mecz({ numer: 1, status: 'zakonczony', zaplanowanyAt: '2026-10-18T10:00:00Z' })];
-    expect(opoznienieWMinutach(mecze, teraz)).toBeNull();
+    expect(postepTurnieju(mecze)).toEqual({ rozegrane: 2, wszystkie: 4 });
   });
 });
 
-describe('arenyTeraz', () => {
-  const areny: TurniejArena[] = [
-    { id: 'a1', turniejId: 't1', nazwa: 'Boisko 1', kolejnosc: 1 },
-    { id: 'a2', turniejId: 't1', nazwa: 'Boisko 2', kolejnosc: 2 },
-    { id: 'a3', turniejId: 't1', nazwa: 'Boisko 3', kolejnosc: 3 },
-  ];
-
-  it('pokazuje mecz w toku i pierwszy czekający na każdej arenie', () => {
+describe('meczeDoWpisania', () => {
+  it('najpierw mecze w toku, potem po numerze, bez meczów czekających na drużynę', () => {
     const mecze = [
-      mecz({ numer: 1, arenaId: 'a1', status: 'trwa' }),
-      mecz({ numer: 2, arenaId: 'a1', status: 'zaplanowany', zaplanowanyAt: '2026-10-18T11:20:00Z' }),
-      mecz({ numer: 3, arenaId: 'a1', status: 'zaplanowany', zaplanowanyAt: '2026-10-18T11:40:00Z' }),
+      mecz({ numer: 3, status: 'zaplanowany' }),
+      mecz({ numer: 1, status: 'zakonczony' }),
+      mecz({ numer: 4, status: 'trwa' }),
+      mecz({ numer: 2, status: 'zaplanowany' }),
+      mecz({ numer: 5, status: 'zaplanowany', druzynaBId: undefined }),
     ];
-    const wynik = arenyTeraz(areny, mecze);
-    expect(wynik).toHaveLength(1);
-    expect(wynik[0].trwa?.numer).toBe(1);
-    expect(wynik[0].nastepny?.numer).toBe(2);
+    expect(meczeDoWpisania(mecze).map((m) => m.numer)).toEqual([4, 2, 3]);
   });
 
-  it('arena bez niczego wypada z listy — pusty wiersz zabiera miejsce na ekranie', () => {
+  it('godzina w terminarzu nie zmienia kolejności', () => {
     const mecze = [
-      mecz({ numer: 1, arenaId: 'a1', status: 'trwa' }),
-      mecz({ numer: 9, arenaId: 'a2', status: 'zakonczony' }),
+      mecz({ numer: 2, status: 'zaplanowany', zaplanowanyAt: '2026-10-18T09:00:00Z' }),
+      mecz({ numer: 1, status: 'zaplanowany', zaplanowanyAt: '2026-10-18T15:00:00Z' }),
     ];
-    const wynik = arenyTeraz(areny, mecze);
-    expect(wynik.map((w) => w.arena.nazwa)).toEqual(['Boisko 1']);
+    expect(meczeDoWpisania(mecze).map((m) => m.numer)).toEqual([1, 2]);
+  });
+});
+
+describe('mozeRozpoczacTurniej', () => {
+  it('wymaga terminarza', () => {
+    expect(mozeRozpoczacTurniej({ status: 'zamkniete_zapisy' }, [])).toBe(false);
+    expect(mozeRozpoczacTurniej({ status: 'zamkniete_zapisy' }, [{}])).toBe(true);
+    expect(mozeRozpoczacTurniej({ status: 'zapisy' }, [{}])).toBe(true);
   });
 
-  it('bez godzin porządkuje numerem meczu — drabinka bez przypisanych slotów', () => {
-    const mecze = [
-      mecz({ numer: 7, arenaId: 'a1', status: 'zaplanowany' }),
-      mecz({ numer: 5, arenaId: 'a1', status: 'zaplanowany' }),
-    ];
-    expect(arenyTeraz(areny, mecze)[0].nastepny?.numer).toBe(5);
+  it('nie proponuje startu turnieju, który trwa, skończył się albo jest szkicem', () => {
+    for (const status of ['szkic', 'trwa', 'zakonczony', 'odwolany'] as const) {
+      expect(mozeRozpoczacTurniej({ status }, [{}])).toBe(false);
+    }
   });
 });
