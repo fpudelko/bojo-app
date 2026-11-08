@@ -274,7 +274,12 @@ Zaproszenie nie zajmuje miejsca w składzie i gaśnie samo, gdy człowiek wejdzi
 Kapitan może też przekazać kapitanat dalej albo wycofać drużynę.
 Organizator losuje grupy, generuje terminarz jednym przyciskiem (rozkłada mecze na
 dostępne areny/boiska bez kolizji drużyny w jednym slocie) i może go przesunąć w całości,
-gdy dzień się opóźnia. Wyznaczony prowadzący obsługuje mecz z telefonu: „Rozpocznij",
+gdy dzień się opóźnia. Turniej startuje, gdy organizator kliknie „Rozpocznij turniej"
+w pulpicie panelu (warunek: gotowy terminarz; data i godzina startu nie są sprawdzane),
+a kończy przyciskiem „Zakończ turniej". Wyniki wpisuje się dopiero w trwającym turnieju.
+Główna droga to SAM WYNIK KOŃCOWY: na stronie meczu przyciski −/+ przy obu drużynach
+i „Zapisz wynik 3:1" (przy remisie w fazie pucharowej także karne). Opcją dla chętnych
+jest „Prowadź mecz na żywo": „Rozpocznij",
 dwa wielkie przyciski „GOL" (po jednym na drużynę), a po dotknięciu arkusz ze składem
 — kto strzelił, potem opcjonalnie kto asystował, po jednym dotknięciu. Nad wynikiem
 tyka zegar meczu liczony od pierwszego gwizdka (bez pauzy, świadomie). Są też „Cofnij
@@ -284,9 +289,11 @@ meczu. W dniu turnieju strona odświeża się sama co 20 sekund, a nad zakładka
 tablica „Na żywo" z wynikiem każdego trwającego meczu i jego boiskiem. Zawodnicy dostają
 powiadomienie „Wasz mecz jest następny — Boisko 2, ok. 11:20" w chwili, gdy kończy się
 poprzedni mecz na ich arenie. Organizator ma w panelu pulpit: przed turniejem listę
-rzeczy do zrobienia (drużyny, zgłoszenia, terminarz, wpisowe, BLIK), w dniu turnieju
-— co trwa i co następne na każdym boisku, obsuwę względem planu i przycisk „Przesuń
-resztę o N minut". Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
+rzeczy do zrobienia (drużyny, zgłoszenia, terminarz, wpisowe, BLIK) i przycisk
+„Rozpocznij turniej", w trakcie turnieju licznik „Rozegrane X z Y meczów" i listę
+meczów czekających na wynik (najpierw trwające, potem po numerze meczu, nie po
+godzinie). Pulpit nie liczy opóźnienia względem godzin terminarza: turniejem steruje
+klikanie organizatora, nie zegar. Tabela grupy, drabinka i klasyfikacja strzelców/asyst/MVP
 liczą się same z zapisanych wyników. Strona turnieju ma cztery zakładki — Info, Mecze
 (przełącznik Najbliższe/Rozegrane, a dla grającego dodatkowo Nasze/Wszystkie), Tabela
 i drabinka, Drużyny. Która otwiera się domyślnie, zależy od stanu turnieju: w zapisach
@@ -454,6 +461,26 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-11-08 — Turniej startuje kliknięciem, wynik meczu wpisuje się jednym ruchem
+
+PROBLEM: w Bojo nie było przycisku rozpoczęcia turnieju (status „trwa" ustawiał się
+wyłącznie z bazy), a jedyną drogą do wyniku meczu było prowadzenie go na żywo, gol po
+golu. Organizator amatorskiego turnieju po meczu chce wpisać „3:1", a nie stać przy
+boisku z telefonem. Pulpit w dniu turnieju mówił też o „opóźnieniu" liczonym z godzin
+terminarza, które na amatorskim turnieju rozjeżdżają się od pierwszego meczu.
+
+ROZWIĄZANIE BOJO: organizator klika „Rozpocznij turniej" w pulpicie panelu, gdy ma gotowy
+terminarz. Od tej chwili na stronie każdego meczu widzi „Wpisz wynik końcowy" z przyciskami
+−/+ i „Zapisz wynik" (przy remisie w fazie pucharowej także karne). Gole ze strzelcami
+zostają jako opcja „Prowadź mecz na żywo". Pulpit trwającego turnieju pokazuje „Rozegrane
+X z Y meczów", listę meczów do wpisania i przycisk „Zakończ turniej". Godziny meczów
+niczego nie blokują.
+
+MECHANIKA: `wpiszWynikMeczu()` w `lib/turniejMecze.ts` (wynik z `wynik_recznie`, potem RPC
+`zakoncz_mecz()`), `postepTurnieju()`, `meczeDoWpisania()`, `mozeRozpoczacTurniej()`
+w `lib/turniejPulpit.ts`, `app/turnieje/[id]/panel/PanelClient.tsx`,
+`app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Bez migracji.
 
 ### 2026-11-08 — Dołączenie do drużyny turnieju z linku działa, wolny los nie blokuje terminarza
 
@@ -677,23 +704,3 @@ MECHANIKA: `ofertyWToku()` w `lib/events.ts` (dołączana do składu przed
 `mojTokenGoscia`, `handleRemove(id, komunikat)` w `EventDetailClient.tsx`. Bez migracji.
 Szczegóły → [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-1, X-3, X-4, X-5, X-9.
 
-### 2026-09-26 (2) — Przypomnienia o meczu i szukanie boiska bez ogonków znowu działają
-
-PROBLEM: przypomnienie „jutro grasz" i prośba „domknij mecz" dzień po nie wychodziły
-na produkcji ANI RAZU przez dwa tygodnie (2026-09-12…2026-09-26) — zadanie w bazie
-padało codziennie, bo brakowało jednej wewnętrznej funkcji. Osobno: szukanie obiektu
-po nazwie miasta bez polskich znaków („lodz", „poznan") nie działało wcale albo prawie
-wcale, bo brakowało kolumny, na której się ono opiera. Przyczyna obu: jednorazowe
-uzupełnienie dziennika migracji (backfill) rozpoznaje wyłącznie TABELE, więc migracja,
-która dokłada samą funkcję albo kolumnę, mogła zostać uznana za zastosowaną, choć
-nigdy realnie nie poszła.
-
-ROZWIĄZANIE BOJO: migracja odtwarza brakujące obiekty. Przypomnienia i szukanie działają
-znowu tak, jak działały wcześniej — to naprawa rozjazdu, nie nowa funkcja. Dwa nowe
-automatyczne sprawdzenia pilnują, żeby taka cisza nie powtórzyła się bez wiedzy zespołu:
-jedno porównuje bazę z repozytorium po każdej zmianie schematu, drugie codziennie
-sprawdza, czy zaplanowane zadania w bazie faktycznie przechodzą.
-
-MECHANIKA: migracja `164`, `scripts/odcisk-schematu.sh`,
-`.github/workflows/zdrowie-produkcji.yml`. Szczegóły →
-[faza1-runda9-plan.md](./faza1-runda9-plan.md), X-0.
