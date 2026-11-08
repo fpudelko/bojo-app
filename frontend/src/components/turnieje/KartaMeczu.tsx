@@ -3,7 +3,7 @@
 // i stronie drużyny (Etap 2/3), stąd osobny plik zamiast JSX wprost w kliencie.
 import { MapPin } from 'lucide-react';
 import { FAZA_LABEL, STATUS_MECZU, etykietaTerminu } from '@/lib/turniejEtykiety';
-import { stronaZwyciezcy } from '@/lib/turniejWynik';
+import { czyWolnyLos, stronaZwyciezcy } from '@/lib/turniejWynik';
 import type { TurniejMecz } from '@/types';
 
 function nazwaSlotu(
@@ -34,10 +34,14 @@ export interface KartaMeczuProps {
 }
 
 export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, przygaszona, onClick }: KartaMeczuProps) {
-  const nazwaA = nazwaSlotu(mecz, 'a', druzynyPoId, meczePoId);
-  const nazwaB = nazwaSlotu(mecz, 'b', druzynyPoId, meczePoId);
-  const status = STATUS_MECZU[mecz.status];
-  const rozegrany = mecz.status === 'zakonczony' || mecz.status === 'walkower' || mecz.status === 'trwa';
+  // Wolny los to nie walkower: nikt nie przyszedł, bo nie miał kto. Karta
+  // mówiła wcześniej „Walkower · Chaos United 0:0 TBD", co organizator
+  // przeczytał jako mecz, który już się odbył (turniej pokazowy, 2026-11-08).
+  const wolnyLos = czyWolnyLos(mecz);
+  const nazwaA = wolnyLos && !mecz.druzynaAId ? 'awans bez gry' : nazwaSlotu(mecz, 'a', druzynyPoId, meczePoId);
+  const nazwaB = wolnyLos && !mecz.druzynaBId ? 'awans bez gry' : nazwaSlotu(mecz, 'b', druzynyPoId, meczePoId);
+  const status = wolnyLos ? { label: 'Wolny los', ton: 'bg-slate-100 text-slate-500' } : STATUS_MECZU[mecz.status];
+  const rozegrany = !wolnyLos && (mecz.status === 'zakonczony' || mecz.status === 'walkower' || mecz.status === 'trwa');
   // Ten sam zapis terminu co wszędzie indziej w module (`etykietaTerminu`).
   // Karta mówiła wcześniej „Niedziela 20.09, 10:00", nagłówek turnieju
   // „niedziela, 20 września · 10:00:00", a lista jeszcze inaczej — trzy zapisy
@@ -51,8 +55,11 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, pr
   // każe czytającemu porównywać dwie liczby przy każdym meczu z osobna —
   // a przy walkowerze (0:0) i karnych (1:1) porównanie daje złą odpowiedź.
   const zwyciezca = rozegrany && mecz.status !== 'trwa' ? stronaZwyciezcy(mecz) : null;
+  const pustaStronaLosu = (strona: 'a' | 'b') =>
+    wolnyLos && !(strona === 'a' ? mecz.druzynaAId : mecz.druzynaBId);
   const tonDruzyny = (strona: 'a' | 'b') =>
-    zwyciezca === strona ? 'font-semibold text-ink'
+    pustaStronaLosu(strona) ? 'font-normal italic text-slate-400'
+      : zwyciezca === strona ? 'font-semibold text-ink'
       : zwyciezca ? 'font-medium text-slate-400'
       : 'font-medium text-ink';
   const karne = mecz.karneA !== undefined && mecz.karneB !== undefined
@@ -80,7 +87,7 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, pr
             <span className="block font-mono text-sm font-semibold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
             {karne && <span className="block font-mono text-[10px] leading-tight text-slate-400">{karne}</span>}
           </span>
-        ) : (
+        ) : wolnyLos ? null : (
           <span className="shrink-0 text-xs text-slate-400">vs</span>
         )}
         <span className={`min-w-0 flex-1 truncate text-right text-sm ${tonDruzyny('b')}`}>{nazwaB}</span>

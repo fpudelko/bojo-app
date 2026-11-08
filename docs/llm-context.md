@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-09-28 · migracja `170` · 59 tabel
+**Stan na:** 2026-11-08 · migracja `171` · 59 tabel
 
 ---
 
@@ -455,6 +455,26 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-08 — Dołączenie do drużyny turnieju z linku działa, wolny los nie blokuje terminarza
+
+PROBLEM: zawodnik, który otworzył link do drużyny turnieju w Bojo (`/t/[kod]`) i wybrał
+siebie z listy, dopisał się albo chciał zostać kapitanem, dostawał komunikat techniczny
+`column reference "druzyna_id" is ambiguous` i nie trafiał do składu. Organizator
+turnieju pucharowego z liczbą drużyn inną niż 4, 8 albo 16 widział w terminarzu mecz
+„Walkower 0:0 TBD" i napis „Rozegrano już 2 mecze", choć nikt nie zagrał, a przycisk
+„Wygeneruj terminarz od nowa" był wyłączony na stałe.
+
+ROZWIĄZANIE BOJO: wszystkie trzy drogi dołączenia z linku drużyny (kapitan, „to ja",
+nowy zawodnik) zapisują zawodnika w składzie. Wolny los w drabince Bojo jest pokazany
+jako „Wolny los" z drużyną awansującą bez gry, bez wyniku, przygaszony; nie trafia na
+listę meczów na publicznej stronie turnieju i nie liczy się jako rozegrany mecz, więc
+terminarz da się ułożyć od nowa aż do pierwszego prawdziwego meczu.
+
+MECHANIKA: migracja `171` (`dolacz_do_druzyny_kodem()` z kwalifikowanymi kolumnami,
+`czy_wolny_los()` w `zapisz_terminarz()`), `czyWolnyLos()` w `lib/turniejWynik.ts`
+używane przez `KartaMeczu`, `Drabinka`, panel i publiczną stronę turnieju. Testy:
+`supabase/test/rls.sql`, `turniejWolnyLos.test.ts`.
+
 ### 2026-09-29 — Pierwszy ekran strony głównej pokazuje drogę organizatora w telefonie
 
 PROBLEM: pierwszy ekran bojo.pl pokazywał statyczne zrzuty aplikacji w karuzeli
@@ -677,23 +697,3 @@ sprawdza, czy zaplanowane zadania w bazie faktycznie przechodzą.
 MECHANIKA: migracja `164`, `scripts/odcisk-schematu.sh`,
 `.github/workflows/zdrowie-produkcji.yml`. Szczegóły →
 [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-0.
-
-### 2026-09-26 — Lista boisk w mieście otwiera boisko, które kliknięto
-
-PROBLEM: huby katalogu Bojo (`/boiska/[sport]`, `/boiska/[sport]/[miasto]`,
-`/boiska/woj/[wojewodztwo]`) i sitemapy boisk budowały adres obiektu z samej nazwy.
-Nazwy z importu OpenStreetMap powtarzają się tysiące razy („Boisko piłkarskie" ponad
-10 tys. razy), a adres z samej nazwy prowadzi przez przekierowanie do jednego,
-przypadkowego obiektu o tej nazwie. Kliknięcie obiektu na liście miasta mogło otworzyć
-boisko z innej miejscowości, a z 32 tys. wpisów w sitemapach boisk wyszukiwarka
-dostawała około 10,6 tys. różnych adresów, każdy przez przekierowanie.
-
-ROZWIĄZANIE BOJO: każdy link do strony obiektu i każdy wpis sitemapy boisk używa adresu
-kanonicznego: nazwa plus końcówka identyfikatora obiektu
-(`/boisko/boisko-pilkarskie-741e4f384561`). Adres z samej nazwy nadal działa dla starych
-linków i przekierowuje na adres kanoniczny.
-
-MECHANIKA: `slugBoiska(name, id)` z `lib/utils.ts` w `app/sitemap-boiska/[plik]/route.ts`
-i w trzech hubach `app/boiska/…` (link i `ItemList` w JSON-LD). Test
-`linkiObiektuKanoniczne.test.ts` odrzuca budowanie adresu obiektu przez `slugify(name)`.
-Wykryte przy analizie Search Console → [seo-geo-strategia.md](./seo-geo-strategia.md).

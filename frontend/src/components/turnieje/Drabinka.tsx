@@ -8,6 +8,7 @@
 import { FAZA_LABEL } from '@/lib/turniejEtykiety';
 import KartaMeczu from './KartaMeczu';
 import type { TurniejMecz } from '@/types';
+import { czyWolnyLos } from '@/lib/turniejWynik';
 
 export interface DrabinkaProps {
   mecze: readonly TurniejMecz[];
@@ -47,7 +48,7 @@ export default function Drabinka({ mecze, druzynyPoId, meczePoId, arenyPoId, onK
                 druzynyPoId={druzynyPoId}
                 meczePoId={meczePoId}
                 arenyPoId={arenyPoId}
-                przygaszona={m.status === 'walkower' && !m.zaplanowanyAt}
+                przygaszona={czyWolnyLos(m)}
                 onClick={onKlikMeczu ? () => onKlikMeczu(m.id) : undefined}
               />
             ))}

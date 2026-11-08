@@ -939,7 +939,13 @@ przy zwykłej relacji jeden-do-jednego w tej samej tabeli, tylko rozciągnięty 
 wierszy naraz, wstawianych jedną partią.
 
 **Wolne losy (drabinka niebędąca potęgą dwójki) wchodzą od razu jako `walkower`, nie
-`zaplanowany`** — drużyna awansuje bez gry, stąd też kolumna `walkower_dla`. Propagacja
+`zaplanowany`** — drużyna awansuje bez gry, stąd też kolumna `walkower_dla`.
+**Wolny los nie jest jednak rozegranym meczem** (migracja `171`): rozpoznaje go
+`czy_wolny_los()` w bazie i `czyWolnyLos()` w `lib/turniejWynik.ts` (walkower z jedną
+drużyną i bez meczu-źródła po żadnej stronie). Nie blokuje `zapisz_terminarz()`, nie
+liczy się do „Rozegrano już N meczów" w panelu, nie trafia na listę meczów publicznej
+strony, a `KartaMeczu` pokazuje go jako „Wolny los" bez wyniku. Do 2026-11-08 pierwsza
+wygenerowana drabinka z wolnym losem była przez to ostateczna. Propagacja
 zwycięzcy do kolejnej rundy siedzi w `propaguj_zwyciezce_dla()`, WOŁANEJ WPROST przez
 `zapisz_terminarz()` dla każdego świeżo wstawionego meczu innego niż `zaplanowany` — nie
 przez wyzwalacz `AFTER UPDATE`. Pierwsza wersja tej migracji próbowała odpalić propagację

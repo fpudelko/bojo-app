@@ -37,6 +37,7 @@ import Sponsorzy from '@/components/turnieje/Sponsorzy';
 import KartaDruzyny from '@/components/turnieje/KartaDruzyny';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
 import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie, TurniejOgloszenie, TurniejZdjecie, TurniejSponsor } from '@/types';
+import { czyWolnyLos } from '@/lib/turniejWynik';
 
 // Sześć zakładek zamiast czterech. „Terminarz" i „Wyniki" dzieliły wcześniej
 // ten sam zbiór meczów, a tabela i drabinka siedziały razem w „Wynikach" —
@@ -305,10 +306,13 @@ export default function TurniejClient() {
   // terminarza, nie w wynikach — tak samo liczy go `obliczTabele()`, które
   // bierze wyłącznie `zakonczony` i `walkower`.
   const rozegrany = (m: TurniejMecz) => m.status === 'zakonczony' || m.status === 'walkower';
-  const meczePrzyszle = mecze
+  // Wolny los nie jest ani nadchodzącym meczem, ani wynikiem: nikt w nim nie
+  // gra. Widać go w drabince (przygaszony), na liście meczów byłby „0:0".
+  const meczeNaLiscie = mecze.filter((m) => !czyWolnyLos(m));
+  const meczePrzyszle = meczeNaLiscie
     .filter((m) => !rozegrany(m))
     .sort((a, b) => (a.status === 'trwa' ? -1 : b.status === 'trwa' ? 1 : a.numer - b.numer));
-  const meczeRozegrane = mecze.filter(rozegrany).sort((a, b) => b.numer - a.numer);
+  const meczeRozegrane = meczeNaLiscie.filter(rozegrany).sort((a, b) => b.numer - a.numer);
   const pozycjeReczne = new Map(
     druzyny.filter((d) => d.pozycjaRecznie !== undefined).map((d) => [d.id, d.pozycjaRecznie!]),
   );
@@ -928,7 +932,7 @@ export default function TurniejClient() {
                     druzynyPoId={druzynyPoId}
                     meczePoId={meczePoId}
                     arenyPoId={arenyPoId}
-                    przygaszona={m.status === 'walkower' && !m.zaplanowanyAt}
+                    przygaszona={czyWolnyLos(m)}
                     onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
                   />
                 ))}

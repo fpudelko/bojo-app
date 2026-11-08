@@ -1081,6 +1081,31 @@ SELECT _oczekuj('finał jeszcze nie zna zwycięzcy półfinału (ten dopiero si�
                 (SELECT count(*) FROM turniej_mecze
                   WHERE id = :TD_FINAL::uuid AND druzyna_a_id IS NULL), 1);
 
+-- WOLNY LOS NIE JEST ROZEGRANYM MECZEM (migracja 171). Do 2026-11-08 sam
+-- wolny los (`walkower` bez drugiej drużyny) blokował „Wygeneruj od nowa":
+-- przy 14 drużynach pierwsza drabinka była ostateczna, zanim ktokolwiek zagrał.
+-- Ponowny zapis TEGO SAMEGO terminarza ma przejść i odtworzyć propagację.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT _oczekuj('wolny los nie blokuje ponownego zapisu terminarza (3 mecze wstawione)',
+  zapisz_terminarz(:TD_TURNIEJ::uuid, jsonb_build_array(
+    jsonb_build_object('id', :TD_POLFINAL, 'numer', 1, 'faza', 'polfinal',
+      'druzynaAId', :TD_A, 'druzynaBId', :TD_B, 'status', 'zaplanowany',
+      'zaplanowanyAt', (now() + interval '1 hour')::text),
+    jsonb_build_object('id', :TD_BYE, 'numer', 2, 'faza', 'polfinal',
+      'druzynaAId', :TD_C, 'status', 'walkower',
+      'zwyciezcaId', :TD_C, 'walkowerDla', :TD_C,
+      'zaplanowanyAt', (now() + interval '1 hour')::text),
+    jsonb_build_object('id', :TD_FINAL, 'numer', 3, 'faza', 'final',
+      'zrodloAMeczId', :TD_POLFINAL, 'zrodloATyp', 'zwyciezca',
+      'zrodloBMeczId', :TD_BYE, 'zrodloBTyp', 'zwyciezca', 'status', 'zaplanowany',
+      'zaplanowanyAt', (now() + interval '3 hours')::text)
+  ))::bigint, 3);
+RESET ROLE;
+SELECT _oczekuj('po ponownym zapisie finał znowu zna drużynę z wolnego losu',
+                (SELECT count(*) FROM turniej_mecze
+                  WHERE id = :TD_FINAL::uuid AND druzyna_b_id = :TD_C::uuid), 1);
+
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
 UPDATE turniej_mecze SET status = 'zakonczony', wynik_a = 2, wynik_b = 0, zwyciezca_id = :TD_A::uuid
@@ -1651,6 +1676,63 @@ RESET ROLE;
 SELECT _oczekuj('anon nie przestawia współrzędnych cudzego alertu',
                 (SELECT count(*) FROM game_alerts
                   WHERE id = :ALERT_ID::uuid AND lat = 52.4), 1);
+
+SELECT _sekcja('Turniej: dołączenie do drużyny z linku, wszystkie trzy drogi (migracje 145, 171)');
+
+-- Do 2026-11-08 KAŻDE wywołanie `dolacz_do_druzyny_kodem()` kończyło się
+-- `column reference "druzyna_id" is ambiguous`: kolumny wyniku z `RETURNS
+-- TABLE (druzyna_id, …)` są w PL/pgSQL zmiennymi i kolidowały z kolumnami
+-- `turniej_zawodnicy` w niekwalifikowanych WHERE. Nikt tej funkcji nie wołał
+-- w testach, więc pętla „kapitan wysyła link na WhatsAppie" nie działała od
+-- pierwszego dnia modułu. Tu wołamy ją tak jak `/t/[kod]`: jako zalogowany.
+\set TJ_TURNIEJ '''ffffffff-0000-4000-8000-0000000000e1'''
+\set TJ_DRUZYNA '''ffffffff-0000-4000-8000-0000000000e2'''
+\set TJ_WOLNY   '''ffffffff-0000-4000-8000-0000000000e3'''
+
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, format, status, data_startu)
+VALUES (:TJ_TURNIEJ::uuid, :T_ORGANIZATOR::uuid, 'Turniej do testu dołączania', 'piłka nożna', 'puchar', 'zapisy', CURRENT_DATE + 10);
+-- Drużyna dodana przez organizatora: bez kapitana, z jednym wpisem z ręki.
+INSERT INTO turniej_druzyny (id, turniej_id, nazwa, status, kod_dolaczenia)
+VALUES (:TJ_DRUZYNA::uuid, :TJ_TURNIEJ::uuid, 'Drużyna z linku', 'przyjeta', 'TJKOD1');
+INSERT INTO turniej_zawodnicy (id, druzyna_id, turniej_id, imie)
+VALUES (:TJ_WOLNY::uuid, :TJ_DRUZYNA::uuid, :TJ_TURNIEJ::uuid, 'Maciej');
+
+-- Droga 1: „Zostań kapitanem" (po przejęciu funkcja dopisuje też wiersz składu).
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_PROWADZACY, false);
+SELECT _oczekuj('kapitan z linku: funkcja zwraca zostal_kapitanem',
+  (SELECT count(*) FROM dolacz_do_druzyny_kodem('tjkod1', true) WHERE zostal_kapitanem), 1);
+RESET ROLE;
+SELECT _oczekuj('kapitan z linku: drużyna ma kapitana i jest w składzie',
+                (SELECT count(*) FROM turniej_druzyny d JOIN turniej_zawodnicy z ON z.druzyna_id = d.id
+                  WHERE d.id = :TJ_DRUZYNA::uuid AND d.kapitan_id = :T_PROWADZACY::uuid
+                    AND z.user_id = :T_PROWADZACY::uuid AND z.kapitan), 1);
+
+-- Droga 2: „to ja" — przejęcie wolnego wpisu wpisanego wcześniej z ręki.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT _oczekuj('„to ja": funkcja zwraca przejęty wpis',
+  (SELECT count(*) FROM dolacz_do_druzyny_kodem('TJKOD1', false, :TJ_WOLNY::uuid)
+    WHERE zawodnik_id = :TJ_WOLNY::uuid), 1);
+RESET ROLE;
+SELECT _oczekuj('„to ja": wolny wpis ma teraz konto',
+                (SELECT count(*) FROM turniej_zawodnicy
+                  WHERE id = :TJ_WOLNY::uuid AND user_id = :CZLONEK::uuid), 1);
+
+-- Droga 3: „Nie ma mnie na liście" — nowy wiersz z podanym imieniem.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT _oczekuj('nowy zawodnik: funkcja zwraca jeden wiersz',
+  (SELECT count(*) FROM dolacz_do_druzyny_kodem('TJKOD1', false, NULL, 'Bartek')), 1);
+-- Ponowne otwarcie linku przez kogoś, kto już jest w składzie, nie dubluje wpisu.
+SELECT _oczekuj('ponowne dołączenie tej samej osoby zwraca jej istniejący wpis',
+  (SELECT count(*) FROM dolacz_do_druzyny_kodem('TJKOD1', false, NULL, 'Bartek')), 1);
+RESET ROLE;
+SELECT _oczekuj('nowy zawodnik: dokładnie jeden wiersz „Bartek" z kontem',
+                (SELECT count(*) FROM turniej_zawodnicy
+                  WHERE druzyna_id = :TJ_DRUZYNA::uuid AND user_id = :UCZESTNIK::uuid AND imie = 'Bartek'), 1);
+SELECT _oczekuj('skład drużyny z linku: 3 osoby',
+                (SELECT count(*) FROM turniej_zawodnicy WHERE druzyna_id = :TJ_DRUZYNA::uuid), 3);
 
 -- ── Każda tabela w `public` ma włączone RLS ─────────────────────────────────
 -- Schemat `public` wystawia PostgREST pod jawnym kluczem `anon`, więc tabela

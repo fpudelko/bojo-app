@@ -18,6 +18,8 @@ dostroimy terminarz.
 
 ### P0-1. Dołączenie do drużyny z linku zawsze kończy się błędem
 
+**ZROBIONE 2026-11-08** (migracja `171`, `czyWolnyLos()`, testy w `rls.sql` i `turniejWolnyLos.test.ts`).
+
 **Objaw:** `/t/[kod]` → „Nie ma mnie na liście" → imię → „Dołącz" → czerwony napis
 `column reference "druzyna_id" is ambiguous`.
 
@@ -49,6 +51,8 @@ REPLACE` z `#variable_conflict use_column` na początku ciała ALBO aliasami tab
   sprawdzić resztę jednym grepem).
 
 ### P0-2. Wolny los wygląda jak rozegrany walkower i blokuje terminarz na zawsze
+
+**ZROBIONE 2026-11-08** (migracja `171`, `czyWolnyLos()`, testy w `rls.sql` i `turniejWolnyLos.test.ts`).
 
 **Objaw:** M1 „Chaos United 0:0 TBD", plakietka „Walkower". Pod przyciskiem:
 „Rozegrano już 2 mecze, więc terminarz da się tylko przesuwać", choć nikt nie zagrał.
