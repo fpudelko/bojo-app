@@ -1,7 +1,7 @@
 # Turnieje: plan po audycie 5, decyzje i migracje
 
 **Stan na:** 2026-11-11 (master `97d7b0f`, po #461, #462, #463).
-Źródła: raport „audyt 5” (zewnętrzny tester, telefon 360 px, konta test1/test3/test4),
+Źródła: raporty „audyt 5” i „audyt 6” (2026-11-11, sekcja 5a; zewnętrzny tester, telefon 360 px, konta test1/test3/test4),
 odpowiedź organizatora z Lubonia ([turnieje-poprawki-lubon.md](./turnieje-poprawki-lubon.md),
 zadania T-1…T-5) i przegląd kodu. Ręczny scenariusz testu →
 [turnieje-scenariusz-testu-recznego.md](./turnieje-scenariusz-testu-recznego.md).
@@ -145,11 +145,56 @@ Editora: patrz AGENTS.md, „migracja puszczona w połowie”.
 
 ---
 
+## 5a. Audyt 6 (2026-11-11, „Gramy dla Marysi” i trzy role)
+
+Audyt na żywo na bojo.pl po wdrożeniu kodu #463, ale **przed** migracjami (kolejka stoi
+na `167`). Puchar dwóch drużyn przeszedł od utworzenia do podium; „Przetestuj” nie był
+uruchamiany. Oceny: zawodnik 2/5, kapitan 3/5, organizator 4/5.
+
+| # | Ustalenie | Dziś w kodzie | Co robimy |
+|---|---|---|---|
+| A | **Zawodnik z linku nie wchodzi do składu**: `dolacz_do_druzyny_kodem` → 400, `42702 column reference "druzyna_id" is ambiguous`. Na ekranie „Coś poszło nie tak po naszej stronie” (to już mapowanie z #463). | Naprawione w `171`, **nieuruchomionej na produkcji**. | **D-1, sekcja 5.** Audyt jest dowodem, że to jedna rzecz blokująca rolę zawodnika. |
+| B | Marysia: start 10:00, a pierwszy mecz 09:00; format „puchar”, a opis zapowiada grupy i „min. 60 min gry”; limit 15, a opis „12 drużyn”; skład „do 40”, a opis „bez limitu”. | Od #463 godzinę startu da się zmienić w Ustawieniach **bez** przeliczenia terminarza, więc taka rozbieżność powstaje jednym polem. Format „grupy → puchar” i tak nie domknie się bez P-1. | **D-9** (treść u organizatora) + **P-9** (ostrzeżenie w pulpicie). |
+| C | Na 360 px „Utwórz turniej” jest pod banerem cookies i dolnym menu; zadziałało dopiero klawiaturą. | `/turnieje/nowe` ma `py-8` bez zapasu na dolne menu i bezpieczny obszar. | **P-7.** |
+| D | Po terminie zapisów naraz „Trwają zapisy”, „Zostało 1 miejsce” i „Zapisy zamknięte”. | `stanTurnieju()` przy minionym `zapisy_do` wraca do „Trwają zapisy” (data liczy się tylko, gdy jest w przyszłości), a plakat liczy wolne miejsca bez względu na termin. Sam formularz `/zglos` blokuje poprawnie. | **P-8.** |
+| E | Nagłówek, zdjęcie i ogłoszenie przed każdą zakładką; „Mecze” i „Tabela i drabinka” to podobne listy. | zgodnie z opisem | **P-11** (układ, średnie). |
+| F | Brak „Popraw wynik”. | jak w N3 audytu 5 | **P-3** (bez zmian). |
+| G | Kapitan po zgłoszeniu nie jest zawodnikiem (0 osób). | zgodnie z opisem | **P-10**: przy zgłoszeniu „Gram w tej drużynie” (domyślnie zaznaczone). |
+| H | Publiczny mecz przed startem pokazuje „0:0”. | wynik renderowany zawsze | **P-12**: przed startem zamiast wyniku „Zaplanowany” i godzina (razem z N9). |
+| I | Czerwony licznik na dzwonku. | `bg-red-500` w `NotificationBell.tsx`, poza paletą znaczeń z AGENTS.md | **D-10.** |
+| J | Stała podpowiedź „Przytrzymaj Ekipy…” zasłania dół ekranów turnieju. | `BottomNav.tsx` | **D-11.** |
+| K | Opis OG: „bez wpisowego”, „start” małą literą po kropce + cały długi opis. | `turniejMeta.ts` | w P-5 (wykończenie). |
+
+### Nowe pozycje planu
+
+| # | Co | Rozmiar | Migracja |
+|---|---|---|---|
+| P-7 | Kreator turnieju: zapas na dolne menu, cookies i `env(safe-area-inset-bottom)` pod przyciskiem; test klikalności na 360 px ze świeżą sesją i widocznym banerem cookies (Playwright, `*.klikalnosc.spec.ts`). | mały | nie |
+| P-8 | Jeden status zapisów: po terminie „Zapisy zamknięte” (szary) wszędzie, bez „Zostało N miejsc”; licznik „14 drużyn z 15” zostaje. Test w Vitest dla `stanTurnieju()` i `stanZapisowTurnieju()`. | mały | nie |
+| P-9 | Pulpit: ostrzeżenie, gdy godzina startu jest późniejsza niż pierwszy mecz (albo odwrotnie o więcej niż godzinę), z akcją „Wygeneruj terminarz od nowa” / „Ustaw start na 09:00”. Po zmianie godziny startu w Ustawieniach to samo pytanie od razu. | mały | nie |
+| P-10 | `/zglos`: „Gram w tej drużynie” dopisuje zgłaszającego do składu. | mały | nie (`turniej_zawodnicy` przyjmuje kapitana z `145`) |
+| P-11 | Strona turnieju: pełny nagłówek tylko na pierwszym wejściu, ogłoszenie zwinięte do jednej linii, dla grającego najpierw „Wasz następny mecz”. Zakładka „Drabinka” w pucharze, „Tabela” w lidze. | średni | nie |
+| P-12 | Mecz przed startem bez „0:0”; termin w nagłówku (z N9). | mały | nie |
+
+### Nowe decyzje
+
+| # | Pytanie | Rekomendacja |
+|---|---|---|
+| **D-9** | Marysia: jaki jest prawdziwy format i start? Opis obiecuje grupy i min. 60 min gry, terminarz to puchar od 09:00, nagłówek 10:00. | Ustalić z organizatorem z Lubonia. Jeśli grupy → puchar, potrzebne P-1 **przed** 28.11; jeśli zostaje puchar z jego harmonogramem, P-2 i poprawa opisu (bez drugiej listy zasad w opisie). |
+| **D-10** | Licznik powiadomień na dzwonku jest czerwony. | Zmienić na neutralny (szary/ciemny) albo pomarańczowy „nowość”; czerwień zostaje dla błędów. Decyzja dotyczy całej aplikacji, nie tylko turniejów. |
+| **D-11** | Podpowiedź „Przytrzymaj Ekipy…” na stałe w dolnym menu. | Pokazywać raz, z zamknięciem; nie na trasach `/turnieje/*`. |
+
+### Co zmienia się w kolejności
+
+Na pierwsze miejsce wchodzi bez zmian **D-1 (migracje)**: audyt 6 pokazał wprost, że to
+jedyna przyczyna oceny 2/5 dla zawodnika. Do PR-a z P-1 dochodzą P-7, P-8 i P-9 (małe,
+bez migracji). P-10…P-12 idą razem z P-2 i P-5.
+
 ## 6. Kolejność całości
 
 1. **Ty:** D-1 → odblokowanie produkcji (sekcja 5) → dym.
 2. **Ty:** D-7 (sekret dev) → `reset_dev`. D-5 (sprzątanie seedów i „AUDYT TEST”).
-3. **My:** PR 1 = P-1 + P-4 (`174`). PR 2 = P-2 + P-5. PR 3 = P-3 (`175`).
+3. **My:** PR 1 = P-1 + P-4 (`174`) + P-7, P-8, P-9. PR 2 = P-2 + P-5 + P-10, P-12. PR 3 = P-3 (`175`). PR 4 = P-11.
 4. **Ty:** pełny scenariusz testu ręcznego na produkcji, turnieje `TEST…` tylko z linku.
-5. **Przed 28.11:** decyzja, czy Luboń idzie jako tablica wyników (P-2 wystarcza).
+5. **Przed 28.11:** D-9, czyli decyzja, czy Luboń idzie jako tablica wyników na jego harmonogramie (P-2 wystarcza), czy jako grupy → puchar (wtedy P-1 jest warunkiem).
 6. **Styczeń:** D-3 → liga sezonowa i tryb dzieci (`176`).
