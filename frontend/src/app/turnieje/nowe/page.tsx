@@ -433,7 +433,7 @@ export default function NowyTurniejPage() {
             </span>
           </p>
 
-          <Button onClick={handleSubmit} disabled={!gotowe || submitting} className="w-full inline-flex items-center justify-center gap-2">
+          <Button onClick={handleSubmit} disabled={!gotowe || submitting} className="w-full min-h-[48px] inline-flex items-center justify-center gap-2">
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Utwórz turniej'}
           </Button>
         </div>

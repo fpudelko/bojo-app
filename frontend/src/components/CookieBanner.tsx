@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useCookieBannerVisible, dismissCookieConsent } from '@/lib/cookieConsent';
 import { useJestWidget } from '@/lib/widget';
@@ -7,10 +8,39 @@ export default function CookieBanner() {
   const visible = useCookieBannerVisible();
   const jestWidget = useJestWidget();
 
-  if (!visible || jestWidget) return null;
+  const ref = useRef<HTMLDivElement>(null);
+  const pokazany = visible && !jestWidget;
+
+  // MIEJSCE NA BANER (audyt 7, 2026-11-11). Baner jest `fixed`, więc treść
+  // strony nie wiedziała, że coś ją przykrywa: „Utwórz turniej" na dole
+  // kreatora lądował pod banerem i dolnym menu i nie dało się go dotknąć.
+  // Dopóki baner jest na ekranie, jego wysokość trafia do `--cookie-h`,
+  // a <body> dostaje tyle samo dopełnienia (globals.css).
+  useEffect(() => {
+    const html = document.documentElement;
+    const el = ref.current;
+    if (!pokazany || !el) {
+      delete html.dataset.cookieBaner;
+      html.style.removeProperty('--cookie-h');
+      return;
+    }
+    const ustaw = () => html.style.setProperty('--cookie-h', `${el.offsetHeight}px`);
+    ustaw();
+    html.dataset.cookieBaner = '1';
+    const obs = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(ustaw) : null;
+    obs?.observe(el);
+    return () => {
+      obs?.disconnect();
+      delete html.dataset.cookieBaner;
+      html.style.removeProperty('--cookie-h');
+    };
+  }, [pokazany]);
+
+  if (!pokazany) return null;
 
   return (
     <div
+      ref={ref}
       role="dialog"
       aria-label="Informacja o cookies"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white shadow-[0_-2px_12px_rgba(0,0,0,0.06)]"

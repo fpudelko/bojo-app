@@ -4958,6 +4958,37 @@ sformatowaną przez system; zostaje wysyłka i link do skopiowania.
 
 ---
 
+### Poprawki po audycie 7 (2026-11-11, migracja `174`)
+
+Raport → [turnieje-plan-po-audycie-5.md](./turnieje-plan-po-audycie-5.md), sekcja 5a.
+
+- **Godziny meczów w czasie polskim.** `zaplanowany_at` jest chwilą w UTC; karty meczów,
+  strona meczu, pulpit i nagłówek turnieju wycinały z niej godzinę wprost, więc mecz o 10:00
+  w Warszawie pokazywał się jako 09:00. Dziś jedna droga: `chwilaWPolsce()` /
+  `etykietaTerminuMeczu()`. Generator terminarza liczy start przez
+  `instantZCzasuPolskiego()`, niezależnie od strefy urządzenia. Powiadomienie o następnym
+  meczu też w czasie polskim (`174`).
+- **Start a pierwszy mecz.** Gdy godzina startu w ustawieniach nie zgadza się z pierwszym
+  meczem terminarza, pulpit pokazuje ostrzeżenie z akcjami „Ustaw start na …” i „Ułóż
+  terminarz od …”.
+- **Zapisy po terminie** mówią wszędzie „Zapisy zamknięte” (szary), plakat pokazuje
+  „14 drużyn z 15” zamiast „Zostało 1 miejsce”.
+- **Baner cookies rezerwuje miejsce** (`--cookie-h`, `CookieBanner.tsx`, `globals.css`):
+  ostatni przycisk formularza nie leży pod banerem i dolnym menu. Pilnuje
+  `e2e/kreator-turnieju-nad-cookies.klikalnosc.spec.ts`.
+- **Powrót z linku drużyny**: kto już jest w składzie, widzi „Jesteś w drużynie …”
+  i „Przejdź do swojej drużyny”, bez listy imion.
+- **Ekran drużyny zaczyna się od „Następny mecz”** (albo „Gracie teraz”); pełna lista pod
+  nazwą „Wszystkie nasze mecze”.
+- **Strona turnieju**: nazwa w nagłówku w dwóch liniach zamiast ucięcia; okładka i pełne
+  ogłoszenia tylko na Info, na pozostałych zakładkach jeden wiersz „Ogłoszenia (N)”.
+- **Jeden komunikat sukcesu naraz** (`lib/toast.tsx`): kolejny zastępuje poprzedni, błędy
+  zostają dłużej.
+- **Konsola meczu**: przed startem „vs” zamiast „0:0” i termin obok boiska; „Samobójczy”
+  zamiast „sam.”, kafelek czerwonej kartki na neutralnym tle, przyciski setów 44 px.
+- **Próba** na neutralnym szarym tle (nie bursztyn). „Losuj ponownie” znika po pierwszym
+  rozegranym meczu.
+
 ### Uproszczenie modułu przed turniejem w Luboniu (2026-11-08, migracje `171`–`173`)
 
 Decyzje właściciela po turnieju pokazowym („Gramy dla Marysi”), plan →

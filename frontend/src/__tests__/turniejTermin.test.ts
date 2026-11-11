@@ -64,7 +64,10 @@ describe('stanTurnieju', () => {
 
   it('końcówka turnieju nazywa się inaczej niż jego początek', () => {
     const koncowka = stanTurnieju({ format: 'liga' as const, status: 'trwa', dataStartu: '2026-09-16' },
-      [mecz('zakonczony'), mecz('zakonczony'), mecz('zaplanowany', '2026-09-16T19:00:00Z', 'final')], DZIS);
+      // 17:00 UTC to 19:00 w Warszawie (wrzesień, UTC+2). Do 2026-11-11 test
+      // podawał tu 19:00Z i oczekiwał 19:00, czyli utrwalał wycinanie godziny
+      // z zapisu UTC bez przeliczenia (błąd z turnieju w Luboniu).
+      [mecz('zakonczony'), mecz('zakonczony'), mecz('zaplanowany', '2026-09-16T17:00:00Z', 'final')], DZIS);
     expect(koncowka.label).toBe('Ostatnie mecze');
     expect(koncowka.szczegol).toBe('Finał dziś, 19:00');
 

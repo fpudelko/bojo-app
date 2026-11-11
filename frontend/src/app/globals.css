@@ -171,6 +171,14 @@ html[data-klawiatura='1'] [data-pasek-dolny] { display: none; }
    gestów. Jedno i drugie naraz załatwia `max`. */
 :root { --dol-bezpieczny: max(var(--bottom-nav-h), env(safe-area-inset-bottom)); }
 
+/* Baner cookies na ekranie (CookieBanner.tsx ustawia `data-cookie-baner`
+   i `--cookie-h`): dół strony musi mieć tyle miejsca, ile zajmują razem
+   baner i dolne menu, inaczej ostatni przycisk formularza leży pod nimi
+   (audyt 7: „Utwórz turniej" na 360 px). */
+html[data-cookie-baner='1'] body {
+  padding-bottom: calc(var(--dol-bezpieczny) + var(--cookie-h, 0px));
+}
+
 /* Kolejność vh → svh jak w .hero-first-screen: svh nie liczy chowającego się
    paska adresu, więc na telefonie nie zostaje po nim nadmiarowe przewijanie. */
 html[data-bottom-nav='1'] .min-h-screen {

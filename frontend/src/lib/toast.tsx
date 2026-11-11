@@ -28,8 +28,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const toast = useCallback(
     (message: string, type: ToastType = 'success') => {
       const id = Math.random().toString(36).slice(2);
-      setToasts((prev) => [...prev.slice(-4), { id, type, message }]);
-      setTimeout(() => dismiss(id), 4500);
+      // JEDEN komunikat sukcesu naraz (audyt 7, 2026-11-11). Seria „Dodano…",
+      // „Link skopiowany", „Dopisany do składu" układała się w stos na górze
+      // telefonu i zasłaniała wiersze, nad którymi organizator właśnie
+      // pracował. Nowy sukces zastępuje poprzedni; błędy zostają (najwyżej
+      // dwa), bo błąd, który zniknął pod kolejnym sukcesem, to błąd przeoczony.
+      setToasts((prev) => {
+        const bledy = prev.filter((t) => t.type === 'error').slice(-2);
+        return type === 'error'
+          ? [...prev.filter((t) => t.type !== 'error'), ...bledy.slice(-1), { id, type, message }]
+          : [...bledy, { id, type, message }];
+      });
+      setTimeout(() => dismiss(id), type === 'error' ? 6000 : 3000);
     },
     [dismiss],
   );

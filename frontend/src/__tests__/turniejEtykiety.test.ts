@@ -185,11 +185,14 @@ describe('stanTurnieju — zapisy z terminem granicznym', () => {
     expect(s.label).toBe('Trwają zapisy');
   });
 
-  it('termin, który już minął, nie udaje otwartych zapisów z datą', () => {
+  it('termin, który już minął, nie udaje otwartych zapisów (ani z datą, ani bez)', () => {
     const s = stanTurnieju(
       { format: 'grupy_puchar' as const, status: 'zapisy', dataStartu: '2026-10-18', zapisyDo: '2026-10-09T23:59:59' }, [], dzisiaj,
     );
-    expect(s.label).toBe('Trwają zapisy');
+    // Do 2026-11-11 oczekiwaniem było „Trwają zapisy"; audyty 6 i 7 pokazały,
+    // że obok „Zapisy zamknięte" na plakacie to sprzeczność. Formularz i tak
+    // odmawia zgłoszenia po terminie (`przyjmujeZgloszenia()`).
+    expect(s.label).toBe('Zapisy zamknięte');
   });
 });
 
@@ -218,5 +221,33 @@ describe('etykietaZdobyczy', () => {
 
   it('nieznany sport nie wywraca się, tylko zostaje przy golach', () => {
     expect(etykietaZdobyczy('').naglowek).toBe('Najwięcej goli');
+  });
+});
+
+// Audyt 6 i 7 (2026-11-11, turniej w Luboniu): po terminie zapisów strona
+// mówiła naraz „Trwają zapisy", „Zostało 1 miejsce" i „Zapisy zamknięte".
+describe('zapisy po terminie granicznym', () => {
+  const teraz = new Date('2026-11-11T18:00:00Z');
+  const t = {
+    status: 'zapisy' as const, dataStartu: '2026-11-28', zapisyDo: '2026-11-10T23:59:59',
+    format: 'puchar' as const, maxDruzyn: 15,
+  };
+
+  it('status turnieju to „Zapisy zamknięte" w szarym, nie „Trwają zapisy"', () => {
+    const s = stanTurnieju(t, [], teraz);
+    expect(s.label).toBe('Zapisy zamknięte');
+    expect(s.ton).toContain('slate');
+  });
+
+  it('plakat nie zachęca do zgłoszenia wolnym miejscem', () => {
+    const z = stanZapisowTurnieju(t, 14, teraz);
+    expect(z.miejscaLabel).toBe('14 drużyn z 15');
+    expect(z.terminLabel).toBe('Zapisy zamknięte');
+  });
+
+  it('przed terminem bez zmian', () => {
+    const przed = new Date('2026-11-09T12:00:00Z');
+    expect(stanTurnieju(t, [], przed).label).toMatch(/^Zapisy do /);
+    expect(stanZapisowTurnieju(t, 14, przed).miejscaLabel).toBe('Zostało 1 miejsce');
   });
 });
