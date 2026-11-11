@@ -4,6 +4,7 @@
 // starym modułem — to jest ich duchowy następca, inny kształt danych).
 
 import { plural, withCount } from './plural';
+import { chwilaWPolsce } from '@/lib/czasPolski';
 import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej } from '@/types';
 
 export const STATUS_TURNIEJU: Record<TurniejStatus, { label: string; ton: string }> = {
@@ -186,6 +187,13 @@ export function bezSekund(godzina: string): string {
  * `dzisiaj` wstrzykiwalne — inaczej test „Dziś" przechodziłby tylko w dniu,
  * w którym go napisano.
  */
+/** Termin meczu z `zaplanowany_at` (chwila w UTC) zapisany po polsku,
+ *  w czasie polskim. Jedyna droga od kolumny do ekranu: patrz `chwilaWPolsce()`. */
+export function etykietaTerminuMeczu(iso: string, dzisiaj: Date = new Date()): string {
+  const { data, godzina } = chwilaWPolsce(iso);
+  return etykietaTerminu(data, godzina, dzisiaj);
+}
+
 export function etykietaTerminu(
   data: string,
   godzina?: string,
@@ -233,6 +241,18 @@ export function stanTurnieju(
 ): StanTurnieju {
   if (t.status === 'odwolany') return { label: 'Odwołany', ton: 'bg-red-50 text-red-600' };
   if (t.status === 'szkic') return { label: 'W przygotowaniu', ton: 'bg-slate-100 text-slate-600' };
+  // PO TERMINIE ZAPISÓW zapisy są zamknięte, choć kolumna dalej mówi
+  // `zapisy` (organizator nic nie kliknął, termin minął sam). Do 2026-11-11
+  // strona pokazywała wtedy naraz „Trwają zapisy", „Zostało 1 miejsce"
+  // i „Zapisy zamknięte" (audyt 6 i 7, turniej w Luboniu), choć sam formularz
+  // `/zglos` poprawnie odmawiał. Ta sama reguła co `przyjmujeZgloszenia()`.
+  if (t.status === 'zapisy' && t.zapisyDo && new Date(t.zapisyDo).getTime() <= dzisiaj.getTime()) {
+    return {
+      label: 'Zapisy zamknięte',
+      ton: 'bg-slate-100 text-slate-600',
+      szczegol: `Start ${etykietaTerminu(t.dataStartu, undefined, dzisiaj).toLowerCase()}`,
+    };
+  }
   if (t.status === 'zapisy') {
     // KONKRETNA DATA BIJE CZASOWNIK. Sam fakt, że zapisy trwają, mówi tylko,
     // że drzwi są otwarte; termin graniczny mówi, ile zostało czasu, i to jest
@@ -282,8 +302,8 @@ export function stanTurnieju(
     .sort((a, b) => a.zaplanowanyAt!.localeCompare(b.zaplanowanyAt!))[0];
   const szczegol = najblizszy?.zaplanowanyAt
     ? `${FAZA_LABEL[najblizszy.faza]} ${etykietaTerminu(
-        najblizszy.zaplanowanyAt.slice(0, 10),
-        najblizszy.zaplanowanyAt.slice(11, 16),
+        chwilaWPolsce(najblizszy.zaplanowanyAt).data,
+        chwilaWPolsce(najblizszy.zaplanowanyAt).godzina,
         dzisiaj,
       ).toLowerCase()}`
     : undefined;
@@ -341,9 +361,13 @@ export function stanZapisowTurnieju(
     procent,
     // Czasownik odmienia się razem z rzeczownikiem: „Zostało 1 miejsce",
     // „Zostały 2 miejsca", „Zostało 5 miejsc".
-    miejscaLabel: wolne === 0
-      ? 'Komplet drużyn'
-      : `${plural(wolne, 'Zostało', 'Zostały', 'Zostało')} ${withCount(wolne, 'miejsce', 'miejsca', 'miejsc')}`,
+    // Po terminie nie zachęcamy do zgłoszenia: „Zostało 1 miejsce" obok
+    // „Zapisy zamknięte" było sprzecznością (audyt 6/7). Zostaje sam stan.
+    miejscaLabel: poTerminie
+      ? `${withCount(liczbaDruzyn, 'drużyna', 'drużyny', 'drużyn')} z ${t.maxDruzyn}`
+      : wolne === 0
+        ? 'Komplet drużyn'
+        : `${plural(wolne, 'Zostało', 'Zostały', 'Zostało')} ${withCount(wolne, 'miejsce', 'miejsca', 'miejsc')}`,
     terminLabel: t.zapisyDo
       ? (poTerminie
           ? 'Zapisy zamknięte'

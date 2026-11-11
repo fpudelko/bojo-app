@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-08 · migracja `173` · 59 tabel
+**Stan na:** 2026-11-11 · migracja `174` · 59 tabel
 
 ---
 
@@ -474,6 +474,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-11 — Godziny meczów turnieju w czasie polskim, spójne zapisy, widok zawodnika
+
+PROBLEM: w turnieju w Bojo karty meczów pokazywały godzinę o jedną (zimą) albo dwie
+(latem) wcześniejszą niż prawdziwa, więc strona mówiła „start 10:00”, a pierwszy mecz
+„09:00”. Po terminie zapisów strona naraz pisała „Trwają zapisy”, „Zostało 1 miejsce”
+i „Zapisy zamknięte”. Na telefonie „Utwórz turniej” leżał pod banerem cookies, a zawodnik
+po ponownym otwarciu linku drużyny znowu widział listę imion do wyboru.
+
+ROZWIĄZANIE BOJO: godziny meczów turnieju i powiadomienie „Wasz mecz jest następny” są
+w czasie polskim. Po terminie zapisów Bojo pokazuje wyłącznie „Zapisy zamknięte” i liczbę
+drużyn. Pulpit organizatora ostrzega, gdy godzina startu nie zgadza się z pierwszym meczem.
+Ekran drużyny zaczyna się od następnego meczu, a link drużyny otwarty przez kogoś ze składu
+prowadzi prosto do jego drużyny. Okładka i pełne ogłoszenia są tylko na zakładce Info,
+nazwa turnieju nie jest ucinana.
+
+MECHANIKA: migracja `174` (`powiadom_o_nastepnym_meczu()` w `Europe/Warsaw`),
+`chwilaWPolsce()` i `instantZCzasuPolskiego()` w `lib/czasPolski.ts`,
+`etykietaTerminuMeczu()` i `stanTurnieju()` w `lib/turniejEtykiety.ts`, `CookieBanner.tsx`
+(`--cookie-h`), `app/t/[kod]/page.tsx`, `DruzynaClient.tsx`, `TurniejClient.tsx`,
+`PanelClient.tsx`, `lib/toast.tsx`. Szczegóły → [funkcje.md](./funkcje.md).
+
 ### 2026-11-08 (3) — Prostszy moduł turniejowy: jedna rola, zasady gry, próba, kapitan wskazany przez organizatora
 
 PROBLEM: organizator turnieju w Bojo (turniej pokazowy w Luboniu) gubił się w opcjach:
@@ -683,32 +704,4 @@ pierwszy raz w przyszłości) zostaje.
 MECHANIKA: migracje `166` (odpięcie: cron, dwie funkcje spoza modułu, które go
 czytały) i `167` (usunięcie: `DROP TABLE`/`DROP COLUMN`, wymaga ręcznego kliknięcia
 w Actions → Migracje). `lib/recurring.ts` zostaje wyłącznie z matematyką dat.
-
-### 2026-09-27 (2) — Skład organizatora czytelny na każdym telefonie
-
-PROBLEM: w składzie organizatora imiona były ucinane przez dwa sąsiadujące przyciski
-(„Usuń", „Na rezerwę") — przy 390 px imię kończyło się na „Mateu…", przy 360 px imię
-gościa miało zero pikseli. „Zmień termin" liczyło samych zapisanych („6 osób jest
-zapisanych"), nie biorąc pod uwagę, że część to organizator (nie dostaje powiadomienia
-o własnej zmianie) i obserwujący (dostaje, bo ma konto) — liczba nie mówiła, do ilu
-osób faktycznie pójdzie wiadomość. Toast na telefonie siadał na dole ekranu i zasłaniał
-„Udostępnij link" tuż po założeniu ekipy oraz dół arkusza „Miej Bojo na ekranie głównym"
-po zapisie. Dodatkowo: dolna nawigacja podpowiadała przytrzymanie zakładki „Grupy",
-choć nazywa się dziś „Ekipy"; zdanie o gościach bez konta nie mówiło, że część jest na
-rezerwie, nie w składzie; odwołany mecz nadal pokazywał „Zostało N wolnych miejsc" i
-przycisk „Wypisz się z meczu" pod banerem „Mecz odwołany"; okno zapisu gościa, który
-był już na liście, używało męskiej formy czasownika niezależnie od tego, kto klika.
-
-ROZWIĄZANIE BOJO: przyciski „Usuń"/„Na rezerwę" stoją teraz pod imieniem, pełnej
-wysokości dotyku, i wracają obok imienia dopiero na tablecie — imię ma wtedy całą
-szerokość wiersza. „Zmień termin" liczy odbiorców tą samą funkcją co odwołanie meczu
-(organizator wypada, obserwujący z kontem zostaje). Toast na telefonie wjeżdża od góry
-ekranu, nie z dołu. Dymek dolnej nawigacji, zdanie o gościach na rezerwie, licznik przy
-odwołanym meczu i okno „już zapisany" mówią dokładnie to, co się dzieje.
-
-MECHANIKA: `EventDetailClient.tsx` (układ wiersza składu, `konsekwencjeZapisu()` +
-`komuDojdzie()` z `lib/zmianyMeczu.ts` w oknie „Zmień termin", warunek `!isCancelled`
-przy liczniku i przycisku wypisania), `lib/toast.tsx` (pozycja i animacja),
-`BottomNav.tsx`, `GroupDetailClient.tsx`. Bez migracji.
-Szczegóły → [faza1-runda9-plan.md](./faza1-runda9-plan.md), X-2, X-6, X-10, X-11.
 

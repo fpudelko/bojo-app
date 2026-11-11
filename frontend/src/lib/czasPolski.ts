@@ -42,3 +42,32 @@ export function czyPrzedStartemWPolsce(
   const godzina = (czas ?? '23:59').slice(0, 5);
   return data > teraz.data || (data === teraz.data && godzina > teraz.godzina);
 }
+
+/** Chwila (ISO z bazy, zwykle w UTC) jako data i godzina w POLSCE.
+ *  Do wyświetlania `turniej_mecze.zaplanowany_at`: PostgREST oddaje
+ *  `2026-11-28T09:00:00+00:00`, a wycięcie `slice(11, 16)` dawało „09:00"
+ *  dla meczu o 10:00 w Warszawie (turniej w Luboniu, audyt 6 i 7). */
+export function chwilaWPolsce(iso: string): ChwilaWPolsce {
+  return terazWPolsce(new Date(iso));
+}
+
+/** Data i godzina w Polsce → chwila ISO w UTC, niezależnie od strefy
+ *  przeglądarki. Generator terminarza budował start z `new Date('…T10:00:00')`,
+ *  czyli w strefie URZĄDZENIA: organizator z telefonem ustawionym na inną
+ *  strefę układał mecze przesunięte o różnicę. */
+export function instantZCzasuPolskiego(data: string, godzina: string): string {
+  const [r, mies, d] = data.split('-').map(Number);
+  const [h, min] = godzina.slice(0, 5).split(':').map(Number);
+  // Zgadujemy UTC, sprawdzamy, którą godzinę to daje w Polsce, i poprawiamy
+  // o różnicę. Dwie iteracje wystarczają także w dniu zmiany czasu.
+  let t = Date.UTC(r, mies - 1, d, h, min);
+  for (let i = 0; i < 2; i++) {
+    const pl = terazWPolsce(new Date(t));
+    const [pr, pm, pd] = pl.data.split('-').map(Number);
+    const [ph, pmin] = pl.godzina.split(':').map(Number);
+    const roznica = Date.UTC(r, mies - 1, d, h, min) - Date.UTC(pr, pm - 1, pd, ph, pmin);
+    if (roznica === 0) break;
+    t += roznica;
+  }
+  return new Date(t).toISOString();
+}

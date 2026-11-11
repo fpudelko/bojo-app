@@ -148,6 +148,27 @@ export default function DolaczDoDruzynyPage() {
     );
   }
 
+  // POWRÓT Z TEGO SAMEGO LINKU (audyt 7, 2026-11-11). Zawodnik, który już
+  // jest w składzie, otwiera link drugi raz z tej samej wiadomości na
+  // WhatsAppie. Dostawał znowu „Wybierz swoje imię" z cudzymi imionami, czyli
+  // formularz, który nic dla niego nie robi. Tu link jest skrótem do drużyny.
+  const juzWSkladzie = (druzyna.zawodnicy ?? []).some((z) => z.userId === user.id);
+  if (juzWSkladzie) {
+    return (
+      <div className="flex min-h-screen flex-col bg-canvas">
+        <Header />
+        <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 text-center">
+          <p className="text-sm text-slate-500 dark:text-slate-400">{turniej ? turniej.nazwa : 'Turniej Bojo'}</p>
+          <h1 className="mb-5 font-display text-2xl font-bold text-ink">Jesteś w drużynie {druzyna.nazwa}</h1>
+          {wizytowka}
+          <Link href={`/turnieje/${druzyna.turniejId}/druzyna/${druzyna.id}`} className="mt-5 block">
+            <Button className="w-full">Przejdź do swojej drużyny</Button>
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header />

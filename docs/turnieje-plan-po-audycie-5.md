@@ -184,6 +184,18 @@ uruchamiany. Oceny: zawodnik 2/5, kapitan 3/5, organizator 4/5.
 | **D-10** | Licznik powiadomień na dzwonku jest czerwony. | Zmienić na neutralny (szary/ciemny) albo pomarańczowy „nowość”; czerwień zostaje dla błędów. Decyzja dotyczy całej aplikacji, nie tylko turniejów. |
 | **D-11** | Podpowiedź „Przytrzymaj Ekipy…” na stałe w dolnym menu. | Pokazywać raz, z zamknięciem; nie na trasach `/turnieje/*`. |
 
+### Audyt 7 (2026-11-11, po migracjach `167`–`173`): co zrobiono
+
+Audyt potwierdził: dołączenie z linku działa, „Przetestuj” tworzy izolowaną kopię,
+„Ustaw kapitanem” działa. Zrobione w PR po audycie: Z-1 (baner cookies rezerwuje miejsce,
+przycisk kreatora 48 px, test klikalności), Z-2 (powrót z linku), Z-3 = P-8 (jeden status
+zapisów), Z-5 (następny mecz na górze ekranu drużyny), Z-6 (pełna nazwa, okładka i
+ogłoszenia tylko na Info), Z-7 (jeden komunikat sukcesu), Z-8 (próba na szarym,
+„Samobójczy”, cele 44 px), P-9 (ostrzeżenie start a pierwszy mecz), P-12 i N9 (przed
+meczem „vs” i termin), N3b, N10. **Odkryty przy okazji błąd strefy czasowej**: godziny
+meczów pokazywały UTC, stąd „10:00 a 09:00” u Marysi; naprawione we froncie i w
+powiadomieniu (migracja `174`). Z-4 (treść opisu Marysi) zostaje po stronie organizatora.
+
 ### Co zmienia się w kolejności
 
 Na pierwsze miejsce wchodzi bez zmian **D-1 (migracje)**: audyt 6 pokazał wprost, że to

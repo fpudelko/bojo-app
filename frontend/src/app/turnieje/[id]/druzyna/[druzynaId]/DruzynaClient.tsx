@@ -46,6 +46,7 @@ import { sportEmoji } from '@/lib/sports';
 import ZaprosZEkipyDialog from '@/components/turnieje/ZaprosZEkipyDialog';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
+import { czyWolnyLos } from '@/lib/turniejWynik';
 import type { Turniej, TurniejArena, TurniejDruzyna, TurniejMecz } from '@/types';
 
 const inputCls =
@@ -281,6 +282,12 @@ export default function DruzynaClient() {
   const naszeMecze = mecze.filter(
     (m) => m.druzynaAId === druzyna.id || m.druzynaBId === druzyna.id,
   );
+  // Następny mecz tej drużyny: najpierw trwający, potem najbliższy
+  // zaplanowany (wolne losy pomijamy, nikt w nich nie gra).
+  const nastepnyMecz = naszeMecze
+    .filter((m) => (m.status === 'trwa' || m.status === 'zaplanowany') && !czyWolnyLos(m))
+    .sort((a, b) => (a.status === 'trwa' ? -1 : b.status === 'trwa' ? 1
+      : (a.zaplanowanyAt ?? '9').localeCompare(b.zaplanowanyAt ?? '9') || a.numer - b.numer))[0];
   const poTurnieju = turniej.status === 'zakonczony';
   const arenyPoId = new Map(areny.map((a) => [a.id, a.nazwa]));
   const meczePoId = new Map(mecze.map((m) => [m.id, m]));
@@ -310,6 +317,29 @@ export default function DruzynaClient() {
             </span>
           </Link>
         </div>
+
+        {/* ── Następny mecz — pierwsza odpowiedź dla zawodnika ──────────────
+            Audyt 7 (2026-11-11): zawodnik przychodzi sprawdzić, kiedy i gdzie
+            gra, a „Nasze mecze" leżały pod zaproszeniami, składem i BLIK-iem. */}
+        {nastepnyMecz && (
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-500">
+              {nastepnyMecz.status === 'trwa' ? 'Gracie teraz' : 'Następny mecz'}
+            </h2>
+            <KartaMeczu
+              mecz={nastepnyMecz}
+              druzynyPoId={nazwyDruzyn}
+              meczePoId={meczePoId}
+              arenyPoId={arenyPoId}
+              onClick={() => router.push(`/turnieje/${id}/mecz/${nastepnyMecz.id}`)}
+            />
+          </div>
+        )}
+        {!nastepnyMecz && naszeMecze.length === 0 && !poTurnieju && (
+          <p className="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+            Terminarz jeszcze nie jest gotowy. Gdy organizator go ułoży, tu zobaczysz swój pierwszy mecz.
+          </p>
+        )}
 
         {/* ── Kompletowanie składu — serce tego ekranu ──────────────────────
             Licznik zamienia bierne czekanie w czynność: widać, ilu brakuje,
@@ -477,7 +507,7 @@ export default function DruzynaClient() {
         {/* ── Nasze mecze ───────────────────────────────────────────────── */}
         {naszeMecze.length > 0 && (
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-slate-500">Nasze mecze</h2>
+            <h2 className="text-sm font-semibold text-slate-500">Wszystkie nasze mecze</h2>
             {naszeMecze.map((m) => (
               <KartaMeczu
                 key={m.id}

@@ -33,7 +33,7 @@ import {
   zamienDruzynyWDrabince, type MiejsceWDrabince,
   szacunekCzasu, type NowyMecz,
 } from '@/lib/turniejFormat';
-import { odmienZawodnikow, odmienDruzyny, etykietaTerminu, FORMAT_LABEL } from '@/lib/turniejEtykiety';
+import { odmienZawodnikow, odmienDruzyny, etykietaTerminu, FORMAT_LABEL, etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
 import {
   pulpitPrzedTurniejem, postepTurnieju, meczeDoWpisania, mozeRozpoczacTurniej,
 } from '@/lib/turniejPulpit';
@@ -41,6 +41,7 @@ import { plural, withCount } from '@/lib/plural';
 import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz } from '@/types';
 import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
 import { czyWolnyLos } from '@/lib/turniejWynik';
+import { instantZCzasuPolskiego, chwilaWPolsce } from '@/lib/czasPolski';
 import ZasadyGry, { type WartosciZasad } from '@/components/turnieje/ZasadyGry';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
 import type { TurniejCreate } from '@/types';
@@ -407,7 +408,8 @@ export default function PanelClient() {
     }
     const ulozone = ulozHarmonogram(nowe, {
       arenyId: areny.map((a) => a.id),
-      startAt: `${turniej.dataStartu}T${turniej.godzinaStartu}:00`,
+      // Start w czasie POLSKIM, nie w strefie urządzenia organizatora.
+      startAt: instantZCzasuPolskiego(turniej.dataStartu, turniej.godzinaStartu),
       czasMeczuMin: turniej.czasMeczuMin,
       przerwaMin: turniej.przerwaMin,
     });
@@ -486,6 +488,17 @@ export default function PanelClient() {
   };
 
   const proba = czyTurniejProbny(turniej);
+
+  // START A PIERWSZY MECZ (audyt 6, P-9). Od #463 godzinę startu da się
+  // zmienić w Ustawieniach bez przeliczenia terminarza, więc nagłówek mówi
+  // jedno, a pierwszy mecz drugie. Nie poprawiamy tego po cichu: organizator
+  // wybiera, która godzina jest prawdziwa.
+  const pierwszyMecz = mecze
+    .filter((m) => m.zaplanowanyAt && m.status === 'zaplanowany')
+    .sort((a, b) => a.zaplanowanyAt!.localeCompare(b.zaplanowanyAt!))[0];
+  const pierwszyMeczPl = pierwszyMecz?.zaplanowanyAt ? chwilaWPolsce(pierwszyMecz.zaplanowanyAt) : null;
+  const startNieZgadzaSie = !!pierwszyMeczPl && turniej.status !== 'trwa' && turniej.status !== 'zakonczony'
+    && (pierwszyMeczPl.data !== turniej.dataStartu || pierwszyMeczPl.godzina !== (turniej.godzinaStartu ?? '').slice(0, 5));
 
   const przetestuj = async () => {
     const wynik = await potwierdz({
@@ -582,9 +595,12 @@ export default function PanelClient() {
                 meczu. Ręczne „Przesuń od meczu" z zakładki Terminarz też wypadło: godziny
                 są orientacyjne i niczego nie uruchamiają. */}
             {proba && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-4 space-y-2">
-                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">To jest próba</p>
-                <p className="text-sm text-amber-800 dark:text-amber-300">
+              // Neutralny szary, nie bursztyn: próba to osobna, zamknięta droga
+              // (nic nie trafia do prawdziwego turnieju), a nie ostrzeżenie
+              // ani nowość (audyt 7, Z-8).
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4 space-y-2">
+                <p className="text-sm font-semibold text-ink">To jest próba</p>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
                   Wpisuj wyniki, zmieniaj, sprawdzaj drabinkę. Nic z tego nie trafia do prawdziwego
                   turnieju, a zawodnicy nie dostają powiadomień.
                 </p>
@@ -665,6 +681,31 @@ export default function PanelClient() {
                     ))}
                   </ul>
                 </div>
+
+                {startNieZgadzaSie && pierwszyMeczPl && (
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2 shadow-sm">
+                    <p className="text-sm font-semibold text-ink">⚠ Start i pierwszy mecz się nie zgadzają</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                      Na stronie turnieju start to {etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}, a pierwszy
+                      mecz w terminarzu jest {etykietaTerminu(pierwszyMeczPl.data, pierwszyMeczPl.godzina).toLowerCase()}.
+                      Uczestnicy zobaczą obie godziny.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => zapiszUstawienie({ dataStartu: pierwszyMeczPl.data, godzinaStartu: pierwszyMeczPl.godzina })}
+                      >
+                        Ustaw start na {pierwszyMeczPl.godzina}
+                      </Button>
+                      {rozegranych === 0 && (
+                        <Button size="sm" variant="outline" onClick={() => router.push(`/turnieje/${id}/panel?tab=terminarz`)}>
+                          Ułóż terminarz od {(turniej.godzinaStartu ?? '').slice(0, 5)}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* „Przetestuj" OBOK „Rozpocznij" (decyzja właściciela
                     z 2026-11-08): widok dnia turnieju organizator ma zobaczyć
@@ -876,7 +917,11 @@ export default function PanelClient() {
                     {mecze.length > 0 && rozegranych === 0 && (
                       <p className="text-xs text-slate-500">Po zmianie grup wygeneruj terminarz od nowa.</p>
                     )}
-                    <button onClick={() => losujGrupy()} className="text-sm font-medium text-primary-600">Losuj ponownie</button>
+                    {rozegranych > 0 ? (
+                      <p className="text-xs text-slate-500">Rozegrano już mecze, więc grup nie da się wylosować od nowa.</p>
+                    ) : (
+                      <button onClick={() => losujGrupy()} className="text-sm font-medium text-primary-600">Losuj ponownie</button>
+                    )}
                   </div>
                 )}
               </div>
@@ -948,7 +993,7 @@ export default function PanelClient() {
                              cyfrowa czyta się gorzej niż słowna. Ten sam
                              zapis co wszędzie indziej w aplikacji. */
                           <span className="ml-2 text-xs text-slate-400">
-                            {etykietaTerminu(m.zaplanowanyAt.slice(0, 10), m.zaplanowanyAt.slice(11, 16))}
+                            {etykietaTerminuMeczu(m.zaplanowanyAt)}
                           </span>
                         )}
                       </div>

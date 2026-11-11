@@ -16,7 +16,7 @@ import {
   domyslnaZakladka, czyTurniejProbny } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
-import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy, etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
@@ -479,7 +479,9 @@ export default function TurniejClient() {
           <button onClick={wstecz} aria-label="Wróć" className="shrink-0 text-slate-500 hover:text-ink">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">{turniej.nazwa}</h1>
+          {/* Dwie linie zamiast ucięcia: na 360 px „Gramy dla Marysi - Turniej
+              Piłka…" było jedyną nazwą wydarzenia na ekranie (audyt 7). */}
+          <h1 className="line-clamp-2 min-w-0 flex-1 font-display text-base font-bold leading-snug text-ink sm:text-lg">{turniej.nazwa}</h1>
           {uprawnienia.mozeEdytowac && (
             <Link href={`/turnieje/${id}/panel`} className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
               <Settings className="h-3.5 w-3.5" /> Panel
@@ -509,7 +511,7 @@ export default function TurniejClient() {
           </div>
         )}
         {czyTurniejProbny(turniej) && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-sm text-amber-800 dark:text-amber-300">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3.5 text-sm text-slate-700 dark:text-slate-300">
             To jest próba turnieju. Wyniki wpisane tutaj nie trafiają do prawdziwego turnieju.
           </div>
         )}
@@ -517,7 +519,9 @@ export default function TurniejClient() {
         {/* OKŁADKA na stronie turnieju, nie tylko jako miniatura na liście
             (decyzja właściciela z 2026-11-08). Organizator wgrywał ją
             w Ustawieniach i nie widział jej nigdzie poza `/turnieje`. */}
-        {turniej.okladkaUrl && (
+        {/* Tylko na Info: na pozostałych zakładkach zdjęcie spychało terminarz
+            i tabelę poniżej pierwszego ekranu (audyt 7, Z-6). */}
+        {turniej.okladkaUrl && aktywna === 'info' && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={turniej.okladkaUrl}
@@ -710,7 +714,7 @@ export default function TurniejClient() {
                 className="text-sm text-primary-700 dark:text-primary-300"
               >
                 Następny mecz: {mojNastepnyMecz.zaplanowanyAt
-                  ? etykietaTerminu(mojNastepnyMecz.zaplanowanyAt.slice(0, 10), mojNastepnyMecz.zaplanowanyAt.slice(11, 16))
+                  ? etykietaTerminuMeczu(mojNastepnyMecz.zaplanowanyAt)
                   : FAZA_LABEL[mojNastepnyMecz.faza]} →
               </button>
             ) : (
@@ -729,13 +733,27 @@ export default function TurniejClient() {
           </div>
         )}
 
-        <Ogloszenia
-          ogloszenia={ogloszenia}
-          blad={ogloszeniaBlad}
-          mozeZarzadzac={uprawnienia.mozeEdytowac}
-          onDodaj={dodajOgloszenieAkcja}
-          onUsun={usunOgloszenieAkcja}
-        />
+        {/* Ogłoszenia w całości tylko na Info. Na pozostałych zakładkach jeden
+            wiersz z liczbą: zawodnik w „Mecze" szuka swojej godziny, a pełne
+            ogłoszenie stało przed terminarzem na każdej zakładce (audyt 7). */}
+        {aktywna === 'info' ? (
+          <Ogloszenia
+            ogloszenia={ogloszenia}
+            blad={ogloszeniaBlad}
+            mozeZarzadzac={uprawnienia.mozeEdytowac}
+            onDodaj={dodajOgloszenieAkcja}
+            onUsun={usunOgloszenieAkcja}
+          />
+        ) : ogloszenia.length > 0 ? (
+          <button
+            onClick={() => router.push(`/turnieje/${id}?tab=info`)}
+            className="flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-pink-100 dark:border-pink-900 bg-pink-50/60 dark:bg-pink-950/30 px-3.5 py-2 text-left text-sm"
+          >
+            <span className="font-medium text-pink-700 dark:text-pink-300">Ogłoszenia ({ogloszenia.length})</span>
+            <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">{ogloszenia[0].tresc}</span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+          </button>
+        ) : null}
 
         {/* Jedno działanie zgodne ze stanem turnieju, widoczne TAKŻE dla
             niezalogowanego — przegląd złapał stronę bez żadnego przycisku,

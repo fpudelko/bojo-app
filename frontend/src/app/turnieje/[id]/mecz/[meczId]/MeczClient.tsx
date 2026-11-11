@@ -21,7 +21,7 @@ import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
   czasGry, poCzasie,
 } from '@/lib/turniejWynik';
-import { FAZA_LABEL, STATUS_MECZU, etykietaTerminu } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, STATUS_MECZU, etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
 import ArkuszSkladu from '@/components/turnieje/ArkuszSkladu';
 import type { Turniej, TurniejMecz, TurniejDruzyna, TurniejArena, TurniejZdarzenie, ZdarzenieTyp } from '@/types';
 
@@ -438,6 +438,11 @@ export default function MeczClient() {
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
             {(mecz.zaplanowanyAt || arena) && (
               <div className="flex items-center gap-2 text-xs text-slate-400">
+                {/* Termin obok boiska: przed startem było widać samo „Boisko 1"
+                    (audyt 5, N9). */}
+                {mecz.zaplanowanyAt && mecz.status === 'zaplanowany' && (
+                  <span>{etykietaTerminuMeczu(mecz.zaplanowanyAt)}</span>
+                )}
                 {arena && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {arena.nazwa}</span>}
               </div>
             )}
@@ -446,7 +451,12 @@ export default function MeczClient() {
             <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">
               {druzynaA?.nazwa ?? 'TBD'}
             </span>
-            <span className="shrink-0 font-mono text-2xl font-bold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
+            {/* Przed pierwszym gwizdkiem „0:0" wyglądało jak wynik (audyt 6). */}
+            {mecz.status === 'zaplanowany' ? (
+              <span className="shrink-0 text-sm font-medium text-slate-400">vs</span>
+            ) : (
+              <span className="shrink-0 font-mono text-2xl font-bold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
+            )}
             <span className="min-w-0 flex-1 truncate text-right text-base font-semibold text-ink">
               {druzynaB?.nazwa ?? 'TBD'}
             </span>
@@ -662,13 +672,15 @@ export default function MeczClient() {
                       <button
                         onClick={() => zapytajOZawodnika(druzynaId, 'czerwona')}
                         aria-label={`Czerwona kartka, ${nazwaDruzyny(druzynaId)}`}
-                        className="min-h-[44px] min-w-[44px] rounded-lg bg-red-50 dark:bg-red-950 text-base"
+                        // Neutralne tło: czerwień w Bojo znaczy „coś poszło źle",
+                        // a znaczenie niesie sama ikona kartki (audyt 5, N10).
+                        className="min-h-[44px] min-w-[44px] rounded-lg bg-slate-100 dark:bg-slate-700 text-base"
                       >🟥</button>
                       <button
                         onClick={() => dodajZdarzenieAkcja(druzynaId, 'samobojczy')}
                         aria-label={`Samobójczy, ${nazwaDruzyny(druzynaId)}`}
-                        className="min-h-[44px] min-w-[44px] rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300"
-                      >sam.</button>
+                        className="min-h-[44px] rounded-lg bg-slate-100 dark:bg-slate-700 px-3 text-xs font-medium text-slate-600 dark:text-slate-300"
+                      >Samobójczy</button>
                     </div>
                   )}
                 </div>
@@ -696,11 +708,11 @@ export default function MeczClient() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => zapiszPunktSetu({ ...aktualnySet, [strona]: Math.max(0, aktualnySet[strona] - 1) })}
-                      className="h-9 w-9 rounded-lg bg-slate-100 text-lg font-semibold text-slate-600"
+                      className="h-11 w-11 rounded-lg bg-slate-100 text-lg font-semibold text-slate-600"
                     >−</button>
                     <button
                       onClick={() => zapiszPunktSetu({ ...aktualnySet, [strona]: aktualnySet[strona] + 1 })}
-                      className="h-9 w-9 rounded-lg bg-primary-50 text-lg font-semibold text-primary-700"
+                      className="h-11 w-11 rounded-lg bg-primary-50 text-lg font-semibold text-primary-700"
                     >+</button>
                   </div>
                 </div>
@@ -801,10 +813,7 @@ export default function MeczClient() {
               </p>
               {nastepnyNaArenie.zaplanowanyAt && (
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {etykietaTerminu(
-                    nastepnyNaArenie.zaplanowanyAt.slice(0, 10),
-                    nastepnyNaArenie.zaplanowanyAt.slice(11, 16),
-                  )}
+                  {etykietaTerminuMeczu(nastepnyNaArenie.zaplanowanyAt)}
                 </p>
               )}
             </div>

@@ -1292,10 +1292,12 @@ ON CONFLICT (turniej_id, nazwa) DO NOTHING;
 
 INSERT INTO turniej_mecze (id, turniej_id, numer, faza, arena_id, druzyna_a_id, druzyna_b_id, status, zaplanowany_at)
 VALUES
+  -- Godziny w CZASIE POLSKIM (174): 10:00 i 11:00 w Warszawie dziś, niezależnie
+  -- od strefy sesji bazy. Powiadomienie ma powiedzieć „ok. 11:00", nie godzinę UTC.
   (:T_MECZ_A::uuid, :TURNIEJ::uuid, 91, 'grupa', :T_ARENA_DZIS::uuid, :T_DRUZYNA1::uuid, :T_DRUZYNA2::uuid, 'trwa',
-   date_trunc('day', now()) + interval '10 hours'),
+   (date_trunc('day', now() AT TIME ZONE 'Europe/Warsaw') + interval '10 hours') AT TIME ZONE 'Europe/Warsaw'),
   (:T_MECZ_B::uuid, :TURNIEJ::uuid, 92, 'grupa', :T_ARENA_DZIS::uuid, :T_DRUZYNA2::uuid, :T_DRUZYNA1::uuid, 'zaplanowany',
-   date_trunc('day', now()) + interval '11 hours');
+   (date_trunc('day', now() AT TIME ZONE 'Europe/Warsaw') + interval '11 hours') AT TIME ZONE 'Europe/Warsaw');
 
 -- Turniej w tej sekcji ma status 'zapisy' — wyzwalacz ma wtedy MILCZEĆ.
 DELETE FROM notifications WHERE type = 'turniej_nastepny_mecz';

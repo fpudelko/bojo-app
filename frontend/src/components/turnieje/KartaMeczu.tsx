@@ -2,7 +2,7 @@
 // (zakładka Terminarz) i w panelu organizatora. Reużywana dalej przy drabince
 // i stronie drużyny (Etap 2/3), stąd osobny plik zamiast JSX wprost w kliencie.
 import { MapPin } from 'lucide-react';
-import { FAZA_LABEL, STATUS_MECZU, etykietaTerminu } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, STATUS_MECZU, etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
 import { czyWolnyLos, stronaZwyciezcy } from '@/lib/turniejWynik';
 import type { TurniejMecz } from '@/types';
 
@@ -47,7 +47,7 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, pr
   // „niedziela, 20 września · 10:00:00", a lista jeszcze inaczej — trzy zapisy
   // tego samego dnia każą sprawdzać, czy to na pewno ten sam mecz.
   const godzina = mecz.zaplanowanyAt
-    ? etykietaTerminu(mecz.zaplanowanyAt.slice(0, 10), mecz.zaplanowanyAt.slice(11, 16))
+    ? etykietaTerminuMeczu(mecz.zaplanowanyAt)
     : null;
   const arena = mecz.arenaId ? arenyPoId.get(mecz.arenaId) : undefined;
 
