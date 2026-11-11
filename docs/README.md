@@ -31,6 +31,7 @@ Baza wiedzy o projekcie. Zasady pracy w repo (komendy, konwencje, pułapki) →
 | Jak mają wyglądać ekrany turnieju dla organizatora, kapitana i gracza? | [turnieje-ux-ekrany.md](./turnieje-ux-ekrany.md) |
 | Co poprawić w turniejach przed pierwszym prawdziwym turniejem (Luboń 28.11)? | [turnieje-poprawki-lubon.md](./turnieje-poprawki-lubon.md) |
 | Jak ręcznie przetestować cały moduł turniejowy (konta, co założyć, co przeklikać)? | [turnieje-scenariusz-testu-recznego.md](./turnieje-scenariusz-testu-recznego.md) |
+| Co zostało z audytu 5, co jest do decyzji i jak wprowadzić migracje turniejów? | [turnieje-plan-po-audycie-5.md](./turnieje-plan-po-audycie-5.md) |
 | Jak wdrożyć galerię zdjęć i sponsorów turnieju — schemat, RLS, ekrany? | [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy-plan.md) |
 | Co przetestować ręką przed wpuszczeniem ludzi? Czego automat nie dosięga? | [testy-przedpremierowe.md](./testy-przedpremierowe.md) |
 | Jak zaczepić organizatora na Facebooku? Co mu wolno obiecać? | [outreach-organizatorzy.md](./outreach-organizatorzy.md) |
