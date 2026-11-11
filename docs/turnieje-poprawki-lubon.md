@@ -302,3 +302,106 @@ Zrobione w jednym PR po #461 i #462 (migracje `172`, `173`), szczegóły w
 Zostaje na później z tej listy: P2-3 (gracz bez linku prosi o dołączenie), P4 (zbiórka,
 tablica na hali, plakat z QR). Termin zapisów zostaje świadomie, bo to decyzja
 organizatora, a nie zegar sterujący rozgrywką.
+
+---
+
+## Odpowiedź organizatora z Lubonia (2026-11-08) i wnioski
+
+Organizator obejrzał turniej pokazowy. Streszczenie jego wiadomości i to, co z nich
+wynika. Stan kodu sprawdzony 2026-11-11.
+
+### Co powiedział
+
+1. Czy da się dostosować **wszystko** pod turniej: przerwy na licytację, przerwy techniczne?
+2. Kto tworzy drużynę: on czy kapitan sam, z nazwą i składem?
+3. Czy to się zapisuje na bieżąco, gdyby coś się zepsuło?
+4. W FC App przerosło go to: jedno blokowało drugie, przy kilku boiskach system sobie nie radził.
+   Wrócił do organizowania „tradycyjnie".
+5. Pomysły: kreator do wypełnienia bez konta, rejestracja przy publikacji; na stronie
+   obiektu animacja ze strony głównej i od razu otwarty pierwszy krok kreatora; link do
+   turnieju z nazwy i daty; link, którym gość bez konta widzi wydarzenie jako organizator
+   i może je przejąć.
+6. **Na 28.11 ma już dopięty harmonogram** i nie chce teraz zmuszać drużyn do niczego.
+   Chętnie przy kolejnych. **Planuje ligę dla dzieci od nowego roku.**
+
+### Wnioski
+
+**W1. Na 28.11 Bojo nie wejdzie jako system zapisów, tylko jako tablica wyników.**
+Drużyny i harmonogram już są. Realny wariant: organizator (albo my za niego) wpisuje
+drużyny ręcznie, układa terminarz pod swój harmonogram i wpisuje wyniki, a widzowie
+i drużyny patrzą na stronę turnieju (wyniki na żywo, tabela, drabinka, podium). Zero
+pracy dla drużyn. **Blokuje to dziś jedno: nie da się ręcznie ustawić godziny i boiska
+pojedynczego meczu** (`ulozHarmonogram()` układa wszystko sam, od godziny startu,
+mecz po meczu). Jego gotowego harmonogramu nie da się więc odtworzyć.
+→ **Zadanie T-1:** edycja godziny i boiska meczu w panelu (karta meczu → „Zmień"),
+plus kolejność meczów. Mała zmiana, bez migracji (`updateMecz` już pisze
+`zaplanowany_at` i `arena_id`).
+
+**W2. Przerwy w harmonogramie (licytacja, techniczne, obiad) są nieobsłużone.** Jest
+tylko stała przerwa między meczami. Dla turnieju charytatywnego licytacja to punkt
+programu, nie margines.
+→ **T-2:** bloki „Przerwa" w terminarzu (od–do, nazwa, widoczne na stronie turnieju
+jako pozycja harmonogramu). Generator przesuwa mecze za blok. Wymaga tabeli
+(`turniej_przerwy`) albo meczu typu „przerwa"; prościej osobna tabela.
+Po T-1 można to obejść ręcznie, więc T-1 pierwsze.
+
+**W3. Odpowiedzi, które mamy, ale ich nie widać.** Na pytania 2–4 odpowiedź brzmi „tak",
+tylko nic na stronie tego nie mówi:
+- drużyny: obie drogi (kapitan zgłasza się sam z nazwą i składem albo organizator dodaje
+  i rozsyła link) — od #463 w pełni działające,
+- zapis na bieżąco: każde kliknięcie idzie od razu do bazy, a przy błędzie sieci
+  wynik da się zapisać ponownie bez dublowania goli (`wpiszWynikZeStrzelcami()`).
+  **Trybu offline nie ma**: w hali bez zasięgu zapis się nie uda i trzeba będzie
+  powtórzyć. Warto to sprawdzić na miejscu przed turniejem,
+- kilka boisk: generator rozkłada mecze na boiska równolegle; to dokładnie miejsce,
+  na którym poległ FC App.
+→ **T-3:** krótka strona „Turniej w Bojo" (dla organizatora, nie gracza): trzy pytania
+wyżej z odpowiedziami + „Przetestuj". To jest argument sprzedażowy, nie dokumentacja.
+
+**W4. Jego obawa nr 1 to „przerośnie mnie".** Odpowiedzią jest #463 (mniej opcji, jedna
+rola, „Przetestuj"). Następny krok: dać mu próbę na JEGO danych, zanim cokolwiek obieca
+drużynom. „Przetestuj" robi dokładnie to.
+
+**W5. Liga dla dzieci od stycznia: format „liga" jest, ale nie dla sezonu.** Dziś liga
+to „każdy z każdym" jednego dnia, mecz po meczu. Liga sezonowa potrzebuje:
+- **kolejek z datami** (kolejka 1 = sobota 10.01, kolejka 2 = 17.01…), generator
+  rozkładający kolejki na kolejne terminy, przełożenie pojedynczego meczu,
+- tabeli przez cały sezon (już działa, liczy się z wyników),
+- **dzieci bez kont**: skład prowadzi trener albo organizator (od #463 może), rodzice
+  oglądają. Powiadomienia trafiają do rodzica/trenera, nie dziecka,
+- **ochrona danych małoletnich**: składy są dziś za ścianą logowania (dobrze), ale
+  każdy zalogowany widzi pełne imiona i nazwiska dzieci. Potrzebna opcja „tylko imię
+  i inicjał" na poziomie turnieju i zgoda rodzica w regulaminie.
+→ **T-4:** liga sezonowa (daty kolejek). Średnia zmiana: generator + pole daty kolejki,
+bez nowej encji, jeśli datę trzymamy w `zaplanowany_at` meczów.
+→ **T-5:** tryb „dzieci" (skrócone nazwiska, bez kont zawodników). Mała zmiana.
+Na styczeń trzeba mieć T-1, T-4, T-5.
+
+**W6. Pomysły spoza modułu: dwa są duże i warte zrobienia, dwa są szybkie.**
+- *Kreator bez konta, rejestracja przy publikacji*: kreator meczu ma już szkic
+  w przeglądarce (`saveEventDraft()`), więc wystarczy przenieść bramkę logowania
+  z wejścia na przycisk „Opublikuj" i odtworzyć szkic po powrocie. Kreator turnieju
+  przekierowuje do logowania od razu i szkicu nie ma. Wysoki wpływ na konwersję
+  organizatorów, średni koszt.
+- *Wydarzenie gościa z linkiem organizatora i przejęciem*: organizator bez konta
+  dostaje tajny link „zarządzaj" i przejmuje wydarzenie po rejestracji. Najmocniejszy
+  z jego pomysłów (zero tarcia na start), ale to nowa granica dostępu w RLS: tajny
+  token zamiast `auth.uid()`. Duży koszt i ryzyko, robić świadomie i z testami RLS.
+- *Link do turnieju z nazwy i daty* (`/turnieje/turniej-pilkarski-lubon-2026-11-28`):
+  ten sam wzorzec co `slugBoiska()`, z id w końcówce, żeby nazwy się nie zderzały.
+  Mały koszt, dobry dla udostępniania i SEO.
+- *Strona obiektu: animacja i otwarty pierwszy krok kreatora* zamiast „Zorganizuj tutaj":
+  sensowne, ale strona obiektu to ruch z Google; trzeba zmierzyć, czy nie pogorszy
+  wejść (`gsc-skutecznosc`). Średni koszt.
+
+### Kolejność
+
+| Priorytet | Zadanie | Po co |
+|---|---|---|
+| 1 | Migracje na produkcję (ręcznie) | bez tego #461 i #463 nie działają w bazie |
+| 2 | T-1 ręczna godzina i boisko meczu | 28.11 jako tablica wyników na jego harmonogramie |
+| 3 | T-2 przerwy w harmonogramie | licytacja w programie dnia |
+| 4 | T-3 strona „Turniej w Bojo" | odpowiedź na jego trzy pytania |
+| 5 | T-4, T-5 liga sezonowa i tryb dzieci | styczeń |
+| 6 | link z nazwy i daty, kreator bez konta | wzrost, nie blokuje |
+| 7 | wydarzenie gościa z przejęciem | duże, osobny plan z RLS |
