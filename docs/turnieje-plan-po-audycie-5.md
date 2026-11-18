@@ -202,6 +202,23 @@ Na pierwsze miejsce wchodzi bez zmian **D-1 (migracje)**: audyt 6 pokazał wpros
 jedyna przyczyna oceny 2/5 dla zawodnika. Do PR-a z P-1 dochodzą P-7, P-8 i P-9 (małe,
 bez migracji). P-10…P-12 idą razem z P-2 i P-5.
 
+### Harmonogram z Lubonia (2026-11-18, migracja `175`): co zrobiono
+
+Organizator przysłał harmonogram „Gramy dla Marysi” (3 grupy po 5, grupa finałowa F
+ze zwycięzców, jedno boisko, przerwy). Zamiast osobnych `174 turniej_faza_pucharowa`
+i `175 turniej_popraw_wynik` z tabeli 4b powstała jedna migracja `175`:
+
+- **P-1 zrobione inaczej niż w planie:** faza po grupach nie jest dopisywana po grupach,
+  tylko powstaje razem z terminarzem jako mecze ze źródłem „miejsce w grupie”; drużyny
+  wpisuje baza (`wypelnij_z_grupy()`). Ten sam mechanizm daje nowy format
+  `grupy_finalowa`. Brak osobnego kroku „Ułóż drabinkę” = jedna rzecz mniej do zapomnienia
+  w dniu turnieju.
+- **P-2 zrobione:** „Zmień godziny” w terminarzu panelu, listy po godzinie, przerwy.
+  Boisko zostaje z generatora (Luboń ma jedno).
+- **P-3 zrobione jako cofnięcie + ponowny wpis** (`cofnij_wynik_meczu()`), nie osobny
+  `popraw_wynik_meczu()` z wynikiem w parametrach: nowy wynik idzie tą samą drogą co
+  pierwszy, ze strzelcami. Bez wpisu „wynik poprawiony” w przebiegu. Granica jak w D-4.
+
 ## 6. Kolejność całości
 
 1. **Ty:** D-1 → odblokowanie produkcji (sekcja 5) → dym.

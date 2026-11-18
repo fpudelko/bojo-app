@@ -55,6 +55,7 @@ export type AnalyticsEvent =
   | 'turniej_kapitan_ustawiony'
   /** Mecz poprowadzony do końca konsolą prowadzącego (Etap 2). */
   | 'turniej_mecz_poprowadzony'
+  | 'turniej_wynik_poprawiony'
   /** Organizator wysłał link do turnieju/drużyny dalej. */
   | 'turniej_udostepniony'
   // ── MODUŁ TURNIEJOWY (150, Etap 4) ───────────────────────────────────────

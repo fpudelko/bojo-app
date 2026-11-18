@@ -26,14 +26,14 @@ import {
 } from '@/lib/turniejDruzyny';
 import {
   getGrupy, dodajGrupe, usunGrupe, getAreny, dodajArene, zmienNazweAreny, usunArene,
-  getMecze, zapiszTerminarz,
+  getMecze, zapiszTerminarz, updateMecz,
 } from '@/lib/turniejMecze';
 import {
   domyslnaLiczbaGrup, rozlosujGrupy, meczeKazdyZKazdym, zbudujDrabinke, ulozHarmonogram,
   zamienDruzynyWDrabince, type MiejsceWDrabince,
-  szacunekCzasu, type NowyMecz,
+  szacunekCzasu, type NowyMecz, drabinkaZGrup, grupaFinalowaZGrup, nazwaMiejscaWGrupie,
 } from '@/lib/turniejFormat';
-import { odmienZawodnikow, odmienDruzyny, etykietaTerminu, FORMAT_LABEL, etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
+import { odmienZawodnikow, odmienDruzyny, etykietaTerminu, FORMAT_LABEL, etykietaTerminuMeczu, porownajTermin, przerwaPrzedMeczem } from '@/lib/turniejEtykiety';
 import {
   pulpitPrzedTurniejem, postepTurnieju, meczeDoWpisania, mozeRozpoczacTurniej,
 } from '@/lib/turniejPulpit';
@@ -99,6 +99,10 @@ export default function PanelClient() {
   const [blikWpis, setBlikWpis] = useState('');
   // Zasady gry w trakcie edycji; `null` = pokaż to, co jest w bazie.
   const [zasadyEdycja, setZasadyEdycja] = useState<WartosciZasad | null>(null);
+  // Ręczne godziny meczów (Luboń, 2026-11-18): id meczu → „HH:MM" w trakcie
+  // edycji; `null` = terminarz w trybie czytania.
+  const [godzinyEdycja, setGodzinyEdycja] = useState<Record<string, string> | null>(null);
+  const [zapisujeGodziny, setZapisujeGodziny] = useState(false);
 
   const tabParam = searchParams.get('tab');
   // Domyślnie PULPIT, nie „Drużyny": organizator wchodzi w panel z pytaniem
@@ -329,7 +333,11 @@ export default function PanelClient() {
   ).length;
   const rezerwa = druzyny.filter((d) => d.status === 'rezerwa');
 
-  const potrzebujeGrup = turniej.format === 'grupy_puchar';
+  const potrzebujeGrup = turniej.format === 'grupy_puchar' || turniej.format === 'grupy_finalowa';
+  // Grupa finałowa (175) powstaje sama przy generowaniu terminarza i nie ma
+  // przypisanych drużyn, więc nie pokazuje się w losowaniu ani przy wyborze.
+  const grupyZwykle = grupy.filter((g) => !g.finalowa);
+  const grupyPoId = new Map(grupy.map((g) => [g.id, g.nazwa]));
   const liczbaGrupDomyslna = domyslnaLiczbaGrup(wTurnieju.length);
 
   /** Przeniesienie drużyny do innej grupy po losowaniu (2026-11-08). */
@@ -375,10 +383,10 @@ export default function PanelClient() {
     }
   };
 
-  const generujPodglad = () => {
+  const generujPodglad = async () => {
     if (wTurnieju.length < 2) { toast('Potrzeba co najmniej 2 przyjętych drużyn', 'error'); return; }
     try {
-      zbudujPodglad();
+      await zbudujPodglad();
     } catch (e) {
       // CISZA JEST TU NAJGORSZĄ ODPOWIEDZIĄ. Generator rzucał wyjątek wewnątrz
       // obsługi kliknięcia (nieprawidłowa godzina startu dawała `RangeError:
@@ -389,7 +397,7 @@ export default function PanelClient() {
     }
   };
 
-  const zbudujPodglad = () => {
+  const zbudujPodglad = async () => {
     let nowe: NowyMecz[];
     if (turniej.format === 'liga') {
       nowe = meczeKazdyZKazdym(wTurnieju.map((d) => d.id), { startNumer: 1 });
@@ -397,14 +405,44 @@ export default function PanelClient() {
       const losowe = rozlosujGrupy(wTurnieju.map((d) => d.id), 1)[0];
       nowe = zbudujDrabinke(losowe, { startNumer: 1, meczO3Miejsce: turniej.meczO3Miejsce });
     } else {
-      if (grupy.length === 0) { toast('Najpierw wylosuj grupy', 'error'); return; }
+      if (grupyZwykle.length === 0) { toast('Najpierw wylosuj grupy', 'error'); return; }
       let numer = 1;
-      nowe = grupy.flatMap((g) => {
+      const fazaGrupowa = grupyZwykle.flatMap((g) => {
         const wGrupie = wTurnieju.filter((d) => d.grupaId === g.id).map((d) => d.id);
         const czesc = meczeKazdyZKazdym(wGrupie, { startNumer: numer, grupaId: g.id });
         numer += czesc.length;
         return czesc;
       });
+      // FAZA PO GRUPACH POWSTAJE OD RAZU (175). Do 2026-11-18 terminarz
+      // „grupy → puchar" kończył się na grupach, a drabinkę trzeba było
+      // dopisywać ręcznie (audyt 5, N1). Dziś mecze kolejnej fazy stoją
+      // w terminarzu z podpisem „Zwycięzca A", a drużyny wpisuje baza, gdy
+      // grupa rozegra ostatni mecz.
+      const najmniejszaGrupa = Math.min(
+        ...grupyZwykle.map((g) => wTurnieju.filter((d) => d.grupaId === g.id).length),
+      );
+      const awansuje = Math.max(1, Math.min(turniej.awansujeZGrupy, najmniejszaGrupa));
+      const opcjeFazy = {
+        startNumer: numer,
+        startKolejka: Math.max(0, ...fazaGrupowa.map((m) => m.kolejka ?? 1)) + 1,
+        awansuje,
+        meczO3Miejsce: turniej.meczO3Miejsce,
+      };
+      let dalej: NowyMecz[] = [];
+      if (grupyZwykle.length * awansuje >= 2) {
+        if (turniej.format === 'grupy_finalowa') {
+          let finalowa = grupy.find((g) => g.finalowa);
+          if (!finalowa) {
+            const zajete = new Set(grupyZwykle.map((g) => g.nazwa));
+            finalowa = await dodajGrupe(id, zajete.has('F') ? 'Finałowa' : 'F', true);
+            setGrupy((g) => [...g, finalowa!]);
+          }
+          dalej = grupaFinalowaZGrup(grupyZwykle, finalowa.id, opcjeFazy);
+        } else {
+          dalej = drabinkaZGrup(grupyZwykle, opcjeFazy);
+        }
+      }
+      nowe = [...fazaGrupowa, ...dalej];
     }
     const ulozone = ulozHarmonogram(nowe, {
       arenyId: areny.map((a) => a.id),
@@ -437,6 +475,44 @@ export default function PanelClient() {
       toast('Terminarz zapisany');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się zapisać terminarza', 'error');
+    }
+  };
+
+  const meczePoTerminie = [...mecze].sort(porownajTermin);
+
+  const zacznijEdycjeGodzin = () => {
+    const start: Record<string, string> = {};
+    for (const m of mecze) {
+      start[m.id] = m.zaplanowanyAt ? chwilaWPolsce(m.zaplanowanyAt).godzina.slice(0, 5) : '';
+    }
+    setGodzinyEdycja(start);
+  };
+
+  const zapiszGodziny = async () => {
+    if (!godzinyEdycja) return;
+    // Dzień zostaje ten sam co dotąd (albo dzień turnieju, gdy mecz nie miał
+    // godziny): turniej jednodniowy, a pole dnia przy każdym meczu byłoby
+    // trzydzieści trzy razy tym samym pytaniem.
+    const zmiany = mecze.flatMap((m) => {
+      const godzina = godzinyEdycja[m.id];
+      if (!godzina || m.status !== 'zaplanowany' || czyWolnyLos(m)) return [];
+      const dzien = m.zaplanowanyAt ? chwilaWPolsce(m.zaplanowanyAt).data : turniej.dataStartu;
+      const nowa = instantZCzasuPolskiego(dzien, godzina);
+      if (m.zaplanowanyAt && new Date(m.zaplanowanyAt).getTime() === new Date(nowa).getTime()) return [];
+      return [{ id: m.id, zaplanowanyAt: nowa }];
+    });
+    if (zmiany.length === 0) { setGodzinyEdycja(null); return; }
+    setZapisujeGodziny(true);
+    try {
+      for (const z of zmiany) await updateMecz(z.id, { zaplanowanyAt: z.zaplanowanyAt });
+      setGodzinyEdycja(null);
+      await wczytaj();
+      toast(`Zapisano godziny (${withCount(zmiany.length, 'mecz', 'mecze', 'meczów')})`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać godzin', 'error');
+      await wczytaj();
+    } finally {
+      setZapisujeGodziny(false);
     }
   };
 
@@ -839,7 +915,7 @@ export default function PanelClient() {
             {potrzebujeGrup && (
               <div className="space-y-2 border-t border-slate-100 dark:border-slate-700 pt-4">
                 <h2 className="text-sm font-semibold text-slate-500">Grupy</h2>
-                {grupy.length === 0 ? (
+                {grupyZwykle.length === 0 ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="number"
@@ -867,7 +943,7 @@ export default function PanelClient() {
                         losowanie jest punktem wyjścia, organizator przestawia
                         drużyny wyborem grupy. Po pierwszym rozegranym meczu
                         wybór jest zablokowany, tak jak układanie terminarza. */}
-                    {grupy.map((g) => {
+                    {grupyZwykle.map((g) => {
                       const wGrupie = wTurnieju.filter((d) => d.grupaId === g.id);
                       return (
                         <div key={g.id} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
@@ -884,7 +960,7 @@ export default function PanelClient() {
                                   aria-label={`Grupa drużyny ${d.nazwa}`}
                                   className="shrink-0 rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1 text-xs dark:bg-slate-700 dark:text-slate-100"
                                 >
-                                  {grupy.map((x) => <option key={x.id} value={x.id}>Grupa {x.nazwa}</option>)}
+                                  {grupyZwykle.map((x) => <option key={x.id} value={x.id}>Grupa {x.nazwa}</option>)}
                                 </select>
                               </li>
                             ))}
@@ -907,7 +983,7 @@ export default function PanelClient() {
                                 className="shrink-0 rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1 text-xs dark:bg-slate-700 dark:text-slate-100"
                               >
                                 <option value="">Wybierz…</option>
-                                {grupy.map((x) => <option key={x.id} value={x.id}>Grupa {x.nazwa}</option>)}
+                                {grupyZwykle.map((x) => <option key={x.id} value={x.id}>Grupa {x.nazwa}</option>)}
                               </select>
                             </li>
                           ))}
@@ -944,7 +1020,7 @@ export default function PanelClient() {
                     );
                   })()}
                   <div className="space-y-2">
-                    {podglad.some((m) => m.faza !== 'grupa' && m.faza !== 'liga' && !m.zrodloAMeczId && !m.zrodloBMeczId) && (
+                    {podglad.some((m) => m.faza !== 'grupa' && m.faza !== 'liga' && !m.zrodloAMeczId && !m.zrodloBMeczId && !!m.druzynaAId && !!m.druzynaBId) && (
                       <p className="text-xs text-slate-500">
                         Chcesz inne pary? Dotknij dwóch drużyn w pierwszej rundzie, a zamienią się miejscami.
                       </p>
@@ -955,6 +1031,15 @@ export default function PanelClient() {
                         const druzynaId = strona === 'a' ? m.druzynaAId : m.druzynaBId;
                         const zrodlo = strona === 'a' ? m.zrodloAMeczId : m.zrodloBMeczId;
                         const typ = strona === 'a' ? m.zrodloATyp : m.zrodloBTyp;
+                        const zGrupy = strona === 'a' ? m.zrodloAGrupaId : m.zrodloBGrupaId;
+                        const miejsce = strona === 'a' ? m.zrodloAMiejsce : m.zrodloBMiejsce;
+                        if (!druzynaId && zGrupy && miejsce) {
+                          return (
+                            <span className="text-slate-400">
+                              {nazwaMiejscaWGrupie(grupyPoId.get(zGrupy) ?? '?', miejsce)}
+                            </span>
+                          );
+                        }
                         if (!druzynaId) {
                           const nr = zrodlo ? podglad.find((x) => x.id === zrodlo)?.numer : undefined;
                           return (
@@ -1040,17 +1125,69 @@ export default function PanelClient() {
 
               {mecze.length > 0 && !podglad && (
                 <div className="space-y-2 pt-2">
-                  {mecze.map((m) => (
-                    <KartaMeczu
-                      key={m.id}
-                      mecz={m}
-                      druzynyPoId={druzynyPoId}
-                      meczePoId={meczePoId}
-                      arenyPoId={arenyPoId}
-                      przygaszona={czyWolnyLos(m)}
-                      onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
-                    />
-                  ))}
+                  {/* RĘCZNE GODZINY (Luboń, 2026-11-18). Harmonogram turnieju
+                      charytatywnego miał przerwę na konkurs, dekorację i mecz
+                      finałowy wpleciony między mecze grupy C: tego generator
+                      nie zgadnie. Organizator przepisuje godziny z kartki,
+                      a lista układa się po godzinie, nie po numerze. */}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Mecze w kolejności godzin.</p>
+                    {godzinyEdycja ? (
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={zapiszGodziny} disabled={zapisujeGodziny}>
+                          {zapisujeGodziny ? 'Zapisuję…' : 'Zapisz godziny'}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setGodzinyEdycja(null)} disabled={zapisujeGodziny}>
+                          Anuluj
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={zacznijEdycjeGodzin}>Zmień godziny</Button>
+                    )}
+                  </div>
+                  {meczePoTerminie.map((m, i) => {
+                    const przerwa = przerwaPrzedMeczem(meczePoTerminie[i - 1], m, turniej);
+                    const edytowalny = godzinyEdycja && m.status === 'zaplanowany' && !czyWolnyLos(m);
+                    return (
+                      <div key={m.id} className="space-y-2">
+                        {przerwa && (
+                          <p className="py-1 text-center text-xs font-medium text-slate-400">
+                            Przerwa {przerwa.od}–{przerwa.do}
+                          </p>
+                        )}
+                        {edytowalny ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              aria-label={`Godzina meczu M${m.numer}`}
+                              value={godzinyEdycja[m.id] ?? ''}
+                              onChange={(e) => setGodzinyEdycja((g) => (g ? { ...g, [m.id]: e.target.value } : g))}
+                              className={`${inputCls} w-28 shrink-0`}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <KartaMeczu
+                                mecz={m}
+                                druzynyPoId={druzynyPoId}
+                                meczePoId={meczePoId}
+                                arenyPoId={arenyPoId}
+                                grupyPoId={grupyPoId}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <KartaMeczu
+                            mecz={m}
+                            druzynyPoId={druzynyPoId}
+                            meczePoId={meczePoId}
+                            arenyPoId={arenyPoId}
+                            grupyPoId={grupyPoId}
+                            przygaszona={czyWolnyLos(m)}
+                            onClick={godzinyEdycja ? undefined : () => router.push(`/turnieje/${id}/mecz/${m.id}`)}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1197,7 +1334,7 @@ export default function PanelClient() {
                   onChange={(e) => zapiszUstawienie({ format: e.target.value as Turniej['format'] })}
                   className={inputCls}
                 >
-                  {(['grupy_puchar', 'puchar', 'liga'] as const).map((f) => (
+                  {(['grupy_puchar', 'grupy_finalowa', 'puchar', 'liga'] as const).map((f) => (
                     <option key={f} value={f}>{FORMAT_LABEL[f]}</option>
                   ))}
                 </select>

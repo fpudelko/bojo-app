@@ -978,6 +978,32 @@ godziny".** Obie sytuacje dają `NULL` z `SELECT zaplanowany_at INTO v_od ...`, 
 sprawdzenie `v_od IS NULL` myliłoby je w jeden komunikat — organizator widziałby „nie
 znaleziono meczu" dla meczu, który realnie istnieje. Rozdzielone przez `FOUND`.
 
+## Turniej: miejsca z grup i grupa finałowa (175)
+
+**Kolejna faza istnieje, zanim wiadomo, kto w niej zagra.** Mecz drabinki albo grupy
+finałowej niesie źródło „miejsce N w grupie G” (`zrodlo_a/b_grupa_id`,
+`zrodlo_a/b_miejsce`) zamiast drużyny. Drużynę wpisuje baza, nie przeglądarka:
+wyzwalacz `trg_wypelnij_z_grupy` po każdej zmianie wyniku meczu grupy woła
+`wypelnij_z_grupy()`. Gdy WSZYSTKIE mecze grupy są rozstrzygnięte, wpisuje drużyny według
+`kolejnosc_w_grupie()`; gdy któregoś brakuje (np. po „Popraw wynik”), czyści te miejsca.
+Rusza wyłącznie mecze `zaplanowany`, więc rozegranego meczu fazy finałowej nie przepisze.
+
+**Kolejność w grupie liczy baza tak samo jak `posortujTabele()`:** punkty, różnica, bramki
+zdobyte, nazwa, a na końcu ręczna pozycja (`pozycja_recznie`). Rozjazd tych dwóch dałby
+grupę finałową z drużyną, której tabela obok nie stawia na pierwszym miejscu. Zmieniasz
+jedno, zmieniasz drugie.
+
+**Grupa finałowa nie ma drużyn w `turniej_druzyny.grupa_id`.** Jej skład to drużyny w jej
+meczach; drużyna należy dalej do swojej grupy eliminacyjnej. Dlatego tabela grupy
+finałowej we froncie bierze drużyny z meczów, a losowanie i przenoszenie grup jej nie widzi.
+
+**„Popraw wynik” cofa, nie nadpisuje** (`cofnij_wynik_meczu()`): mecz wraca do
+`zaplanowany` z wynikiem 0:0, bez zdarzeń, karnych, MVP i zwycięzcy, a drużyny w meczach
+zależnych (źródło „zwycięzca meczu” albo „miejsce w grupie”) znikają. Nowy wynik idzie tą
+samą drogą co pierwszy, więc propagacja (146, 175) nie ma osobnego wariantu „korekty”.
+Gdy mecz zależny już się zaczął, funkcja odmawia: przepisanie drużyny w trwającym meczu
+zostawiłoby jego zdarzenia przy drużynie, która w nim nie gra.
+
 ## Turniej: rozgrywka na żywo (147)
 
 Konsola prowadzącego (`/turnieje/[id]/mecz/[meczId]`) zapisuje zdarzenia w

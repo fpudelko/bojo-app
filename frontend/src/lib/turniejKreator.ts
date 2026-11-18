@@ -78,7 +78,11 @@ export function szacunekZParametrow(p: ParametryTurnieju): SzacunekTurnieju {
         druzyny.length,
         (p.awansujeZGrupy ?? 2) * grupy.length,
       );
-      if (awansuje >= 2) {
+      if (awansuje >= 2 && p.format === 'grupy_finalowa') {
+        mecze.push(...meczeKazdyZKazdym(atrapy(awansuje, 'a'), {
+          startNumer: mecze.length + 1, grupaId: 'g-finalowa', noweId,
+        }));
+      } else if (awansuje >= 2) {
         mecze.push(...zbudujDrabinke(atrapy(awansuje, 'a'), {
           startNumer: mecze.length + 1, meczO3Miejsce: p.meczO3Miejsce, noweId,
         }));

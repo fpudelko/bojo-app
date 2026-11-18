@@ -1804,6 +1804,100 @@ SELECT _oczekuj('oryginał nietknięty: półfinał dalej rozegrany',
                 (SELECT count(*) FROM turniej_mecze WHERE id = :TD_POLFINAL::uuid AND status = 'zakonczony'), 1);
 DELETE FROM turnieje WHERE id = :'proba_id'::uuid;
 
+SELECT _sekcja('Turniej: miejsca z grup, grupa finałowa i poprawa wyniku (migracja 175)');
+
+-- Układ jak w Luboniu w miniaturze: grupy A i B (po dwie drużyny, po jednym
+-- meczu), grupa finałowa F z meczem „Zwycięzca A – Zwycięzca B" i mecz
+-- pucharowy „2. A – 2. B". Sloty wypełniają się dopiero, gdy grupa jest
+-- rozstrzygnięta, a cofnięcie wyniku je czyści.
+\set GF_T  '''ffffffff-0000-4000-8000-0000000000f1'''
+\set GF_GA '''ffffffff-0000-4000-8000-0000000000f2'''
+\set GF_GB '''ffffffff-0000-4000-8000-0000000000f3'''
+\set GF_GF '''ffffffff-0000-4000-8000-0000000000f4'''
+\set GF_A1 '''ffffffff-0000-4000-8000-0000000000f5'''
+\set GF_A2 '''ffffffff-0000-4000-8000-0000000000f6'''
+\set GF_B1 '''ffffffff-0000-4000-8000-0000000000f7'''
+\set GF_B2 '''ffffffff-0000-4000-8000-0000000000f8'''
+\set GF_MA '''ffffffff-0000-4000-8000-0000000000f9'''
+\set GF_MB '''ffffffff-0000-4000-8000-0000000000fa'''
+\set GF_MF '''ffffffff-0000-4000-8000-0000000000fb'''
+\set GF_MP '''ffffffff-0000-4000-8000-0000000000fc'''
+
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, format, status, data_startu)
+VALUES (:GF_T::uuid, :T_ORGANIZATOR::uuid, 'Grupa finałowa do testów', 'piłka nożna', 'grupy_finalowa', 'trwa', CURRENT_DATE);
+INSERT INTO turniej_grupy (id, turniej_id, nazwa, finalowa) VALUES
+  (:GF_GA::uuid, :GF_T::uuid, 'A', false), (:GF_GB::uuid, :GF_T::uuid, 'B', false),
+  (:GF_GF::uuid, :GF_T::uuid, 'F', true);
+INSERT INTO turniej_druzyny (id, turniej_id, nazwa, status, grupa_id, dodana_recznie) VALUES
+  (:GF_A1::uuid, :GF_T::uuid, 'GF Aaa', 'przyjeta', :GF_GA::uuid, true),
+  (:GF_A2::uuid, :GF_T::uuid, 'GF Abb', 'przyjeta', :GF_GA::uuid, true),
+  (:GF_B1::uuid, :GF_T::uuid, 'GF Baa', 'przyjeta', :GF_GB::uuid, true),
+  (:GF_B2::uuid, :GF_T::uuid, 'GF Bbb', 'przyjeta', :GF_GB::uuid, true);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT zapisz_terminarz(:GF_T::uuid, jsonb_build_array(
+  jsonb_build_object('id', :GF_MA, 'numer', 1, 'faza', 'grupa', 'grupaId', :GF_GA, 'kolejka', 1,
+    'druzynaAId', :GF_A1, 'druzynaBId', :GF_A2),
+  jsonb_build_object('id', :GF_MB, 'numer', 2, 'faza', 'grupa', 'grupaId', :GF_GB, 'kolejka', 1,
+    'druzynaAId', :GF_B1, 'druzynaBId', :GF_B2),
+  jsonb_build_object('id', :GF_MF, 'numer', 3, 'faza', 'grupa', 'grupaId', :GF_GF, 'kolejka', 2,
+    'zrodloAGrupaId', :GF_GA, 'zrodloAMiejsce', 1, 'zrodloBGrupaId', :GF_GB, 'zrodloBMiejsce', 1),
+  jsonb_build_object('id', :GF_MP, 'numer', 4, 'faza', 'final', 'kolejka', 2,
+    'zrodloAGrupaId', :GF_GA, 'zrodloAMiejsce', 2, 'zrodloBGrupaId', :GF_GB, 'zrodloBMiejsce', 2)
+));
+-- A: przegrywa pierwsza alfabetycznie, żeby nie wygrała przez kolejność nazw.
+UPDATE turniej_mecze SET wynik_a = 0, wynik_b = 2 WHERE id = :GF_MA::uuid;
+SELECT zakoncz_mecz(:GF_MA::uuid);
+RESET ROLE;
+SELECT _oczekuj('po grupie A finał zna zwycięzcę A (GF Abb), a slot B dalej czeka',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :GF_MF::uuid
+                  AND druzyna_a_id = :GF_A2::uuid AND druzyna_b_id IS NULL), 1);
+SELECT _oczekuj('mecz „2. A – 2. B" zna drugie miejsce A',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :GF_MP::uuid AND druzyna_a_id = :GF_A1::uuid), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+UPDATE turniej_mecze SET wynik_a = 1, wynik_b = 0 WHERE id = :GF_MB::uuid;
+SELECT zakoncz_mecz(:GF_MB::uuid);
+RESET ROLE;
+SELECT _oczekuj('po grupie B finał ma komplet: zwycięzca A kontra zwycięzca B',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :GF_MF::uuid
+                  AND druzyna_a_id = :GF_A2::uuid AND druzyna_b_id = :GF_B1::uuid), 1);
+
+-- Poprawa wyniku: obcy nie, organizator tak; slot w finale wraca do „czeka".
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie cofnie wyniku', format('SELECT cofnij_wynik_meczu(%L)', :GF_MA));
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT cofnij_wynik_meczu(:GF_MA::uuid);
+RESET ROLE;
+SELECT _oczekuj('po cofnięciu mecz grupy A jest znów zaplanowany i bez wyniku',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :GF_MA::uuid
+                  AND status = 'zaplanowany' AND zwyciezca_id IS NULL AND wynik_a = 0 AND wynik_b = 0), 1);
+SELECT _oczekuj('po cofnięciu finał nie zna już zwycięzcy A (B zostaje)',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :GF_MF::uuid
+                  AND druzyna_a_id IS NULL AND druzyna_b_id = :GF_B1::uuid), 1);
+
+-- Ponowny, inny wynik: zwycięzcą A zostaje teraz GF Aaa.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+UPDATE turniej_mecze SET wynik_a = 3, wynik_b = 1 WHERE id = :GF_MA::uuid;
+SELECT zakoncz_mecz(:GF_MA::uuid);
+RESET ROLE;
+SELECT _oczekuj('poprawiony wynik daje finałowi nowego zwycięzcę A',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :GF_MF::uuid AND druzyna_a_id = :GF_A1::uuid), 1);
+
+-- Gdy mecz zależny już ruszył, poprawa jest zablokowana.
+UPDATE turniej_mecze SET status = 'trwa' WHERE id = :GF_MF::uuid;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('poprawa zablokowana, gdy finał już trwa', format('SELECT cofnij_wynik_meczu(%L)', :GF_MA));
+RESET ROLE;
+SELECT _oczekuj('format grupy_finalowa przechodzi CHECK',
+                (SELECT count(*) FROM turnieje WHERE id = :GF_T::uuid AND format = 'grupy_finalowa'), 1);
+DELETE FROM turnieje WHERE id = :GF_T::uuid;
+
 -- ── Każda tabela w `public` ma włączone RLS ─────────────────────────────────
 -- Schemat `public` wystawia PostgREST pod jawnym kluczem `anon`, więc tabela
 -- bez RLS jest do czytania, zmiany i kasowania przez każdego. Supabase zgłosił
