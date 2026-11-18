@@ -337,7 +337,7 @@ export default function PanelClient() {
   // Grupa finałowa (175) powstaje sama przy generowaniu terminarza i nie ma
   // przypisanych drużyn, więc nie pokazuje się w losowaniu ani przy wyborze.
   const grupyZwykle = grupy.filter((g) => !g.finalowa);
-  const grupyPoId = new Map(grupy.map((g) => [g.id, g.nazwa]));
+  const grupyPoId = new Map(grupy.map((g) => [g.id, g]));
   const liczbaGrupDomyslna = domyslnaLiczbaGrup(wTurnieju.length);
 
   /** Przeniesienie drużyny do innej grupy po losowaniu (2026-11-08). */
@@ -683,16 +683,45 @@ export default function PanelClient() {
                 <Button variant="outline" onClick={zakonczProbe} className="w-full">Zakończ próbę i usuń kopię</Button>
               </div>
             )}
-            {turniej.status === 'trwa' ? (
+            {turniej.status === 'zakonczony' ? (
+              // Pulpit zakończonego turnieju pokazywał listę przygotowań sprzed
+              // startu. Teraz mówi to samo co strona publiczna.
+              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm space-y-2">
+                <p className="text-sm font-semibold text-ink">Turniej zakończony</p>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Rozegrane {postep.rozegrane} z {withCount(postep.wszystkie, 'meczu', 'meczów', 'meczów')}.
+                  Pomyłkę w wyniku poprawisz na stronie meczu.
+                </p>
+                <Link href={`/turnieje/${id}?tab=tabela`} className="inline-block text-sm font-medium text-primary-600">
+                  Zobacz podium i tabele
+                </Link>
+              </div>
+            ) : turniej.status === 'trwa' ? (
               <>
-                <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4">
-                  <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-                    <span className="inline-block h-2 w-2 rounded-full bg-primary-600" /> Turniej trwa
-                  </p>
-                  <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
-                    Rozegrane {postep.rozegrane} z {withCount(postep.wszystkie, 'meczu', 'meczów', 'meczów')}.
-                  </p>
-                </div>
+                {/* KOMPLET WYNIKÓW (audyt 2026-11-18, F5). Przy 33 z 33 pulpit
+                    dalej mówił „Turniej trwa”, a strona publiczna już
+                    „Zakończony” z podium. */}
+                {postep.wszystkie > 0 && postep.rozegrane >= postep.wszystkie ? (
+                  <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4 space-y-2">
+                    <p className="text-sm font-semibold text-ink">Wszystkie mecze rozegrane</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                      Podium i tabele są już na stronie turnieju.
+                      {!proba && ' Zakończ turniej, gdy skończycie dekorację.'}
+                    </p>
+                    <Link href={`/turnieje/${id}?tab=tabela`} className="inline-block text-sm font-medium text-primary-600">
+                      Zobacz podium i tabele
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+                      <span className="inline-block h-2 w-2 rounded-full bg-primary-600" /> Turniej trwa
+                    </p>
+                    <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
+                      Rozegrane {postep.rozegrane} z {withCount(postep.wszystkie, 'meczu', 'meczów', 'meczów')}.
+                    </p>
+                  </div>
+                )}
 
                 {/* Lista meczów do wpisania zamiast „co na której arenie o której".
                     Organizator po gwizdku stuka w mecz, wpisuje wynik i wraca. */}
@@ -1036,7 +1065,7 @@ export default function PanelClient() {
                         if (!druzynaId && zGrupy && miejsce) {
                           return (
                             <span className="text-slate-400">
-                              {nazwaMiejscaWGrupie(grupyPoId.get(zGrupy) ?? '?', miejsce)}
+                              {nazwaMiejscaWGrupie(grupyPoId.get(zGrupy)?.nazwa ?? '?', miejsce)}
                             </span>
                           );
                         }

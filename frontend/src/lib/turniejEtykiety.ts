@@ -5,7 +5,7 @@
 
 import { plural, withCount } from './plural';
 import { chwilaWPolsce } from '@/lib/czasPolski';
-import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej, TurniejMecz } from '@/types';
+import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej, TurniejMecz, TurniejGrupa } from '@/types';
 
 export const STATUS_TURNIEJU: Record<TurniejStatus, { label: string; ton: string }> = {
   szkic:            { label: 'W przygotowaniu', ton: 'bg-slate-100 text-slate-600' },
@@ -412,7 +412,23 @@ export function przerwaPrzedMeczem(
   const koniecPoprzedniego = new Date(poprzedni.zaplanowanyAt).getTime() + opcje.czasMeczuMin * 60_000;
   const start = new Date(mecz.zaplanowanyAt).getTime();
   const slotMin = opcje.czasMeczuMin + opcje.przerwaMin;
-  if (start - new Date(poprzedni.zaplanowanyAt).getTime() <= (slotMin + 5) * 60_000) return null;
+  // Próg: slot + 2 min. Przy +5 znikał pięciominutowy odpoczynek zwycięzcy
+  // grupy C przed ostatnim meczem w Luboniu (16:22–16:27, audyt 2026-11-18).
+  if (start - new Date(poprzedni.zaplanowanyAt).getTime() <= (slotMin + 2) * 60_000) return null;
   const godzina = (ms: number) => chwilaWPolsce(new Date(ms).toISOString()).godzina.slice(0, 5);
   return { od: godzina(koniecPoprzedniego), do: godzina(start) };
+}
+
+/**
+ * Podpis fazy na karcie i nagłówku meczu. Mecz grupowy mówi, KTÓREJ grupy
+ * („Grupa A”), a mecz grupy finałowej nie udaje zwykłej fazy grupowej
+ * („Grupa finałowa F”, audyt 2026-11-18, F3).
+ */
+export function etykietaFazyMeczu(
+  mecz: Pick<TurniejMecz, 'faza' | 'grupaId'>,
+  grupyPoId?: ReadonlyMap<string, Pick<TurniejGrupa, 'nazwa' | 'finalowa'>>,
+): string {
+  const grupa = mecz.faza === 'grupa' && mecz.grupaId ? grupyPoId?.get(mecz.grupaId) : undefined;
+  if (grupa) return grupa.finalowa ? `Grupa finałowa ${grupa.nazwa}` : `Grupa ${grupa.nazwa}`;
+  return FAZA_LABEL[mecz.faza];
 }

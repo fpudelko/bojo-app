@@ -4989,6 +4989,22 @@ mecze grupy C, a w harmonogramie są przerwy (konkurs obijania poprzeczki, dekor
   (kolejna runda, grupa finałowa) już się zaczął. Zdania „Wyniku nie da się później
   cofnąć” zastąpiło „Pomyłkę poprawisz później przyciskiem „Popraw wynik””.
 
+**Poprawki po audycie kopii (2026-11-18, bez migracji):**
+- F1: przerwa pokazuje się, gdy odstęp przekracza slot o więcej niż 2 min (było 5),
+  więc widać też odpoczynek 16:22–16:27.
+- F2/F3: Info przy `grupy_finalowa` mówi o grupie finałowej, nie o karnych w fazie
+  pucharowej; legenda tabel „awansuje do grupy finałowej” (`opisAwansu(…, 'grupa_finalowa')`);
+  karta i nagłówek meczu „Grupa A” / „Grupa finałowa F” (`etykietaFazyMeczu()`); zakładka
+  „Tabele” zamiast „Tabela i drabinka” przy lidze i grupie finałowej.
+- F4: nazwy drużyn na kartach meczów i w tabelach w dwóch liniach zamiast wielokropka.
+- F5: pulpit przy komplecie wyników mówi „Wszystkie mecze rozegrane” z linkiem do podium;
+  zakończony turniej ma własną kartę zamiast listy przygotowań.
+- F6: „Następny na tej arenie” to pierwszy mecz PO bieżącym w terminarzu; gdy takiego
+  nie ma, karta mówi „Najwcześniejszy mecz bez wyniku”.
+- F7: mecz z jedną znaną drużyną mówi, na kogo czeka („Czekamy na: Zwycięzca B”).
+- F8: „Popraw wynik” sprawdza mecze zależne przed oknem potwierdzenia i od razu mówi,
+  który mecz blokuje poprawkę.
+
 ### Poprawki po audycie 7 (2026-11-11, migracja `174`)
 
 Raport → [turnieje-plan-po-audycie-5.md](./turnieje-plan-po-audycie-5.md), sekcja 5a.
