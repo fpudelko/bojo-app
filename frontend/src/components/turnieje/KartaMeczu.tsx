@@ -2,17 +2,17 @@
 // (zakładka Terminarz) i w panelu organizatora. Reużywana dalej przy drabince
 // i stronie drużyny (Etap 2/3), stąd osobny plik zamiast JSX wprost w kliencie.
 import { MapPin } from 'lucide-react';
-import { FAZA_LABEL, STATUS_MECZU, etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
+import { STATUS_MECZU, etykietaTerminuMeczu, etykietaFazyMeczu } from '@/lib/turniejEtykiety';
 import { czyWolnyLos, stronaZwyciezcy } from '@/lib/turniejWynik';
 import { nazwaMiejscaWGrupie } from '@/lib/turniejFormat';
-import type { TurniejMecz } from '@/types';
+import type { TurniejGrupa, TurniejMecz } from '@/types';
 
 function nazwaSlotu(
   mecz: TurniejMecz,
   strona: 'a' | 'b',
   druzynyPoId: Map<string, string>,
   meczePoId: Map<string, TurniejMecz>,
-  grupyPoId?: Map<string, string>,
+  grupyPoId?: ReadonlyMap<string, TurniejGrupa>,
 ): string {
   const druzynaId = strona === 'a' ? mecz.druzynaAId : mecz.druzynaBId;
   if (druzynaId) return druzynyPoId.get(druzynaId) ?? '-';
@@ -21,7 +21,7 @@ function nazwaSlotu(
   const grupaId = strona === 'a' ? mecz.zrodloAGrupaId : mecz.zrodloBGrupaId;
   const miejsce = strona === 'a' ? mecz.zrodloAMiejsce : mecz.zrodloBMiejsce;
   if (grupaId && miejsce) {
-    const nazwaGrupy = grupyPoId?.get(grupaId);
+    const nazwaGrupy = grupyPoId?.get(grupaId)?.nazwa;
     return nazwaGrupy ? nazwaMiejscaWGrupie(nazwaGrupy, miejsce) : `${miejsce}. miejsce w grupie`;
   }
 
@@ -38,8 +38,8 @@ export interface KartaMeczuProps {
   druzynyPoId: Map<string, string>;
   meczePoId: Map<string, TurniejMecz>;
   arenyPoId: Map<string, string>;
-  /** Nazwy grup po id: podpis „Zwycięzca A" przy miejscu z grupy. */
-  grupyPoId?: Map<string, string>;
+  /** Grupy po id: podpis „Zwycięzca A" przy miejscu z grupy i „Grupa A" w nagłówku. */
+  grupyPoId?: ReadonlyMap<string, TurniejGrupa>;
   /** Wyszarza kartę — używane dla wolnych losów bez czasu w terminarzu. */
   przygaszona?: boolean;
   onClick?: () => void;
@@ -89,11 +89,13 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, gr
       ].join(' ')}
     >
       <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
-        <span>M{mecz.numer} · {FAZA_LABEL[mecz.faza]}</span>
+        <span>M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}</span>
         <span className={`rounded-full px-2 py-0.5 font-medium ${status.ton}`}>{status.label}</span>
       </div>
       <div className="mt-2 flex items-center justify-between gap-3">
-        <span className={`min-w-0 flex-1 truncate text-sm ${tonDruzyny('a')}`}>{nazwaA}</span>
+        {/* Dwie linie zamiast wielokropka: „Unilink Szamotuły & MedKomplex”
+            ucięte do „Unilink Sza…” nie da się rozpoznać przy boisku (F4). */}
+        <span className={`min-w-0 flex-1 line-clamp-2 break-words text-sm ${tonDruzyny('a')}`}>{nazwaA}</span>
         {rozegrany ? (
           <span className="shrink-0 text-center">
             <span className="block font-mono text-sm font-semibold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
@@ -102,7 +104,7 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, gr
         ) : wolnyLos ? null : (
           <span className="shrink-0 text-xs text-slate-400">vs</span>
         )}
-        <span className={`min-w-0 flex-1 truncate text-right text-sm ${tonDruzyny('b')}`}>{nazwaB}</span>
+        <span className={`min-w-0 flex-1 line-clamp-2 break-words text-right text-sm ${tonDruzyny('b')}`}>{nazwaB}</span>
       </div>
       {(godzina || arena) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">

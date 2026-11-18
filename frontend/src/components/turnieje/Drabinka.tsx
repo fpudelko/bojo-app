@@ -7,7 +7,7 @@
 // później, jeśli okaże się, że czytelność bez linii nie wystarcza.
 import { FAZA_LABEL } from '@/lib/turniejEtykiety';
 import KartaMeczu from './KartaMeczu';
-import type { TurniejMecz } from '@/types';
+import type { TurniejGrupa, TurniejMecz } from '@/types';
 import { czyWolnyLos } from '@/lib/turniejWynik';
 
 export interface DrabinkaProps {
@@ -15,7 +15,7 @@ export interface DrabinkaProps {
   druzynyPoId: Map<string, string>;
   meczePoId: Map<string, TurniejMecz>;
   arenyPoId: Map<string, string>;
-  grupyPoId?: Map<string, string>;
+  grupyPoId?: ReadonlyMap<string, TurniejGrupa>;
   onKlikMeczu?: (meczId: string) => void;
 }
 

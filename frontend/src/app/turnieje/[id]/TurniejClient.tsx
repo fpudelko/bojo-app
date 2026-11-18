@@ -296,7 +296,7 @@ export default function TurniejClient() {
   const druzynyPoId = new Map(druzyny.map((d) => [d.id, d.nazwa]));
   const meczePoId = new Map(mecze.map((m) => [m.id, m]));
   const arenyPoId = new Map(areny.map((a) => [a.id, a.nazwa]));
-  const grupyPoId = new Map(grupy.map((g) => [g.id, g.nazwa]));
+  const grupyPoId = new Map(grupy.map((g) => [g.id, g]));
   // Grupa finałowa (175) nie ma przypisanych drużyn: grają w niej ci, których
   // baza wpisała do jej meczów po rozstrzygnięciu grup.
   const grupyZwykle = grupy.filter((g) => !g.finalowa);
@@ -375,6 +375,7 @@ export default function TurniejClient() {
   const legendaAwansu = opisAwansu(
     tabeleGrup.filter((t) => t.grupa && !t.grupa.finalowa).map((t) => t.wiersze.length),
     turniej.awansujeZGrupy,
+    turniej.format === 'grupy_finalowa' ? 'grupa_finalowa' : 'puchar',
   );
 
   const widoczneZakladki: Zakladka[] = ['info', 'mecze', 'tabela', 'druzyny'];
@@ -508,7 +509,10 @@ export default function TurniejClient() {
                 aktywna === z ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800',
               ].join(' ')}
             >
-              {z === 'druzyny' ? `Drużyny (${liczbaWTurnieju})` : ETYKIETY_ZAKLADEK[z]}
+              {z === 'druzyny' ? `Drużyny (${liczbaWTurnieju})`
+                // Bez drabinki w formacie nie obiecujemy drabinki w nazwie zakładki.
+                : z === 'tabela' && (turniej.format === 'liga' || turniej.format === 'grupy_finalowa') ? 'Tabele'
+                : ETYKIETY_ZAKLADEK[z]}
             </button>
           ))}
         </div>
@@ -828,7 +832,11 @@ export default function TurniejClient() {
                   Mecz {turniej.czasMeczuMin} min
                   {turniej.przerwaMin > 0 && `, przerwa ${turniej.przerwaMin} min`}
                   {' · '}zwycięstwo {turniej.punktyZaWygrana} pkt, remis {turniej.punktyZaRemis}
-                  {turniej.format !== 'liga' && ' · remis w fazie pucharowej rozstrzygają karne'}
+                  {(turniej.format === 'puchar' || turniej.format === 'grupy_puchar')
+                    && turniej.karnePrzyRemisie && ' · remis w fazie pucharowej rozstrzygają karne'}
+                  {turniej.format === 'grupy_finalowa' && (turniej.awansujeZGrupy === 1
+                    ? ' · zwycięzcy grup grają każdy z każdym w grupie finałowej, jej tabela ustala podium'
+                    : ` · ${turniej.awansujeZGrupy} najlepsze z każdej grupy grają w grupie finałowej, jej tabela ustala podium`)}
                   {turniej.format !== 'liga' && turniej.meczO3Miejsce && ' · gramy mecz o 3. miejsce'}
                 </div>
               </div>

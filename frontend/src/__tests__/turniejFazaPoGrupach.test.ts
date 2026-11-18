@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import {
   drabinkaZGrup, grupaFinalowaZGrup, meczeKazdyZKazdym, nazwaMiejscaWGrupie,
 } from '@/lib/turniejFormat';
-import { porownajTermin, przerwaPrzedMeczem } from '@/lib/turniejEtykiety';
+import { etykietaFazyMeczu, porownajTermin, przerwaPrzedMeczem } from '@/lib/turniejEtykiety';
+import { opisAwansu } from '@/lib/turniejTabela';
 
 const licznik = () => { let n = 0; return () => `m${++n}`; };
 const GRUPY = [{ id: 'gA', nazwa: 'A' }, { id: 'gB', nazwa: 'B' }, { id: 'gC', nazwa: 'C' }];
@@ -109,5 +110,22 @@ describe('kolejność i przerwy w ręcznym harmonogramie', () => {
     expect(przerwaPrzedMeczem(m(1, '12:12'), m(2, '12:26'), opcje)).toBeNull();
     expect(przerwaPrzedMeczem(m(2, '12:26'), m(3, '13:00'), opcje)).toEqual({ od: '12:38', do: '13:00' });
     expect(przerwaPrzedMeczem(undefined, m(1, '08:30'), opcje)).toBeNull();
+    // Pięciominutowy odpoczynek przed ostatnim meczem Lubonia (F1 z audytu).
+    expect(przerwaPrzedMeczem(m(32, '16:10'), m(33, '16:27'), opcje)).toEqual({ od: '16:22', do: '16:27' });
+  });
+});
+
+describe('podpisy formatu z grupą finałową (audyt 2026-11-18)', () => {
+  const grupy = new Map([
+    ['gA', { nazwa: 'A', finalowa: false }],
+    ['gF', { nazwa: 'F', finalowa: true }],
+  ]);
+  it('mecz grupy finałowej nie udaje fazy grupowej', () => {
+    expect(etykietaFazyMeczu({ faza: 'grupa', grupaId: 'gF' }, grupy)).toBe('Grupa finałowa F');
+    expect(etykietaFazyMeczu({ faza: 'grupa', grupaId: 'gA' }, grupy)).toBe('Grupa A');
+    expect(etykietaFazyMeczu({ faza: 'final' }, grupy)).toBe('Finał');
+  });
+  it('legenda awansu mówi o grupie finałowej, nie o pucharze', () => {
+    expect(opisAwansu([5, 5, 5], 1, 'grupa_finalowa')).toBe('Pierwsze miejsce w grupie awansuje do grupy finałowej');
   });
 });

@@ -121,11 +121,16 @@ export function posortujTabele(
  * dokąd awansować) albo z żadnej grupy nikt nie odpada, bo awansuje tylu, ilu
  * gra. `rozmiaryGrup` to liczba drużyn w kolejnych grupach.
  */
-export function opisAwansu(rozmiaryGrup: readonly number[], awansujeZGrupy: number): string | null {
+export function opisAwansu(
+  rozmiaryGrup: readonly number[],
+  awansujeZGrupy: number,
+  dokad: 'puchar' | 'grupa_finalowa' = 'puchar',
+): string | null {
   if (awansujeZGrupy < 1) return null;
   if (!rozmiaryGrup.some((n) => n > awansujeZGrupy)) return null;
   const miejsca = plural(awansujeZGrupy, 'miejsce', 'miejsca', 'miejsc');
   const awansuja = plural(awansujeZGrupy, 'awansuje', 'awansują', 'awansuje');
   const liczba = awansujeZGrupy === 1 ? 'Pierwsze' : `Pierwsze ${awansujeZGrupy}`;
-  return `${liczba} ${miejsca} w grupie ${awansuja} do fazy pucharowej`;
+  const cel = dokad === 'grupa_finalowa' ? 'do grupy finałowej' : 'do fazy pucharowej';
+  return `${liczba} ${miejsca} w grupie ${awansuja} ${cel}`;
 }

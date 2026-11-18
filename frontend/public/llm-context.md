@@ -492,7 +492,10 @@ ROZWIĄZANIE BOJO: nowy format „Grupy → grupa finałowa”. Terminarz format
 razu zawiera kolejną fazę z podpisami „Zwycięzca A”, „2. miejsce B”; Bojo wpisuje drużyny,
 gdy grupa skończy grać, a podium grupy finałowej daje jej tabela. Organizator ustawia
 godzinę każdego meczu („Zmień godziny”), listy meczów idą po godzinie z widoczną przerwą.
-„Popraw wynik” na stronie rozegranego meczu otwiera go do ponownego wpisania.
+„Popraw wynik” na stronie rozegranego meczu otwiera go do ponownego wpisania, a gdy mecz
+zależny już się zaczął, Bojo mówi to od razu. Mecze grupy finałowej są podpisane „Grupa
+finałowa F”, pulpit po ostatnim wyniku mówi „Wszystkie mecze rozegrane”, a karta
+„Następny na tej arenie” wskazuje mecz po bieżącym w terminarzu.
 
 MECHANIKA: migracja `175` (format `grupy_finalowa`, `turniej_grupy.finalowa`, źródła
 `zrodlo_*_grupa_id`/`zrodlo_*_miejsce`, `kolejnosc_w_grupie()`, `wypelnij_z_grupy()`,

@@ -63,7 +63,7 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy }: TabelaGrupyProp
               >
                 {i + 1}
               </td>
-              <td className="min-w-0 max-w-[9rem] truncate px-2 py-2 font-medium text-ink">
+              <td className="min-w-0 max-w-[9rem] break-words px-2 py-2 font-medium leading-tight text-ink">
                 {w.nazwa}
                 {w.rozstrzygnietyRecznie && <span className="ml-1 text-xs text-slate-400" title="Pozycja ustawiona ręcznie">*</span>}
               </td>

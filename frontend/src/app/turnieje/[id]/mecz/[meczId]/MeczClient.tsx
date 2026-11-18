@@ -21,10 +21,10 @@ import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
   czasGry, poCzasie, czyWolnyLos,
 } from '@/lib/turniejWynik';
-import { FAZA_LABEL, STATUS_MECZU, etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
+import { STATUS_MECZU, etykietaTerminuMeczu, etykietaFazyMeczu, porownajTermin } from '@/lib/turniejEtykiety';
 import { nazwaMiejscaWGrupie } from '@/lib/turniejFormat';
 import ArkuszSkladu from '@/components/turnieje/ArkuszSkladu';
-import type { Turniej, TurniejMecz, TurniejDruzyna, TurniejArena, TurniejZdarzenie, ZdarzenieTyp } from '@/types';
+import type { Turniej, TurniejMecz, TurniejDruzyna, TurniejArena, TurniejZdarzenie, ZdarzenieTyp, TurniejGrupa } from '@/types';
 
 const TYTUL_ARKUSZA: Record<ZdarzenieTyp, string> = {
   gol: 'Kto strzelił?',
@@ -63,6 +63,9 @@ export default function MeczClient() {
   const [aktualnySet, setAktualnySet] = useState({ a: 0, b: 0 });
   const [menuOtwarte, setMenuOtwarte] = useState(false);
   const [nastepnyNaArenie, setNastepnyNaArenie] = useState<TurniejMecz | null>(null);
+  // Gdy po tym meczu nic na arenie nie zostało, karta wskazuje zaległy mecz
+  // sprzed niego i MÓWI to wprost (audyt 2026-11-18, F6).
+  const [nastepnyZalegly, setNastepnyZalegly] = useState(false);
   // Tyka co sekundę wyłącznie wtedy, gdy mecz trwa — zegar liczy się i tak
   // z `rozpoczetyAt`, to tylko powód do przerysowania.
   const [tik, setTik] = useState(0);
@@ -76,7 +79,7 @@ export default function MeczClient() {
   // Strzelcy wskazani przy szybkim wyniku: opcjonalni (2026-11-08).
   const [strzelcyWpis, setStrzelcyWpis] = useState<{ a: string[]; b: string[] }>({ a: [], b: [] });
   const [zapisujeWynik, setZapisujeWynik] = useState(false);
-  const [nazwyGrup, setNazwyGrup] = useState<Map<string, string>>(new Map());
+  const [grupyPoId, setGrupyPoId] = useState<Map<string, TurniejGrupa>>(new Map());
 
   const wczytaj = useCallback(async () => {
     const m = await getMecz(meczId);
@@ -85,7 +88,7 @@ export default function MeczClient() {
       getTurniej(id), getDruzynyZeSkladem(id), getAreny(id), getZdarzenia(meczId), czyProwadziMecz(meczId),
       getGrupy(id),
     ]);
-    setNazwyGrup(new Map(g.map((x) => [x.id, x.nazwa])));
+    setGrupyPoId(new Map(g.map((x) => [x.id, x])));
     setMecz(m);
     setTurniej(t);
     setDruzyny(d);
@@ -119,10 +122,15 @@ export default function MeczClient() {
     getMecze(id)
       .then((lista) => {
         if (!aktualne) return;
-        const kolejny = lista
+        // „Następny" znaczy PO tym meczu w terminarzu, nie najwcześniejszy
+        // bez wyniku: przy wpisywaniu poza kolejnością (najpierw cała grupa A)
+        // karta cofała organizatora z M20 13:14 do M2 08:44.
+        const naArenie = lista
           .filter((m) => m.arenaId === mecz.arenaId && m.id !== mecz.id && m.status === 'zaplanowany')
-          .sort((a, b) => (a.zaplanowanyAt ?? '').localeCompare(b.zaplanowanyAt ?? '') || a.numer - b.numer)[0];
-        setNastepnyNaArenie(kolejny ?? null);
+          .sort(porownajTermin);
+        const pozniejszy = naArenie.find((m) => porownajTermin(m, mecz) > 0);
+        setNastepnyNaArenie(pozniejszy ?? naArenie[0] ?? null);
+        setNastepnyZalegly(!pozniejszy && naArenie.length > 0);
       })
       .catch(() => undefined);
     return () => { aktualne = false; };
@@ -180,7 +188,7 @@ export default function MeczClient() {
   const slotZGrupy = (strona: 'a' | 'b') => {
     const grupaId = strona === 'a' ? mecz.zrodloAGrupaId : mecz.zrodloBGrupaId;
     const miejsce = strona === 'a' ? mecz.zrodloAMiejsce : mecz.zrodloBMiejsce;
-    const nazwa = grupaId ? nazwyGrup.get(grupaId) : undefined;
+    const nazwa = grupaId ? grupyPoId.get(grupaId)?.nazwa : undefined;
     return nazwa && miejsce ? nazwaMiejscaWGrupie(nazwa, miejsce) : 'TBD';
   };
   const nazwaDruzynyZListy = (druzynaId?: string) =>
@@ -386,6 +394,19 @@ export default function MeczClient() {
   // finałowej; odmawia, gdy tamten mecz już się zaczął. Nowy wynik idzie
   // tą samą drogą co pierwszy, więc tabela i drabinka liczą się same.
   const poprawWynikAkcja = async () => {
+    // Najpierw sprawdzamy to, czego baza i tak by odmówiła: mecz zależny już
+    // ruszył. Wcześniej okno obiecywało cofnięcie, a odmowa przychodziła
+    // dopiero po potwierdzeniu (audyt 2026-11-18, F8).
+    try {
+      const lista = await getMecze(id);
+      const zalezny = lista.find((m) => m.status !== 'zaplanowany' && m.id !== mecz.id && (
+        m.zrodloAMeczId === mecz.id || m.zrodloBMeczId === mecz.id
+        || (!!mecz.grupaId && (m.zrodloAGrupaId === mecz.grupaId || m.zrodloBGrupaId === mecz.grupaId))));
+      if (zalezny) {
+        toast(`Tego wyniku nie poprawisz teraz: mecz M${zalezny.numer} zależy od niego i już się zaczął. Najpierw popraw M${zalezny.numer}.`, 'error');
+        return;
+      }
+    } catch { /* baza i tak sprawdzi to przy cofnięciu */ }
     const zalezne = meczPucharowy || !!turniej?.format?.startsWith('grupy');
     const wynik = await potwierdz({
       tytul: 'Poprawić wynik tego meczu?',
@@ -447,7 +468,7 @@ export default function MeczClient() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">
-            M{mecz.numer} · {FAZA_LABEL[mecz.faza]}
+            M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}
           </h1>
           {/* WALKOWER. Status istniał od migracji `146` i wpisywał go wyłącznie
               generator terminarza przy wolnych losach — prowadzący, któremu
@@ -543,7 +564,15 @@ export default function MeczClient() {
             <p className="text-center text-xs text-slate-400">Karne: {mecz.karneA}:{mecz.karneB}</p>
           )}
           {!obieDruzynyZnane && (
-            <p className="text-center text-xs text-slate-400">Ten mecz czeka jeszcze na obie drużyny.</p>
+            <p className="text-center text-xs text-slate-400">
+              {/* Konkretnie na kogo, nie „na obie”, gdy jedna już jest (F7). */}
+              {!mecz.druzynaAId && !mecz.druzynaBId
+                ? 'Ten mecz czeka jeszcze na obie drużyny.'
+                : (() => {
+                    const brak = slotZGrupy(!mecz.druzynaAId ? 'a' : 'b');
+                    return brak === 'TBD' ? 'Czekamy jeszcze na drugą drużynę.' : `Czekamy na: ${brak}.`;
+                  })()}
+            </p>
           )}
         </div>
 
@@ -862,7 +891,7 @@ export default function MeczClient() {
           >
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Następny na tej arenie
+                {nastepnyZalegly ? 'Najwcześniejszy mecz bez wyniku' : 'Następny na tej arenie'}
               </p>
               <p className="truncate text-sm font-semibold text-ink">
                 {nazwaDruzynyZListy(nastepnyNaArenie.druzynaAId)} – {nazwaDruzynyZListy(nastepnyNaArenie.druzynaBId)}
