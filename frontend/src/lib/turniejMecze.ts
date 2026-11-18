@@ -5,7 +5,7 @@ import { supabase } from './supabase';
 import { zaktualizujJedenWiersz } from './zapytania';
 import { track } from './analytics';
 import type { NowyMecz } from './turniejFormat';
-import type { TurniejArena, TurniejGrupa, TurniejMecz, TurniejZdarzenie, ZdarzenieTyp } from '@/types';
+import type { TurniejArena, TurniejGrupa, TurniejMecz, TurniejPrzerwa, TurniejZdarzenie, ZdarzenieTyp } from '@/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toGrupa(row: any): TurniejGrupa {
@@ -454,4 +454,55 @@ export async function cofnijWynikMeczu(meczId: string): Promise<void> {
   const { error } = await supabase.rpc('cofnij_wynik_meczu', { p_mecz: meczId });
   if (error) throw new Error(error.message);
   track('turniej_wynik_poprawiony', { meczId });
+}
+
+// ── Przerwy z nazwą (migracja 176) ──────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toPrzerwa(row: any): TurniejPrzerwa {
+  return {
+    id: row.id,
+    turniejId: row.turniej_id,
+    odAt: row.od_at,
+    doAt: row.do_at,
+    nazwa: row.nazwa,
+    opis: row.opis ?? undefined,
+  };
+}
+
+export async function getPrzerwy(turniejId: string): Promise<TurniejPrzerwa[]> {
+  const { data, error } = await supabase
+    .from('turniej_przerwy')
+    .select('*')
+    .eq('turniej_id', turniejId)
+    .order('od_at');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toPrzerwa);
+}
+
+export interface PrzerwaDoZapisu {
+  odAt: string;
+  doAt: string;
+  nazwa: string;
+  opis?: string;
+}
+
+function przerwaPayload(p: PrzerwaDoZapisu): Record<string, unknown> {
+  return { od_at: p.odAt, do_at: p.doAt, nazwa: p.nazwa.trim(), opis: p.opis?.trim() || null };
+}
+
+export async function dodajPrzerwe(turniejId: string, p: PrzerwaDoZapisu): Promise<void> {
+  const { error } = await supabase
+    .from('turniej_przerwy')
+    .insert({ turniej_id: turniejId, ...przerwaPayload(p) });
+  if (error) throw new Error(error.message);
+}
+
+export async function zmienPrzerwe(id: string, p: PrzerwaDoZapisu): Promise<void> {
+  await zaktualizujJedenWiersz('turniej_przerwy', id, przerwaPayload(p), 'Nie udało się zapisać przerwy');
+}
+
+export async function usunPrzerwe(id: string): Promise<void> {
+  const { error } = await supabase.from('turniej_przerwy').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 }

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   drabinkaZGrup, grupaFinalowaZGrup, meczeKazdyZKazdym, nazwaMiejscaWGrupie,
 } from '@/lib/turniejFormat';
-import { etykietaFazyMeczu, porownajTermin, przerwaPrzedMeczem } from '@/lib/turniejEtykiety';
+import { etykietaFazyMeczu, porownajTermin, przerwaPrzedMeczem, terminarzZPrzerwami } from '@/lib/turniejEtykiety';
 import { opisAwansu } from '@/lib/turniejTabela';
 
 const licznik = () => { let n = 0; return () => `m${++n}`; };
@@ -127,5 +127,32 @@ describe('podpisy formatu z grupą finałową (audyt 2026-11-18)', () => {
   });
   it('legenda awansu mówi o grupie finałowej, nie o pucharze', () => {
     expect(opisAwansu([5, 5, 5], 1, 'grupa_finalowa')).toBe('Pierwsze miejsce w grupie awansuje do grupy finałowej');
+  });
+});
+
+describe('terminarzZPrzerwami (migracja 176)', () => {
+  const iso = (g: string) => new Date(`2026-11-28T${g}:00+01:00`).toISOString();
+  const mecz = (numer: number, g: string) => ({ numer, zaplanowanyAt: iso(g) });
+  const mecze = [mecz(18, '12:28'), mecz(19, '13:00'), mecz(32, '16:10'), mecz(33, '16:27')];
+  const opcje = { czasMeczuMin: 12, przerwaMin: 2 };
+  const konkurs = {
+    id: 'p1', turniejId: 't', odAt: iso('12:40'), doAt: iso('13:00'),
+    nazwa: 'Konkurs obijania poprzeczki', opis: 'Grupa C do 12:25',
+  };
+  const dekoracja = { id: 'p2', turniejId: 't', odAt: iso('16:39'), doAt: iso('17:00'), nazwa: 'Dekoracja' };
+  const podpis = (w: ReturnType<typeof terminarzZPrzerwami>[number]) =>
+    w.typ === 'mecz' ? `M${w.mecz.numer}` : `${w.nazwa ?? 'Przerwa'} ${w.od}-${w.do}`;
+
+  it('przerwa z nazwą zastępuje wyliczoną, a ta po ostatnim meczu ląduje na końcu', () => {
+    expect(terminarzZPrzerwami(mecze, [dekoracja, konkurs], opcje).map(podpis)).toEqual([
+      'M18', 'Konkurs obijania poprzeczki 12:40-13:00', 'M19',
+      'Przerwa 13:12-16:10', 'M32', 'Przerwa 16:22-16:27', 'M33', 'Dekoracja 16:39-17:00',
+    ]);
+  });
+
+  it('bez przerw z nazwą zostają wyliczone, a bez wyliczonych tylko nazwane', () => {
+    expect(terminarzZPrzerwami(mecze, [], opcje).map(podpis)).toContain('Przerwa 12:40-13:00');
+    expect(terminarzZPrzerwami(mecze, [konkurs], { ...opcje, zPrzerwamiWyliczonymi: false }).map(podpis))
+      .toEqual(['M18', 'Konkurs obijania poprzeczki 12:40-13:00', 'M19', 'M32', 'M33']);
   });
 });

@@ -1904,6 +1904,34 @@ DELETE FROM turnieje WHERE id = :GF_T::uuid;
 -- to 2026-10-31 (`rls_disabled_in_public`) dla dziennika `schema_migracje`,
 -- który zakłada `scripts/migruj.sh` poza migracjami (poprawione tam). Ta
 -- asercja pilnuje, żeby żadna przyszła migracja nie dołożyła drugiej takiej.
+SELECT _sekcja('Turniej: przerwy z nazwą i opisem (migracja 176)');
+
+\set PR_T '''ffffffff-0000-4000-8000-0000000001a1'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:PR_T::uuid, :T_ORGANIZATOR::uuid, 'Przerwy do testów', 'piłka nożna', 'zapisy', CURRENT_DATE);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie doda przerwy',
+  format('INSERT INTO turniej_przerwy (turniej_id, od_at, do_at, nazwa) VALUES (%L, now(), now() + interval ''20 min'', ''Konkurs'')', :PR_T));
+SELECT set_config('request.jwt.claim.sub', :T_ORGANIZATOR, false);
+INSERT INTO turniej_przerwy (turniej_id, od_at, do_at, nazwa, opis)
+VALUES (:PR_T::uuid, now(), now() + interval '20 min', 'Konkurs obijania poprzeczki', 'Grupa C do 12:25');
+SELECT _oczekuj_wyjatek('przerwa nie kończy się przed startem',
+  format('INSERT INTO turniej_przerwy (turniej_id, od_at, do_at, nazwa) VALUES (%L, now(), now() - interval ''1 min'', ''Zła'')', :PR_T));
+SELECT _oczekuj_wyjatek('przerwa musi mieć nazwę',
+  format('INSERT INTO turniej_przerwy (turniej_id, od_at, do_at, nazwa) VALUES (%L, now(), now() + interval ''5 min'', ''  '')', :PR_T));
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+UPDATE turniej_przerwy SET nazwa = 'Przejęta' WHERE turniej_id = :PR_T::uuid;
+RESET ROLE;
+SELECT _oczekuj('obcy nie zmieni nazwy przerwy (0 wierszy)',
+                (SELECT count(*) FROM turniej_przerwy WHERE turniej_id = :PR_T::uuid AND nazwa = 'Przejęta'), 0);
+SET ROLE anon;
+SELECT _oczekuj('przerwę widzi każdy, także bez konta',
+                (SELECT count(*) FROM turniej_przerwy WHERE turniej_id = :PR_T::uuid), 1);
+RESET ROLE;
+DELETE FROM turnieje WHERE id = :PR_T::uuid;
+
 SELECT _sekcja('Każda tabela w public ma włączone RLS');
 DO $$
 DECLARE

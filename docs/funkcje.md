@@ -4989,6 +4989,16 @@ mecze grupy C, a w harmonogramie są przerwy (konkurs obijania poprzeczki, dekor
   (kolejna runda, grupa finałowa) już się zaczął. Zdania „Wyniku nie da się później
   cofnąć” zastąpiło „Pomyłkę poprawisz później przyciskiem „Popraw wynik””.
 
+**Przerwy z nazwą (2026-11-18, migracja `176`).** Panel → Terminarz → „Dodaj przerwę”
+albo „Nazwij” przy przerwie wyliczonej z odstępu: nazwa (np. „Konkurs obijania
+poprzeczki”), od–do i opcjonalny opis („Grupa C: przyjazd do 12:25”). „Edytuj” / „Usuń
+przerwę” przy przerwie z nazwą. Przerwa stoi w terminarzu przed pierwszym meczem, który
+zaczyna się nie wcześniej niż ona (`terminarzZPrzerwami()` w `lib/turniejEtykiety.ts`),
+odstęp z nazwaną przerwą nie dostaje już gołego „Przerwa”, a przerwa po ostatnim meczu
+(dekoracja) stoi na końcu. Strona turnieju: w terminarzu „Najbliższe” (przy „tylko
+nasze” same nazwane) oraz lista „Przerwy w programie” na zakładce Info
+(`components/turnieje/WierszPrzerwy.tsx`). „Przetestuj” kopiuje przerwy.
+
 **Poprawki po audycie kopii (2026-11-18, bez migracji):**
 - F1: przerwa pokazuje się, gdy odstęp przekracza slot o więcej niż 2 min (było 5),
   więc widać też odpoczynek 16:22–16:27.
