@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-18 · migracja `175` · 59 tabel
+**Stan na:** 2026-11-18 · migracja `176` · 60 tabel
 
 ---
 
@@ -343,7 +343,7 @@ jednocześnie główna droga zakładania kont w tym module.
 
 **Mechanika.** Tabele `turnieje`, `turniej_druzyny`, `turniej_zawodnicy`, `turniej_grupy`,
 `turniej_areny`, `turniej_mecze`, `turniej_zdarzenia`, `turniej_ogloszenia`,
-`turniej_blik`, `turniej_osoby`, `turniej_zaproszenia` (migracje `145`–`150`, `154`–`156`). RLS jest jedyną granicą dostępu —
+`turniej_blik`, `turniej_osoby`, `turniej_zaproszenia`, `turniej_przerwy` (migracje `145`–`150`, `154`–`156`, `176`). RLS jest jedyną granicą dostępu —
 funkcje `czy_zarzadza_turniejem()`/`czy_kapitan_druzyny()`/`czy_prowadzi_mecz()` decydują,
 kto edytuje co. Wynik meczu liczy się z zapisanych zdarzeń (gol/samobójczy/kartka/punkty),
 dopóki organizator nie wpisze go ręcznie (siatkówka i koszykówka mają własną logikę:
@@ -495,7 +495,9 @@ godzinę każdego meczu („Zmień godziny”), listy meczów idą po godzinie z
 „Popraw wynik” na stronie rozegranego meczu otwiera go do ponownego wpisania, a gdy mecz
 zależny już się zaczął, Bojo mówi to od razu. Mecze grupy finałowej są podpisane „Grupa
 finałowa F”, pulpit po ostatnim wyniku mówi „Wszystkie mecze rozegrane”, a karta
-„Następny na tej arenie” wskazuje mecz po bieżącym w terminarzu.
+„Następny na tej arenie” wskazuje mecz po bieżącym w terminarzu. Organizator nadaje
+przerwom nazwę i opis („Konkurs obijania poprzeczki, 12:40–13:00, grupa C do 12:25”):
+przerwa stoi w terminarzu i na zakładce Info (migracja `176`, tabela `turniej_przerwy`).
 
 MECHANIKA: migracja `175` (format `grupy_finalowa`, `turniej_grupy.finalowa`, źródła
 `zrodlo_*_grupa_id`/`zrodlo_*_miejsce`, `kolejnosc_w_grupie()`, `wypelnij_z_grupy()`,

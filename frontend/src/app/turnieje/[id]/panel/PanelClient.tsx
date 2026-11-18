@@ -27,18 +27,20 @@ import {
 import {
   getGrupy, dodajGrupe, usunGrupe, getAreny, dodajArene, zmienNazweAreny, usunArene,
   getMecze, zapiszTerminarz, updateMecz,
+  getPrzerwy, dodajPrzerwe, zmienPrzerwe, usunPrzerwe,
 } from '@/lib/turniejMecze';
+import WierszPrzerwy from '@/components/turnieje/WierszPrzerwy';
 import {
   domyslnaLiczbaGrup, rozlosujGrupy, meczeKazdyZKazdym, zbudujDrabinke, ulozHarmonogram,
   zamienDruzynyWDrabince, type MiejsceWDrabince,
   szacunekCzasu, type NowyMecz, drabinkaZGrup, grupaFinalowaZGrup, nazwaMiejscaWGrupie,
 } from '@/lib/turniejFormat';
-import { odmienZawodnikow, odmienDruzyny, etykietaTerminu, FORMAT_LABEL, etykietaTerminuMeczu, porownajTermin, przerwaPrzedMeczem } from '@/lib/turniejEtykiety';
+import { odmienZawodnikow, odmienDruzyny, etykietaTerminu, FORMAT_LABEL, etykietaTerminuMeczu, porownajTermin, terminarzZPrzerwami } from '@/lib/turniejEtykiety';
 import {
   pulpitPrzedTurniejem, postepTurnieju, meczeDoWpisania, mozeRozpoczacTurniej,
 } from '@/lib/turniejPulpit';
 import { plural, withCount } from '@/lib/plural';
-import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz } from '@/types';
+import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz, TurniejPrzerwa } from '@/types';
 import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
 import { czyWolnyLos } from '@/lib/turniejWynik';
 import { instantZCzasuPolskiego, chwilaWPolsce } from '@/lib/czasPolski';
@@ -103,6 +105,11 @@ export default function PanelClient() {
   // edycji; `null` = terminarz w trybie czytania.
   const [godzinyEdycja, setGodzinyEdycja] = useState<Record<string, string> | null>(null);
   const [zapisujeGodziny, setZapisujeGodziny] = useState(false);
+  // Przerwy z nazwą (176) i formularz jednej przerwy (nowej albo edytowanej).
+  const [przerwy, setPrzerwy] = useState<TurniejPrzerwa[]>([]);
+  const [przerwaEdycja, setPrzerwaEdycja] = useState<
+    { id?: string; nazwa: string; od: string; do: string; opis: string } | null
+  >(null);
 
   const tabParam = searchParams.get('tab');
   // Domyślnie PULPIT, nie „Drużyny": organizator wchodzi w panel z pytaniem
@@ -124,6 +131,8 @@ export default function PanelClient() {
     setGrupy(g);
     setAreny(a);
     setMecze(m);
+    // Bez migracji 176 tabela nie istnieje: terminarz działa dalej bez nazw przerw.
+    setPrzerwy(await getPrzerwy(id).catch(() => []));
     if (t && t.wpisoweGrosze > 0) {
       const tel = await getBlikTurnieju(id).catch(() => null);
       setBlikTelefon(tel);
@@ -479,6 +488,41 @@ export default function PanelClient() {
   };
 
   const meczePoTerminie = [...mecze].sort(porownajTermin);
+
+  const zapiszPrzerwe = async () => {
+    if (!przerwaEdycja) return;
+    const { nazwa, od, do: doGodz, opis } = przerwaEdycja;
+    if (!nazwa.trim()) { toast('Nazwij przerwę, np. „Konkurs” albo „Dekoracja”', 'error'); return; }
+    if (!od || !doGodz || doGodz <= od) { toast('Koniec przerwy musi być po jej początku', 'error'); return; }
+    // Dzień: ten sam co dotąd przy edycji, dzień turnieju przy nowej przerwie.
+    const istniejaca = przerwaEdycja.id ? przerwy.find((p) => p.id === przerwaEdycja.id) : undefined;
+    const dzien = istniejaca ? chwilaWPolsce(istniejaca.odAt).data : turniej.dataStartu;
+    const dane = {
+      nazwa,
+      opis,
+      odAt: instantZCzasuPolskiego(dzien, od),
+      doAt: instantZCzasuPolskiego(dzien, doGodz),
+    };
+    try {
+      if (przerwaEdycja.id) await zmienPrzerwe(przerwaEdycja.id, dane);
+      else await dodajPrzerwe(id, dane);
+      setPrzerwaEdycja(null);
+      setPrzerwy(await getPrzerwy(id));
+      toast('Przerwa zapisana');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać przerwy', 'error');
+    }
+  };
+  const usunPrzerweAkcja = async (przerwaId: string) => {
+    try {
+      await usunPrzerwe(przerwaId);
+      setPrzerwaEdycja(null);
+      setPrzerwy(await getPrzerwy(id));
+      toast('Przerwa usunięta');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się usunąć przerwy', 'error');
+    }
+  };
 
   const zacznijEdycjeGodzin = () => {
     const start: Record<string, string> = {};
@@ -1171,19 +1215,92 @@ export default function PanelClient() {
                         </Button>
                       </div>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={zacznijEdycjeGodzin}>Zmień godziny</Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setPrzerwaEdycja({ nazwa: '', od: '', do: '', opis: '' })}>
+                          Dodaj przerwę
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={zacznijEdycjeGodzin}>Zmień godziny</Button>
+                      </div>
                     )}
                   </div>
-                  {meczePoTerminie.map((m, i) => {
-                    const przerwa = przerwaPrzedMeczem(meczePoTerminie[i - 1], m, turniej);
+                  {/* PRZERWA Z NAZWĄ (176, Luboń): „Konkurs obijania poprzeczki”
+                      z opisem „grupa C do 12:25” zamiast gołego „Przerwa”.
+                      Widać ją w terminarzu i na zakładce Info. */}
+                  {przerwaEdycja && (
+                    <div className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5">
+                      <p className="text-sm font-semibold text-ink">{przerwaEdycja.id ? 'Edytuj przerwę' : 'Nowa przerwa'}</p>
+                      <div>
+                        <label htmlFor="przerwa-nazwa" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Nazwa</label>
+                        <input
+                          id="przerwa-nazwa"
+                          value={przerwaEdycja.nazwa}
+                          maxLength={60}
+                          placeholder="np. Konkurs obijania poprzeczki"
+                          onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, nazwa: e.target.value } : p))}
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="przerwa-od" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Od</label>
+                          <input id="przerwa-od" type="time" value={przerwaEdycja.od}
+                            onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, od: e.target.value } : p))}
+                            className={inputCls} />
+                        </div>
+                        <div>
+                          <label htmlFor="przerwa-do" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Do</label>
+                          <input id="przerwa-do" type="time" value={przerwaEdycja.do}
+                            onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, do: e.target.value } : p))}
+                            className={inputCls} />
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="przerwa-opis" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Opis (opcjonalnie)</label>
+                        <textarea
+                          id="przerwa-opis"
+                          rows={2}
+                          maxLength={300}
+                          value={przerwaEdycja.opis}
+                          placeholder="np. Grupa C: przyjazd do 12:25. A i B zostają do końca konkursu."
+                          onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, opis: e.target.value } : p))}
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" onClick={zapiszPrzerwe}>Zapisz przerwę</Button>
+                        <Button size="sm" variant="outline" onClick={() => setPrzerwaEdycja(null)}>Anuluj</Button>
+                        {przerwaEdycja.id && (
+                          <button
+                            type="button"
+                            onClick={() => usunPrzerweAkcja(przerwaEdycja.id!)}
+                            className="ml-auto text-sm font-medium text-red-600"
+                          >
+                            Usuń przerwę
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {terminarzZPrzerwami(meczePoTerminie, przerwy, turniej).map((w) => {
+                    if (w.typ === 'przerwa') {
+                      const nazwana = w.przerwaId ? przerwy.find((p) => p.id === w.przerwaId) : undefined;
+                      return (
+                        <WierszPrzerwy
+                          key={w.przerwaId ?? `p-${w.od}`}
+                          od={w.od}
+                          do={w.do}
+                          nazwa={w.nazwa}
+                          opis={w.opis}
+                          akcja={godzinyEdycja ? undefined : nazwana
+                            ? { etykieta: 'Edytuj', onClick: () => setPrzerwaEdycja({ id: nazwana.id, nazwa: nazwana.nazwa, od: w.od, do: w.do, opis: nazwana.opis ?? '' }) }
+                            : { etykieta: 'Nazwij', onClick: () => setPrzerwaEdycja({ nazwa: '', od: w.od, do: w.do, opis: '' }) }}
+                        />
+                      );
+                    }
+                    const m = w.mecz;
                     const edytowalny = godzinyEdycja && m.status === 'zaplanowany' && !czyWolnyLos(m);
                     return (
-                      <div key={m.id} className="space-y-2">
-                        {przerwa && (
-                          <p className="py-1 text-center text-xs font-medium text-slate-400">
-                            Przerwa {przerwa.od}–{przerwa.do}
-                          </p>
-                        )}
+                      <div key={m.id}>
                         {edytowalny ? (
                           <div className="flex items-center gap-2">
                             <input

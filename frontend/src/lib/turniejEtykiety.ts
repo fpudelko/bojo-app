@@ -5,7 +5,7 @@
 
 import { plural, withCount } from './plural';
 import { chwilaWPolsce } from '@/lib/czasPolski';
-import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej, TurniejMecz, TurniejGrupa } from '@/types';
+import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej, TurniejMecz, TurniejGrupa, TurniejPrzerwa } from '@/types';
 
 export const STATUS_TURNIEJU: Record<TurniejStatus, { label: string; ton: string }> = {
   szkic:            { label: 'W przygotowaniu', ton: 'bg-slate-100 text-slate-600' },
@@ -431,4 +431,52 @@ export function etykietaFazyMeczu(
   const grupa = mecz.faza === 'grupa' && mecz.grupaId ? grupyPoId?.get(mecz.grupaId) : undefined;
   if (grupa) return grupa.finalowa ? `Grupa finałowa ${grupa.nazwa}` : `Grupa ${grupa.nazwa}`;
   return FAZA_LABEL[mecz.faza];
+}
+
+/** Wiersz listy meczów: mecz albo przerwa (z nazwą od organizatora lub wyliczona z odstępu). */
+export type WierszTerminarza<M> =
+  | { typ: 'mecz'; mecz: M }
+  | { typ: 'przerwa'; od: string; do: string; nazwa?: string; opis?: string; przerwaId?: string };
+
+const godzinaPl = (iso: string) => chwilaWPolsce(iso).godzina.slice(0, 5);
+
+/**
+ * Lista meczów z przerwami (176). Przerwa z nazwą staje przed pierwszym meczem,
+ * który zaczyna się nie wcześniej niż ona (przerwa po ostatnim meczu, np.
+ * dekoracja, ląduje na końcu). Odstęp, w który wpada przerwa z nazwą, nie
+ * dostaje już drugiego, gołego „Przerwa”. `mecze` muszą być posortowane
+ * `porownajTermin()`. `zPrzerwamiWyliczonymi: false` pokazuje tylko przerwy
+ * z nazwą (np. lista „tylko nasze mecze”, gdzie odstępy nic nie znaczą).
+ */
+export function terminarzZPrzerwami<M extends Pick<TurniejMecz, 'zaplanowanyAt' | 'numer'>>(
+  mecze: readonly M[],
+  przerwy: readonly TurniejPrzerwa[],
+  opcje: { czasMeczuMin: number; przerwaMin: number; zPrzerwamiWyliczonymi?: boolean },
+): WierszTerminarza<M>[] {
+  const nazwane = [...przerwy].sort((a, b) => a.odAt.localeCompare(b.odAt));
+  const uzyte = new Set<string>();
+  const wynik: WierszTerminarza<M>[] = [];
+  const dodajNazwana = (p: TurniejPrzerwa) => {
+    uzyte.add(p.id);
+    wynik.push({ typ: 'przerwa', od: godzinaPl(p.odAt), do: godzinaPl(p.doAt), nazwa: p.nazwa, opis: p.opis, przerwaId: p.id });
+  };
+  mecze.forEach((m, i) => {
+    let wstawionoNazwana = false;
+    if (m.zaplanowanyAt) {
+      const start = new Date(m.zaplanowanyAt).getTime();
+      for (const p of nazwane) {
+        if (!uzyte.has(p.id) && new Date(p.odAt).getTime() <= start) {
+          dodajNazwana(p);
+          wstawionoNazwana = true;
+        }
+      }
+    }
+    if (!wstawionoNazwana && opcje.zPrzerwamiWyliczonymi !== false) {
+      const wyliczona = przerwaPrzedMeczem(mecze[i - 1], m, opcje);
+      if (wyliczona) wynik.push({ typ: 'przerwa', ...wyliczona });
+    }
+    wynik.push({ typ: 'mecz', mecz: m });
+  });
+  for (const p of nazwane) if (!uzyte.has(p.id)) dodajNazwana(p);
+  return wynik;
 }

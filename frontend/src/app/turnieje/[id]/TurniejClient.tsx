@@ -15,8 +15,10 @@ import {
   getOgloszenia, dodajOgloszenie, usunOgloszenie, getBlikTurnieju,
   domyslnaZakladka, czyTurniejProbny } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
-import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
-import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy, etykietaTerminuMeczu, porownajTermin, przerwaPrzedMeczem } from '@/lib/turniejEtykiety';
+import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju, getPrzerwy } from '@/lib/turniejMecze';
+import WierszPrzerwy from '@/components/turnieje/WierszPrzerwy';
+import { chwilaWPolsce } from '@/lib/czasPolski';
+import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy, etykietaTerminuMeczu, porownajTermin, terminarzZPrzerwami } from '@/lib/turniejEtykiety';
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
@@ -35,7 +37,7 @@ import Galeria from '@/components/turnieje/Galeria';
 import Sponsorzy from '@/components/turnieje/Sponsorzy';
 import KartaDruzyny from '@/components/turnieje/KartaDruzyny';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
-import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie, TurniejOgloszenie, TurniejZdjecie, TurniejSponsor } from '@/types';
+import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie, TurniejOgloszenie, TurniejZdjecie, TurniejSponsor, TurniejPrzerwa } from '@/types';
 import { czyWolnyLos } from '@/lib/turniejWynik';
 
 // Sześć zakładek zamiast czterech. „Terminarz" i „Wyniki" dzieliły wcześniej
@@ -131,6 +133,7 @@ export default function TurniejClient() {
   const [osoba, setOsoba] = useState<TurniejOsoba | null>(null);
   const [mecze, setMecze] = useState<TurniejMecz[]>([]);
   const [areny, setAreny] = useState<TurniejArena[]>([]);
+  const [przerwy, setPrzerwy] = useState<TurniejPrzerwa[]>([]);
   const [grupy, setGrupy] = useState<TurniejGrupa[]>([]);
   const [zdarzenia, setZdarzenia] = useState<TurniejZdarzenie[]>([]);
   const [ogloszenia, setOgloszenia] = useState<TurniejOgloszenie[]>([]);
@@ -207,7 +210,7 @@ export default function TurniejClient() {
         //
         // Każda sekcja dostaje więc własny wynik i własny stan pusty. Jedyne,
         // co naprawdę przesądza o „nie znaleziono", to brak samego turnieju.
-        const [d, o, m, a, g, z, og, mj, zd, sp] = await Promise.allSettled([
+        const [d, o, m, a, g, z, og, mj, zd, sp, pr] = await Promise.allSettled([
           user ? getDruzynyZeSkladem(id) : getDruzyny(id),
           user ? getMojaOsobe(id, user.id) : Promise.resolve(null),
           getMecze(id),
@@ -218,6 +221,7 @@ export default function TurniejClient() {
           user ? getMojaDruzyne(id, user.id) : Promise.resolve(null),
           getZdjecia(id),
           getSponsorzy(id),
+          getPrzerwy(id),
         ]);
         if (!aktualne) return;
         setDruzyny(d.status === 'fulfilled' ? d.value : []);
@@ -233,6 +237,9 @@ export default function TurniejClient() {
         // (np. baza bez migracji `159`), sekcje po prostu się nie pokazują.
         setZdjecia(zd.status === 'fulfilled' ? zd.value : []);
         setSponsorzy(sp.status === 'fulfilled' ? sp.value : []);
+        // Przerwy z nazwą (176): bez migracji lista jest pusta, a terminarz
+        // pokazuje same odstępy jak dotąd.
+        setPrzerwy(pr.status === 'fulfilled' ? pr.value : []);
         // BLIK: tylko organizator/zarządzający i kapitanowie mają RLS-owe
         // prawo do wiersza — reszta po prostu nie dostanie nic, więc wołanie
         // „na wszelki wypadek" jest bezpieczne i nie wymaga sprawdzania roli
@@ -400,6 +407,11 @@ export default function TurniejClient() {
 
   const listaPoCzasie = widokMeczow === 'najblizsze' ? meczePrzyszle : meczeRozegrane;
   const listaMeczow = tylkoNasze ? listaPoCzasie.filter(czyNasz) : listaPoCzasie;
+  // Przerwa, która skończyła się przed ostatnim rozegranym meczem, nie należy
+  // już do „najbliższych”.
+  const ostatniRozegrany = meczeRozegrane.reduce<string | undefined>(
+    (max, m) => (m.zaplanowanyAt && (!max || m.zaplanowanyAt > max) ? m.zaplanowanyAt : max), undefined);
+  const przerwyPrzedNami = ostatniRozegrany ? przerwy.filter((p) => p.doAt > ostatniRozegrany) : przerwy;
 
   const zawodnicyDoStatystyk = druzyny.flatMap((d) => d.zawodnicy ?? []);
   const mvpPoMeczach = mecze
@@ -860,6 +872,23 @@ export default function TurniejClient() {
             )}
 
             {turniej.opis && <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{turniej.opis}</p>}
+            {/* Przerwy z nazwą (176) także na Info: uczestnik z linku czyta
+                tu „konkurs 12:40–13:00, grupa C do 12:25”, zanim otworzy
+                terminarz (audyt 2026-11-18). */}
+            {przerwy.length > 0 && (
+              <div className="space-y-2">
+                <h2 className="text-sm font-semibold text-slate-500">Przerwy w programie</h2>
+                {przerwy.map((p) => (
+                  <WierszPrzerwy
+                    key={p.id}
+                    od={chwilaWPolsce(p.odAt).godzina.slice(0, 5)}
+                    do={chwilaWPolsce(p.doAt).godzina.slice(0, 5)}
+                    nazwa={p.nazwa}
+                    opis={p.opis}
+                  />
+                ))}
+              </div>
+            )}
             {turniej.regulamin && (
               <details className="text-sm">
                 <summary className="cursor-pointer font-medium text-ink">Regulamin</summary>
@@ -970,31 +999,29 @@ export default function TurniejClient() {
               </p>
             ) : (
               <div className="space-y-2">
-                {listaMeczow.map((m, i) => {
+                {(widokMeczow === 'najblizsze'
                   // Przerwa w harmonogramie (konkurs, dekoracja) widać jako
                   // przerwę, nie jako zagadkę „czemu następny mecz o 13:00".
-                  const przerwa = widokMeczow === 'najblizsze' && !tylkoNasze
-                    ? przerwaPrzedMeczem(listaMeczow[i - 1], m, turniej)
-                    : null;
-                  return (
-                    <div key={m.id} className="space-y-2">
-                      {przerwa && (
-                        <p className="py-1 text-center text-xs font-medium text-slate-400">
-                          Przerwa {przerwa.od}–{przerwa.do}
-                        </p>
-                      )}
-                      <KartaMeczu
-                        mecz={m}
-                        druzynyPoId={druzynyPoId}
-                        meczePoId={meczePoId}
-                        arenyPoId={arenyPoId}
-                        grupyPoId={grupyPoId}
-                        przygaszona={czyWolnyLos(m)}
-                        onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
-                      />
-                    </div>
-                  );
-                })}
+                  // Przy „tylko nasze” zostają same przerwy z nazwą: odstęp
+                  // między meczami jednej drużyny nie jest przerwą turnieju.
+                  ? terminarzZPrzerwami(listaMeczow, przerwyPrzedNami, {
+                      ...turniej, zPrzerwamiWyliczonymi: !tylkoNasze,
+                    })
+                  : listaMeczow.map((mecz) => ({ typ: 'mecz' as const, mecz }))
+                ).map((w) => (w.typ === 'przerwa' ? (
+                  <WierszPrzerwy key={w.przerwaId ?? `p-${w.od}`} od={w.od} do={w.do} nazwa={w.nazwa} opis={w.opis} />
+                ) : (
+                  <KartaMeczu
+                    key={w.mecz.id}
+                    mecz={w.mecz}
+                    druzynyPoId={druzynyPoId}
+                    meczePoId={meczePoId}
+                    arenyPoId={arenyPoId}
+                    grupyPoId={grupyPoId}
+                    przygaszona={czyWolnyLos(w.mecz)}
+                    onClick={() => router.push(`/turnieje/${id}/mecz/${w.mecz.id}`)}
+                  />
+                )))}
               </div>
             )}
 

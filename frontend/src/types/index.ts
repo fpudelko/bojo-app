@@ -747,6 +747,17 @@ export interface TurniejZawodnik {
   createdAt: string;
 }
 
+/** Przerwa w terminarzu z nazwą (migracja 176): konkurs, dekoracja, odpoczynek. */
+export interface TurniejPrzerwa {
+  id: string;
+  turniejId: string;
+  /** ISO, UTC. */
+  odAt: string;
+  doAt: string;
+  nazwa: string;
+  opis?: string;
+}
+
 export interface TurniejGrupa {
   id: string;
   turniejId: string;
