@@ -22,7 +22,7 @@ import { FORMAT_LABEL, FORMAT_OPIS } from '@/lib/turniejEtykiety';
 import { FOCUS_SPORTS, sportLabel, sportEmoji } from '@/lib/sports';
 import type { TurniejFormat, TurniejWidocznosc } from '@/types';
 
-const FORMATY: TurniejFormat[] = ['grupy_puchar', 'puchar', 'liga'];
+const FORMATY: TurniejFormat[] = ['grupy_puchar', 'grupy_finalowa', 'puchar', 'liga'];
 
 const inputCls =
   'w-full border border-slate-300 dark:border-slate-600 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-slate-100';

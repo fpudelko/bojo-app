@@ -21,6 +21,12 @@ export interface NowyMecz {
   zrodloBMeczId?: string;
   zrodloATyp?: 'zwyciezca' | 'przegrany';
   zrodloBTyp?: 'zwyciezca' | 'przegrany';
+  /** Miejsce z grupy (migracja 175): baza wpisze drużynę sama, gdy grupa
+   *  rozegra wszystkie mecze (`wypelnij_z_grupy()`). */
+  zrodloAGrupaId?: string;
+  zrodloAMiejsce?: number;
+  zrodloBGrupaId?: string;
+  zrodloBMiejsce?: number;
   arenaId?: string;
   zaplanowanyAt?: string;
   status?: 'zaplanowany' | 'walkower';
@@ -385,4 +391,165 @@ export function zamienDruzynyWDrabince(
     }
   }
   return kopia;
+}
+
+// ---------------------------------------------------------------------------
+// Faza po grupach (migracja 175)
+// ---------------------------------------------------------------------------
+
+export interface GrupaDoAwansu {
+  id: string;
+  nazwa: string;
+}
+
+export interface OpcjeFazyPoGrupach {
+  startNumer: number;
+  /** Pierwsza kolejka nowej fazy: po ostatniej kolejce grup. */
+  startKolejka: number;
+  /** Ile drużyn z KAŻDEJ grupy przechodzi dalej. */
+  awansuje: number;
+  meczO3Miejsce?: boolean;
+  noweId?: () => string;
+}
+
+// Drużyny kolejnej fazy nie są jeszcze znane, więc generator pracuje na
+// znacznikach „miejsce w grupie" i dopiero na końcu zamienia je na źródła.
+const ZNACZNIK = 'miejsce:';
+const znacznik = (grupaId: string, miejsce: number) => `${ZNACZNIK}${miejsce}:${grupaId}`;
+function odczytajZnacznik(id: string | undefined): { grupaId: string; miejsce: number } | null {
+  if (!id || !id.startsWith(ZNACZNIK)) return null;
+  const reszta = id.slice(ZNACZNIK.length);
+  const i = reszta.indexOf(':');
+  return { miejsce: Number(reszta.slice(0, i)), grupaId: reszta.slice(i + 1) };
+}
+
+function naZrodla(m: NowyMecz): NowyMecz {
+  const wynik = { ...m };
+  const a = odczytajZnacznik(m.druzynaAId);
+  if (a) {
+    wynik.druzynaAId = undefined;
+    wynik.zrodloAGrupaId = a.grupaId;
+    wynik.zrodloAMiejsce = a.miejsce;
+  }
+  const b = odczytajZnacznik(m.druzynaBId);
+  if (b) {
+    wynik.druzynaBId = undefined;
+    wynik.zrodloBGrupaId = b.grupaId;
+    wynik.zrodloBMiejsce = b.miejsce;
+  }
+  return wynik;
+}
+
+/** Rozstawienie do drabinki: najpierw wszystkie pierwsze miejsca, potem drugie
+ *  itd. Kolejność wewnątrz „piętra" dobieramy tak, żeby w pierwszej rundzie
+ *  jak najrzadziej spotkały się drużyny z tej samej grupy. */
+function rozstawienieZGrup(grupy: readonly GrupaDoAwansu[], awansuje: number): string[] {
+  const pietra = Array.from({ length: awansuje }, (_, i) => grupy.map((g) => znacznik(g.id, i + 1)));
+  const n = grupy.length * awansuje;
+  let rozmiar = 1;
+  while (rozmiar < n) rozmiar *= 2;
+  const kolejnosc = kolejnoscObsadzenia(rozmiar);
+  const konflikty = (siew: string[]) => {
+    let ile = 0;
+    for (let i = 0; i < rozmiar; i += 2) {
+      const a = odczytajZnacznik(siew[kolejnosc[i] - 1]);
+      const b = odczytajZnacznik(siew[kolejnosc[i + 1] - 1]);
+      if (a && b && a.grupaId === b.grupaId) ile++;
+    }
+    return ile;
+  };
+  const warianty = (pietro: string[]) => {
+    const w: string[][] = [];
+    for (let r = 0; r < pietro.length; r++) {
+      const obrot = [...pietro.slice(r), ...pietro.slice(0, r)];
+      w.push(obrot, [...obrot].reverse());
+    }
+    return w;
+  };
+  let najlepsze = pietra.flat();
+  let najmniej = konflikty(najlepsze);
+  // Pierwsze piętro zostaje w kolejności grup (A1, B1, C1…), przestawiamy dalsze.
+  const przeszukaj = (i: number, dotad: string[]) => {
+    if (najmniej === 0) return;
+    if (i === pietra.length) {
+      const k = konflikty(dotad);
+      if (k < najmniej) {
+        najmniej = k;
+        najlepsze = dotad;
+      }
+      return;
+    }
+    for (const w of warianty(pietra[i])) przeszukaj(i + 1, [...dotad, ...w]);
+  };
+  if (pietra.length > 1 && pietra.length <= 4) przeszukaj(1, pietra[0]);
+  return najlepsze;
+}
+
+/**
+ * Drabinka z miejsc w grupach (`grupy_puchar`): „Zwycięzca A" kontra
+ * „2. miejsce B" itd. Drabinka liczy się tak samo jak przy pucharze
+ * (`zbudujDrabinke()`); wolny los nie staje się tu meczem-walkowerem, bo jego
+ * zwycięzca nie jest jeszcze znany. Miejsce z grupy wchodzi wtedy wprost
+ * do meczu drugiej rundy.
+ */
+export function drabinkaZGrup(grupy: readonly GrupaDoAwansu[], opcje: OpcjeFazyPoGrupach): NowyMecz[] {
+  const siew = rozstawienieZGrup(grupy, opcje.awansuje);
+  if (siew.length < 2) return [];
+  const drabinka = zbudujDrabinke(siew, {
+    startNumer: opcje.startNumer,
+    meczO3Miejsce: opcje.meczO3Miejsce,
+    noweId: opcje.noweId,
+  });
+  const wolneLosy = new Map<string, string>();
+  for (const m of drabinka) {
+    if (m.status === 'walkower' && m.walkowerDla) wolneLosy.set(m.id, m.walkowerDla);
+  }
+  const bezWolnych = drabinka
+    .filter((m) => !wolneLosy.has(m.id))
+    .map((m) => {
+      const kopia = { ...m };
+      if (kopia.zrodloAMeczId && wolneLosy.has(kopia.zrodloAMeczId)) {
+        kopia.druzynaAId = wolneLosy.get(kopia.zrodloAMeczId);
+        kopia.zrodloAMeczId = undefined;
+        kopia.zrodloATyp = undefined;
+      }
+      if (kopia.zrodloBMeczId && wolneLosy.has(kopia.zrodloBMeczId)) {
+        kopia.druzynaBId = wolneLosy.get(kopia.zrodloBMeczId);
+        kopia.zrodloBMeczId = undefined;
+        kopia.zrodloBTyp = undefined;
+      }
+      return kopia;
+    });
+  return bezWolnych.map((m, i) => naZrodla({
+    ...m,
+    numer: opcje.startNumer + i,
+    kolejka: (m.kolejka ?? 1) + opcje.startKolejka - 1,
+  }));
+}
+
+/**
+ * Grupa finałowa (`grupy_finalowa`): awansujący z każdej grupy grają każdy
+ * z każdym w jednej, dodatkowej grupie. Wzór: turniej „Gramy dla Marysi"
+ * (trzy grupy po pięć, zwycięzcy grają o podium w grupie finałowej F).
+ */
+export function grupaFinalowaZGrup(
+  grupy: readonly GrupaDoAwansu[],
+  grupaFinalowaId: string,
+  opcje: OpcjeFazyPoGrupach,
+): NowyMecz[] {
+  const uczestnicy: string[] = [];
+  for (let miejsce = 1; miejsce <= opcje.awansuje; miejsce++) {
+    for (const g of grupy) uczestnicy.push(znacznik(g.id, miejsce));
+  }
+  return meczeKazdyZKazdym(uczestnicy, {
+    startNumer: opcje.startNumer,
+    grupaId: grupaFinalowaId,
+    faza: 'grupa',
+    noweId: opcje.noweId,
+  }).map((m) => naZrodla({ ...m, kolejka: (m.kolejka ?? 1) + opcje.startKolejka - 1 }));
+}
+
+/** „Zwycięzca A", „2. miejsce B": podpis miejsca, zanim grupa się rozstrzygnie. */
+export function nazwaMiejscaWGrupie(nazwaGrupy: string, miejsce: number): string {
+  return miejsce === 1 ? `Zwycięzca ${nazwaGrupy}` : `${miejsce}. miejsce ${nazwaGrupy}`;
 }

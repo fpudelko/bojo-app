@@ -584,7 +584,7 @@ export interface PlayerHistoryItem {
 // docs/turnieje-plan-duze-klocki.md, docs/turnieje-plan-srednie-klocki.md.
 // ---------------------------------------------------------------------------
 
-export type TurniejFormat = 'grupy_puchar' | 'puchar' | 'liga';
+export type TurniejFormat = 'grupy_puchar' | 'grupy_finalowa' | 'puchar' | 'liga';
 export type TurniejStatus =
   | 'szkic'
   | 'zapisy'
@@ -751,6 +751,9 @@ export interface TurniejGrupa {
   id: string;
   turniejId: string;
   nazwa: string;
+  /** Grupa finałowa (175): drużyny trafiają do niej z innych grup przez mecze,
+   *  nie przez `TurniejDruzyna.grupaId`. */
+  finalowa?: boolean;
 }
 
 export interface TurniejArena {
@@ -775,6 +778,11 @@ export interface TurniejMecz {
   zrodloBMeczId?: string;
   zrodloATyp?: 'zwyciezca' | 'przegrany';
   zrodloBTyp?: 'zwyciezca' | 'przegrany';
+  /** Miejsce z grupy (175): „Zwycięzca A" = grupa A, miejsce 1. */
+  zrodloAGrupaId?: string;
+  zrodloAMiejsce?: number;
+  zrodloBGrupaId?: string;
+  zrodloBMiejsce?: number;
   arenaId?: string;
   zaplanowanyAt?: string;
   prowadzacyId?: string;

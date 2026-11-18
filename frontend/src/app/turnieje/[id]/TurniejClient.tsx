@@ -16,7 +16,7 @@ import {
   domyslnaZakladka, czyTurniejProbny } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
-import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy, etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy, etykietaTerminuMeczu, porownajTermin, przerwaPrzedMeczem } from '@/lib/turniejEtykiety';
 import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
@@ -296,6 +296,10 @@ export default function TurniejClient() {
   const druzynyPoId = new Map(druzyny.map((d) => [d.id, d.nazwa]));
   const meczePoId = new Map(mecze.map((m) => [m.id, m]));
   const arenyPoId = new Map(areny.map((a) => [a.id, a.nazwa]));
+  const grupyPoId = new Map(grupy.map((g) => [g.id, g.nazwa]));
+  // Grupa finałowa (175) nie ma przypisanych drużyn: grają w niej ci, których
+  // baza wpisała do jej meczów po rozstrzygnięciu grup.
+  const grupyZwykle = grupy.filter((g) => !g.finalowa);
 
   const meczeGrupowe = mecze.filter((m) => m.faza === 'grupa' || m.faza === 'liga');
   const meczeDrabinki = mecze.filter((m) => m.faza !== 'grupa' && m.faza !== 'liga');
@@ -310,8 +314,8 @@ export default function TurniejClient() {
   const meczeNaLiscie = mecze.filter((m) => !czyWolnyLos(m));
   const meczePrzyszle = meczeNaLiscie
     .filter((m) => !rozegrany(m))
-    .sort((a, b) => (a.status === 'trwa' ? -1 : b.status === 'trwa' ? 1 : a.numer - b.numer));
-  const meczeRozegrane = meczeNaLiscie.filter(rozegrany).sort((a, b) => b.numer - a.numer);
+    .sort((a, b) => (a.status === 'trwa' ? -1 : b.status === 'trwa' ? 1 : porownajTermin(a, b)));
+  const meczeRozegrane = meczeNaLiscie.filter(rozegrany).sort((a, b) => porownajTermin(b, a));
   const pozycjeReczne = new Map(
     druzyny.filter((d) => d.pozycjaRecznie !== undefined).map((d) => [d.id, d.pozycjaRecznie!]),
   );
@@ -323,7 +327,10 @@ export default function TurniejClient() {
           wiersze: posortujTabele(
             obliczTabele(
               meczeGrupowe.filter((m) => m.grupaId === g.id),
-              druzyny.filter((d) => d.grupaId === g.id),
+              g.finalowa
+                ? druzyny.filter((d) => meczeGrupowe.some(
+                    (m) => m.grupaId === g.id && (m.druzynaAId === d.id || m.druzynaBId === d.id)))
+                : druzyny.filter((d) => d.grupaId === g.id),
               opcjeTabeli,
             ),
             pozycjeReczne,
@@ -338,7 +345,7 @@ export default function TurniejClient() {
   const sekcjeDruzyn =
     grupy.length > 0
       ? [
-          ...grupy.map((g) => ({ tytul: `Grupa ${g.nazwa}`, lista: druzyny.filter((d) => d.grupaId === g.id) })),
+          ...grupyZwykle.map((g) => ({ tytul: `Grupa ${g.nazwa}`, lista: druzyny.filter((d) => d.grupaId === g.id) })),
           { tytul: 'Bez grupy', lista: druzyny.filter((d) => !d.grupaId) },
         ].filter((sekcja) => sekcja.lista.length > 0)
       : [{ tytul: 'Wszystkie drużyny', lista: druzyny }];
@@ -350,9 +357,12 @@ export default function TurniejClient() {
   const zapisy = stanZapisowTurnieju(turniej, liczbaWTurnieju);
   const meczeNaZywo = mecze.filter((m) => m.status === 'trwa');
   // Tabela LIGI (nie grupy) jako podstawa podium — patrz `turniejPodium.ts`.
+  // Przy grupie finałowej podium daje JEJ tabela (Luboń, 2026-11-18).
   const tabelaLigi = turniej.format === 'liga' && tabeleGrup.length === 1
     ? tabeleGrup[0].wiersze
-    : undefined;
+    : turniej.format === 'grupy_finalowa'
+      ? tabeleGrup.find((t) => t.grupa?.finalowa)?.wiersze
+      : undefined;
   const podium = stan.label === 'Zakończony'
     ? podiumTurnieju(mecze, druzynyPoId, tabelaLigi)
     : [];
@@ -363,7 +373,7 @@ export default function TurniejClient() {
     : undefined;
 
   const legendaAwansu = opisAwansu(
-    tabeleGrup.filter((t) => t.grupa).map((t) => t.wiersze.length),
+    tabeleGrup.filter((t) => t.grupa && !t.grupa.finalowa).map((t) => t.wiersze.length),
     turniej.awansujeZGrupy,
   );
 
@@ -952,17 +962,31 @@ export default function TurniejClient() {
               </p>
             ) : (
               <div className="space-y-2">
-                {listaMeczow.map((m) => (
-                  <KartaMeczu
-                    key={m.id}
-                    mecz={m}
-                    druzynyPoId={druzynyPoId}
-                    meczePoId={meczePoId}
-                    arenyPoId={arenyPoId}
-                    przygaszona={czyWolnyLos(m)}
-                    onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
-                  />
-                ))}
+                {listaMeczow.map((m, i) => {
+                  // Przerwa w harmonogramie (konkurs, dekoracja) widać jako
+                  // przerwę, nie jako zagadkę „czemu następny mecz o 13:00".
+                  const przerwa = widokMeczow === 'najblizsze' && !tylkoNasze
+                    ? przerwaPrzedMeczem(listaMeczow[i - 1], m, turniej)
+                    : null;
+                  return (
+                    <div key={m.id} className="space-y-2">
+                      {przerwa && (
+                        <p className="py-1 text-center text-xs font-medium text-slate-400">
+                          Przerwa {przerwa.od}–{przerwa.do}
+                        </p>
+                      )}
+                      <KartaMeczu
+                        mecz={m}
+                        druzynyPoId={druzynyPoId}
+                        meczePoId={meczePoId}
+                        arenyPoId={arenyPoId}
+                        grupyPoId={grupyPoId}
+                        przygaszona={czyWolnyLos(m)}
+                        onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -999,11 +1023,39 @@ export default function TurniejClient() {
               <div key={grupa?.id ?? 'liga'} className="space-y-2">
                 {grupa && (
                   <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    Grupa {grupa.nazwa}
+                    Grupa {grupa.nazwa}{grupa.finalowa ? ' (finałowa)' : ''}
                   </h2>
                 )}
-                <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} />
-                {grupa && (
+                {grupa?.finalowa ? (
+                  <>
+                    {wiersze.length > 0 ? (
+                      <TabelaGrupy wiersze={wiersze} />
+                    ) : (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Drużyny wejdą tu po rozstrzygnięciu swoich grup.
+                      </p>
+                    )}
+                    <div className="space-y-2">
+                      {meczeGrupowe
+                        .filter((m) => m.grupaId === grupa.id)
+                        .sort(porownajTermin)
+                        .map((m) => (
+                          <KartaMeczu
+                            key={m.id}
+                            mecz={m}
+                            druzynyPoId={druzynyPoId}
+                            meczePoId={meczePoId}
+                            arenyPoId={arenyPoId}
+                            grupyPoId={grupyPoId}
+                            onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
+                          />
+                        ))}
+                    </div>
+                  </>
+                ) : (
+                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} />
+                )}
+                {grupa && !grupa.finalowa && (
                   <MeczeGrupy
                     mecze={meczeGrupowe.filter((m) => m.grupaId === grupa.id && rozegrany(m))}
                     druzynyPoId={druzynyPoId}
@@ -1035,6 +1087,7 @@ export default function TurniejClient() {
                   druzynyPoId={druzynyPoId}
                   meczePoId={meczePoId}
                   arenyPoId={arenyPoId}
+                  grupyPoId={grupyPoId}
                   onKlikMeczu={(meczId) => router.push(`/turnieje/${id}/mecz/${meczId}`)}
                 />
               </div>

@@ -5,7 +5,7 @@
 
 import { plural, withCount } from './plural';
 import { chwilaWPolsce } from '@/lib/czasPolski';
-import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej } from '@/types';
+import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej, TurniejMecz } from '@/types';
 
 export const STATUS_TURNIEJU: Record<TurniejStatus, { label: string; ton: string }> = {
   szkic:            { label: 'W przygotowaniu', ton: 'bg-slate-100 text-slate-600' },
@@ -110,12 +110,14 @@ export const STATUS_MECZU: Record<MeczStatus, { label: string; ton: string }> = 
 
 export const FORMAT_LABEL: Record<TurniejFormat, string> = {
   grupy_puchar: 'Grupy → puchar',
+  grupy_finalowa: 'Grupy → grupa finałowa',
   puchar:       'Puchar',
   liga:         'Liga',
 };
 
 export const FORMAT_OPIS: Record<TurniejFormat, string> = {
   grupy_puchar: 'Drużyny grają najpierw w grupach, dwie najlepsze z każdej awansują do drabinki pucharowej.',
+  grupy_finalowa: 'Drużyny grają najpierw w grupach, zwycięzcy grup grają potem każdy z każdym w grupie finałowej, która ustala podium.',
   puchar:       'Od razu drabinka pucharowa, przegrana kończy udział w turnieju.',
   liga:         'Każdy z każdym, bez fazy pucharowej, liczy się tylko tabela.',
 };
@@ -375,4 +377,42 @@ export function stanZapisowTurnieju(
       : undefined,
     poTerminie,
   };
+}
+
+/**
+ * Kolejność meczów na liście: po GODZINIE, a numer rozstrzyga tylko remis.
+ * Numer mówi, w jakiej kolejności mecze powstały, a przy ręcznie ułożonym
+ * harmonogramie (Luboń: mecz finałowy M24 o 14:10, zanim grupa C skończy)
+ * to godzina mówi, co jest następne. Mecz bez godziny idzie na koniec.
+ */
+export function porownajTermin(
+  a: Pick<TurniejMecz, 'zaplanowanyAt' | 'numer'>,
+  b: Pick<TurniejMecz, 'zaplanowanyAt' | 'numer'>,
+): number {
+  if (a.zaplanowanyAt && b.zaplanowanyAt && a.zaplanowanyAt !== b.zaplanowanyAt) {
+    return a.zaplanowanyAt < b.zaplanowanyAt ? -1 : 1;
+  }
+  if (a.zaplanowanyAt && !b.zaplanowanyAt) return -1;
+  if (!a.zaplanowanyAt && b.zaplanowanyAt) return 1;
+  return a.numer - b.numer;
+}
+
+/**
+ * Przerwa przed meczem, gdy odstęp od poprzedniego jest wyraźnie dłuższy niż
+ * zwykły slot (czas meczu + przerwa + 5 min zapasu). Zwraca godziny przerwy
+ * w czasie polskim, np. { od: '12:40', do: '13:00' }; `poprzedni` to mecz
+ * tuż przed nim na liście posortowanej `porownajTermin()`.
+ */
+export function przerwaPrzedMeczem(
+  poprzedni: Pick<TurniejMecz, 'zaplanowanyAt'> | undefined,
+  mecz: Pick<TurniejMecz, 'zaplanowanyAt'>,
+  opcje: { czasMeczuMin: number; przerwaMin: number },
+): { od: string; do: string } | null {
+  if (!poprzedni?.zaplanowanyAt || !mecz.zaplanowanyAt) return null;
+  const koniecPoprzedniego = new Date(poprzedni.zaplanowanyAt).getTime() + opcje.czasMeczuMin * 60_000;
+  const start = new Date(mecz.zaplanowanyAt).getTime();
+  const slotMin = opcje.czasMeczuMin + opcje.przerwaMin;
+  if (start - new Date(poprzedni.zaplanowanyAt).getTime() <= (slotMin + 5) * 60_000) return null;
+  const godzina = (ms: number) => chwilaWPolsce(new Date(ms).toISOString()).godzina.slice(0, 5);
+  return { od: godzina(koniecPoprzedniego), do: godzina(start) };
 }

@@ -55,7 +55,8 @@ export interface ZasadyGryProps {
 }
 
 export default function ZasadyGry({ format, wartosci, onChange, onZatwierdz, disabled }: ZasadyGryProps) {
-  const maTabele = format === 'liga' || format === 'grupy_puchar';
+  const maGrupy = format === 'grupy_puchar' || format === 'grupy_finalowa';
+  const maTabele = format === 'liga' || maGrupy;
   const maDrabinke = format === 'puchar' || format === 'grupy_puchar';
 
   const pole = (klucz: keyof typeof GRANICE_ZASAD, etykieta: string, jednostka?: string) => (
@@ -97,7 +98,7 @@ export default function ZasadyGry({ format, wartosci, onChange, onZatwierdz, dis
           {pole('punktyZaRemis', 'Punkty za remis')}
         </div>
       )}
-      {format === 'grupy_puchar' && pole('awansujeZGrupy', 'Ile drużyn wychodzi z grupy')}
+      {maGrupy && pole('awansujeZGrupy', format === 'grupy_finalowa' ? 'Ile drużyn z grupy gra w grupie finałowej' : 'Ile drużyn wychodzi z grupy')}
       {maDrabinke && (
         <label className="flex items-center gap-2.5 text-sm text-slate-700 dark:text-slate-300">
           <input

@@ -15,10 +15,11 @@ export interface DrabinkaProps {
   druzynyPoId: Map<string, string>;
   meczePoId: Map<string, TurniejMecz>;
   arenyPoId: Map<string, string>;
+  grupyPoId?: Map<string, string>;
   onKlikMeczu?: (meczId: string) => void;
 }
 
-export default function Drabinka({ mecze, druzynyPoId, meczePoId, arenyPoId, onKlikMeczu }: DrabinkaProps) {
+export default function Drabinka({ mecze, druzynyPoId, meczePoId, arenyPoId, grupyPoId, onKlikMeczu }: DrabinkaProps) {
   const rundy = new Map<number, TurniejMecz[]>();
   for (const m of mecze) {
     const k = m.kolejka ?? 1;
@@ -48,6 +49,7 @@ export default function Drabinka({ mecze, druzynyPoId, meczePoId, arenyPoId, onK
                 druzynyPoId={druzynyPoId}
                 meczePoId={meczePoId}
                 arenyPoId={arenyPoId}
+                grupyPoId={grupyPoId}
                 przygaszona={czyWolnyLos(m)}
                 onClick={onKlikMeczu ? () => onKlikMeczu(m.id) : undefined}
               />

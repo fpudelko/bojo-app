@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-11 · migracja `174` · 59 tabel
+**Stan na:** 2026-11-18 · migracja `175` · 59 tabel
 
 ---
 
@@ -263,7 +263,7 @@ po każdym meczu. Nic z tego nie liczy tabeli ani statystyk automatycznie, a dru
 widzą planu na bieżąco.
 
 **Rozwiązanie w Bojo.** Organizator zakłada turniej (`/turnieje/nowe`), ustala format
-(grupy + puchar, sam puchar albo liga), liczbę drużyn, maksymalny skład, liczbę boisk,
+(grupy + puchar, grupy + grupa finałowa, sam puchar albo liga), liczbę drużyn, maksymalny skład, liczbę boisk,
 wpisowe i ZASADY GRY (czas meczu, przerwa, punkty za wygraną i remis, ile drużyn wychodzi
 z grupy, mecz o 3. miejsce). Wszystko to organizator zmienia później w panelu, a każdy
 zapis potwierdza komunikat „Zapisano”. Może podać
@@ -281,8 +281,13 @@ wskazuje organizator przyciskiem „Ustaw kapitanem” przy zawodniku z kontem.
 Organizator losuje grupy albo ustawia je ręcznie i może przenieść drużynę do innej grupy
 po losowaniu. Generuje terminarz jednym przyciskiem (rozkłada mecze na dostępne
 areny/boiska bez kolizji drużyny w jednym slocie), a w podglądzie pucharu zamienia
-miejscami dwie drużyny pierwszej rundy dotknięciem. Godziny w terminarzu są orientacyjne
-i niczego nie uruchamiają same. Obok „Rozpocznij turniej” stoi „Przetestuj”: kopia turnieju
+miejscami dwie drużyny pierwszej rundy dotknięciem. Przy formatach z grupami terminarz
+od razu zawiera kolejną fazę: mecze drabinki albo grupy finałowej z podpisem „Zwycięzca A”
+czy „2. miejsce B”, a Bojo wpisuje w nie drużyny samo, gdy grupa rozegra ostatni mecz.
+Organizator przepisuje godziny meczów ręcznie („Zmień godziny” w terminarzu panelu), więc
+odwzoruje harmonogram z przerwą na konkurs czy meczem finałowym wplecionym między mecze
+grup; lista meczów układa się po godzinie i pokazuje przerwy. Godziny w terminarzu są
+orientacyjne i niczego nie uruchamiają same. Obok „Rozpocznij turniej” stoi „Przetestuj”: kopia turnieju
 z tym samym terminarzem, od razu w trakcie, w której organizator ćwiczy wpisywanie wyników;
 prawdziwy turniej i zawodnicy niczego z niej nie widzą. Turniej startuje, gdy organizator kliknie „Rozpocznij turniej"
 w pulpicie panelu (warunek: gotowy terminarz; data i godzina startu nie są sprawdzane),
@@ -295,7 +300,9 @@ jest „Prowadź mecz na żywo": „Rozpocznij",
 dwa wielkie przyciski „GOL" (po jednym na drużynę), a po dotknięciu arkusz ze składem
 — kto strzelił, jednym dotknięciem (asysty Bojo nie zbiera). Nad wynikiem
 tyka zegar meczu liczony od pierwszego gwizdka (bez pauzy, świadomie). Są też „Cofnij
-ostatnie", walkower dla drużyny, która nie dojechała, „Zakończ" (karne przy remisie
+ostatnie", walkower dla drużyny, która nie dojechała, „Popraw wynik” przy rozegranym meczu
+(wynik wraca do wpisania, a kolejny mecz zależny od niego czeka na nowy wynik; Bojo odmawia,
+gdy tamten mecz już się zaczął), „Zakończ" (karne przy remisie
 w fazie pucharowej) i karta „następny na tej arenie", która prowadzi wprost do kolejnego
 meczu. W dniu turnieju strona odświeża się sama co 20 sekund, a nad zakładkami stoi
 tablica „Na żywo" z wynikiem każdego trwającego meczu i jego boiskiem. Zawodnicy dostają
@@ -473,6 +480,26 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-11-18 — Turniej z grupą finałową, ręczne godziny meczów i „Popraw wynik”
+
+PROBLEM: turniej charytatywny w Luboniu (15 drużyn, trzy grupy, jedno boisko, 33 mecze)
+ma harmonogram, którego Bojo nie umiało odwzorować: zwycięzcy grup grają o podium każdy
+z każdym w grupie finałowej, a godziny mają przerwę na konkurs i dekorację. Fazę po grupach
+trzeba było dopisywać ręcznie, a pomyłki w wpisanym wyniku nie dało się poprawić.
+
+ROZWIĄZANIE BOJO: nowy format „Grupy → grupa finałowa”. Terminarz formatów z grupami od
+razu zawiera kolejną fazę z podpisami „Zwycięzca A”, „2. miejsce B”; Bojo wpisuje drużyny,
+gdy grupa skończy grać, a podium grupy finałowej daje jej tabela. Organizator ustawia
+godzinę każdego meczu („Zmień godziny”), listy meczów idą po godzinie z widoczną przerwą.
+„Popraw wynik” na stronie rozegranego meczu otwiera go do ponownego wpisania.
+
+MECHANIKA: migracja `175` (format `grupy_finalowa`, `turniej_grupy.finalowa`, źródła
+`zrodlo_*_grupa_id`/`zrodlo_*_miejsce`, `kolejnosc_w_grupie()`, `wypelnij_z_grupy()`,
+`cofnij_wynik_meczu()`), `drabinkaZGrup()` i `grupaFinalowaZGrup()` w `lib/turniejFormat.ts`,
+`porownajTermin()` i `przerwaPrzedMeczem()` w `lib/turniejEtykiety.ts`,
+`cofnijWynikMeczu()` w `lib/turniejMecze.ts`, `PanelClient.tsx`, `TurniejClient.tsx`,
+`MeczClient.tsx`, `KartaMeczu.tsx`. Szczegóły → [funkcje.md](./funkcje.md).
 
 ### 2026-11-11 — Godziny meczów turnieju w czasie polskim, spójne zapisy, widok zawodnika
 
@@ -684,24 +711,3 @@ MECHANIKA: `stanPodgladu()` w `app/wydarzenia/[id]/eventMeta.ts` (używana przez
 `tekstZaproszeniaGoscia()`/`udostepnijZaproszenieGoscia()` w `lib/guestClaim.ts`,
 `TwojaPlatnosc.tsx` (nowy prop `metodyMeczu`). Bez migracji.
 Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-3, Z-4, Z-6.
-
-### 2026-09-27 (3) — Gry cykliczne usunięte całkowicie
-
-PROBLEM: moduł gier cyklicznych (szablon meczu powtarzanego co tydzień, „stała gierka")
-stał wyłączony flagą od 2026-08-16 — kod, tabele i strony zarządzania zostawały w
-repozytorium, mimo że nikt nie miał do nich wejścia. Właściciel zdecydował: to nie ma
-wrócić, więc trzymanie martwego kodu i dwóch tabel bez czytelnika nie broni niczego.
-
-ROZWIĄZANIE BOJO: cały moduł usunięty z kodu i z bazy — szablon meczu cyklicznego,
-lista zaproszeń, panel zarządzania serią, kreator ustawień powtarzania w kreatorze
-meczu. Strony `/cykliczne` i `/cykliczne/[id]` zostają na jeden release jako gołe
-przekierowania na „Moje gry", żeby stary link czy zakładka na telefonie nie kończyły
-się błędem 404. Mecze, które kiedyś były terminami serii, zostają zwykłymi meczami —
-nic w ich składzie, wyniku ani rozliczeniu się nie zmienia. Data-matematyka
-współdzielona z niezależną funkcją „Powtórz mecz" (ten sam dzień tygodnia i godzina,
-pierwszy raz w przyszłości) zostaje.
-
-MECHANIKA: migracje `166` (odpięcie: cron, dwie funkcje spoza modułu, które go
-czytały) i `167` (usunięcie: `DROP TABLE`/`DROP COLUMN`, wymaga ręcznego kliknięcia
-w Actions → Migracje). `lib/recurring.ts` zostaje wyłącznie z matematyką dat.
-

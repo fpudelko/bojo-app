@@ -4,6 +4,7 @@
 import { MapPin } from 'lucide-react';
 import { FAZA_LABEL, STATUS_MECZU, etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
 import { czyWolnyLos, stronaZwyciezcy } from '@/lib/turniejWynik';
+import { nazwaMiejscaWGrupie } from '@/lib/turniejFormat';
 import type { TurniejMecz } from '@/types';
 
 function nazwaSlotu(
@@ -11,9 +12,18 @@ function nazwaSlotu(
   strona: 'a' | 'b',
   druzynyPoId: Map<string, string>,
   meczePoId: Map<string, TurniejMecz>,
+  grupyPoId?: Map<string, string>,
 ): string {
   const druzynaId = strona === 'a' ? mecz.druzynaAId : mecz.druzynaBId;
   if (druzynaId) return druzynyPoId.get(druzynaId) ?? '-';
+
+  // Miejsce z grupy (175): „Zwycięzca A", dopóki grupa A się nie rozstrzygnie.
+  const grupaId = strona === 'a' ? mecz.zrodloAGrupaId : mecz.zrodloBGrupaId;
+  const miejsce = strona === 'a' ? mecz.zrodloAMiejsce : mecz.zrodloBMiejsce;
+  if (grupaId && miejsce) {
+    const nazwaGrupy = grupyPoId?.get(grupaId);
+    return nazwaGrupy ? nazwaMiejscaWGrupie(nazwaGrupy, miejsce) : `${miejsce}. miejsce w grupie`;
+  }
 
   const zrodloId = strona === 'a' ? mecz.zrodloAMeczId : mecz.zrodloBMeczId;
   const zrodloTyp = strona === 'a' ? mecz.zrodloATyp : mecz.zrodloBTyp;
@@ -28,18 +38,20 @@ export interface KartaMeczuProps {
   druzynyPoId: Map<string, string>;
   meczePoId: Map<string, TurniejMecz>;
   arenyPoId: Map<string, string>;
+  /** Nazwy grup po id: podpis „Zwycięzca A" przy miejscu z grupy. */
+  grupyPoId?: Map<string, string>;
   /** Wyszarza kartę — używane dla wolnych losów bez czasu w terminarzu. */
   przygaszona?: boolean;
   onClick?: () => void;
 }
 
-export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, przygaszona, onClick }: KartaMeczuProps) {
+export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, grupyPoId, przygaszona, onClick }: KartaMeczuProps) {
   // Wolny los to nie walkower: nikt nie przyszedł, bo nie miał kto. Karta
   // mówiła wcześniej „Walkower · Chaos United 0:0 TBD", co organizator
   // przeczytał jako mecz, który już się odbył (turniej pokazowy, 2026-11-08).
   const wolnyLos = czyWolnyLos(mecz);
-  const nazwaA = wolnyLos && !mecz.druzynaAId ? 'awans bez gry' : nazwaSlotu(mecz, 'a', druzynyPoId, meczePoId);
-  const nazwaB = wolnyLos && !mecz.druzynaBId ? 'awans bez gry' : nazwaSlotu(mecz, 'b', druzynyPoId, meczePoId);
+  const nazwaA = wolnyLos && !mecz.druzynaAId ? 'awans bez gry' : nazwaSlotu(mecz, 'a', druzynyPoId, meczePoId, grupyPoId);
+  const nazwaB = wolnyLos && !mecz.druzynaBId ? 'awans bez gry' : nazwaSlotu(mecz, 'b', druzynyPoId, meczePoId, grupyPoId);
   const status = wolnyLos ? { label: 'Wolny los', ton: 'bg-slate-100 text-slate-500' } : STATUS_MECZU[mecz.status];
   const rozegrany = !wolnyLos && (mecz.status === 'zakonczony' || mecz.status === 'walkower' || mecz.status === 'trwa');
   // Ten sam zapis terminu co wszędzie indziej w module (`etykietaTerminu`).

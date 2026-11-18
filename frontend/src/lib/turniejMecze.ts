@@ -9,7 +9,7 @@ import type { TurniejArena, TurniejGrupa, TurniejMecz, TurniejZdarzenie, Zdarzen
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toGrupa(row: any): TurniejGrupa {
-  return { id: row.id, turniejId: row.turniej_id, nazwa: row.nazwa };
+  return { id: row.id, turniejId: row.turniej_id, nazwa: row.nazwa, finalowa: row.finalowa === true };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,6 +39,10 @@ function toMecz(row: any): TurniejMecz {
     zrodloBMeczId: row.zrodlo_b_mecz_id ?? undefined,
     zrodloATyp: row.zrodlo_a_typ ?? undefined,
     zrodloBTyp: row.zrodlo_b_typ ?? undefined,
+    zrodloAGrupaId: row.zrodlo_a_grupa_id ?? undefined,
+    zrodloAMiejsce: row.zrodlo_a_miejsce ?? undefined,
+    zrodloBGrupaId: row.zrodlo_b_grupa_id ?? undefined,
+    zrodloBMiejsce: row.zrodlo_b_miejsce ?? undefined,
     arenaId: row.arena_id ?? undefined,
     zaplanowanyAt: row.zaplanowany_at ?? undefined,
     prowadzacyId: row.prowadzacy_id ?? undefined,
@@ -70,10 +74,10 @@ export async function getGrupy(turniejId: string): Promise<TurniejGrupa[]> {
   return (data ?? []).map(toGrupa);
 }
 
-export async function dodajGrupe(turniejId: string, nazwa: string): Promise<TurniejGrupa> {
+export async function dodajGrupe(turniejId: string, nazwa: string, finalowa = false): Promise<TurniejGrupa> {
   const { data, error } = await supabase
     .from('turniej_grupy')
-    .insert({ turniej_id: turniejId, nazwa })
+    .insert({ turniej_id: turniejId, nazwa, ...(finalowa ? { finalowa: true } : {}) })
     .select('*')
     .single();
   if (error) throw new Error(error.message);
@@ -155,6 +159,10 @@ function doPayloadu(m: NowyMecz): Record<string, unknown> {
     zrodloBMeczId: m.zrodloBMeczId ?? null,
     zrodloATyp: m.zrodloATyp ?? null,
     zrodloBTyp: m.zrodloBTyp ?? null,
+    zrodloAGrupaId: m.zrodloAGrupaId ?? null,
+    zrodloAMiejsce: m.zrodloAMiejsce ?? null,
+    zrodloBGrupaId: m.zrodloBGrupaId ?? null,
+    zrodloBMiejsce: m.zrodloBMiejsce ?? null,
     arenaId: m.arenaId ?? null,
     zaplanowanyAt: m.zaplanowanyAt ?? null,
     status: m.status ?? 'zaplanowany',
@@ -434,4 +442,16 @@ export async function wpiszWynikZeStrzelcami(
     if (error) throw new Error(error.message);
   }
   await zakonczMecz(meczId, { karneA: wynik.karneA, karneB: wynik.karneB });
+}
+
+/**
+ * „Popraw wynik" (175): otwiera rozstrzygnięty mecz do ponownego wpisania.
+ * Baza odmawia, gdy mecz zależny (kolejna runda, grupa finałowa) już ruszył.
+ * Wynik wpisuje się potem tą samą drogą co za pierwszym razem, więc
+ * propagacja do drabinki i grupy finałowej idzie tymi samymi wyzwalaczami.
+ */
+export async function cofnijWynikMeczu(meczId: string): Promise<void> {
+  const { error } = await supabase.rpc('cofnij_wynik_meczu', { p_mecz: meczId });
+  if (error) throw new Error(error.message);
+  track('turniej_wynik_poprawiony', { meczId });
 }

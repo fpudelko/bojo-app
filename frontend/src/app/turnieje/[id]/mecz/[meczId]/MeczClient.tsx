@@ -15,13 +15,14 @@ import { getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
 import {
   getMecz, getMecze, getAreny, getZdarzenia, dodajZdarzenie, cofnijOstatnieZdarzenie,
   rozpocznijMecz, zakonczMecz, updateMecz, czyProwadziMecz, walkowerMeczu, wpiszWynikMeczu,
-  wpiszWynikZeStrzelcami,
+  wpiszWynikZeStrzelcami, cofnijWynikMeczu, getGrupy,
 } from '@/lib/turniejMecze';
 import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
-  czasGry, poCzasie,
+  czasGry, poCzasie, czyWolnyLos,
 } from '@/lib/turniejWynik';
 import { FAZA_LABEL, STATUS_MECZU, etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
+import { nazwaMiejscaWGrupie } from '@/lib/turniejFormat';
 import ArkuszSkladu from '@/components/turnieje/ArkuszSkladu';
 import type { Turniej, TurniejMecz, TurniejDruzyna, TurniejArena, TurniejZdarzenie, ZdarzenieTyp } from '@/types';
 
@@ -75,13 +76,16 @@ export default function MeczClient() {
   // Strzelcy wskazani przy szybkim wyniku: opcjonalni (2026-11-08).
   const [strzelcyWpis, setStrzelcyWpis] = useState<{ a: string[]; b: string[] }>({ a: [], b: [] });
   const [zapisujeWynik, setZapisujeWynik] = useState(false);
+  const [nazwyGrup, setNazwyGrup] = useState<Map<string, string>>(new Map());
 
   const wczytaj = useCallback(async () => {
     const m = await getMecz(meczId);
     if (!m) { setNotFound(true); return; }
-    const [t, d, a, z, p] = await Promise.all([
+    const [t, d, a, z, p, g] = await Promise.all([
       getTurniej(id), getDruzynyZeSkladem(id), getAreny(id), getZdarzenia(meczId), czyProwadziMecz(meczId),
+      getGrupy(id),
     ]);
+    setNazwyGrup(new Map(g.map((x) => [x.id, x.nazwa])));
     setMecz(m);
     setTurniej(t);
     setDruzyny(d);
@@ -158,7 +162,13 @@ export default function MeczClient() {
   // Godzina meczu w terminarzu NIE jest sprawdzana: kolejność i tempo gry
   // ustala organizator na boisku (decyzja właściciela z 2026-11-08).
   const turniejTrwa = turniej?.status === 'trwa';
-  const mozeZaczac = mecz.status === 'zaplanowany' && obieDruzynyZnane && turniejTrwa;
+  // Po „Popraw wynik" mecz wraca do planu także w turnieju już zakończonym,
+  // więc formularz wyniku musi się wtedy pokazać, inaczej poprawka utknęłaby
+  // w połowie.
+  const mozeZaczac = mecz.status === 'zaplanowany' && obieDruzynyZnane
+    && (turniejTrwa || turniej?.status === 'zakonczony');
+  const mozePoprawic = prowadzi && (mecz.status === 'zakonczony' || mecz.status === 'walkower')
+    && !czyWolnyLos(mecz);
   const wszyscyZawodnicy = [...(druzynaA?.zawodnicy ?? []), ...(druzynaB?.zawodnicy ?? [])];
   const skladDruzyny = (druzynaId: string) =>
     (druzynaId === mecz.druzynaAId ? druzynaA?.zawodnicy : druzynaB?.zawodnicy) ?? [];
@@ -166,6 +176,13 @@ export default function MeczClient() {
     (druzynaId === mecz.druzynaAId ? druzynaA?.nazwa : druzynaB?.nazwa) ?? 'drużyna';
   /** Następny mecz na arenie gra INNYMI drużynami niż ten — nazwa musi przyjść
    *  z pełnej listy, nie z dwóch drużyn tego meczu. */
+  /** „Zwycięzca A" zamiast „TBD", dopóki grupa się nie rozstrzygnie (175). */
+  const slotZGrupy = (strona: 'a' | 'b') => {
+    const grupaId = strona === 'a' ? mecz.zrodloAGrupaId : mecz.zrodloBGrupaId;
+    const miejsce = strona === 'a' ? mecz.zrodloAMiejsce : mecz.zrodloBMiejsce;
+    const nazwa = grupaId ? nazwyGrup.get(grupaId) : undefined;
+    return nazwa && miejsce ? nazwaMiejscaWGrupie(nazwa, miejsce) : 'TBD';
+  };
   const nazwaDruzynyZListy = (druzynaId?: string) =>
     (druzynaId ? druzyny.find((d) => d.id === druzynaId)?.nazwa : undefined) ?? 'TBD';
 
@@ -250,7 +267,7 @@ export default function MeczClient() {
       konsekwencje: [
         `${nazwaZwyciezcy} wygrywa bez gry`,
         'Wynik zostaje 0:0, a drużyna dostaje trzy punkty',
-        'Tego nie da się cofnąć',
+        'Pomyłkę cofniesz przyciskiem „Popraw wynik”',
       ],
       potwierdzLabel: 'Wpisz walkower',
       wariant: 'destrukcyjny',
@@ -362,6 +379,39 @@ export default function MeczClient() {
     }
   };
 
+  // POPRAW WYNIK (Luboń, 2026-11-18). Do tej pory pomyłka w wyniku była
+  // nieodwracalna, a na turnieju z jednym boiskiem i 33 meczami ktoś w końcu
+  // wpisze 2:1 zamiast 1:2. Baza (`cofnij_wynik_meczu()`, migracja 175)
+  // otwiera mecz od nowa i cofa drużynę z kolejnej rundy albo grupy
+  // finałowej; odmawia, gdy tamten mecz już się zaczął. Nowy wynik idzie
+  // tą samą drogą co pierwszy, więc tabela i drabinka liczą się same.
+  const poprawWynikAkcja = async () => {
+    const zalezne = meczPucharowy || !!turniej?.format?.startsWith('grupy');
+    const wynik = await potwierdz({
+      tytul: 'Poprawić wynik tego meczu?',
+      konsekwencje: [
+        `Wynik ${mecz.wynikA}:${mecz.wynikB} zniknie, a mecz wróci do wpisania`,
+        'Strzelcy i zawodnik meczu z tego meczu też znikną',
+        ...(zalezne ? ['Kolejny mecz zależny od tego wyniku poczeka na nowy wynik'] : []),
+      ],
+      potwierdzLabel: 'Popraw wynik',
+    });
+    if (wynik !== 'tak') return;
+    const stary = { a: mecz.wynikA, b: mecz.wynikB, karneA: mecz.karneA, karneB: mecz.karneB };
+    try {
+      await cofnijWynikMeczu(meczId);
+      setWpisA(stary.a);
+      setWpisB(stary.b);
+      setKarneA(stary.karneA ?? 0);
+      setKarneB(stary.karneB ?? 0);
+      setStrzelcyWpis({ a: [], b: [] });
+      await wczytaj();
+      toast('Wpisz poprawny wynik');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się otworzyć wyniku do poprawy', 'error');
+    }
+  };
+
   const zakonczMeczAkcja = async () => {
     if (wymagaKarnych && karneA === karneB) {
       toast('Wpisz różne wyniki karnych, remis w tej fazie musi mieć rozstrzygnięcie', 'error');
@@ -449,7 +499,7 @@ export default function MeczClient() {
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">
-              {druzynaA?.nazwa ?? 'TBD'}
+              {druzynaA?.nazwa ?? slotZGrupy('a')}
             </span>
             {/* Przed pierwszym gwizdkiem „0:0" wyglądało jak wynik (audyt 6). */}
             {mecz.status === 'zaplanowany' ? (
@@ -458,7 +508,7 @@ export default function MeczClient() {
               <span className="shrink-0 font-mono text-2xl font-bold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
             )}
             <span className="min-w-0 flex-1 truncate text-right text-base font-semibold text-ink">
-              {druzynaB?.nazwa ?? 'TBD'}
+              {druzynaB?.nazwa ?? slotZGrupy('b')}
             </span>
           </div>
           {/* ZEGAR MECZU. Prowadzący pilnuje „2×10 minut" — dotąd stoperem
@@ -614,7 +664,7 @@ export default function MeczClient() {
               Zapisz wynik {wpisA}:{wpisB}
             </Button>
             <p className="text-xs text-slate-400">
-              {meczPucharowy ? 'Zwycięzca przejdzie do kolejnej rundy. ' : ''}Wyniku nie da się później cofnąć.
+              {meczPucharowy ? 'Zwycięzca przejdzie do kolejnej rundy. ' : ''}Pomyłkę poprawisz później przyciskiem „Popraw wynik”.
             </p>
           </div>
         )}
@@ -756,7 +806,7 @@ export default function MeczClient() {
                   </details>
                 )}
                 <div className="rounded-lg bg-slate-50 dark:bg-slate-700/40 px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
-                  Wyniku nie da się później cofnąć.
+                  Pomyłkę poprawisz później przyciskiem „Popraw wynik”.
                   {/* Zdanie o kolejnej rundzie tylko w meczu PUCHAROWYM.
                       Wcześniej stało wszędzie z dopiskiem „(jeśli to mecz
                       drabinki)", czyli aplikacja pytała prowadzącego o coś,
@@ -770,6 +820,12 @@ export default function MeczClient() {
               </div>
             )}
           </div>
+        )}
+
+        {mozePoprawic && (
+          <Button variant="outline" onClick={poprawWynikAkcja} className="w-full">
+            Popraw wynik
+          </Button>
         )}
 
         {zdarzenia.length > 0 && !setowy && (

@@ -4958,6 +4958,37 @@ sformatowaną przez system; zostaje wysyłka i link do skopiowania.
 
 ---
 
+### Harmonogram turnieju w Luboniu (2026-11-18, migracja `175`)
+
+Turniej „Gramy dla Marysi” (28.11.2026): 15 drużyn w grupach A, B, C po pięć, jedno
+boisko, mecze 12 min + 2 min zmiany, 33 mecze. Zwycięzcy grup grają każdy z każdym
+w grupie finałowej F, która ustala podium; mecz finałowy A–B (M24) jest wpleciony między
+mecze grupy C, a w harmonogramie są przerwy (konkurs obijania poprzeczki, dekoracja).
+
+- **Format „Grupy → grupa finałowa” (`grupy_finalowa`).** W kreatorze i w Ustawieniach.
+  Pole „Ile drużyn z grupy gra w grupie finałowej” (`awansuje_z_grupy`). Grupa finałowa
+  (`turniej_grupy.finalowa`, nazwa „F”) powstaje sama przy „Wygeneruj terminarz”; nie ma
+  przypisanych drużyn i nie pokazuje się w losowaniu grup.
+- **Kolejna faza od razu w terminarzu** — także w „Grupy → puchar” (audyt 5, N1).
+  `drabinkaZGrup()` rozstawia najpierw pierwsze miejsca, potem drugie, unikając rewanżu
+  z grupy w pierwszej rundzie; wolny los nie jest meczem, miejsce z grupy wchodzi wprost
+  do drugiej rundy. `grupaFinalowaZGrup()` układa „każdy z każdym” awansujących. Mecze
+  niosą źródło „miejsce w grupie”, karta pokazuje „Zwycięzca A” / „2. miejsce B”
+  (`nazwaMiejscaWGrupie()`), a baza wpisuje drużyny, gdy grupa rozegra ostatni mecz
+  (`wypelnij_z_grupy()`, [domena.md](./domena.md#turniej-miejsca-z-grup-i-grupa-finałowa-175)).
+- **Ręczne godziny.** Panel → Terminarz → „Zmień godziny”: pole godziny przy każdym
+  zaplanowanym meczu, zapis jednym przyciskiem z potwierdzeniem „Zapisano godziny (N meczów)”.
+  Dzień zostaje dotychczasowy. Listy meczów (panel, Mecze na stronie turnieju, grupa
+  finałowa) idą po godzinie (`porownajTermin()`), a odstęp dłuższy niż slot + 5 min
+  pokazuje się jako „Przerwa 12:38–13:00” (`przerwaPrzedMeczem()`).
+- **Tabela grupy finałowej** liczy się z drużyn, które stoją w jej meczach; pod nią
+  karty jej meczów. Podium formatu `grupy_finalowa` bierze jej tabelę.
+- **„Popraw wynik”** na stronie rozegranego meczu (także walkowera, nie wolnego losu)
+  dla zarządzającego: potwierdzenie, `cofnij_wynik_meczu()`, formularz wyniku z poprzednim
+  wynikiem do poprawy. Działa także w turnieju zakończonym. Odmawia, gdy mecz zależny
+  (kolejna runda, grupa finałowa) już się zaczął. Zdania „Wyniku nie da się później
+  cofnąć” zastąpiło „Pomyłkę poprawisz później przyciskiem „Popraw wynik””.
+
 ### Poprawki po audycie 7 (2026-11-11, migracja `174`)
 
 Raport → [turnieje-plan-po-audycie-5.md](./turnieje-plan-po-audycie-5.md), sekcja 5a.
