@@ -44,18 +44,24 @@ export default function KartaDruzyny({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <span className="block truncate font-medium text-ink">{d.nazwa}</span>
+            {/* Pełna nazwa w dwóch liniach, jak w tabeli i karcie meczu
+                (audyt wyglądu 2026-11-19: „Unilink Szamotuły & Me…”). */}
+            <span className="block line-clamp-2 break-words font-medium leading-snug text-ink">{d.nazwa}</span>
             {zalogowany && d.liczbaZawodnikow !== undefined && (
               <span className="text-xs text-slate-400">{odmienZawodnikow(d.liczbaZawodnikow)}</span>
             )}
           </div>
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
+          {/* „W turnieju” przy każdej z 15 drużyn nie mówi nic: plakietka
+              zostaje tylko tam, gdzie status się różni. */}
+          {d.status !== 'przyjeta' && (
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
+          )}
         </Link>
         <button
           onClick={() => setRozwinieta((v) => !v)}
           aria-expanded={rozwinieta}
           aria-label={rozwinieta ? 'Ukryj skład' : 'Pokaż skład'}
-          className="flex shrink-0 items-center px-3 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/40"
+          className="flex w-11 shrink-0 items-center justify-center text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/40"
         >
           <ChevronDown className={`h-4 w-4 transition-transform ${rozwinieta ? 'rotate-180' : ''}`} />
         </button>

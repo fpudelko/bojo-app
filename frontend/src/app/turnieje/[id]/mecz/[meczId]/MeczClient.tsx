@@ -508,7 +508,7 @@ export default function MeczClient() {
           <div className="flex items-center justify-between">
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
             {(mecz.zaplanowanyAt || arena) && (
-              <div className="flex items-center gap-2 text-xs text-slate-400">
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                 {/* Termin obok boiska: przed startem było widać samo „Boisko 1"
                     (audyt 5, N9). */}
                 {mecz.zaplanowanyAt && mecz.status === 'zaplanowany' && (
@@ -519,7 +519,7 @@ export default function MeczClient() {
             )}
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">
+            <span className="min-w-0 flex-1 line-clamp-2 break-words text-xl font-semibold leading-7 text-ink sm:text-2xl">
               {druzynaA?.nazwa ?? slotZGrupy('a')}
             </span>
             {/* Przed pierwszym gwizdkiem „0:0" wyglądało jak wynik (audyt 6). */}
@@ -528,7 +528,7 @@ export default function MeczClient() {
             ) : (
               <span className="shrink-0 font-mono text-2xl font-bold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
             )}
-            <span className="min-w-0 flex-1 truncate text-right text-base font-semibold text-ink">
+            <span className="min-w-0 flex-1 line-clamp-2 break-words text-right text-xl font-semibold leading-7 text-ink sm:text-2xl">
               {druzynaB?.nazwa ?? slotZGrupy('b')}
             </span>
           </div>

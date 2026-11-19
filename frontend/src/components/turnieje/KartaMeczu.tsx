@@ -88,27 +88,31 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, gr
         przygaszona ? 'opacity-60' : '',
       ].join(' ')}
     >
-      <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
+      {/* Tekst pomocniczy slate-500 / dark slate-300: przy slate-400 numer
+          i godzina miały 2,6:1 (audyt wyglądu 2026-11-19, minimum AA 4,5:1). */}
+      <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-300">
         <span>M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}</span>
         <span className={`rounded-full px-2 py-0.5 font-medium ${status.ton}`}>{status.label}</span>
       </div>
       <div className="mt-2 flex items-center justify-between gap-3">
         {/* Dwie linie zamiast wielokropka: „Unilink Szamotuły & MedKomplex”
             ucięte do „Unilink Sza…” nie da się rozpoznać przy boisku (F4). */}
-        <span className={`min-w-0 flex-1 line-clamp-2 break-words text-sm ${tonDruzyny('a')}`}>{nazwaA}</span>
+        <span className={`min-w-0 flex-1 line-clamp-2 break-words text-base leading-snug ${tonDruzyny('a')}`}>{nazwaA}</span>
         {rozegrany ? (
           <span className="shrink-0 text-center">
-            <span className="block font-mono text-sm font-semibold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
+            <span className="block font-mono text-base font-semibold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
             {karne && <span className="block font-mono text-[10px] leading-tight text-slate-400">{karne}</span>}
           </span>
         ) : wolnyLos ? null : (
-          <span className="shrink-0 text-xs text-slate-400">vs</span>
+          <span className="shrink-0 text-xs text-slate-500 dark:text-slate-300">vs</span>
         )}
-        <span className={`min-w-0 flex-1 line-clamp-2 break-words text-right text-sm ${tonDruzyny('b')}`}>{nazwaB}</span>
+        <span className={`min-w-0 flex-1 line-clamp-2 break-words text-right text-base leading-snug ${tonDruzyny('b')}`}>{nazwaB}</span>
       </div>
       {(godzina || arena) && (
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-          {godzina && <span>{godzina}</span>}
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-300">
+          {/* Godzina to na hali najważniejsza informacja karty, ważniejsza niż
+              powtarzalne „Zaplanowany”. */}
+          {godzina && <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{godzina}</span>}
           {arena && (
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3 w-3" /> {arena}

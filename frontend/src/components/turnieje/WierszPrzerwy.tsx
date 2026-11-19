@@ -16,8 +16,11 @@ export interface WierszPrzerwyProps {
 export default function WierszPrzerwy({ od, do: doGodz, nazwa, opis, akcja }: WierszPrzerwyProps) {
   if (!nazwa) {
     return (
-      <div className="flex items-center justify-center gap-2 py-1 text-xs font-medium text-slate-400">
-        <span>Przerwa {od}–{doGodz}</span>
+      // Szary pas osi programu zamiast drobnego wiersza, który łatwo
+      // przeoczyć w długiej liście (audyt wyglądu 2026-11-19).
+      <div className="flex items-center gap-2 rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+        <Coffee className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <span className="flex-1">Przerwa {od}–{doGodz}</span>
         {akcja && (
           <button type="button" onClick={akcja.onClick} className="font-medium text-primary-600">
             {akcja.etykieta}
