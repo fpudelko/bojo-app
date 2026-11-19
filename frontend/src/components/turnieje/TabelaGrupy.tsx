@@ -32,7 +32,7 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy }: TabelaGrupyProp
     <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-100 dark:border-slate-700 text-xs text-slate-400">
+          <tr className="border-b border-slate-100 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-300">
             <th className="px-2 py-2 text-left font-medium">#</th>
             <th className="px-2 py-2 text-left font-medium">Drużyna</th>
             <th className="px-1.5 py-2 text-center font-medium" title="Mecze">M</th>
@@ -63,7 +63,7 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy }: TabelaGrupyProp
               >
                 {i + 1}
               </td>
-              <td className="min-w-0 max-w-[9rem] break-words px-2 py-2 font-medium leading-tight text-ink">
+              <td className="min-w-0 max-w-[9rem] break-words px-2 py-2.5 font-medium leading-5 text-ink">
                 {w.nazwa}
                 {w.rozstrzygnietyRecznie && <span className="ml-1 text-xs text-slate-400" title="Pozycja ustawiona ręcznie">*</span>}
               </td>

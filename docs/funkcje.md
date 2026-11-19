@@ -4999,6 +4999,14 @@ odstęp z nazwaną przerwą nie dostaje już gołego „Przerwa”, a przerwa po
 nasze” same nazwane) oraz lista „Przerwy w programie” na zakładce Info
 (`components/turnieje/WierszPrzerwy.tsx`). „Przetestuj” kopiuje przerwy.
 
+**Audyt wyglądu (2026-11-19, bez migracji).** Tekst pomocniczy kart meczów, tabel
+i Info `slate-500` / dark `slate-300` (było `slate-400`, ok. 2,6:1); nazwy drużyn na karcie
+16 px, godzina 14 px semibold; tytuł turnieju 20/24 px; zakładki, „Wróć”, „Udostępnij”,
+„Nawiguj” i strzałka składu mają cel dotyku 44 px; opis turnieju 16/24 px, do ~65 znaków;
+nazwy w „Drużyny” w dwóch liniach, bez plakietki „W turnieju” przy przyjętych; przerwa
+wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek strony meczu
+20/24 px. Usunięte powtórzenia: opis formatu w zasadach i licznik drużyn na zakładce Drużyny.
+
 **Poprawki po audycie kopii (2026-11-18, bez migracji):**
 - F1: przerwa pokazuje się, gdy odstęp przekracza slot o więcej niż 2 min (było 5),
   więc widać też odpoczynek 16:22–16:27.

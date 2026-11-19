@@ -499,12 +499,12 @@ export default function TurniejClient() {
       <Header />
       <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-          <button onClick={wstecz} aria-label="Wróć" className="shrink-0 text-slate-500 hover:text-ink">
+          <button onClick={wstecz} aria-label="Wróć" className="-ml-3 flex h-11 w-11 shrink-0 items-center justify-center text-slate-500 hover:text-ink">
             <ArrowLeft className="h-5 w-5" />
           </button>
           {/* Dwie linie zamiast ucięcia: na 360 px „Gramy dla Marysi - Turniej
               Piłka…" było jedyną nazwą wydarzenia na ekranie (audyt 7). */}
-          <h1 className="line-clamp-2 min-w-0 flex-1 font-display text-base font-bold leading-snug text-ink sm:text-lg">{turniej.nazwa}</h1>
+          <h1 className="line-clamp-2 min-w-0 flex-1 font-display text-xl font-bold leading-tight text-ink sm:text-2xl">{turniej.nazwa}</h1>
           {uprawnienia.mozeEdytowac && (
             <Link href={`/turnieje/${id}/panel`} className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
               <Settings className="h-3.5 w-3.5" /> Panel
@@ -517,8 +517,9 @@ export default function TurniejClient() {
               key={z}
               onClick={() => router.push(`/turnieje/${id}?tab=${z}`)}
               className={[
-                'shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                aktywna === z ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800',
+                // 44 px wysokości: cel dotyku, nie link z wersji roboczej.
+                'inline-flex min-h-[44px] shrink-0 items-center rounded-lg px-3 text-sm font-medium transition-colors',
+                aktywna === z ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
               ].join(' ')}
             >
               {z === 'druzyny' ? `Drużyny (${liczbaWTurnieju})`
@@ -584,8 +585,8 @@ export default function TurniejClient() {
               {withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn}
             </span>
           </div>
-          <button onClick={udostepnij} aria-label="Udostępnij" className="shrink-0 text-primary-600">
-            <Share2 className="h-4 w-4" />
+          <button onClick={udostepnij} aria-label="Udostępnij" className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center text-primary-600">
+            <Share2 className="h-5 w-5" />
           </button>
         </div>
 
@@ -803,9 +804,9 @@ export default function TurniejClient() {
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                 <div className="min-w-0 flex-1">
                   {turniej.miejsceNazwa && <div className="font-medium text-ink">{turniej.miejsceNazwa}</div>}
-                  {turniej.miejsceAdres && <div className="text-xs text-slate-400">{turniej.miejsceAdres}</div>}
+                  {turniej.miejsceAdres && <div className="text-xs text-slate-500 dark:text-slate-300">{turniej.miejsceAdres}</div>}
                   {dojazd && (
-                    <a href={dojazd} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600">
+                    <a href={dojazd} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-primary-600">
                       <Navigation className="h-4 w-4" /> Nawiguj
                     </a>
                   )}
@@ -832,7 +833,7 @@ export default function TurniejClient() {
               <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <div className="min-w-0">
                 <div className="font-medium text-ink">{FORMAT_LABEL[turniej.format]}</div>
-                <div className="text-xs text-slate-400">{opisFormatu(turniej, liczbaWTurnieju)}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-300">{opisFormatu(turniej, liczbaWTurnieju)}</div>
               </div>
             </div>
 
@@ -840,15 +841,14 @@ export default function TurniejClient() {
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <div className="min-w-0">
                 <div>{withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn} · skład do {turniej.maxZawodnikow} osób</div>
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-slate-500 dark:text-slate-300">
                   Mecz {turniej.czasMeczuMin} min
                   {turniej.przerwaMin > 0 && `, przerwa ${turniej.przerwaMin} min`}
                   {' · '}zwycięstwo {turniej.punktyZaWygrana} pkt, remis {turniej.punktyZaRemis}
                   {(turniej.format === 'puchar' || turniej.format === 'grupy_puchar')
                     && turniej.karnePrzyRemisie && ' · remis w fazie pucharowej rozstrzygają karne'}
-                  {turniej.format === 'grupy_finalowa' && (turniej.awansujeZGrupy === 1
-                    ? ' · zwycięzcy grup grają każdy z każdym w grupie finałowej, jej tabela ustala podium'
-                    : ` · ${turniej.awansujeZGrupy} najlepsze z każdej grupy grają w grupie finałowej, jej tabela ustala podium`)}
+                  {/* Opis formatu stoi linijkę wyżej; tu tylko to, czego tam nie ma. */}
+                  {turniej.format === 'grupy_finalowa' && ' · remis bez karnych'}
                   {turniej.format !== 'liga' && turniej.meczO3Miejsce && ' · gramy mecz o 3. miejsce'}
                 </div>
               </div>
@@ -871,7 +871,9 @@ export default function TurniejClient() {
               </div>
             )}
 
-            {turniej.opis && <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{turniej.opis}</p>}
+            {/* 16/24 px i długość wiersza do ~65 znaków: opis organizatora jest
+                tu najważniejszą treścią, a 14 px czytało się jak przypis. */}
+            {turniej.opis && <p className="max-w-prose whitespace-pre-wrap text-base leading-6 text-slate-700 dark:text-slate-200">{turniej.opis}</p>}
             {/* Przerwy z nazwą (176) także na Info: uczestnik z linku czyta
                 tu „konkurs 12:40–13:00, grupa C do 12:25”, zanim otworzy
                 terminarz (audyt 2026-11-18). */}
@@ -914,12 +916,13 @@ export default function TurniejClient() {
 
         {aktywna === 'druzyny' && (
           <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-500">{withCount(liczbaWTurnieju, 'drużyna', 'drużyny', 'drużyn')} z {turniej.maxDruzyn}</span>
-              {przyjmujeZgloszenia(turniej, liczbaWTurnieju) && (
-                <Link href={`/turnieje/${id}/zglos`} className="text-sm font-medium text-primary-600">+ Zgłoś drużynę</Link>
-              )}
+            {/* Licznik drużyn stoi już w pasku nad zakładkami; tu zostaje tylko
+                wejście do zgłoszenia, gdy jest otwarte. */}
+            {przyjmujeZgloszenia(turniej, liczbaWTurnieju) && (
+            <div className="flex items-center justify-end">
+                <Link href={`/turnieje/${id}/zglos`} className="inline-flex min-h-[44px] items-center text-sm font-medium text-primary-600">+ Zgłoś drużynę</Link>
             </div>
+            )}
             {druzyny.length === 0 ? (
               <p className="py-10 text-center text-sm text-slate-400">Nikt się jeszcze nie zgłosił.</p>
             ) : (
@@ -1054,6 +1057,15 @@ export default function TurniejClient() {
 
         {aktywna === 'tabela' && (
           <div className="space-y-5">
+            {/* Legenda NAD tabelami: zielony pasek awansu był wyjaśniony dopiero
+                pod grupą finałową, czyli po kilku ekranach przewijania. */}
+            {legendaAwansu && (
+              <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <span className="h-3 w-[3px] shrink-0 rounded-full bg-primary-600" aria-hidden />
+                {legendaAwansu}
+              </p>
+            )}
+
             {tabeleGrup.map(({ grupa, wiersze }) => (
               <div key={grupa?.id ?? 'liga'} className="space-y-2">
                 {grupa && (
@@ -1101,13 +1113,6 @@ export default function TurniejClient() {
                 )}
               </div>
             ))}
-
-            {legendaAwansu && (
-              <p className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span className="h-3 w-[3px] shrink-0 rounded-full bg-primary-600" aria-hidden />
-                {legendaAwansu}
-              </p>
-            )}
 
             {/* Drabinka pod tabelami, nie w osobnej zakładce: obie odpowiadają
                 na „kto wygrywa", a rozdzielone kazały przeskakiwać tam i z powrotem
