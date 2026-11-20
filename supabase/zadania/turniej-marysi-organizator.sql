@@ -52,14 +52,14 @@ ORDER BY t.created_at;
 DO $$
 DECLARE
   me      uuid := (SELECT id FROM auth.users WHERE email = 'franekks@gmail.com');
-  kapitan uuid := (SELECT id FROM auth.users WHERE email = 'franciszekpudelko@gmail.com');
+  v_kapitan uuid := (SELECT id FROM auth.users WHERE email = 'franciszekpudelko@gmail.com');
   v_id    uuid := NULL;            -- ← pełne id, jeśli prefiks nie trafi
   t       turnieje%ROWTYPE;
   v_druzyna uuid;
   v_imie  text;
   ile     int;
 BEGIN
-  IF me IS NULL OR kapitan IS NULL THEN
+  IF me IS NULL OR v_kapitan IS NULL THEN
     RAISE EXCEPTION 'Brak konta franekks@gmail.com albo franciszekpudelko@gmail.com.';
   END IF;
 
@@ -100,21 +100,21 @@ BEGIN
   -- Jedna osoba gra w jednej drużynie turnieju (`idx_zawodnik_raz_w_turnieju`):
   -- wpis z innej drużyny (poprzednie uruchomienie) przenosimy, nie dublujemy.
   UPDATE turniej_druzyny SET kapitan_id = NULL
-   WHERE turniej_id = v_id AND kapitan_id = kapitan AND id <> v_druzyna;
+   WHERE turniej_id = v_id AND kapitan_id = v_kapitan AND id <> v_druzyna;
   DELETE FROM turniej_zawodnicy
-   WHERE turniej_id = v_id AND user_id = kapitan AND druzyna_id <> v_druzyna;
+   WHERE turniej_id = v_id AND user_id = v_kapitan AND druzyna_id <> v_druzyna;
 
-  UPDATE turniej_druzyny SET kapitan_id = kapitan WHERE id = v_druzyna;
+  UPDATE turniej_druzyny SET kapitan_id = v_kapitan WHERE id = v_druzyna;
   UPDATE turniej_zawodnicy SET kapitan = false
-   WHERE druzyna_id = v_druzyna AND coalesce(user_id, '00000000-0000-0000-0000-000000000000') <> kapitan;
+   WHERE druzyna_id = v_druzyna AND coalesce(user_id, '00000000-0000-0000-0000-000000000000') <> v_kapitan;
 
-  IF EXISTS (SELECT 1 FROM turniej_zawodnicy WHERE druzyna_id = v_druzyna AND user_id = kapitan) THEN
-    UPDATE turniej_zawodnicy SET kapitan = true WHERE druzyna_id = v_druzyna AND user_id = kapitan;
+  IF EXISTS (SELECT 1 FROM turniej_zawodnicy WHERE druzyna_id = v_druzyna AND user_id = v_kapitan) THEN
+    UPDATE turniej_zawodnicy SET kapitan = true WHERE druzyna_id = v_druzyna AND user_id = v_kapitan;
   ELSE
-    v_imie := left(coalesce(nullif(trim((SELECT display_name FROM profiles WHERE id = kapitan)), ''),
+    v_imie := left(coalesce(nullif(trim((SELECT display_name FROM profiles WHERE id = v_kapitan)), ''),
                             'Franciszek'), 60);
     INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, user_id, imie, kapitan)
-    VALUES (v_druzyna, v_id, kapitan, v_imie, true);
+    VALUES (v_druzyna, v_id, v_kapitan, v_imie, true);
   END IF;
 
   -- ── 3. Regulamin ──────────────────────────────────────────────────────────
