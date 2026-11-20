@@ -3,7 +3,7 @@
 -- ============================================================================
 --
 -- Cel (prośba właściciela z 2026-11-20): przećwiczyć wpisywanie wyników na
--- turnieju pokazowym (`/turnieje/6c501b7d-…`, docs/turnieje-poprawki-lubon.md):
+-- testowym turnieju „dla Marysi” (`/turnieje/e9a3763f-7bd9-99e9-76d6-1c852d6b8f47`):
 --   • organizatorem zostaje franekks@gmail.com,
 --   • dotychczasowy organizator NIE traci dostępu: dostaje pełne prawa przez
 --     `turniej_osoby` (edycja, prowadzenie meczów, drużyny),
@@ -40,20 +40,20 @@ SELECT
       AND u.email NOT IN ('franekks@gmail.com','franciszekpudelko@gmail.com')) AS obce_konta,
   left(coalesce(t.regulamin, ''), 60)                                      AS regulamin_teraz
 FROM turnieje t
-WHERE t.nazwa ILIKE '%marysi%'
+WHERE t.nazwa ILIKE '%marysi%' OR t.id = 'e9a3763f-7bd9-99e9-76d6-1c852d6b8f47'
 ORDER BY t.created_at;
 
 
 -- ============================================================================
--- CZĘŚĆ B: ZMIANA. Turniej wybiera prefiks id z dokumentacji (6c501b7d);
--- gdyby to był inny turniej, wpisz pełne id z części A w `v_id`.
+-- CZĘŚĆ B: ZMIANA. Turniej wskazany wprost w `v_id` (e9a3763f-…, podany
+-- przez właściciela 2026-11-20). Pusty `v_id` = szukanie po prefiksie 6c501b7d.
 -- ============================================================================
 
 DO $$
 DECLARE
   me      uuid := (SELECT id FROM auth.users WHERE email = 'franekks@gmail.com');
   v_kapitan uuid := (SELECT id FROM auth.users WHERE email = 'franciszekpudelko@gmail.com');
-  v_id    uuid := NULL;            -- ← pełne id, jeśli prefiks nie trafi
+  v_id    uuid := 'e9a3763f-7bd9-99e9-76d6-1c852d6b8f47';  -- turniej testowy wskazany przez właściciela
   t       turnieje%ROWTYPE;
   v_druzyna uuid;
   v_imie  text;
