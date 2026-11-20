@@ -358,7 +358,7 @@ export default function NowyTurniejPage() {
             <p className={labelCls}>Zasady gry</p>
             <div className="space-y-3 rounded-xl border border-slate-100 dark:border-slate-700 p-3.5">
               <div>
-                <label className={labelCls} htmlFor="liczba-boisk">Boiska</label>
+                <label className={labelCls} htmlFor="liczba-boisk">Areny (boiska, hale, korty)</label>
                 <input
                   id="liczba-boisk"
                   type="number" min={1} max={12} value={liczbaBoisk || ''}
@@ -429,7 +429,7 @@ export default function NowyTurniejPage() {
           <p className="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             <Timer className="mt-px h-3.5 w-3.5 shrink-0 text-slate-400" />
             <span>
-              {zdanieOCzasie(szacunek)} ({withCount(Math.max(1, liczbaBoisk), 'boisko', 'boiska', 'boisk')})
+              {zdanieOCzasie(szacunek)} ({withCount(Math.max(1, liczbaBoisk), 'arena', 'areny', 'aren')})
             </span>
           </p>
 

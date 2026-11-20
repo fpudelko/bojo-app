@@ -5016,6 +5016,22 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   „Zaplanowany” zniknęła (stan domyślny); po meczu krawędź i godzina szarzeją.
 - Info nie pisze „zwycięstwo 3 pkt, remis 1” (tylko gdy punktacja odbiega od 3/1) ani nic
   o karnych. „Organizuje …” przeniesione na dół karty, pod regulamin.
+- **Panel organizatora bez „Pulpitu”.** Zakładki: Terminarz (domyślna), Drużyny, Ustawienia;
+  stary adres `?tab=pulpit` prowadzi do terminarza, `?tab=grupy` do Drużyn. Nad terminarzem:
+  „Rozegrane X z Y meczów” z paskiem, próba, „Rozpocznij turniej / Przetestuj”, braki przed
+  startem (tylko niespełnione pozycje `pulpitPrzedTurniejem()`), rozjazd startu z pierwszym
+  meczem. Lista „Wpisz wynik” wypadła: terminarz jest tą listą. „Zakończ turniej” pod
+  terminarzem.
+- **Podział na grupy w Drużynach:** karta „Podział na grupy” (losowanie, ustawienie ręczne,
+  „Losuj ponownie”), lista drużyn ułożona grupami, przełącznik grupy przy każdej drużynie
+  (zablokowany po pierwszym rozegranym meczu).
+- **Areny w Ustawieniach** (nazwa, dodanie, usunięcie przy dwóch i więcej). Arena to boisko,
+  hala albo kort; kreator pyta o „Areny (boiska, hale, korty)”. Przy dwóch i więcej arenach
+  „Zmień godziny i areny” w terminarzu ustawia arenę każdego meczu (`updateMecz({ arenaId })`).
+- **Ustawienia bez autozapisu:** pola zbierają się w szkicu, przyklejony do dołu pasek
+  „Odrzuć / Zapisz zmiany” zapisuje wszystko naraz (`updateTurniej()` + nazwy aren);
+  wyjście ze strony z niezapisanym szkicem pyta przeglądarka. Okładka, BLIK, galeria,
+  sponsorzy, zamknięcie zapisów i usunięcie zostają osobnymi akcjami.
 - Jednorazowe zadanie `supabase/zadania/turniej-marysi-organizator.sql`: organizator,
   kapitan z drugiego konta i regulamin turnieju pokazowego do testu wpisywania wyników.
 
