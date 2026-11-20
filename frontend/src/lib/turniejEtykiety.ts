@@ -196,6 +196,25 @@ export function etykietaTerminuMeczu(iso: string, dzisiaj: Date = new Date()): s
   return etykietaTerminu(data, godzina, dzisiaj);
 }
 
+/** Termin meczu na kafelku terminarza, w dwóch kawałkach: dzień skrótem
+ *  („Dziś”, „Jutro”, „sob. 28 lis”) i godzina („08:30”). Kafelek pokazuje je
+ *  osobno, tak jak zwykła karta meczu (`EventBrowseCard`): godzina na
+ *  zielonej plakietce, dzień obok. */
+export function terminMeczuNaKarcie(iso: string, dzisiaj: Date = new Date()): { dzien: string; godzina: string } {
+  const { data, godzina } = chwilaWPolsce(iso);
+  const dzien = new Date(`${data}T00:00:00`);
+  const doPolnocy = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const roznicaDni = Math.round((doPolnocy(dzien) - doPolnocy(dzisiaj)) / 86_400_000);
+  const nazwaDnia = ['niedz.', 'pon.', 'wt.', 'śr.', 'czw.', 'pt.', 'sob.'][dzien.getDay()];
+  const miesiace = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+  const dzienTekst =
+    roznicaDni === 0 ? 'Dziś'
+      : roznicaDni === 1 ? 'Jutro'
+      : roznicaDni === -1 ? 'Wczoraj'
+      : `${nazwaDnia} ${dzien.getDate()} ${miesiace[dzien.getMonth()]}`;
+  return { dzien: dzienTekst, godzina: bezSekund(godzina) };
+}
+
 export function etykietaTerminu(
   data: string,
   godzina?: string,

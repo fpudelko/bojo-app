@@ -564,6 +564,10 @@ export default function TurniejClient() {
             patrzysz: czy turniej trwa, kiedy i ile drużyn. Wcześniej (od
             2026-09-17) cała karta stała tutaj i zasłaniała górę KAŻDEJ
             zakładki, tabelę i drabinkę szczególnie. */}
+        {/* Od 2026-11-20 tylko na Info (uwaga właściciela): na „Mecze”,
+            „Tabele” i „Drużyny” kafelek powtarzał „Zapisy zamknięte” nad
+            każdą listą, a tam nikt już o zapisy nie pyta. */}
+        {aktywna === 'info' && (
         <div className="flex items-center gap-2.5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-sm">
           <span className="shrink-0 text-xl">{sportEmoji(turniej.sport)}</span>
           <div className="min-w-0 flex-1 text-sm text-slate-600 dark:text-slate-300">
@@ -589,6 +593,7 @@ export default function TurniejClient() {
             <Share2 className="h-5 w-5" />
           </button>
         </div>
+        )}
 
         {/* PODIUM — koniec turnieju. Dotąd turniej nie miał końca, tylko
             wygasanie: status zmieniał się na `zakonczony` i strona pokazywała
@@ -844,11 +849,11 @@ export default function TurniejClient() {
                 <div className="text-xs text-slate-500 dark:text-slate-300">
                   Mecz {turniej.czasMeczuMin} min
                   {turniej.przerwaMin > 0 && `, przerwa ${turniej.przerwaMin} min`}
-                  {' · '}zwycięstwo {turniej.punktyZaWygrana} pkt, remis {turniej.punktyZaRemis}
-                  {(turniej.format === 'puchar' || turniej.format === 'grupy_puchar')
-                    && turniej.karnePrzyRemisie && ' · remis w fazie pucharowej rozstrzygają karne'}
-                  {/* Opis formatu stoi linijkę wyżej; tu tylko to, czego tam nie ma. */}
-                  {turniej.format === 'grupy_finalowa' && ' · remis bez karnych'}
+                  {/* Punkty tylko, gdy odbiegają od 3/1, a o karnych wcale: to,
+                      co oczywiste, zasłaniało to, co ważne (uwaga właściciela
+                      2026-11-20). */}
+                  {(turniej.punktyZaWygrana !== 3 || turniej.punktyZaRemis !== 1)
+                    && <>{' · '}zwycięstwo {turniej.punktyZaWygrana} pkt, remis {turniej.punktyZaRemis}</>}
                   {turniej.format !== 'liga' && turniej.meczO3Miejsce && ' · gramy mecz o 3. miejsce'}
                 </div>
               </div>
@@ -863,13 +868,6 @@ export default function TurniejClient() {
                   : 'Bez wpisowego'}
               </span>
             </div>
-
-            {organizator && (
-              <div className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-                <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                <span>Organizuje <Link href={`/gracz/${turniej.organizatorId}`} className="font-medium text-primary-600">{organizator}</Link></span>
-              </div>
-            )}
 
             {/* 16/24 px i długość wiersza do ~65 znaków: opis organizatora jest
                 tu najważniejszą treścią, a 14 px czytało się jak przypis. */}
@@ -897,6 +895,16 @@ export default function TurniejClient() {
                 <p className="mt-2 whitespace-pre-wrap text-slate-600 dark:text-slate-300">{turniej.regulamin}</p>
               </details>
             )}
+            {/* Organizator na samym dole karty (2026-11-20): czytający szuka
+                najpierw terminu, miejsca i zasad, a „kto organizuje” jest
+                podpisem pod treścią, nie jej nagłówkiem. */}
+            {organizator && (
+              <div className="flex items-start gap-2 border-t border-slate-100 pt-3 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                <span>Organizuje <Link href={`/gracz/${turniej.organizatorId}`} className="font-medium text-primary-600">{organizator}</Link></span>
+              </div>
+            )}
+
           </div>
         )}
 
