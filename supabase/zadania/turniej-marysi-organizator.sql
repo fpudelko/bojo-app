@@ -3,7 +3,7 @@
 -- ============================================================================
 --
 -- Cel (prośba właściciela z 2026-11-20): przećwiczyć wpisywanie wyników na
--- turnieju pokazowym (`/turnieje/6c501b7d-…`, docs/turnieje-poprawki-lubon.md):
+-- testowym turnieju „dla Marysi” (`/turnieje/e9a3763f-7bd9-99e9-76d6-1c852d6b8f47`):
 --   • organizatorem zostaje franekks@gmail.com,
 --   • dotychczasowy organizator NIE traci dostępu: dostaje pełne prawa przez
 --     `turniej_osoby` (edycja, prowadzenie meczów, drużyny),
@@ -40,26 +40,26 @@ SELECT
       AND u.email NOT IN ('franekks@gmail.com','franciszekpudelko@gmail.com')) AS obce_konta,
   left(coalesce(t.regulamin, ''), 60)                                      AS regulamin_teraz
 FROM turnieje t
-WHERE t.nazwa ILIKE '%marysi%'
+WHERE t.nazwa ILIKE '%marysi%' OR t.id = 'e9a3763f-7bd9-99e9-76d6-1c852d6b8f47'
 ORDER BY t.created_at;
 
 
 -- ============================================================================
--- CZĘŚĆ B: ZMIANA. Turniej wybiera prefiks id z dokumentacji (6c501b7d);
--- gdyby to był inny turniej, wpisz pełne id z części A w `v_id`.
+-- CZĘŚĆ B: ZMIANA. Turniej wskazany wprost w `v_id` (e9a3763f-…, podany
+-- przez właściciela 2026-11-20). Pusty `v_id` = szukanie po prefiksie 6c501b7d.
 -- ============================================================================
 
 DO $$
 DECLARE
   me      uuid := (SELECT id FROM auth.users WHERE email = 'franekks@gmail.com');
-  kapitan uuid := (SELECT id FROM auth.users WHERE email = 'franciszekpudelko@gmail.com');
-  v_id    uuid := NULL;            -- ← pełne id, jeśli prefiks nie trafi
+  v_kapitan uuid := (SELECT id FROM auth.users WHERE email = 'franciszekpudelko@gmail.com');
+  v_id    uuid := 'e9a3763f-7bd9-99e9-76d6-1c852d6b8f47';  -- turniej testowy wskazany przez właściciela
   t       turnieje%ROWTYPE;
   v_druzyna uuid;
   v_imie  text;
   ile     int;
 BEGIN
-  IF me IS NULL OR kapitan IS NULL THEN
+  IF me IS NULL OR v_kapitan IS NULL THEN
     RAISE EXCEPTION 'Brak konta franekks@gmail.com albo franciszekpudelko@gmail.com.';
   END IF;
 
@@ -100,21 +100,21 @@ BEGIN
   -- Jedna osoba gra w jednej drużynie turnieju (`idx_zawodnik_raz_w_turnieju`):
   -- wpis z innej drużyny (poprzednie uruchomienie) przenosimy, nie dublujemy.
   UPDATE turniej_druzyny SET kapitan_id = NULL
-   WHERE turniej_id = v_id AND kapitan_id = kapitan AND id <> v_druzyna;
+   WHERE turniej_id = v_id AND kapitan_id = v_kapitan AND id <> v_druzyna;
   DELETE FROM turniej_zawodnicy
-   WHERE turniej_id = v_id AND user_id = kapitan AND druzyna_id <> v_druzyna;
+   WHERE turniej_id = v_id AND user_id = v_kapitan AND druzyna_id <> v_druzyna;
 
-  UPDATE turniej_druzyny SET kapitan_id = kapitan WHERE id = v_druzyna;
+  UPDATE turniej_druzyny SET kapitan_id = v_kapitan WHERE id = v_druzyna;
   UPDATE turniej_zawodnicy SET kapitan = false
-   WHERE druzyna_id = v_druzyna AND coalesce(user_id, '00000000-0000-0000-0000-000000000000') <> kapitan;
+   WHERE druzyna_id = v_druzyna AND coalesce(user_id, '00000000-0000-0000-0000-000000000000') <> v_kapitan;
 
-  IF EXISTS (SELECT 1 FROM turniej_zawodnicy WHERE druzyna_id = v_druzyna AND user_id = kapitan) THEN
-    UPDATE turniej_zawodnicy SET kapitan = true WHERE druzyna_id = v_druzyna AND user_id = kapitan;
+  IF EXISTS (SELECT 1 FROM turniej_zawodnicy WHERE druzyna_id = v_druzyna AND user_id = v_kapitan) THEN
+    UPDATE turniej_zawodnicy SET kapitan = true WHERE druzyna_id = v_druzyna AND user_id = v_kapitan;
   ELSE
-    v_imie := left(coalesce(nullif(trim((SELECT display_name FROM profiles WHERE id = kapitan)), ''),
+    v_imie := left(coalesce(nullif(trim((SELECT display_name FROM profiles WHERE id = v_kapitan)), ''),
                             'Franciszek'), 60);
     INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, user_id, imie, kapitan)
-    VALUES (v_druzyna, v_id, kapitan, v_imie, true);
+    VALUES (v_druzyna, v_id, v_kapitan, v_imie, true);
   END IF;
 
   -- ── 3. Regulamin ──────────────────────────────────────────────────────────

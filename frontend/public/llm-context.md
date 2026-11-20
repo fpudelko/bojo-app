@@ -481,7 +481,7 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-11-20 — Czytelniejsze kafelki meczów turnieju i prostsza zakładka Info
+### 2026-11-20 — Czytelniejsze kafelki meczów turnieju, prostsza zakładka Info i panel bez pulpitu
 
 PROBLEM: na stronie turnieju Bojo napis „Zapisy zamknięte” stał nad każdą zakładką, kafelki
 meczów były szare (data słowna, plakietka „Zaplanowany” na każdym), a Info podawało
@@ -492,9 +492,16 @@ pokazuje się tylko na zakładce Info. Kafelek meczu turnieju wygląda jak zwyk�
 Bojo: zielona krawędź, godzina na zielonej plakietce z zegarem, dzień skrótem („sob. 28 lis”,
 „Dziś”), boisko z pinezką; plakietka stanu tylko dla meczu trwającego, zakończonego,
 walkowera i wolnego losu. Info pomija punktację 3/1 i karne, a „Organizuje …” stoi na dole.
+Panel organizatora turnieju nie ma już „Pulpitu”: zakładki to Terminarz (na górze „Rozegrane
+X z Y meczów”, „Rozpocznij turniej”, „Przetestuj”), Drużyny (z podziałem na grupy i
+przełącznikiem grupy przy drużynie) i Ustawienia. Ustawienia nie zapisują się same:
+zmiany zatwierdza przycisk „Zapisz zmiany” przyklejony do dołu ekranu. Areny (boiska, hale,
+korty) ustawia się w Ustawieniach, a przy kilku arenach terminarz pozwala przypisać arenę
+do meczu.
 
 MECHANIKA: `components/turnieje/KartaMeczu.tsx`, `terminMeczuNaKarcie()` w
-`lib/turniejEtykiety.ts`, `app/turnieje/[id]/TurniejClient.tsx`. Bez migracji.
+`lib/turniejEtykiety.ts`, `app/turnieje/[id]/TurniejClient.tsx`,
+`app/turnieje/[id]/panel/PanelClient.tsx`. Bez migracji.
 Szczegóły → [funkcje.md](./funkcje.md).
 
 ### 2026-11-18 — Turniej z grupą finałową, ręczne godziny meczów i „Popraw wynik”
