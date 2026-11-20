@@ -1,8 +1,8 @@
 // Karta pojedynczego meczu terminarza — używana na publicznej stronie turnieju
 // (zakładka Terminarz) i w panelu organizatora. Reużywana dalej przy drabince
 // i stronie drużyny (Etap 2/3), stąd osobny plik zamiast JSX wprost w kliencie.
-import { MapPin } from 'lucide-react';
-import { STATUS_MECZU, etykietaTerminuMeczu, etykietaFazyMeczu } from '@/lib/turniejEtykiety';
+import { Clock, MapPin } from 'lucide-react';
+import { STATUS_MECZU, terminMeczuNaKarcie, etykietaFazyMeczu } from '@/lib/turniejEtykiety';
 import { czyWolnyLos, stronaZwyciezcy } from '@/lib/turniejWynik';
 import { nazwaMiejscaWGrupie } from '@/lib/turniejFormat';
 import type { TurniejGrupa, TurniejMecz } from '@/types';
@@ -54,13 +54,14 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, gr
   const nazwaB = wolnyLos && !mecz.druzynaBId ? 'awans bez gry' : nazwaSlotu(mecz, 'b', druzynyPoId, meczePoId, grupyPoId);
   const status = wolnyLos ? { label: 'Wolny los', ton: 'bg-slate-100 text-slate-500' } : STATUS_MECZU[mecz.status];
   const rozegrany = !wolnyLos && (mecz.status === 'zakonczony' || mecz.status === 'walkower' || mecz.status === 'trwa');
-  // Ten sam zapis terminu co wszędzie indziej w module (`etykietaTerminu`).
-  // Karta mówiła wcześniej „Niedziela 20.09, 10:00", nagłówek turnieju
-  // „niedziela, 20 września · 10:00:00", a lista jeszcze inaczej — trzy zapisy
-  // tego samego dnia każą sprawdzać, czy to na pewno ten sam mecz.
-  const godzina = mecz.zaplanowanyAt
-    ? etykietaTerminuMeczu(mecz.zaplanowanyAt)
-    : null;
+  // Termin rozbity jak na zwykłej karcie meczu (`EventBrowseCard`): zegar,
+  // dzień skrótem i godzina. Godzina jest na hali najważniejszą informacją
+  // karty, więc dostaje zieloną plakietkę; szary wiersz „sob. 28 listopada,
+  // 08:30” zlewał się z resztą (uwaga właściciela 2026-11-20).
+  // Po meczu kafelek gaśnie do szarości (krawędź, godzina): na liście
+  // czterdziestu meczów oko ma trafić na te, które jeszcze przed nami.
+  const poMeczu = wolnyLos || mecz.status === 'zakonczony' || mecz.status === 'walkower' || mecz.status === 'odwolany';
+  const termin = mecz.zaplanowanyAt ? terminMeczuNaKarcie(mecz.zaplanowanyAt) : null;
   const arena = mecz.arenaId ? arenyPoId.get(mecz.arenaId) : undefined;
 
   // Kto wygrał, widać po WADZE PISMA, nie po samym wyniku. Bez tego drabinka
@@ -84,15 +85,23 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, gr
     <Wrapper
       onClick={onClick}
       className={[
-        'w-full rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 text-left shadow-sm',
+        // Krawędź po lewej i cień jak na zwykłej karcie meczu: kafelek
+        // turnieju ma się czytać jak „mecz w Bojo”, nie jak wiersz tabeli.
+        'block w-full rounded-2xl border-l-4 bg-white p-3.5 text-left ring-1 ring-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:bg-slate-800 dark:ring-slate-700',
+        poMeczu ? 'border-l-slate-300 dark:border-l-slate-600' : 'border-l-primary-600',
+        onClick ? 'transition-shadow hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] active:scale-[0.995]' : '',
         przygaszona ? 'opacity-60' : '',
       ].join(' ')}
     >
       {/* Tekst pomocniczy slate-500 / dark slate-300: przy slate-400 numer
           i godzina miały 2,6:1 (audyt wyglądu 2026-11-19, minimum AA 4,5:1). */}
-      <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-300">
-        <span>M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}</span>
-        <span className={`rounded-full px-2 py-0.5 font-medium ${status.ton}`}>{status.label}</span>
+      <div className="flex min-h-[22px] items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-300">
+        <span className="font-medium">M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}</span>
+        {/* „Zaplanowany” to stan domyślny: plakietka na każdej karcie mówiła
+            to, co i tak widać po godzinie, i robiła z listy szary szum. */}
+        {(wolnyLos || mecz.status !== 'zaplanowany') && (
+          <span className={`rounded-full px-2 py-0.5 font-medium ${status.ton}`}>{status.label}</span>
+        )}
       </div>
       <div className="mt-2 flex items-center justify-between gap-3">
         {/* Dwie linie zamiast wielokropka: „Unilink Szamotuły & MedKomplex”
@@ -108,14 +117,24 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, gr
         )}
         <span className={`min-w-0 flex-1 line-clamp-2 break-words text-right text-base leading-snug ${tonDruzyny('b')}`}>{nazwaB}</span>
       </div>
-      {(godzina || arena) && (
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-300">
-          {/* Godzina to na hali najważniejsza informacja karty, ważniejsza niż
-              powtarzalne „Zaplanowany”. */}
-          {godzina && <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{godzina}</span>}
+      {(termin || arena) && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          {termin && (
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-bold ${
+                  poMeczu ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200'
+                    : 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300'
+                }`}
+              >
+                <Clock className="h-3.5 w-3.5" /> {termin.godzina}
+              </span>
+              <span className="font-medium text-slate-600 dark:text-slate-300">{termin.dzien}</span>
+            </span>
+          )}
           {arena && (
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-3 w-3" /> {arena}
+            <span className="inline-flex min-w-0 items-center gap-1 text-slate-500 dark:text-slate-300">
+              <MapPin className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{arena}</span>
             </span>
           )}
         </div>

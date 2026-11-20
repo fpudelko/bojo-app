@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { chwilaWPolsce, instantZCzasuPolskiego } from '@/lib/czasPolski';
-import { etykietaTerminuMeczu } from '@/lib/turniejEtykiety';
+import { etykietaTerminuMeczu, terminMeczuNaKarcie } from '@/lib/turniejEtykiety';
 
 // Turniej w Luboniu (audyt 6 i 7, 2026-11-11): start 10:00, a karty meczów
 // pokazywały 09:00, bo godzina była wycinana wprost z `…T09:00:00+00:00`.
@@ -30,5 +30,11 @@ describe('godzina meczu w czasie polskim', () => {
   it('etykieta karty meczu mówi godzinę polską', () => {
     const dzisiaj = new Date('2026-11-11T12:00:00Z');
     expect(etykietaTerminuMeczu('2026-11-28T09:00:00+00:00', dzisiaj)).toContain('10:00');
+  });
+
+  it('kafelek terminarza dostaje dzień skrótem i godzinę polską osobno', () => {
+    const dzisiaj = new Date('2026-11-20T12:00:00');
+    expect(terminMeczuNaKarcie('2026-11-28T07:30:00+00:00', dzisiaj)).toEqual({ dzien: 'sob. 28 lis', godzina: '08:30' });
+    expect(terminMeczuNaKarcie('2026-11-21T07:30:00+00:00', dzisiaj).dzien).toBe('Jutro');
   });
 });

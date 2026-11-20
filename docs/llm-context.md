@@ -481,6 +481,22 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-20 — Czytelniejsze kafelki meczów turnieju i prostsza zakładka Info
+
+PROBLEM: na stronie turnieju Bojo napis „Zapisy zamknięte” stał nad każdą zakładką, kafelki
+meczów były szare (data słowna, plakietka „Zaplanowany” na każdym), a Info podawało
+oczywistości („zwycięstwo 3 pkt, remis 1”, karne) i stawiało organizatora w środku opisu.
+
+ROZWIĄZANIE BOJO: kafelek stanu turnieju (zapisy, termin, liczba drużyn, udostępnianie)
+pokazuje się tylko na zakładce Info. Kafelek meczu turnieju wygląda jak zwykła karta meczu
+Bojo: zielona krawędź, godzina na zielonej plakietce z zegarem, dzień skrótem („sob. 28 lis”,
+„Dziś”), boisko z pinezką; plakietka stanu tylko dla meczu trwającego, zakończonego,
+walkowera i wolnego losu. Info pomija punktację 3/1 i karne, a „Organizuje …” stoi na dole.
+
+MECHANIKA: `components/turnieje/KartaMeczu.tsx`, `terminMeczuNaKarcie()` w
+`lib/turniejEtykiety.ts`, `app/turnieje/[id]/TurniejClient.tsx`. Bez migracji.
+Szczegóły → [funkcje.md](./funkcje.md).
+
 ### 2026-11-18 — Turniej z grupą finałową, ręczne godziny meczów i „Popraw wynik”
 
 PROBLEM: turniej charytatywny w Luboniu (15 drużyn, trzy grupy, jedno boisko, 33 mecze)
@@ -688,31 +704,3 @@ MECHANIKA: migracja `168` (funkcja `ustaw_email_goscia`, kolumna wynikowa `ma_em
 „zapis" (migracja `133`), bez zmian we funkcji brzegowej.
 Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-5.
 
-### 2026-09-28 — Podgląd linku, zaproszenie gościa i płatność bez wybranej metody mówią prawdę
-
-PROBLEM: podgląd meczu na WhatsAppie/Messengerze pokazywał „N wolnych miejsc" z odmianą
-liczby na sztywno („1 wolnych miejsc"), nie znał odwołania, rozegrania ani zapisów
-zamkniętych — odwołany mecz wyglądał na podglądzie jak mecz z wolnymi miejscami.
-Argument „zapisujesz się bez zakładania konta" nigdzie na podglądzie nie padał. Link,
-który organizator wysyłał osobie dopisanej ręcznie do składu, obiecywał „dołączanie do
-ekipy" i „przeglądanie otwartych gier w okolicy" — dwie obietnice, które produkt już raz
-uznał za nieprawdziwe i usunął z innych ekranów tej samej ścieżki — mówił „Masz miejsce
-w składzie" także gościowi na liście rezerwowej i przedstawiał link jako zakładanie
-konta, zamiast jako stronę jego własnego zapisu. Karta „Twoja płatność" nie pokazywała
-numeru BLIK ani sposobu płatności osobie dopisanej przez organizatora, bo ta nie ma
-wybranej metody — mimo że baza numer oddawała.
-
-ROZWIĄZANIE BOJO: obrazek podglądu i opis strony meczu liczą stan (odwołany, rozegrany,
-zapisy zamknięte, komplet z rezerwą albo bez) jedną wspólną funkcją i dopisują „Zapis
-bez zakładania konta" wprost na obrazku, gdy mecz jeszcze kogoś przyjmuje. Zaproszenie
-dla dopisanego gościa ma teraz trzy prawdziwe warianty: przed meczem w składzie (co link
-daje bez konta — skład, koszt, „Nie mogę grać"), przed meczem na rezerwie (kolejka,
-„Nie mogę grać") i dopiero po meczu prośbę o konto, tą samą listą korzyści co reszta
-ścieżki. Karta płatności pokazuje numer BLIK i akceptowane sposoby także bez wybranej
-metody, opierając się na tym, co mecz w ogóle przyjmuje.
-
-MECHANIKA: `stanPodgladu()` w `app/wydarzenia/[id]/eventMeta.ts` (używana przez
-`opengraph-image.tsx` i `metadataDlaMeczu()`), `KontekstZaproszenia` i przebudowane
-`tekstZaproszeniaGoscia()`/`udostepnijZaproszenieGoscia()` w `lib/guestClaim.ts`,
-`TwojaPlatnosc.tsx` (nowy prop `metodyMeczu`). Bez migracji.
-Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-3, Z-4, Z-6.

@@ -5007,6 +5007,18 @@ nazwy w „Drużyny” w dwóch liniach, bez plakietki „W turnieju” przy prz
 wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek strony meczu
 20/24 px. Usunięte powtórzenia: opis formatu w zasadach i licznik drużyn na zakładce Drużyny.
 
+**Uwagi właściciela do turnieju pokazowego (2026-11-20, bez migracji).**
+- Kafelek ze stanem turnieju („Zapisy zamknięte”, termin, licznik drużyn, „Udostępnij”)
+  stoi wyłącznie na zakładce Info; na Mecze, Tabele i Drużyny powtarzał się nad każdą listą.
+- Kafelek meczu (`KartaMeczu.tsx`) wygląda jak zwykła karta meczu (`EventBrowseCard`):
+  zielona krawędź po lewej, godzina na zielonej plakietce z zegarem, dzień skrótem
+  („sob. 28 lis”, „Dziś”, „Jutro”, `terminMeczuNaKarcie()`), boisko z pinezką. Plakietka
+  „Zaplanowany” zniknęła (stan domyślny); po meczu krawędź i godzina szarzeją.
+- Info nie pisze „zwycięstwo 3 pkt, remis 1” (tylko gdy punktacja odbiega od 3/1) ani nic
+  o karnych. „Organizuje …” przeniesione na dół karty, pod regulamin.
+- Jednorazowe zadanie `supabase/zadania/turniej-marysi-organizator.sql`: organizator,
+  kapitan z drugiego konta i regulamin turnieju pokazowego do testu wpisywania wyników.
+
 **Poprawki po audycie kopii (2026-11-18, bez migracji):**
 - F1: przerwa pokazuje się, gdy odstęp przekracza slot o więcej niż 2 min (było 5),
   więc widać też odpoczynek 16:22–16:27.
