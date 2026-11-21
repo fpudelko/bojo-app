@@ -32,6 +32,17 @@
 export const SHOW_TURNIEJE = false;
 
 /**
+ * Ogłoszenia organizatora na stronie turnieju (`components/turnieje/Ogloszenia.tsx`,
+ * tabela `turniej_ogloszenia`, migracja `150`): pełna lista na zakładce Info
+ * i pasek „Ogłoszenia (N)” na pozostałych zakładkach.
+ *
+ * WYŁĄCZONA od 2026-11-21 (decyzja właściciela przed przekazaniem turnieju
+ * w Luboniu organizatorowi). Dane w bazie zostają, wyzwalacz powiadomień
+ * o ogłoszeniu też; znika wyłącznie widok na stronie turnieju.
+ */
+export const SHOW_TURNIEJ_OGLOSZENIA = false;
+
+/**
  * Game alerts — "Powiadom mnie, gdy się pojawi": a saved sport + place + radius
  * (`game_alerts`, migration `025`), matched on every new event by the
  * `notify-game-alert` edge function. Code: lib/alerts.ts + AlertSetupDialog.
