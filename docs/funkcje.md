@@ -5081,7 +5081,14 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     `font-size` liczonego z szerokości okna (ten sam układ na 1366 px i 4K), odświeżanie co
     15 s. Lewa kolumna: Na żywo (wynik, zegar) albo Następny mecz, Kolejne mecze z przerwami;
     prawa: tabele grup (#, drużyna, bramki, punkty, pasek awansu) i ostatnie wyniki. Po
-    końcu turnieju podium na cały ekran. Stopka z adresem strony turnieju. Bez ramki aplikacji:
+    końcu turnieju podium na cały ekran. **Prawa kolumna zmienia widok co 12 s**: Grupy,
+    Wyniki (10 ostatnich), Najwięcej goli/punktów (tylko gdy ekran otwiera zalogowany: składy
+    widzi zalogowany, tak jak na stronie turnieju), Grupa finałowa albo Faza pucharowa; pasek
+    nad nią mówi, który widok jest teraz. Kliknięcie nazwy widoku zatrzymuje ekran na nim
+    (dopisek „stałe”), ponowne wraca do rotacji; wybór idzie do adresu
+    (`?widok=tabele|wyniki|strzelcy|final`), więc przetrwa odświeżenie i da się go ustawić z góry. **Kod QR** do strony turnieju (`lib/kodQr.ts` na
+    `qrcode-generator`, rysowany jako SVG `components/ui/KodQr.tsx`, bez zewnętrznego
+    serwisu) z dużym „bojo.pl” i adresem: na dole lewej kolumny i pod podium. Bez ramki aplikacji:
     `jestSciezkaWidgetu()` w `lib/widget.ts` obejmuje też tę trasę (bez banera cookies,
     dolnego paska i okna roli).
   - **Strona turnieju, zakładka Mecze:** od `lg` dwie kolumny, po prawej przyklejone tabele

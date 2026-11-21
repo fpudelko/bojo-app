@@ -500,7 +500,8 @@ przeładowania. Nad siatką stoją alerty: mecz trwający dwa razy dłużej niż
 (ktoś zapomniał go zakończyć), mecz, który według planu już powinien grać, czekające
 zgłoszenia. EKRAN NA HALĘ (`bojo.pl/turnieje/<adres>/ekran`, przycisk „Ekran na halę”
 w panelu) pokazuje na rzutniku albo telewizorze wynik na żywo, kolejne mecze, tabele grup
-i ostatnie wyniki, odświeża się sam, a po turnieju pokazuje podium. Ekran jest publiczny,
+i wyniki (prawa strona przełącza się sama: grupy, wyniki, najlepsi strzelcy, faza
+końcowa; kliknięcie nazwy widoku zatrzymuje ekran na nim), ma kod QR do strony turnieju w Bojo, odświeża się sam, a po turnieju pokazuje podium. Ekran jest publiczny,
 nie wymaga logowania i nie trafia do wyszukiwarki.
 Strona turnieju na komputerze pokazuje na zakładce Mecze tabele grup w prawej kolumnie.
 Na telefonie panel i strona turnieju wyglądają jak dotąd.
@@ -517,6 +518,7 @@ PYTANIA:
 - Jak wpisać gola bez wybierania strzelca?
 - Jak pokazać wyniki turnieju na rzutniku albo telewizorze na hali?
 - Jak cofnąć gola wpisanego przez pomyłkę?
+- Czy organizator może wybrać, co pokazuje ekran turnieju na hali?
 
 ### 2026-11-21 — Adresy turniejów i meczów z nazwą i datą zamiast uuid
 
