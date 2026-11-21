@@ -501,7 +501,9 @@ przeładowania. Nad siatką stoją alerty: mecz trwający dwa razy dłużej niż
 zgłoszenia. EKRAN NA HALĘ (`bojo.pl/turnieje/<adres>/ekran`, przycisk „Ekran na halę”
 w panelu) pokazuje na rzutniku albo telewizorze wynik na żywo, kolejne mecze, tabele grup
 i wyniki (prawa strona przełącza się sama: grupy, wyniki, najlepsi strzelcy, faza
-końcowa; kliknięcie nazwy widoku zatrzymuje ekran na nim), ma kod QR do strony turnieju w Bojo, odświeża się sam, a po turnieju pokazuje podium. Ekran jest publiczny,
+końcowa; kliknięcie nazwy widoku zatrzymuje ekran na nim). Organizator wybiera układ ekranu: „Wszystko”,
+„Wynik na żywo” (wynik na pół ekranu), „Tabele” (wszystkie grupy w dużym rozmiarze) albo
+„Mecze i wyniki” (bez tabel); w menu „Ekran na halę” w panelu albo na samym ekranie po ruchu myszy. Ekran ma kod QR do strony turnieju w Bojo, odświeża się sam, a po turnieju pokazuje podium. Ekran jest publiczny,
 nie wymaga logowania i nie trafia do wyszukiwarki.
 Strona turnieju na komputerze pokazuje na zakładce Mecze tabele grup w prawej kolumnie.
 Na telefonie panel i strona turnieju wyglądają jak dotąd.

@@ -45,6 +45,21 @@ type Widok = 'tabele' | 'wyniki' | 'strzelcy' | 'final';
 const WIDOKI: readonly Widok[] = ['tabele', 'wyniki', 'strzelcy', 'final'];
 const CZAS_WIDOKU_MS = 12_000;
 
+// UKŁAD EKRANU (2026-11-21, prośba właściciela): organizator wybiera, co ma
+// dominować na ścianie. „Wszystko” to domyślny podział (na żywo i kolejne
+// mecze po lewej, rotujące widoki po prawej). „Wynik na żywo” to tablica
+// wyników: wynik na pół ekranu. „Tabele” to wszystkie grupy w dużym
+// rozmiarze z paskiem meczu w toku. „Mecze i wyniki” to mecz w toku, kolejne
+// mecze i wyniki, bez tabel. Wybór w panelu („Ekran na halę”) albo na samym
+// ekranie (sterowanie pokazuje się po ruchu myszy); trafia do `?uklad=`.
+type UkladEkranu = 'wszystko' | 'wynik' | 'tabele' | 'mecze';
+const UKLADY_EKRANU: readonly { klucz: UkladEkranu; etykieta: string }[] = [
+  { klucz: 'wszystko', etykieta: 'Wszystko' },
+  { klucz: 'wynik', etykieta: 'Wynik na żywo' },
+  { klucz: 'tabele', etykieta: 'Tabele' },
+  { klucz: 'mecze', etykieta: 'Mecze i wyniki' },
+];
+
 const godzina = (m: Pick<TurniejMecz, 'zaplanowanyAt'>) =>
   m.zaplanowanyAt ? chwilaWPolsce(m.zaplanowanyAt).godzina.slice(0, 5) : '';
 
@@ -61,6 +76,10 @@ export default function EkranClient() {
   const [zdarzenia, setZdarzenia] = useState<TurniejZdarzenie[]>([]);
   const [przypietyWidok, setPrzypietyWidok] = useState<Widok | null>(null);
   const [krok, setKrok] = useState(0);
+  const [uklad, setUklad] = useState<UkladEkranu>('wszystko');
+  // Sterowanie widać tylko chwilę po ruchu myszy albo dotknięciu: na ścianie
+  // przez cały dzień wisiałyby przyciski, których kibic i tak nie użyje.
+  const [sterowanie, setSterowanie] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -94,8 +113,11 @@ export default function EkranClient() {
 
   // `?widok=` czytany po montażu, nie przez useSearchParams (AGENTS.md).
   useEffect(() => {
-    const w = new URLSearchParams(window.location.search).get('widok');
+    const parametry = new URLSearchParams(window.location.search);
+    const w = parametry.get('widok');
     if (w && (WIDOKI as readonly string[]).includes(w)) setPrzypietyWidok(w as Widok);
+    const u = parametry.get('uklad');
+    if (u && UKLADY_EKRANU.some((x) => x.klucz === u)) setUklad(u as UkladEkranu);
     const t = window.setInterval(() => setKrok((k) => k + 1), CZAS_WIDOKU_MS);
     return () => window.clearInterval(t);
   }, []);
@@ -111,6 +133,29 @@ export default function EkranClient() {
   const meczePoId = useMemo(() => new Map(mecze.map((m) => [m.id, m])), [mecze]);
   const arenyPoId = useMemo(() => new Map(areny.map((a) => [a.id, a.nazwa])), [areny]);
   const grupyPoId = useMemo(() => new Map(grupy.map((g) => [g.id, g])), [grupy]);
+
+  useEffect(() => {
+    let schowaj: number | undefined;
+    const pokaz = () => {
+      setSterowanie(true);
+      window.clearTimeout(schowaj);
+      schowaj = window.setTimeout(() => setSterowanie(false), 3000);
+    };
+    window.addEventListener('mousemove', pokaz);
+    window.addEventListener('touchstart', pokaz);
+    return () => {
+      window.clearTimeout(schowaj);
+      window.removeEventListener('mousemove', pokaz);
+      window.removeEventListener('touchstart', pokaz);
+    };
+  }, []);
+
+  const zmienUklad = (u: UkladEkranu) => {
+    setUklad(u);
+    const url = new URL(window.location.href);
+    if (u === 'wszystko') url.searchParams.delete('uklad'); else url.searchParams.set('uklad', u);
+    window.history.replaceState(null, '', url.pathname + url.search);
+  };
 
   const przypnijWidok = (w: Widok | null) => {
     setPrzypietyWidok(w);
@@ -160,7 +205,7 @@ export default function EkranClient() {
     ...(rozegrane.length > 0 ? ['wyniki' as const] : []),
     ...(strzelcy.length > 0 ? ['strzelcy' as const] : []),
     ...(meczeFinalu.length > 0 ? ['final' as const] : []),
-  ];
+  ].filter((w) => uklad !== 'mecze' || w === 'wyniki' || w === 'final');
   const widok: Widok | undefined = przypietyWidok && dostepne.includes(przypietyWidok)
     ? przypietyWidok
     : dostepne[krok % Math.max(1, dostepne.length)];
@@ -223,15 +268,14 @@ export default function EkranClient() {
   }
 
   const nastepny = c.najblizsze.find((m) => m.druzynaAId && m.druzynaBId) ?? c.najblizsze[0];
-  const kolejne = c.najblizsze.filter((m) => c.naZywo.length > 0 || m.id !== nastepny?.id).slice(0, 5);
+  const kolejne = c.najblizsze.filter((m) => c.naZywo.length > 0 || m.id !== nastepny?.id).slice(0, uklad === 'wynik' ? 3 : 5);
 
-  return (
-    <Tlo>
-      {naglowek}
-      <main className="grid min-h-0 flex-1 grid-cols-[1.35fr_1fr] gap-[1.6em] px-[1.6em] py-[1.2em]">
-        <div className="flex min-h-0 min-w-0 flex-col gap-[1.2em]">
-          {/* NA ŻYWO albo NASTĘPNY: największa rzecz na ekranie. */}
-          {c.naZywo.length > 0 ? (
+
+  // ── Klocki ekranu (wspólne dla układów) ──────────────────────────────────
+  // Wszystkie rozmiary są w `em`, więc ten sam klocek w opakowaniu z większym
+  // `font-size` po prostu rośnie (układ „Wynik na żywo”, „Tabele”).
+  const blokTeraz = (
+    c.naZywo.length > 0 ? (
             <section className={`grid gap-[1em] ${c.naZywo.length > 1 ? 'grid-cols-2' : ''}`}>
               {c.naZywo.map((m) => {
                 const zegar = czasGry(m.rozpoczetyAt, teraz, turniej.czasMeczuMin);
@@ -273,9 +317,10 @@ export default function EkranClient() {
                 {turniej.status === 'trwa' ? 'Za chwilę kolejne mecze' : `Start: ${etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}`}
               </p>
             </section>
-          )}
-
-          {kolejne.length > 0 && (
+          )
+  );
+  const blokKolejne = (
+    kolejne.length > 0 && (
             <section className="min-h-0">
               <h2 className="mb-[0.4em] text-[1.2em] font-semibold uppercase tracking-wide text-slate-400">Kolejne mecze</h2>
               <div className="divide-y divide-white/10">
@@ -298,40 +343,10 @@ export default function EkranClient() {
                 ))}
               </div>
             </section>
-          )}
-          {/* Kod QR na dole lewej kolumny: widać go cały czas, niezależnie
-              od tego, który widok kręci się po prawej. */}
-          <div className="mt-auto">{kartaQr(true)}</div>
-        </div>
-
-        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-          {widok && (
-            <>
-              {/* Pasek widoków: który teraz i co będzie dalej. */}
-              <div className="mb-[0.8em] flex items-center gap-[0.5em]">
-                {/* WYBÓR WIDOKU KLIKNIĘCIEM (2026-11-21): organizator, który ma
-                    ekran na drugim monitorze albo rzutniku z laptopa, klika
-                    nazwę widoku i ekran zostaje na nim (np. tabele przed
-                    fazą pucharową). Ponowne kliknięcie wraca do przełączania.
-                    Wybór trafia do adresu (`?widok=`), więc przetrwa
-                    odświeżenie strony. */}
-                {dostepne.map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    onClick={() => przypnijWidok(przypietyWidok === w ? null : w)}
-                    aria-pressed={przypietyWidok === w}
-                    className={`rounded-full px-[0.8em] py-[0.25em] text-[1.05em] font-semibold uppercase tracking-wide transition-colors ${
-                      w === widok ? 'bg-white text-slate-950' : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    {TYTUL_WIDOKU[w]}{przypietyWidok === w ? ' · stałe' : ''}
-                  </button>
-                ))}
-              </div>
-              <div key={widok} className="min-h-0 flex-1 animate-fade-in">
-                {widok === 'tabele' && (
-                  <div className={`grid gap-[0.8em] ${tabeleGrup.length > 2 ? 'grid-cols-2' : ''}`}>
+          )
+  );
+  const blokTabele = (kolumny: number) => (
+    <div className="grid gap-[0.8em]" style={{ gridTemplateColumns: `repeat(${kolumny}, minmax(0, 1fr))` }}>
                     {tabeleGrup.map(({ grupa, wiersze }) => {
                       const awans = grupa && !grupa.finalowa && turniej.awansujeZGrupy < wiersze.length ? turniej.awansujeZGrupy : 0;
                       // Miejsca ex aequo (179): ta sama liczba przy drużynach z identycznym bilansem.
@@ -369,72 +384,175 @@ export default function EkranClient() {
                       );
                     })}
                   </div>
-                )}
+  );
 
-                {widok === 'wyniki' && (
-                  <div className="divide-y divide-white/10">
-                    {rozegrane.slice(0, 10).map((m) => (
-                      <div key={m.id} className="flex items-center gap-[0.8em] py-[0.4em] text-[1.4em]">
-                        <span className="w-[2.6em] shrink-0 text-[0.75em] text-slate-500">{etykietaFazyMeczu(m, grupyPoId).replace('Grupa ', 'Gr. ')}</span>
-                        <span className="min-w-0 flex-1 truncate">{nazwa(m, 'a')} <span className="text-slate-500">–</span> {nazwa(m, 'b')}</span>
-                        <span className="shrink-0 font-display font-bold tabular-nums">
-                          {m.status === 'walkower' ? 'wo.' : `${m.wynikA}:${m.wynikB}`}
-                          {m.karneA !== undefined && m.karneB !== undefined && (
-                            <span className="ml-[0.3em] text-[0.7em] font-normal text-slate-400">k. {m.karneA}:{m.karneB}</span>
-                          )}
-                        </span>
-                      </div>
-                    ))}
-                    {rozegrane.length > 10 && (
-                      <p className="pt-[0.5em] text-[1.1em] text-slate-400">
-                        i {withCount(rozegrane.length - 10, 'mecz', 'mecze', 'meczów')} wcześniej · wszystkie na {linkBezProtokolu.split('/')[0]}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {widok === 'strzelcy' && (
-                  <ol className="divide-y divide-white/10">
-                    {strzelcy.slice(0, 10).map((w, i) => (
-                      <li key={w.zawodnikId} className="flex items-center gap-[0.8em] py-[0.4em] text-[1.4em]">
-                        <span className={`w-[1.4em] shrink-0 text-right font-bold tabular-nums ${i < 3 ? 'text-primary-300' : 'text-slate-500'}`}>{i + 1}</span>
-                        <span className="min-w-0 flex-1 truncate">
-                          <span className="font-semibold">{w.imie}</span>
-                          {w.druzynaNazwa && <span className="text-slate-400"> · {w.druzynaNazwa}</span>}
-                        </span>
-                        <span className="shrink-0 font-display text-[1.2em] font-bold tabular-nums">{w.gole}</span>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-
-                {widok === 'final' && (
-                  <div className="divide-y divide-white/10">
-                    {meczeFinalu.slice(0, 10).map((m) => {
-                      const wynik = m.status === 'zakonczony' || m.status === 'walkower' || m.status === 'trwa';
-                      return (
-                        <div key={m.id} className="flex items-center gap-[0.8em] py-[0.45em] text-[1.4em]">
-                          <span className="w-[3.2em] shrink-0 font-bold tabular-nums">{godzina(m)}</span>
-                          <span className="min-w-0 flex-1">
-                            {!finalowa && <span className="block text-[0.65em] uppercase tracking-wide text-slate-500">{etykietaFazyMeczu(m, grupyPoId)}</span>}
-                            <span className="block truncate">{nazwa(m, 'a')} <span className="text-slate-500">–</span> {nazwa(m, 'b')}</span>
+  return (
+    <Tlo>
+      {naglowek}
+      {uklad === 'wynik' ? (
+        // TABLICA WYNIKÓW: mecz w toku (albo następny) na pół ekranu.
+        <main className="flex min-h-0 flex-1 flex-col gap-[1.2em] px-[1.6em] py-[1.2em]">
+          <div className="flex min-h-0 flex-1 flex-col justify-center" style={{ fontSize: c.naZywo.length > 1 ? '1.4em' : '1.9em' }}>
+            {blokTeraz}
+          </div>
+          <div className="grid grid-cols-[1.35fr_1fr] items-end gap-[1.6em]">
+            <div className="min-w-0">{blokKolejne}</div>
+            {kartaQr(true)}
+          </div>
+        </main>
+      ) : uklad === 'tabele' ? (
+        // WSZYSTKIE TABELE NARAZ, duże. Mecz w toku jednym paskiem nad nimi.
+        <main className="flex min-h-0 flex-1 flex-col gap-[1em] px-[1.6em] py-[1.2em]">
+          <div className="flex items-center gap-[1.6em]">
+            <div className="min-w-0 flex-1 space-y-[0.5em]">
+              {c.naZywo.length > 0 ? c.naZywo.map((m) => (
+                <p key={m.id} className="flex items-center gap-[0.6em] truncate text-[1.8em] font-semibold">
+                  <span className="h-[0.45em] w-[0.45em] shrink-0 animate-pulse rounded-full bg-primary-400" aria-hidden />
+                  <span className="text-[0.6em] uppercase tracking-wide text-primary-300">Na żywo</span>
+                  <span className="truncate">{nazwa(m, 'a')}</span>
+                  <span className="font-display font-bold tabular-nums">{m.wynikA}:{m.wynikB}</span>
+                  <span className="truncate">{nazwa(m, 'b')}</span>
+                </p>
+              )) : nastepny ? (
+                <p className="truncate text-[1.6em] text-slate-200">
+                  <span className="text-[0.7em] uppercase tracking-wide text-slate-400">Następny{nastepny.zaplanowanyAt ? ` · ${godzina(nastepny)}` : ''}</span>{' '}
+                  {nazwa(nastepny, 'a')} <span className="text-slate-500">–</span> {nazwa(nastepny, 'b')}
+                </p>
+              ) : null}
+            </div>
+            <div className="shrink-0" style={{ fontSize: '0.75em' }}>{kartaQr(true)}</div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-hidden" style={{ fontSize: tabeleGrup.length > 4 ? '1em' : tabeleGrup.length > 2 ? '1.2em' : '1.6em' }}>
+            {tabeleGrup.length > 0
+              ? blokTabele(Math.min(3, tabeleGrup.length))
+              : <p className="text-[1.6em] text-slate-400">Tabele pojawią się po pierwszym meczu.</p>}
+          </div>
+        </main>
+      ) : (
+      <main className="grid min-h-0 flex-1 grid-cols-[1.35fr_1fr] gap-[1.6em] px-[1.6em] py-[1.2em]">
+          <div className="flex min-h-0 min-w-0 flex-col gap-[1.2em]">
+            {blokTeraz}
+  
+            {blokKolejne}
+            {/* Kod QR na dole lewej kolumny: widać go cały czas, niezależnie
+                od tego, który widok kręci się po prawej. */}
+            <div className="mt-auto">{kartaQr(true)}</div>
+          </div>
+  
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+            {widok && (
+              <>
+                {/* Pasek widoków: który teraz i co będzie dalej. */}
+                <div className="mb-[0.8em] flex items-center gap-[0.5em]">
+                  {/* WYBÓR WIDOKU KLIKNIĘCIEM (2026-11-21): organizator, który ma
+                      ekran na drugim monitorze albo rzutniku z laptopa, klika
+                      nazwę widoku i ekran zostaje na nim (np. tabele przed
+                      fazą pucharową). Ponowne kliknięcie wraca do przełączania.
+                      Wybór trafia do adresu (`?widok=`), więc przetrwa
+                      odświeżenie strony. */}
+                  {dostepne.map((w) => (
+                    <button
+                      key={w}
+                      type="button"
+                      onClick={() => przypnijWidok(przypietyWidok === w ? null : w)}
+                      aria-pressed={przypietyWidok === w}
+                      className={`rounded-full px-[0.8em] py-[0.25em] text-[1.05em] font-semibold uppercase tracking-wide transition-colors ${
+                        w === widok ? 'bg-white text-slate-950' : 'text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      {TYTUL_WIDOKU[w]}{przypietyWidok === w ? ' · stałe' : ''}
+                    </button>
+                  ))}
+                </div>
+                <div key={widok} className="min-h-0 flex-1 animate-fade-in">
+                  {widok === 'tabele' && blokTabele(tabeleGrup.length > 2 ? 2 : 1)}
+  
+                  {widok === 'wyniki' && (
+                    <div className="divide-y divide-white/10">
+                      {rozegrane.slice(0, 10).map((m) => (
+                        <div key={m.id} className="flex items-center gap-[0.8em] py-[0.4em] text-[1.4em]">
+                          <span className="w-[2.6em] shrink-0 text-[0.75em] text-slate-500">{etykietaFazyMeczu(m, grupyPoId).replace('Grupa ', 'Gr. ')}</span>
+                          <span className="min-w-0 flex-1 truncate">{nazwa(m, 'a')} <span className="text-slate-500">–</span> {nazwa(m, 'b')}</span>
+                          <span className="shrink-0 font-display font-bold tabular-nums">
+                            {m.status === 'walkower' ? 'wo.' : `${m.wynikA}:${m.wynikB}`}
+                            {m.karneA !== undefined && m.karneB !== undefined && (
+                              <span className="ml-[0.3em] text-[0.7em] font-normal text-slate-400">k. {m.karneA}:{m.karneB}</span>
+                            )}
                           </span>
-                          {wynik && (
-                            <span className={`shrink-0 font-display font-bold tabular-nums ${m.status === 'trwa' ? 'text-primary-300' : ''}`}>
-                              {m.wynikA}:{m.wynikB}
-                            </span>
-                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </main>
+                      ))}
+                      {rozegrane.length > 10 && (
+                        <p className="pt-[0.5em] text-[1.1em] text-slate-400">
+                          i {withCount(rozegrane.length - 10, 'mecz', 'mecze', 'meczów')} wcześniej · wszystkie na {linkBezProtokolu.split('/')[0]}
+                        </p>
+                      )}
+                    </div>
+                  )}
+  
+                  {widok === 'strzelcy' && (
+                    <ol className="divide-y divide-white/10">
+                      {strzelcy.slice(0, 10).map((w, i) => (
+                        <li key={w.zawodnikId} className="flex items-center gap-[0.8em] py-[0.4em] text-[1.4em]">
+                          <span className={`w-[1.4em] shrink-0 text-right font-bold tabular-nums ${i < 3 ? 'text-primary-300' : 'text-slate-500'}`}>{i + 1}</span>
+                          <span className="min-w-0 flex-1 truncate">
+                            <span className="font-semibold">{w.imie}</span>
+                            {w.druzynaNazwa && <span className="text-slate-400"> · {w.druzynaNazwa}</span>}
+                          </span>
+                          <span className="shrink-0 font-display text-[1.2em] font-bold tabular-nums">{w.gole}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+  
+                  {widok === 'final' && (
+                    <div className="divide-y divide-white/10">
+                      {meczeFinalu.slice(0, 10).map((m) => {
+                        const wynik = m.status === 'zakonczony' || m.status === 'walkower' || m.status === 'trwa';
+                        return (
+                          <div key={m.id} className="flex items-center gap-[0.8em] py-[0.45em] text-[1.4em]">
+                            <span className="w-[3.2em] shrink-0 font-bold tabular-nums">{godzina(m)}</span>
+                            <span className="min-w-0 flex-1">
+                              {!finalowa && <span className="block text-[0.65em] uppercase tracking-wide text-slate-500">{etykietaFazyMeczu(m, grupyPoId)}</span>}
+                              <span className="block truncate">{nazwa(m, 'a')} <span className="text-slate-500">–</span> {nazwa(m, 'b')}</span>
+                            </span>
+                            {wynik && (
+                              <span className={`shrink-0 font-display font-bold tabular-nums ${m.status === 'trwa' ? 'text-primary-300' : ''}`}>
+                                {m.wynikA}:{m.wynikB}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </main>
+      )}
 
+      {/* STEROWANIE UKŁADEM: chwilę po ruchu myszy albo dotknięciu. */}
+      <nav
+        aria-label="Układ ekranu"
+        className={`fixed bottom-[1em] right-[1em] flex gap-[0.4em] rounded-full bg-slate-800/95 p-[0.35em] shadow-2xl ring-1 ring-white/10 transition-opacity duration-300 ${
+          sterowanie ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+      >
+        {UKLADY_EKRANU.map((u) => (
+          <button
+            key={u.klucz}
+            type="button"
+            onClick={() => zmienUklad(u.klucz)}
+            aria-pressed={uklad === u.klucz}
+            className={`rounded-full px-[1em] py-[0.45em] text-[1.1em] font-semibold ${
+              uklad === u.klucz ? 'bg-white text-slate-950' : 'text-slate-300 hover:bg-white/10'
+            }`}
+          >
+            {u.etykieta}
+          </button>
+        ))}
+      </nav>
     </Tlo>
   );
 }

@@ -5088,7 +5088,13 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     (dopisek „stałe”), ponowne wraca do rotacji; wybór idzie do adresu
     (`?widok=tabele|wyniki|strzelcy|final`), więc przetrwa odświeżenie i da się go ustawić z góry. **Kod QR** do strony turnieju (`lib/kodQr.ts` na
     `qrcode-generator`, rysowany jako SVG `components/ui/KodQr.tsx`, bez zewnętrznego
-    serwisu) z dużym „bojo.pl” i adresem: na dole lewej kolumny i pod podium. Bez ramki aplikacji:
+    serwisu) z dużym „bojo.pl” i adresem: na dole lewej kolumny i pod podium.
+    **Układ ekranu** (`?uklad=`): Wszystko (domyślny, opisany wyżej), Wynik na żywo (mecz
+    w toku albo następny na pół ekranu, pod nim 3 kolejne mecze i kod QR), Tabele (wszystkie
+    grupy duże, do 3 kolumn, mecz w toku jednym paskiem nad nimi), Mecze i wyniki (jak
+    Wszystko, ale prawa kolumna tylko z wynikami i fazą końcową, bez tabel i strzelców).
+    Organizator wybiera układ z menu „Ekran na halę” w panelu albo na samym ekranie:
+    przełącznik pokazuje się w prawym dolnym rogu na 3 s po ruchu myszy lub dotknięciu. Bez ramki aplikacji:
     `jestSciezkaWidgetu()` w `lib/widget.ts` obejmuje też tę trasę (bez banera cookies,
     dolnego paska i okna roli).
   - **Strona turnieju, zakładka Mecze:** od `lg` dwie kolumny, po prawej przyklejone tabele
