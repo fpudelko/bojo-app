@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-21 · migracja `178` · 61 tabel
+**Stan na:** 2026-11-21 · migracja `179` · 61 tabel
 
 ---
 
@@ -493,7 +493,9 @@ w górnym wierszu. W konsoli meczu „GOL” ma na dole opcję „Samobój”, k
 drużyny przeciwnej; strzelca można pominąć („Zapisz bez strzelca”). Statystyki graczy
 pokazują się tylko, gdy ktoś wpisał strzelców. Ze strony meczu i drużyny strzałka wraca do
 turnieju, a pod nagłówkiem są zakładki turnieju. Wejście „🏆 Turnieje” obok Moich meczów
-widzi ten, kto organizuje albo gra w turnieju.
+widzi ten, kto organizuje albo gra w turnieju. Remis w tabeli (te same punkty, bilans i bramki)
+daje drużynom to samo miejsce i ten sam medal na podium z dopiskiem „ex aequo”; organizator
+ustala kolejność w panelu i może dopisać komentarz pod tabelą.
 
 MECHANIKA: `components/turnieje/WierszWyniku.tsx`, `KartaMeczu.tsx`, `ArkuszSkladu.tsx`,
 `ZakladkiTurnieju.tsx`, `strzelcyMeczu()`/`znacznikFazy()` w `lib/turniejEtykiety.ts`,
@@ -503,6 +505,7 @@ PYTANIA:
 - Jak wpisać gola samobójczego w turnieju w Bojo?
 - Czy można zapisać gola bez strzelca?
 - Gdzie znajdę turnieje, w których gram?
+- Co pokazuje Bojo, gdy drużyny w grupie mają identyczny bilans?
 
 ### 2026-11-21 — Adresy turniejów i meczów z nazwą i datą zamiast uuid
 
