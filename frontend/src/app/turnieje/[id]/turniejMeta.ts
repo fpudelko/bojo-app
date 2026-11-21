@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pobierzAdres } from '@/lib/adresy';
 import { createClient } from '@supabase/supabase-js';
 import { opisTurnieju } from '@/lib/turniejOpis';
 
@@ -33,7 +34,7 @@ export async function generateTurniejMetadata(id: string): Promise<Metadata> {
     return {
       title,
       description,
-      alternates: { canonical: `/turnieje/${id}` },
+      alternates: { canonical: `/turnieje/${(await pobierzAdres('turniej', id)) ?? id}` },
       openGraph: { title, description },
       // Znaczniki Twittera osobno, bo NIE dziedziczą się po openGraph.
       // Bez nich część komunikatorów pokazywała globalny opis marki

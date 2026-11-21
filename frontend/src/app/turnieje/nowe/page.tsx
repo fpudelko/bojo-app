@@ -1,5 +1,6 @@
 'use client';
 
+import { useAdres } from '@/lib/useAdres';
 import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Copy, Loader2, Share2, Timer } from 'lucide-react';
@@ -62,6 +63,8 @@ export default function NowyTurniejPage() {
   const [submitting, setSubmitting] = useState(false);
   /** Id świeżo utworzonego turnieju — przełącza ekran na plakat. */
   const [utworzony, setUtworzony] = useState<string | null>(null);
+  // Adres z nazwą (177) do linku na plakacie; do odczytu zostaje uuid.
+  const adresUtworzonego = useAdres('turniej', utworzony ?? undefined);
 
   const nazwaOk = nazwa.trim().length >= 3;
   const dataOk = !!dataStartu;
@@ -146,7 +149,7 @@ export default function NowyTurniejPage() {
 
   // ── Plakat: ekran, na którym kończy się kreator ──────────────────────────
   if (utworzony) {
-    const link = linkDoTurnieju(utworzony);
+    const link = linkDoTurnieju(adresUtworzonego ?? utworzony);
     const daneDoUdostepnienia = {
       nazwa, dataStartu, godzinaStartu,
       miejsceNazwa: location.venue?.name ?? miejsceNazwa,

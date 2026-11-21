@@ -5044,6 +5044,16 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   `lib/oknoCzatu.ts`), nie tylko przy kursorze w polu. Safari po zamknięciu klawiatury
   albo kółka godzin trzymał okno skurczone i menu wisiało nad terminarzem.
 - Udostępnienie turnieju: sam link, bez dopisku „Zgłoś drużynę” (`tekstUdostepnieniaTurnieju()`).
+- **Adresy z nazwą (2026-11-21, migracja `177`):** `/turnieje/gramy-dla-marysi-28-11-2026`,
+  `/turnieje/<adres>/mecz/5` (numer meczu), `/wydarzenia/czwartkowa-gierka-27-11-2026`.
+  `src/middleware.ts` przepisuje (nie przekierowuje) adres z nazwą na trasę z uuid, więc
+  ekrany dalej dostają uuid w `[id]`; nieznany adres kończy się tym samym „nie znaleziono”
+  co zły uuid. `useAdresWPasku()` (`lib/useAdres.ts`) podmienia uuid na adres w pasku
+  przeglądarki po każdej nawigacji (`history.replaceState`); `useAdres()` daje adres do
+  linków udostępniania (turniej, podium, mecz, zaproszenie, zmiana, odwołanie); adres
+  kanoniczny i JSON-LD meczu też idą z adresu (`pobierzAdres()` w `lib/adresy.ts`). Bez
+  migracji `177` wszystko zostaje przy uuid. Powiadomienia i listy dalej linkują po uuid:
+  pasek i tak pokaże nazwę.
 - Jednorazowe zadanie `supabase/zadania/turniej-marysi-organizator.sql`: organizator,
   kapitan z drugiego konta i regulamin turnieju pokazowego do testu wpisywania wyników.
 

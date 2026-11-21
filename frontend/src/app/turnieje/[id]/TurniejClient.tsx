@@ -1,5 +1,6 @@
 'use client';
 
+import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -118,6 +119,9 @@ function MeczeGrupy({
 
 export default function TurniejClient() {
   const { id } = useParams<{ id: string }>();
+  // Adres z nazwą (177): do linków udostępniania i do paska przeglądarki.
+  const adresTurnieju = useAdres('turniej', id);
+  useAdresWPasku({ [id]: adresTurnieju });
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -433,7 +437,7 @@ export default function TurniejClient() {
     : undefined;
 
   const udostepnijWyniki = async () => {
-    const tekst = tekstPodium(turniej.nazwa, podium, linkDoTurnieju(id), krolStrzelcow);
+    const tekst = tekstPodium(turniej.nazwa, podium, linkDoTurnieju(adresTurnieju ?? id), krolStrzelcow);
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({ title: `Wyniki: ${turniej.nazwa}`, text: tekst });
@@ -451,7 +455,7 @@ export default function TurniejClient() {
   };
 
   const udostepnij = async () => {
-    const wynik = await udostepnijTurniej(turniej, linkDoTurnieju(id));
+    const wynik = await udostepnijTurniej(turniej, linkDoTurnieju(adresTurnieju ?? id));
     if (wynik === 'copied') toast('Link skopiowany');
     else if (wynik === 'failed') toast('Nie udało się udostępnić', 'error');
   };

@@ -1,5 +1,6 @@
 'use client';
 
+import { useAdres } from '@/lib/useAdres';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Lock, ArrowLeft, MapPin, ChevronDown, ChevronUp, X } from 'lucide-react';
@@ -40,6 +41,7 @@ const EMPTY_LOCATION: LocationResult = { venue: null, lat: null, lng: null, addr
 
 export default function EditEventPage() {
   const { id } = useParams<{ id: string }>();
+  const adresMeczu = useAdres('mecz', id) ?? id;
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const isAdmin = useAdmin();
@@ -351,7 +353,7 @@ export default function EditEventPage() {
             customAddress: payload.customAddress,
           },
           zmiany,
-          eventUrl(id, window.location.origin),
+          eventUrl(adresMeczu, window.location.origin),
         );
       }
 

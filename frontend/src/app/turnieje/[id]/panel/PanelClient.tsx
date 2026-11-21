@@ -1,5 +1,6 @@
 'use client';
 
+import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -85,6 +86,7 @@ function toCsv(kontakty: KontaktDruzyny[]): string {
 
 export default function PanelClient() {
   const { id } = useParams<{ id: string }>();
+  useAdresWPasku({ [id]: useAdres('turniej', id) });
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
