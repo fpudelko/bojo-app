@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-18 · migracja `176` · 60 tabel
+**Stan na:** 2026-11-21 · migracja `177` · 61 tabel
 
 ---
 
@@ -481,6 +481,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-21 — Adresy turniejów i meczów z nazwą i datą zamiast uuid
+
+PROBLEM: link do turnieju i meczu w Bojo wyglądał jak `bojo.pl/turnieje/e9a3763f-7bd9-…`
+i na czacie nie mówił, dokąd prowadzi, dopóki ktoś nie kliknął.
+
+ROZWIĄZANIE BOJO: turniej ma adres z nazwą i datą (`bojo.pl/turnieje/gramy-dla-marysi-28-11-2026`),
+mecz turnieju numer (`…/mecz/5`), zwykły mecz tak samo jak turniej
+(`bojo.pl/wydarzenia/czwartkowa-gierka-27-11-2026`). Adres nadaje się raz, przy utworzeniu,
+i nie zmienia się po zmianie nazwy ani daty, więc rozesłane linki działają dalej. Powtórzona
+nazwa i data dostaje dopisek „-2”. Stare linki z uuid działają; pasek przeglądarki od razu
+pokazuje adres z nazwą. Udostępnienie turnieju wysyła sam link, bez dopisku „Zgłoś drużynę”.
+
+MECHANIKA: migracja `177` (tabela `adresy_z_nazwa`, `nadaj_adres()`, wyzwalacze na `turnieje`
+i `events`), `src/middleware.ts` (adres z nazwą → trasa z uuid), `lib/adresy.ts`,
+`lib/useAdres.ts`. Szczegóły → [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Jak wygląda link do turnieju w Bojo?
+- Czy stary link do meczu z długim identyfikatorem dalej działa?
+- Czy adres meczu zmieni się, gdy organizator zmieni nazwę albo datę?
+- Jak podać link do konkretnego meczu turnieju?
+
 ### 2026-11-20 — Czytelniejsze kafelki meczów turnieju, prostsza zakładka Info i panel bez pulpitu
 
 PROBLEM: na stronie turnieju Bojo napis „Zapisy zamknięte” stał nad każdą zakładką, kafelki
@@ -689,26 +711,3 @@ warunkiem `NOT EXISTS push_subscriptions`), funkcja brzegowa `powiadom-goscia/tr
 (`RODZAJE_MAILOWE_ZAWSZE`/`RODZAJE_MAILOWE_BEZ_PUSHA`), `ZachetaPush.tsx` (prop
 `organizator`), `EventDetailClient.tsx` (`zaproponujPowiadomienia()` po `handleShare`).
 Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-1, Z-1a, Z-2.
-
-### 2026-09-28 (2) — Gość dopisany ręcznie sam zostawia e-mail
-
-PROBLEM: organizator dopisujący gracza ręcznie („Dopisz osobę bez konta") zwykle nie zna
-jego adresu e-mail — na produkcji 29 z 29 takich wpisów w 60 dni było bez adresu. Taki
-gość nie dostawał od Bojo żadnej wiadomości: ani potwierdzenia zapisu, ani przypomnienia
-dzień przed meczem, ani informacji o odwołaniu. Jedynym wyjściem organizatora było
-„powiadom sam" — dokładnie to, co Bojo miało odciążyć.
-
-ROZWIĄZANIE BOJO: strona własnego zapisu gościa bez konta (link, który dostaje po
-dopisaniu) ma teraz formularz „Przypomnienie na e-mail" — sam gość zostawia tam adres,
-bez zakładania konta, i od razu dostaje potwierdzenie zapisu mailem. Adres da się ustawić
-tylko raz: token jest uprawnieniem do PIERWSZEGO adresu, nie hasłem, więc link, który
-komuś wyciekł, nie może przekierować cudzego kanału. Tekst zaproszenia, które organizator
-wysyła, i baner „N osób nie dostanie żadnej wiadomości" mówią teraz wprost, że pod tym
-linkiem da się zostawić adres.
-
-MECHANIKA: migracja `168` (funkcja `ustaw_email_goscia`, kolumna wynikowa `ma_email` w
-`podejrzyj_wpis_goscia`), `ustawEmailGoscia()` w `lib/guestClaim.ts`,
-`app/gracz/przejmij/[token]/PrzejmijClient.tsx`. Potwierdzenie leci istniejącym powodem
-„zapis" (migracja `133`), bez zmian we funkcji brzegowej.
-Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-5.
-

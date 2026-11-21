@@ -1,5 +1,6 @@
 'use client';
 
+import { useAdres } from '@/lib/useAdres';
 import { useState } from 'react';
 import { Check, Copy, Loader2, Radar, Share2, Users } from 'lucide-react';
 import { eventUrl, shareEvent, textDoKopiowania, type StanUdostepnienia } from '@/lib/eventShare';
@@ -54,8 +55,9 @@ export default function ZaprosZnajomychPanel(
 ) {
   const [copied, setCopied] = useState(false);
 
+  const adresMeczu = useAdres('mecz', event.id) ?? event.id;
   const link = () => eventUrl(
-    event.id,
+    adresMeczu,
     typeof window !== 'undefined' ? window.location.origin : 'https://bojo.pl',
   );
 

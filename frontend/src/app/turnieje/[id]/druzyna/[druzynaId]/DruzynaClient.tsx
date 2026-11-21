@@ -21,6 +21,7 @@
  * a przyciski kapitana pokazują się wyłącznie kapitanowi.
  */
 
+import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -54,6 +55,7 @@ const inputCls =
 
 export default function DruzynaClient() {
   const { id, druzynaId } = useParams<{ id: string; druzynaId: string }>();
+  useAdresWPasku({ [id]: useAdres('turniej', id) });
   const router = useRouter();
   const wstecz = useWstecz(`/turnieje/${id}?tab=druzyny`);
   const { user, loading: ladujeSesje } = useAuth();

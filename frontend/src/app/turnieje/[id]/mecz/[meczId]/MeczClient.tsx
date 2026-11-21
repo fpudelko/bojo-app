@@ -1,5 +1,6 @@
 'use client';
 
+import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -46,6 +47,11 @@ export default function MeczClient() {
 
   const [turniej, setTurniej] = useState<Turniej | null>(null);
   const [mecz, setMecz] = useState<TurniejMecz | null>(null);
+  // Adres z nazwą (177): /turnieje/<nazwa-i-data>/mecz/<numer> w pasku przeglądarki.
+  useAdresWPasku({
+    [id]: useAdres('turniej', id),
+    [meczId]: mecz?.numer !== undefined ? String(mecz.numer) : undefined,
+  });
   const [druzyny, setDruzyny] = useState<TurniejDruzyna[]>([]);
   const [areny, setAreny] = useState<TurniejArena[]>([]);
   const [zdarzenia, setZdarzenia] = useState<TurniejZdarzenie[]>([]);

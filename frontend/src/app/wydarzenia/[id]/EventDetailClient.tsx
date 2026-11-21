@@ -1,5 +1,6 @@
 'use client';
 
+import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -438,6 +439,9 @@ function Switch({ checked, onChange, disabled, label }: {
 
 export default function EventDetailClient() {
   const { id } = useParams<{ id: string }>();
+  // Adres z nazwą (177): do linków udostępniania i do paska przeglądarki.
+  const adresMeczu = useAdres('mecz', id) ?? id;
+  useAdresWPasku({ [id]: adresMeczu });
   const router = useRouter();
   // Mecz otwiera się najczęściej z linku (powiadomienie, WhatsApp) — wtedy
   // historii w aplikacji nie ma i goły `router.back()` wyprowadzał z Bojo.
@@ -1909,7 +1913,7 @@ export default function EventDetailClient() {
       godzinaKonca: event.endTime,
       miejsce: miejsce || null,
       opis: event.description,
-      url: eventUrl(event.id, window.location.origin),
+      url: eventUrl(adresMeczu, window.location.origin),
     });
     if (ok) {
       // Potwierdzenie jest potrzebne, bo pobranie pliku na telefonie bywa
@@ -1928,7 +1932,7 @@ export default function EventDetailClient() {
     // INTENCJĘ organizatora — czy w ogóle sięga po wysłanie linku.
     track('event_shared', { eventId: event.id, skad: swiezoUtworzony ? 'po-publikacji' : 'strona-meczu' });
     const wynik = await shareEvent(
-      event, eventUrl(event.id, window.location.origin),
+      event, eventUrl(adresMeczu, window.location.origin),
       { wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete },
     );
     if (wynik === 'copied') {
@@ -1953,7 +1957,7 @@ export default function EventDetailClient() {
     track('squad_shared', { eventId: event.id });
     const wynik = await udostepnijSklad(
       event, regulars, participants.filter((p) => p.isReserve),
-      eventUrl(event.id, window.location.origin),
+      eventUrl(adresMeczu, window.location.origin),
       { wolneMiejsca: wolne.razem, reserveEnabled: event.reserveEnabled, zapisyZamkniete: event.zapisyZamkniete },
     );
     if (wynik === 'copied') toast('Skopiowano, wklej na czacie ze znajomymi');
@@ -2132,7 +2136,7 @@ export default function EventDetailClient() {
       // Wiadomość PO udanym przywróceniu, nie przed — ta sama zasada co przy
       // odwołaniu: nie ogłaszamy stanu, którego jeszcze nie ma.
       if (wybor === 'dodatkowa') {
-        const wynik = await udostepnijPrzywrocenie(event, eventUrl(event.id, window.location.origin));
+        const wynik = await udostepnijPrzywrocenie(event, eventUrl(adresMeczu, window.location.origin));
         if (wynik === 'copied') toast('Wiadomość skopiowana, wklej ją na czat ekipy');
       }
     } catch (e) {

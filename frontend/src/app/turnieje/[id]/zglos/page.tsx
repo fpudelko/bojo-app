@@ -1,5 +1,6 @@
 'use client';
 
+import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -20,6 +21,7 @@ const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300 m
 
 export default function ZglosDruzynePage() {
   const { id } = useParams<{ id: string }>();
+  useAdresWPasku({ [id]: useAdres('turniej', id) });
   const wstecz = useWstecz(`/turnieje/${id}`);
   const { user, loading } = useAuth();
   const { toast } = useToast();

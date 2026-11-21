@@ -1932,6 +1932,32 @@ SELECT _oczekuj('przerwę widzi każdy, także bez konta',
 RESET ROLE;
 DELETE FROM turnieje WHERE id = :PR_T::uuid;
 
+SELECT _sekcja('Adresy z nazwą (migracja 177)');
+\set AD_T1 '''ffffffff-0000-4000-8000-0000000001b1'''
+\set AD_T2 '''ffffffff-0000-4000-8000-0000000001b2'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:AD_T1::uuid, :T_ORGANIZATOR::uuid, 'Gramy dla Marysi!', 'piłka nożna', 'zapisy', DATE '2026-11-28'),
+       (:AD_T2::uuid, :T_ORGANIZATOR::uuid, 'Gramy dla Marysi!', 'piłka nożna', 'zapisy', DATE '2026-11-28');
+SELECT _oczekuj('turniej dostaje adres z nazwą i datą przy utworzeniu',
+                (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id = :AD_T1::uuid AND slug = 'gramy-dla-marysi-28-11-2026'), 1);
+SELECT _oczekuj('ta sama nazwa i data dostaje dopisek -2',
+                (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id = :AD_T2::uuid AND slug = 'gramy-dla-marysi-28-11-2026-2'), 1);
+SET ROLE anon;
+SELECT _oczekuj('adres czyta każdy, także bez konta',
+                (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id = :AD_T1::uuid), 1);
+SELECT _oczekuj_odmowe('bez konta nie dopisze adresu',
+  format('INSERT INTO adresy_z_nazwa (slug, turniej_id) VALUES (''przejety'', %L)', :AD_T1));
+RESET ROLE;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+UPDATE adresy_z_nazwa SET slug = 'przejety' WHERE turniej_id = :AD_T1::uuid;
+RESET ROLE;
+SELECT _oczekuj('nikt nie przepisze adresu (0 wierszy)',
+                (SELECT count(*) FROM adresy_z_nazwa WHERE slug = 'przejety'), 0);
+DELETE FROM turnieje WHERE id IN (:AD_T1::uuid, :AD_T2::uuid);
+SELECT _oczekuj('adres znika razem z turniejem',
+                (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id IN (:AD_T1::uuid, :AD_T2::uuid)), 0);
+
 SELECT _sekcja('Każda tabela w public ma włączone RLS');
 DO $$
 DECLARE

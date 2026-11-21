@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { pobierzAdres } from '@/lib/adresy';
 import { eventJsonLd } from '@/lib/structuredData';
 import { getEventMeta, metadataDlaMeczu, policzZajeteMiejsca } from './eventMeta';
 import EventDetailClient from './EventDetailClient';
@@ -25,7 +26,9 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   // Liczymy skład tylko dla meczu publicznego (Z-3, docs/faza1-runda10-plan.md)
   // — dla innych metadane i tak są bezcechowe, a zapytanie byłoby zbędne.
   const zajete = ev?.visibility === 'public' ? await policzZajeteMiejsca(params.id) : undefined;
-  return metadataDlaMeczu(params.id, ev, zajete);
+  // Adres kanoniczny z nazwą (177), gdy jest; inaczej uuid.
+  const adres = (await pobierzAdres('mecz', params.id)) ?? params.id;
+  return metadataDlaMeczu(adres, ev, zajete);
 }
 
 export default async function EventPage({ params }: { params: { id: string } }) {
@@ -33,7 +36,8 @@ export default async function EventPage({ params }: { params: { id: string } }) 
   // Liczymy skład tylko dla meczu publicznego — dla innych JSON-LD i tak nie
   // powstaje, a zapytanie byłoby zbędne.
   const zajete = ev?.visibility === 'public' ? await policzZajeteMiejsca(params.id) : undefined;
-  const jsonLd = ev ? eventJsonLd(params.id, { ...ev, zajete }) : null;
+  const adres = (await pobierzAdres('mecz', params.id)) ?? params.id;
+  const jsonLd = ev ? eventJsonLd(adres, { ...ev, zajete }) : null;
 
   return (
     <>
