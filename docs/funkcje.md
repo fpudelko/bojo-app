@@ -5022,9 +5022,11 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   startem (tylko niespełnione pozycje `pulpitPrzedTurniejem()`), rozjazd startu z pierwszym
   meczem. Lista „Wpisz wynik” wypadła: terminarz jest tą listą. „Zakończ turniej” pod
   terminarzem.
-- **Podział na grupy w Drużynach:** karta „Podział na grupy” (losowanie, ustawienie ręczne,
-  „Losuj ponownie”), lista drużyn ułożona grupami, przełącznik grupy przy każdej drużynie
-  (zablokowany po pierwszym rozegranym meczu).
+- **Podział na grupy w Drużynach:** osobna karta „Podział na grupy” (losowanie, ustawienie
+  ręczne, „Losuj ponownie”) z grupami jedna pod drugą i przełącznikiem grupy przy każdej
+  drużynie (zablokowany po pierwszym rozegranym meczu). Pod nią zwykła lista „W turnieju”:
+  nazwa w dwóch liniach, skład, kapitan, wpisowe, usunięcie. „Link do drużyny” wypadł
+  z wiersza (2026-11-21, rozpychał go na telefonie); link wysyła się z ekranu drużyny.
 - **Areny w Ustawieniach** (nazwa, dodanie, usunięcie przy dwóch i więcej). Arena to boisko,
   hala albo kort; kreator pyta o „Areny (boiska, hale, korty)”. Przy dwóch i więcej arenach
   „Zmień godziny i areny” w terminarzu ustawia arenę każdego meczu (`updateMecz({ arenaId })`).

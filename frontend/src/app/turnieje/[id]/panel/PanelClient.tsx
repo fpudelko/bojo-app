@@ -4,7 +4,7 @@ import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Copy, Download, Plus, Check, X as XIcon, Trash2, Ban, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Download, Plus, Check, X as XIcon, Trash2, Ban, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import CoverUpload from '@/components/ui/CoverUpload';
@@ -1056,8 +1056,11 @@ export default function PanelClient() {
               </div>
             )}
 
+            {/* PODZIAŁ NA GRUPY W OSOBNEJ KARCIE (2026-11-21): grupy jedna pod
+                drugą z drużynami i przełącznikiem przy każdej. Lista „W turnieju”
+                niżej jest już tylko listą drużyn (skład, kapitan, wpisowe). */}
             {potrzebujeGrup && (
-              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-2 shadow-sm">
+              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
                 <h2 className="text-sm font-semibold text-ink">Podział na grupy</h2>
                 {grupyZwykle.length === 0 ? (
                   <div className="flex flex-wrap items-center gap-2">
@@ -1081,14 +1084,44 @@ export default function PanelClient() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-sm text-slate-600 dark:text-slate-300">
-                      Grupę drużyny zmienisz przełącznikiem przy jej nazwie.
-                      {mecze.length > 0 && rozegranych === 0 && ' Po zmianie grup wygeneruj terminarz od nowa.'}
-                    </p>
+                    {[...grupyZwykle.map((g) => ({ klucz: g.id, nazwa: `Grupa ${g.nazwa}`, druzyny: wTurnieju.filter((d) => d.grupaId === g.id), bez: false })),
+                      { klucz: 'bez', nazwa: 'Bez grupy', druzyny: wTurnieju.filter((d) => !d.grupaId || !grupyZwykle.some((g) => g.id === d.grupaId)), bez: true }]
+                      .filter((g) => !g.bez || g.druzyny.length > 0)
+                      .map((g) => (
+                        <div key={g.klucz} className={`rounded-xl border p-3 ${g.bez ? 'border-amber-100 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30' : 'border-slate-100 dark:border-slate-700'}`}>
+                          <p className={`text-xs font-semibold ${g.bez ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-300'}`}>
+                            {g.nazwa} · {odmienDruzyny(g.druzyny.length)}
+                          </p>
+                          {g.druzyny.length === 0 && <p className="mt-1 text-sm text-slate-500">Pusta</p>}
+                          <ul className="mt-1 divide-y divide-slate-100 dark:divide-slate-700">
+                            {g.druzyny.map((d) => (
+                              <li key={d.id} className="flex min-h-[44px] items-center gap-2 py-1">
+                                <span className="min-w-0 flex-1 break-words text-sm font-medium text-ink">{d.nazwa}</span>
+                                {/* Przełącznik grupy: po pierwszym rozegranym meczu
+                                    zablokowany, jak układanie terminarza. */}
+                                {rozegranych === 0 && (
+                                  <select
+                                    value={g.bez ? '' : g.klucz}
+                                    onChange={(e) => e.target.value && przeniesDoGrupy(d, e.target.value)}
+                                    aria-label={`Grupa drużyny ${d.nazwa}`}
+                                    className="shrink-0 rounded-lg border border-slate-300 dark:border-slate-600 bg-white px-2 py-1.5 text-xs font-medium dark:bg-slate-700 dark:text-slate-100"
+                                  >
+                                    {g.bez && <option value="">Wybierz…</option>}
+                                    {grupyZwykle.map((x) => <option key={x.id} value={x.id}>Grupa {x.nazwa}</option>)}
+                                  </select>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
                     {rozegranych > 0 ? (
                       <p className="text-xs text-slate-500">Rozegrano już mecze, więc grup nie da się zmienić.</p>
                     ) : (
-                      <button onClick={() => losujGrupy()} className="text-sm font-medium text-primary-600">Losuj ponownie</button>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <button onClick={() => losujGrupy()} className="min-h-[44px] text-sm font-medium text-primary-600">Losuj ponownie</button>
+                        {mecze.length > 0 && <p className="text-xs text-slate-500">Po zmianie grup wygeneruj terminarz od nowa.</p>}
+                      </div>
                     )}
                   </>
                 )}
@@ -1097,32 +1130,18 @@ export default function PanelClient() {
 
             <div className="space-y-2">
               <h2 className="text-sm font-semibold text-slate-500">W turnieju ({wTurnieju.length})</h2>
-              {(() => {
-                const wiersz = (d: TurniejDruzyna) => (
-                <div key={d.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
-                  {/* Nazwa prowadzi na ekran drużyny: tam organizator wpisuje
-                      skład, wskazuje kapitana i wysyła link (2026-11-08). */}
+              {/* Wiersz: nazwa (dwie linie, bez wielokropka) i pod nią skład,
+                  po prawej wpisowe i usunięcie. „Link do drużyny” wypadł
+                  (2026-11-21): rozpychał wiersz na telefonie, a link wysyła się
+                  z ekranu drużyny (dotknięcie nazwy). */}
+              {wTurnieju.map((d) => (
+                <div key={d.id} className="flex items-center gap-2 rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
                   <Link href={`/turnieje/${id}/druzyna/${d.id}`} className="min-w-0 flex-1">
-                    <span className="block truncate font-medium text-ink">{d.nazwa}</span>
-                    <span className="block text-xs text-slate-400">
+                    <span className="block line-clamp-2 break-words font-medium text-ink">{d.nazwa}</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">
                       {odmienZawodnikow(d.liczbaZawodnikow ?? 0)} · {d.kapitanId ? 'ma kapitana' : 'bez kapitana'}
                     </span>
                   </Link>
-                  {/* Przełącznik grupy przy drużynie (2026-11-20): losowanie
-                      daje punkt wyjścia, tu organizator przestawia drużyny.
-                      Po pierwszym rozegranym meczu zablokowany, jak terminarz. */}
-                  {grupyZwykle.length > 0 && (
-                    <select
-                      value={d.grupaId ?? ''}
-                      disabled={rozegranych > 0}
-                      onChange={(e) => e.target.value && przeniesDoGrupy(d, e.target.value)}
-                      aria-label={`Grupa drużyny ${d.nazwa}`}
-                      className="shrink-0 rounded-lg border border-slate-300 dark:border-slate-600 px-2 py-1 text-xs font-medium dark:bg-slate-700 dark:text-slate-100"
-                    >
-                      {!d.grupaId && <option value="">Bez grupy</option>}
-                      {grupyZwykle.map((x) => <option key={x.id} value={x.id}>Grupa {x.nazwa}</option>)}
-                    </select>
-                  )}
                   {turniej.wpisoweGrosze > 0 && (
                     <button
                       onClick={() => przelaczOplacone(d)}
@@ -1131,42 +1150,11 @@ export default function PanelClient() {
                       {d.wpisoweOplaconeAt ? 'Opłacone ✓' : 'Nieopłacone'}
                     </button>
                   )}
-                  {/* Podpisany przycisk zamiast samej ikonki. Ikona kopiowania
-                      stała tuż obok krzyżyka usuwania: łatwo było trafić nie
-                      w to, co trzeba. Usuwanie drużyny jest dalej tutaj, ale
-                      z odstępem i z oknem potwierdzenia. */}
-                  <button
-                    onClick={() => kopiuj(`Dołącz do drużyny ${d.nazwa} w turnieju ${turniej.nazwa}: ${window.location.origin}/t/${d.kodDolaczenia}`, 'Link drużyny')}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-600 px-2 py-1 text-xs font-medium text-slate-600 dark:text-slate-300"
-                  >
-                    <Copy className="h-3.5 w-3.5" /> Link do drużyny
+                  <button onClick={() => usunDruzyneZTurnieju(d)} className="flex h-11 w-11 shrink-0 items-center justify-center text-slate-400 hover:text-red-500" aria-label={`Usuń drużynę ${d.nazwa}`}>
+                    <XIcon className="h-4 w-4" />
                   </button>
-                  <button onClick={() => usunDruzyneZTurnieju(d)} className="ml-2 text-slate-400 hover:text-red-500" aria-label={`Usuń drużynę ${d.nazwa}`}><XIcon className="h-4 w-4" /></button>
                 </div>
-                );
-                if (grupyZwykle.length === 0) return wTurnieju.map(wiersz);
-                // Z grupami lista idzie grupami: od razu widać podział.
-                const bezGrupy = wTurnieju.filter((d) => !d.grupaId || !grupyZwykle.some((g) => g.id === d.grupaId));
-                return (
-                  <>
-                    {grupyZwykle.map((g) => {
-                      const wGrupie = wTurnieju.filter((d) => d.grupaId === g.id);
-                      return (
-                        <div key={g.id} className="space-y-2">
-                          <p className="pt-1 text-xs font-semibold text-slate-500">Grupa {g.nazwa} · {odmienDruzyny(wGrupie.length)}</p>
-                          {wGrupie.map(wiersz)}
-                        </div>
-                      );
-                    })}
-                    {bezGrupy.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="pt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Bez grupy · {odmienDruzyny(bezGrupy.length)}</p>
-                        {bezGrupy.map(wiersz)}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
+              ))}
               {wTurnieju.length === 0 && <p className="text-sm text-slate-400">Jeszcze nikogo.</p>}
             </div>
 
