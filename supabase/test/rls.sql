@@ -2015,6 +2015,35 @@ SELECT _oczekuj('obcy nie zmieni komentarza grupy (0 wierszy)',
   (SELECT count(*) FROM turniej_grupy WHERE id = :RT_G::uuid AND komentarz = 'Przejęte'), 0);
 DELETE FROM turnieje WHERE id = :RT_T::uuid;
 
+SELECT _sekcja('Ekran na halę: ogłoszenie i link (migracja 180)');
+\set EK_T '''ffffffff-0000-4000-8000-0000000001f1'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:EK_T::uuid, :ORGANIZATOR::uuid, 'Ekran do testów', 'piłka nożna', 'trwa', CURRENT_DATE);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+UPDATE turnieje SET ekran_komunikat = 'Zbieramy na rehabilitację Marysi', ekran_link = 'https://zrzutka.pl/marysia',
+       ekran_link_opis = 'Wesprzyj Marysię' WHERE id = :EK_T::uuid;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+UPDATE turnieje SET ekran_komunikat = 'Przejęte' WHERE id = :EK_T::uuid;
+RESET ROLE;
+SELECT _oczekuj('organizator zapisuje ogłoszenie i link ekranu, obcy nie (0 wierszy)',
+  (SELECT count(*) FROM turnieje WHERE id = :EK_T::uuid AND ekran_komunikat = 'Zbieramy na rehabilitację Marysi'
+     AND ekran_link = 'https://zrzutka.pl/marysia'), 1);
+SET ROLE anon;
+SELECT _oczekuj('ogłoszenie ekranu czyta każdy (ekran jest publiczny)',
+  (SELECT count(*) FROM turnieje WHERE id = :EK_T::uuid AND ekran_link_opis = 'Wesprzyj Marysię'), 1);
+RESET ROLE;
+DO $$
+BEGIN
+  BEGIN
+    UPDATE turnieje SET ekran_link = 'javascript:alert(1)' WHERE id = 'ffffffff-0000-4000-8000-0000000001f1';
+    RAISE EXCEPTION 'RLS: link ekranu przyjął schemat inny niż http(s)';
+  EXCEPTION WHEN check_violation THEN
+    RAISE NOTICE '  ✓ link ekranu tylko http(s) (CHECK)';
+  END;
+END $$;
+DELETE FROM turnieje WHERE id = :EK_T::uuid;
+
 SELECT _sekcja('Każda tabela w public ma włączone RLS');
 DO $$
 DECLARE

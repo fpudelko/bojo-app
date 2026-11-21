@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { uprawnieniaTurnieju, przyjmujeZgloszenia, domyslnaZakladka } from '@/lib/turnieje';
+import { uprawnieniaTurnieju, przyjmujeZgloszenia, domyslnaZakladka, normalizujLinkEkranu } from '@/lib/turnieje';
 
 describe('uprawnieniaTurnieju', () => {
   const turniej = { organizatorId: 'org-1' };
@@ -117,5 +117,18 @@ describe('przyjmujeZgloszenia — termin graniczny', () => {
 
   it('bez terminu zachowuje się jak dotąd', () => {
     expect(przyjmujeZgloszenia({ ...baza, zapisyDo: undefined }, 3, new Date('2030-01-01'))).toBe(true);
+  });
+});
+
+describe('normalizujLinkEkranu (180)', () => {
+  it('dopisuje https:// do adresu wpisanego z ręki i zostawia pełny adres', () => {
+    expect(normalizujLinkEkranu('zrzutka.pl/marysia')).toBe('https://zrzutka.pl/marysia');
+    expect(normalizujLinkEkranu(' https://pomagam.pl/x ')).toBe('https://pomagam.pl/x');
+    expect(normalizujLinkEkranu('')).toBeNull();
+  });
+
+  it('odrzuca schemat inny niż http(s) i tekst, który nie jest adresem', () => {
+    expect(() => normalizujLinkEkranu('javascript:alert(1)')).toThrow();
+    expect(() => normalizujLinkEkranu('zbiórka dla Marysi')).toThrow();
   });
 });

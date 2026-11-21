@@ -657,6 +657,10 @@ export interface Turniej {
   wymagaAkceptacji: boolean;
   mvpZawodnikId?: string;
   createdAt: string;
+  /** Ekran na halę (180): ogłoszenie i link (zbiórka, fundacja) z kodem QR. */
+  ekranKomunikat?: string;
+  ekranLink?: string;
+  ekranLinkOpis?: string;
   /** Liczone przy pobieraniu listy, nie kolumna. */
   liczbaDruzyn?: number;
 }
@@ -695,6 +699,10 @@ export interface TurniejCreate {
   regulamin?: string;
   opis?: string;
   wymagaAkceptacji?: boolean;
+  /** Ekran na halę (180): ogłoszenie i link (zbiórka, fundacja) z kodem QR. */
+  ekranKomunikat?: string;
+  ekranLink?: string;
+  ekranLinkOpis?: string;
 }
 
 export interface TurniejOsoba {

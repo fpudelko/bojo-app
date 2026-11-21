@@ -5093,8 +5093,25 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     w toku albo następny na pół ekranu, pod nim 3 kolejne mecze i kod QR), Tabele (wszystkie
     grupy duże, do 3 kolumn, mecz w toku jednym paskiem nad nimi), Mecze i wyniki (jak
     Wszystko, ale prawa kolumna tylko z wynikami i fazą końcową, bez tabel i strzelców).
-    Organizator wybiera układ z menu „Ekran na halę” w panelu albo na samym ekranie:
-    przełącznik pokazuje się w prawym dolnym rogu na 3 s po ruchu myszy lub dotknięciu. Bez ramki aplikacji:
+    Do tego (2026-11-21, druga runda): Terminarz (wszystkie mecze do rozegrania w 1–3
+    kolumnach z przerwami, mecz w toku jako „teraz”), Ogłoszenie (tekst organizatora i duży kod
+    QR zbiórki na cały ekran, mecz w toku paskiem na dole) i Na zmianę (co 20 s kolejny z
+    układów, które mają treść: `ukladyNaZmiane()`). Lista układów, ich opisy i adres
+    (`adresEkranu()`) żyją w `lib/ekranTurnieju.ts`, wspólnie dla ekranu i panelu.
+    **Motyw** (`?motyw=jasny`): ciemny domyślnie, jasny na telewizor w jasnej sali; kolory
+    jako zmienne CSS (`PALETY` w `EkranClient.tsx`), klasy ekranu czytają je przez
+    `text-[color:var(--e-…)]`. Kod QR zawsze ciemne moduły na białym tle.
+    **Ogłoszenie i zbiórka** (migracja `180`, kolumny `turnieje.ekran_komunikat`,
+    `ekran_link`, `ekran_link_opis`): organizator wpisuje je w Panel → Ustawienia → Ekran na
+    halę (zapis paskiem „Zapisz zmiany”, z telefonu też), ekran podchwytuje zmianę przy
+    odświeżeniu co 15 s. Ogłoszenie: zielony pasek pod nagłówkiem na każdym układzie; link:
+    drugi kod QR „Zeskanuj i wesprzyj” obok kodu Bojo (zbiórka pierwsza). Link bez schematu
+    dostaje `https://` (`normalizujLinkEkranu()`), inny schemat niż http(s) odrzuca panel
+    i CHECK w bazie. **Przerwa w toku** (176, `przerwaTeraz()`): gdy nic nie trwa, ekran
+    pokazuje nazwę i opis przerwy z godziną końca zamiast „Następny mecz”.
+    Organizator wybiera układ i motyw z menu „Ekran na halę” w panelu (komputer) i w
+    Ustawieniach (`WyborEkranu.tsx`) albo na samym ekranie: przełącznik u dołu pokazuje się
+    na 3 s po ruchu myszy lub dotknięciu. Bez ramki aplikacji:
     `jestSciezkaWidgetu()` w `lib/widget.ts` obejmuje też tę trasę (bez banera cookies,
     dolnego paska i okna roli).
   - **Strona turnieju, zakładka Mecze:** od `lg` dwie kolumny, po prawej przyklejone tabele

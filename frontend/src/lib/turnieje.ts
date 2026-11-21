@@ -54,6 +54,9 @@ export function toTurniej(row: any): Turniej {
     regulamin: row.regulamin ?? undefined,
     opis: row.opis ?? undefined,
     okladkaUrl: row.okladka_url ?? undefined,
+    ekranKomunikat: row.ekran_komunikat ?? undefined,
+    ekranLink: row.ekran_link ?? undefined,
+    ekranLinkOpis: row.ekran_link_opis ?? undefined,
     wymagaAkceptacji: row.wymaga_akceptacji,
     mvpZawodnikId: row.mvp_zawodnik_id ?? undefined,
     createdAt: row.created_at,
@@ -207,7 +210,25 @@ function toRow(dane: Partial<TurniejCreate>): Record<string, any> {
   if (dane.regulamin !== undefined) row.regulamin = dane.regulamin?.trim() || null;
   if (dane.opis !== undefined) row.opis = dane.opis ? sanitizeDescription(dane.opis) : null;
   if (dane.wymagaAkceptacji !== undefined) row.wymaga_akceptacji = dane.wymagaAkceptacji;
+  if (dane.ekranKomunikat !== undefined) row.ekran_komunikat = dane.ekranKomunikat?.trim() || null;
+  if (dane.ekranLink !== undefined) row.ekran_link = normalizujLinkEkranu(dane.ekranLink);
+  if (dane.ekranLinkOpis !== undefined) row.ekran_link_opis = dane.ekranLinkOpis?.trim() || null;
   return row;
+}
+
+/**
+ * Link pod kodem QR na ekranie na halę (180). Bez schematu dopisuje
+ * `https://` („zrzutka.pl/marysia” wpisane z ręki), cokolwiek innego niż
+ * http(s) odrzuca z czytelnym błędem zamiast odmowy CHECK z bazy.
+ */
+export function normalizujLinkEkranu(link: string | undefined | null): string | null {
+  const t = (link ?? '').trim();
+  if (!t) return null;
+  const z = /^[a-z][a-z0-9+.-]*:/i.test(t) ? t : `https://${t}`;
+  if (!/^https?:\/\/[^\s]+\.[^\s]+$/i.test(z)) {
+    throw new Error('Link na ekranie musi być adresem strony, np. zrzutka.pl/twoja-zbiorka');
+  }
+  return z;
 }
 
 export async function createTurniej(dane: TurniejCreate, userId: string): Promise<string> {

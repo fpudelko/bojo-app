@@ -15,6 +15,7 @@ import PanelSponsorzy from '@/components/turnieje/PanelSponsorzy';
 import PanelProsbaOWyglad from '@/components/turnieje/PanelProsbaOWyglad';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import CentrumTurnieju from '@/components/turnieje/CentrumTurnieju';
+import WyborEkranu from '@/components/turnieje/WyborEkranu';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
@@ -1034,24 +1035,8 @@ export default function PanelClient() {
                 <summary className="inline-flex min-h-[36px] cursor-pointer list-none items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800 [&::-webkit-details-marker]:hidden">
                   Ekran na halę
                 </summary>
-                <div className="absolute right-0 z-20 mt-1 w-64 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                  {([
-                    ['', 'Wszystko', 'na żywo, kolejne mecze, tabele i wyniki na zmianę'],
-                    ['wynik', 'Wynik na żywo', 'wynik meczu na pół ekranu'],
-                    ['tabele', 'Tabele', 'wszystkie grupy w dużym rozmiarze'],
-                    ['mecze', 'Mecze i wyniki', 'na żywo, kolejne mecze i wyniki, bez tabel'],
-                  ] as const).map(([uklad, nazwa, opis]) => (
-                    <a
-                      key={nazwa}
-                      href={`/turnieje/${adresTurnieju}/ekran${uklad ? `?uklad=${uklad}` : ''}`}
-                      target="_blank"
-                      rel="noopener"
-                      className="block rounded-lg px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700"
-                    >
-                      <span className="block text-sm font-semibold text-ink">{nazwa}</span>
-                      <span className="block text-xs text-slate-500 dark:text-slate-400">{opis}</span>
-                    </a>
-                  ))}
+                <div className="absolute right-0 z-20 mt-1 max-h-[75vh] w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                  <WyborEkranu adresTurnieju={adresTurnieju} />
                 </div>
               </details>
               {meczNaZywo ? (
@@ -1844,6 +1829,54 @@ export default function PanelClient() {
                 rows={3}
                 className={inputCls}
               />
+            </div>
+
+            {/* EKRAN NA HALĘ (180, 2026-11-21): ogłoszenie i link ze zbiórką
+                wpisuje się tu, w bazie, nie w adresie ekranu. Organizator
+                zmienia je z telefonu, a ekran na rzutniku podchwytuje zmianę
+                przy najbliższym odświeżeniu (15 s). Zapis tym samym paskiem
+                „Zapisz zmiany” co reszta Ustawień. */}
+            <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
+              <div>
+                <h2 className="text-sm font-semibold text-ink">Ekran na halę</h2>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  Wyniki, tabele i terminarz na rzutnik albo telewizor. Ogłoszenie i kod QR zbiórki pokażą się na ekranie.
+                </p>
+              </div>
+              <label htmlFor="ekran-komunikat" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Ogłoszenie na ekranie</label>
+              <textarea
+                id="ekran-komunikat"
+                defaultValue={szkic.ekranKomunikat ?? turniej.ekranKomunikat ?? ''}
+                onChange={(e) => ustawWSzkicu('ekranKomunikat', e.target.value, turniej.ekranKomunikat ?? '')}
+                rows={2}
+                maxLength={280}
+                placeholder="np. Gramy dla Marysi! Licytacja koszulki o 13:00 przy stoliku organizatora."
+                className={inputCls}
+              />
+              <label htmlFor="ekran-link" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Link pod kodem QR (zbiórka, fundacja)</label>
+              <input
+                id="ekran-link"
+                type="url"
+                inputMode="url"
+                defaultValue={szkic.ekranLink ?? turniej.ekranLink ?? ''}
+                onChange={(e) => ustawWSzkicu('ekranLink', e.target.value, turniej.ekranLink ?? '')}
+                maxLength={500}
+                placeholder="np. zrzutka.pl/gramy-dla-marysi"
+                className={inputCls}
+              />
+              <label htmlFor="ekran-link-opis" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Podpis przy kodzie</label>
+              <input
+                id="ekran-link-opis"
+                defaultValue={szkic.ekranLinkOpis ?? turniej.ekranLinkOpis ?? ''}
+                onChange={(e) => ustawWSzkicu('ekranLinkOpis', e.target.value, turniej.ekranLinkOpis ?? '')}
+                maxLength={60}
+                placeholder="np. Wesprzyj leczenie Marysi"
+                className={inputCls}
+              />
+              <div className="border-t border-slate-100 pt-3 dark:border-slate-700">
+                <p className="mb-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">Otwórz ekran</p>
+                <WyborEkranu adresTurnieju={adresTurnieju} />
+              </div>
             </div>
 
             {/* TERMIN, MIEJSCE I DRUŻYNY. Do 2026-11-08 po utworzeniu turnieju
