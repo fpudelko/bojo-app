@@ -2,14 +2,14 @@
 
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, MapPin, Undo2, Timer, ChevronRight, MoreHorizontal, Minus, Plus } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/lib/toast';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
-import { useWstecz } from '@/lib/historia';
+import ZakladkiTurnieju from '@/components/turnieje/ZakladkiTurnieju';
 import { withCount } from '@/lib/plural';
 import { getTurniej } from '@/lib/turnieje';
 import { getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
@@ -43,7 +43,12 @@ export default function MeczClient() {
   const { id, meczId } = useParams<{ id: string; meczId: string }>();
   const { toast } = useToast();
   const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
-  const wstecz = useWstecz(`/turnieje/${id}?tab=terminarz`);
+  // Wstecz ZAWSZE na turniej (decyzja właściciela z 2026-11-21), nie na
+  // poprzedni ekran: z panelu, powiadomienia i terminarza czytający ma wracać
+  // w to samo miejsce, a do pozostałych zakładek prowadzi pasek pod nagłówkiem.
+  const router = useRouter();
+  const adresTurnieju = useAdres('turniej', id) ?? id;
+  const wstecz = () => router.push(`/turnieje/${adresTurnieju}?tab=mecze`);
 
   const [turniej, setTurniej] = useState<Turniej | null>(null);
   const [mecz, setMecz] = useState<TurniejMecz | null>(null);
@@ -507,6 +512,7 @@ export default function MeczClient() {
             </div>
           )}
         </div>
+        {turniej && <ZakladkiTurnieju adres={adresTurnieju} format={turniej.format} />}
       </div>
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 py-5">

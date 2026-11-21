@@ -5,7 +5,7 @@
 
 import { plural, withCount } from './plural';
 import { chwilaWPolsce } from '@/lib/czasPolski';
-import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej, TurniejMecz, TurniejGrupa, TurniejPrzerwa } from '@/types';
+import type { DruzynaStatus, MeczFaza, MeczStatus, TurniejFormat, TurniejStatus, Turniej, TurniejMecz, TurniejGrupa, TurniejPrzerwa, TurniejZdarzenie } from '@/types';
 
 export const STATUS_TURNIEJU: Record<TurniejStatus, { label: string; ton: string }> = {
   szkic:            { label: 'W przygotowaniu', ton: 'bg-slate-100 text-slate-600' },
@@ -540,4 +540,67 @@ export function przesuniecieZaPrzerwe<M extends Pick<TurniejMecz, 'id' | 'zaplan
   return mecze
     .filter((m) => m.status === 'zaplanowany' && m.zaplanowanyAt && new Date(m.zaplanowanyAt).getTime() >= pierwszy)
     .map((m) => ({ id: m.id, zaplanowanyAt: new Date(new Date(m.zaplanowanyAt!).getTime() + delta).toISOString() }));
+}
+
+/** Zakładki publicznej strony turnieju, w tej kolejności. */
+export const ZAKLADKI_TURNIEJU = ['info', 'mecze', 'tabela', 'druzyny'] as const;
+export type ZakladkaTurnieju = (typeof ZAKLADKI_TURNIEJU)[number];
+
+/** Podpis zakładki: wspólny dla strony turnieju i ekranów meczu i drużyny,
+ *  żeby ta sama zakładka nie nazywała się w dwóch miejscach inaczej. */
+export function etykietaZakladkiTurnieju(
+  z: ZakladkaTurnieju,
+  format: Turniej['format'],
+  liczbaDruzyn?: number,
+): string {
+  if (z === 'info') return 'Info';
+  if (z === 'mecze') return 'Mecze';
+  if (z === 'druzyny') return liczbaDruzyn !== undefined ? `Drużyny (${liczbaDruzyn})` : 'Drużyny';
+  // Bez drabinki w formacie nie obiecujemy drabinki w nazwie zakładki.
+  return format === 'liga' || format === 'grupy_finalowa' ? 'Tabele' : 'Tabela i drabinka';
+}
+
+/** Krótki znacznik grupy albo fazy na jednowierszowym wyniku (2026-11-21):
+ *  „A”, „F” (grupa finałowa), „½”, „Finał”. Pełna nazwa jest w szczegółach. */
+const ZNACZNIK_FAZY: Record<MeczFaza, string> = {
+  grupa: 'Gr.',
+  liga: 'Liga',
+  '1/32': '1/32',
+  '1/16': '1/16',
+  '1/8': '1/8',
+  cwierc: '¼',
+  polfinal: '½',
+  o_3_miejsce: '3. m.',
+  final: 'Finał',
+};
+export function znacznikFazy(
+  mecz: Pick<TurniejMecz, 'faza' | 'grupaId'>,
+  grupyPoId?: ReadonlyMap<string, TurniejGrupa>,
+): string {
+  if (mecz.grupaId) {
+    const g = grupyPoId?.get(mecz.grupaId);
+    if (g) return g.nazwa;
+  }
+  return ZNACZNIK_FAZY[mecz.faza];
+}
+
+/** Strzelcy meczu po stronach. Samobój liczy się drużynie przeciwnej
+ *  (tak liczy wynik wyzwalacz z 147), z dopiskiem „(sam.)”. Bez nazwiska
+ *  (gość nie widzi składu, RLS z 145) zostaje samo „gol”. */
+export function strzelcyMeczu(
+  mecz: Pick<TurniejMecz, 'id' | 'druzynaAId' | 'druzynaBId'>,
+  zdarzenia: readonly TurniejZdarzenie[],
+  zawodnicyPoId: ReadonlyMap<string, string>,
+): { a: string[]; b: string[] } {
+  const wynik = { a: [] as string[], b: [] as string[] };
+  for (const z of zdarzenia) {
+    if (z.meczId !== mecz.id || (z.typ !== 'gol' && z.typ !== 'samobojczy')) continue;
+    const zDruzynyA = z.druzynaId === mecz.druzynaAId;
+    const dlaA = z.typ === 'gol' ? zDruzynyA : !zDruzynyA;
+    const imie = (z.zawodnikId && zawodnicyPoId.get(z.zawodnikId)) || 'gol';
+    const minuta = z.minuta !== undefined ? ` ${z.minuta}'` : '';
+    const opis = `${imie}${z.typ === 'samobojczy' ? ' (sam.)' : ''}${minuta}`;
+    for (let i = 0; i < Math.max(1, z.wartosc); i++) (dlaA ? wynik.a : wynik.b).push(opis);
+  }
+  return wynik;
 }

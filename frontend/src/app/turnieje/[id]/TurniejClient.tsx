@@ -1,5 +1,7 @@
 'use client';
 
+import WierszWyniku from '@/components/turnieje/WierszWyniku';
+import { etykietaZakladkiTurnieju } from '@/lib/turniejEtykiety';
 import { SHOW_TURNIEJ_OGLOSZENIA } from '@/lib/features';
 import { useAdmin } from '@/lib/admin';
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
@@ -70,24 +72,14 @@ import { czyWolnyLos } from '@/lib/turniejWynik';
 // otwierać.
 type Zakladka = 'info' | 'mecze' | 'tabela' | 'druzyny';
 
-const ETYKIETY_ZAKLADEK: Record<Zakladka, string> = {
-  info: 'Info',
-  mecze: 'Mecze',
-  tabela: 'Tabela i drabinka',
-  druzyny: 'Drużyny',
-};
 
 type WidokMeczow = 'najblizsze' | 'rozegrane';
 
 /** Rozegrane mecze jednej grupy, zwinięte pod jej tabelą. */
-function MeczeGrupy({
-  mecze, druzynyPoId, meczePoId, arenyPoId, onKlikMeczu,
-}: {
+function MeczeGrupy({ mecze, wiersz }: {
   mecze: TurniejMecz[];
-  druzynyPoId: Map<string, string>;
-  meczePoId: Map<string, TurniejMecz>;
-  arenyPoId: Map<string, string>;
-  onKlikMeczu: (meczId: string) => void;
+  /** Jak narysować mecz: rozegrany idzie jednym wierszem (`WierszWyniku`). */
+  wiersz: (m: TurniejMecz) => React.ReactNode;
 }) {
   const [rozwiniete, setRozwiniete] = useState(false);
   if (mecze.length === 0) return null;
@@ -103,16 +95,7 @@ function MeczeGrupy({
       </button>
       {rozwiniete && (
         <div className="mt-2 space-y-2">
-          {mecze.map((m) => (
-            <KartaMeczu
-              key={m.id}
-              mecz={m}
-              druzynyPoId={druzynyPoId}
-              meczePoId={meczePoId}
-              arenyPoId={arenyPoId}
-              onClick={() => onKlikMeczu(m.id)}
-            />
-          ))}
+          {mecze.map(wiersz)}
         </div>
       )}
     </div>
@@ -421,6 +404,35 @@ export default function TurniejClient() {
   const przerwyPrzedNami = ostatniRozegrany ? przerwy.filter((p) => p.doAt > ostatniRozegrany) : przerwy;
 
   const zawodnicyDoStatystyk = druzyny.flatMap((d) => d.zawodnicy ?? []);
+  const zawodnicyPoId = new Map(zawodnicyDoStatystyk.map((z) => [z.id, z.imie]));
+  // ROZEGRANY MECZ JEDNYM WIERSZEM (2026-11-21): kto z kim, wynik, grupa;
+  // reszta po rozwinięciu. Mecz przed nami i na żywo zostaje pełną kartą,
+  // bo tam godzina i boisko są właśnie tym, czego się szuka.
+  const kafelekMeczu = (m: TurniejMecz) => (
+    (m.status === 'zakonczony' || m.status === 'walkower') && !czyWolnyLos(m) ? (
+      <WierszWyniku
+        key={m.id}
+        mecz={m}
+        druzynyPoId={druzynyPoId}
+        arenyPoId={arenyPoId}
+        grupyPoId={grupyPoId}
+        zdarzenia={zdarzenia}
+        zawodnicyPoId={zawodnicyPoId}
+        szczegolyHref={`/turnieje/${id}/mecz/${m.id}`}
+      />
+    ) : (
+      <KartaMeczu
+        key={m.id}
+        mecz={m}
+        druzynyPoId={druzynyPoId}
+        meczePoId={meczePoId}
+        arenyPoId={arenyPoId}
+        grupyPoId={grupyPoId}
+        przygaszona={czyWolnyLos(m)}
+        onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
+      />
+    )
+  );
   const mvpPoMeczach = mecze
     .filter((m) => m.status === 'zakonczony' || m.status === 'walkower')
     .map((m) => ({ mvpZawodnikId: m.mvpZawodnikId }));
@@ -529,10 +541,7 @@ export default function TurniejClient() {
                 aktywna === z ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
               ].join(' ')}
             >
-              {z === 'druzyny' ? `Drużyny (${liczbaWTurnieju})`
-                // Bez drabinki w formacie nie obiecujemy drabinki w nazwie zakładki.
-                : z === 'tabela' && (turniej.format === 'liga' || turniej.format === 'grupy_finalowa') ? 'Tabele'
-                : ETYKIETY_ZAKLADEK[z]}
+              {etykietaZakladkiTurnieju(z, turniej.format, liczbaWTurnieju)}
             </button>
           ))}
         </div>
@@ -1029,16 +1038,7 @@ export default function TurniejClient() {
                 ).map((w) => (w.typ === 'przerwa' ? (
                   <WierszPrzerwy key={w.przerwaId ?? `p-${w.od}`} od={w.od} do={w.do} nazwa={w.nazwa} opis={w.opis} />
                 ) : (
-                  <KartaMeczu
-                    key={w.mecz.id}
-                    mecz={w.mecz}
-                    druzynyPoId={druzynyPoId}
-                    meczePoId={meczePoId}
-                    arenyPoId={arenyPoId}
-                    grupyPoId={grupyPoId}
-                    przygaszona={czyWolnyLos(w.mecz)}
-                    onClick={() => router.push(`/turnieje/${id}/mecz/${w.mecz.id}`)}
-                  />
+                  kafelekMeczu(w.mecz)
                 )))}
               </div>
             )}
@@ -1102,15 +1102,7 @@ export default function TurniejClient() {
                         .filter((m) => m.grupaId === grupa.id)
                         .sort(porownajTermin)
                         .map((m) => (
-                          <KartaMeczu
-                            key={m.id}
-                            mecz={m}
-                            druzynyPoId={druzynyPoId}
-                            meczePoId={meczePoId}
-                            arenyPoId={arenyPoId}
-                            grupyPoId={grupyPoId}
-                            onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
-                          />
+                          kafelekMeczu(m)
                         ))}
                     </div>
                   </>
@@ -1120,10 +1112,7 @@ export default function TurniejClient() {
                 {grupa && !grupa.finalowa && (
                   <MeczeGrupy
                     mecze={meczeGrupowe.filter((m) => m.grupaId === grupa.id && rozegrany(m))}
-                    druzynyPoId={druzynyPoId}
-                    meczePoId={meczePoId}
-                    arenyPoId={arenyPoId}
-                    onKlikMeczu={(meczId) => router.push(`/turnieje/${id}/mecz/${meczId}`)}
+                    wiersz={kafelekMeczu}
                   />
                 )}
               </div>
