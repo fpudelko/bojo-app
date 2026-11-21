@@ -5066,6 +5066,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
 - Zadania przed przekazaniem turnieju: `supabase/zadania/turnieje-usun-poza-marysia.sql`
   (usuwa wszystkie turnieje poza `e9a3763f…`) i `supabase/zadania/turniej-marysi-wyzeruj-wyniki.sql`
   (mecze z powrotem „zaplanowane”, bez zdarzeń; drużyny, terminarz i przerwy zostają).
+- **Karta meczu w dwóch wierszach (2026-11-21):** górny wiersz `KartaMeczu`: po lewej numer,
+  grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
+  spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,
+  „Walkower”, „Odwołany” i „Wolny los” zastępują godzinę w prawym rogu.
 - **Rozegrany mecz jednym wierszem (2026-11-21):** na zakładkach Mecze i Tabele mecz
   zakończony albo walkower to `components/turnieje/WierszWyniku.tsx`: znacznik grupy albo fazy
   (`znacznikFazy()`: „A”, „½”, „Finał”), drużyny i wynik. Dotknięcie rozwija strzelców
