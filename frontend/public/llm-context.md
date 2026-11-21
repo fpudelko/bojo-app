@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-21 · migracja `179` · 61 tabel
+**Stan na:** 2026-11-21 · migracja `180` · 61 tabel
 
 ---
 
@@ -481,6 +481,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-21 (4) — Ekran turnieju na halę: ogłoszenie, kod QR zbiórki, jasny motyw, terminarz
+
+PROBLEM: turniej charytatywny w Bojo chce pokazać na ścianie hali nie tylko wyniki, ale też
+cel zbiórki i gdzie wpłacić, a jasna sala i telewizor potrzebują innych kolorów niż rzutnik
+w ciemności. Kibice pytają organizatora „kiedy gramy?”.
+
+ROZWIĄZANIE BOJO: organizator turnieju w Bojo wpisuje w panelu (Ustawienia → Ekran na halę)
+ogłoszenie i link, np. do zrzutki, z podpisem. Ekran na halę pokazuje ogłoszenie zielonym
+paskiem na każdym układzie i drugi kod QR „Zeskanuj i wesprzyj” obok kodu Bojo; zmiana
+z telefonu dociera na ekran w ciągu 15 sekund. Nowe układy ekranu: „Terminarz” (wszystkie
+mecze do końca dnia), „Ogłoszenie” (tekst i duży kod QR zbiórki na cały ekran) i „Na
+zmianę” (ekran sam przełącza układy co 20 sekund). Motyw ciemny albo jasny. Gdy trwa
+przerwa z nazwą (np. licytacje), ekran pokazuje ją zamiast następnego meczu.
+
+MECHANIKA: migracja `180` (`turnieje.ekran_komunikat`, `ekran_link`, `ekran_link_opis`),
+`lib/ekranTurnieju.ts`, `components/turnieje/WyborEkranu.tsx`,
+`app/turnieje/[id]/ekran/EkranClient.tsx`, `normalizujLinkEkranu()` w `lib/turnieje.ts`.
+Szczegóły → [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Jak pokazać kod QR do zbiórki na ekranie turnieju w Bojo?
+- Czy ekran turnieju ma jasny motyw?
+- Jak wyświetlić cały terminarz na telewizorze na hali?
+- Czy ogłoszenie na ekranie da się zmienić z telefonu w trakcie turnieju?
+
 ### 2026-11-21 (3) — Panel turnieju na komputerze i ekran wyników na halę
 
 PROBLEM: na komputerze panel turnieju w Bojo był kolumną szerokości telefonu na środku
@@ -709,29 +734,3 @@ MECHANIKA: migracja `171` (`dolacz_do_druzyny_kodem()` z kwalifikowanymi kolumna
 `czy_wolny_los()` w `zapisz_terminarz()`), `czyWolnyLos()` w `lib/turniejWynik.ts`
 używane przez `KartaMeczu`, `Drabinka`, panel i publiczną stronę turnieju. Testy:
 `supabase/test/rls.sql`, `turniejWolnyLos.test.ts`.
-
-### 2026-09-29 — Pierwszy ekran strony głównej pokazuje drogę organizatora w telefonie
-
-PROBLEM: pierwszy ekran bojo.pl pokazywał statyczne zrzuty aplikacji w karuzeli
-(7 ekranów bez związku z tym, co czyta się obok), więc odwiedzający nie widział,
-jak wygląda założenie i poprowadzenie meczu w Bojo, a zrzuty starzały się razem
-z interfejsem.
-
-ROZWIĄZANIE BOJO: obok nagłówka „Zorganizuj mecz w dwie minuty” telefon odtwarza
-w pętli (ok. 54 s) drogę organizatora w pięciu rozdziałach: zakładasz mecz (kreator w
-trzech krokach), wysyłasz link, gracze zapisują się bez konta, skład pod kontrolą
-(dopisanie gościa, lista rezerwowa) oraz drużyny i rozliczenie po meczu. Nagłówek, opis,
-przyciski i rząd „Za darmo, Google lub e-mail, Bez instalacji” są stałe. Pod telefonem
-stoi jednolinijkowy podpis bieżącej sceny i pięć klikalnych pasków, po jednym na
-rozdział. Na komputerze plakietka nad nagłówkiem pokazuje nazwę rozdziału, na
-telefonie zawsze „Mecz gdziekolwiek w Polsce”. Animacja rusza dopiero, gdy telefon
-jest widoczny, i zawsze od rozdziału 1. Przy ustawieniu systemu „ogranicz ruch”
-pokazuje statyczną klatkę. Data meczu w animacji to zawsze najbliższy czwartek, liczony
-od dziś w Polsce. Napisy nie obiecują automatycznego awansu z rezerwy ani nie
-wymieniają kanałów powiadomień.
-
-MECHANIKA: `components/home/landing/hero/` (`HeroTelefon.tsx`, `HeroChip.tsx`,
-`heroSilnik.ts`, `heroEkrany.ts`, `hero.css`, stan współdzielony w `heroStan.ts`),
-napisy w `LANDING_ANIMACJA` (`landing/content.ts`, sprawdzane testem zakazanych fraz),
-daty w `lib/datyHero.ts`. Zastępuje `PhoneCarousel` i `RotatingBadge`. Test
-klikalności: `e2e/hero-animacja.klikalnosc.spec.ts`. Bez migracji.

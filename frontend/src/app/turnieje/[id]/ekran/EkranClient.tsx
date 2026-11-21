@@ -15,9 +15,13 @@
 //   (`jestSciezkaWidgetu()` w lib/widget.ts: bez banera cookies i paska).
 // - Kolory jak w całym Bojo: zielony mecz w toku i awans, bursztynowy zegar
 //   po czasie gry, szary przerwy.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
-import { Coffee } from 'lucide-react';
+import { Coffee, Megaphone, Sun, Moon } from 'lucide-react';
+import {
+  UKLADY_EKRANU, CZAS_UKLADU_NA_ZMIANE_MS, czyUkladEkranu, ukladyNaZmiane, przerwaTeraz, adresDoPodpisu,
+  type UkladEkranu, type MotywEkranu,
+} from '@/lib/ekranTurnieju';
 import { getTurniej } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getPrzerwy, getZdarzeniaTurnieju } from '@/lib/turniejMecze';
@@ -45,20 +49,8 @@ type Widok = 'tabele' | 'wyniki' | 'strzelcy' | 'final';
 const WIDOKI: readonly Widok[] = ['tabele', 'wyniki', 'strzelcy', 'final'];
 const CZAS_WIDOKU_MS = 12_000;
 
-// UKŁAD EKRANU (2026-11-21, prośba właściciela): organizator wybiera, co ma
-// dominować na ścianie. „Wszystko” to domyślny podział (na żywo i kolejne
-// mecze po lewej, rotujące widoki po prawej). „Wynik na żywo” to tablica
-// wyników: wynik na pół ekranu. „Tabele” to wszystkie grupy w dużym
-// rozmiarze z paskiem meczu w toku. „Mecze i wyniki” to mecz w toku, kolejne
-// mecze i wyniki, bez tabel. Wybór w panelu („Ekran na halę”) albo na samym
-// ekranie (sterowanie pokazuje się po ruchu myszy); trafia do `?uklad=`.
-type UkladEkranu = 'wszystko' | 'wynik' | 'tabele' | 'mecze';
-const UKLADY_EKRANU: readonly { klucz: UkladEkranu; etykieta: string }[] = [
-  { klucz: 'wszystko', etykieta: 'Wszystko' },
-  { klucz: 'wynik', etykieta: 'Wynik na żywo' },
-  { klucz: 'tabele', etykieta: 'Tabele' },
-  { klucz: 'mecze', etykieta: 'Mecze i wyniki' },
-];
+// UKŁAD EKRANU i MOTYW (2026-11-21, prośby właściciela): lista układów,
+// adres i „co teraz pokazać” żyją w `lib/ekranTurnieju.ts`, wspólnie z panelem.
 
 const godzina = (m: Pick<TurniejMecz, 'zaplanowanyAt'>) =>
   m.zaplanowanyAt ? chwilaWPolsce(m.zaplanowanyAt).godzina.slice(0, 5) : '';
@@ -77,6 +69,8 @@ export default function EkranClient() {
   const [przypietyWidok, setPrzypietyWidok] = useState<Widok | null>(null);
   const [krok, setKrok] = useState(0);
   const [uklad, setUklad] = useState<UkladEkranu>('wszystko');
+  const [motyw, setMotyw] = useState<MotywEkranu>('ciemny');
+  const [krokUkladu, setKrokUkladu] = useState(0);
   // Sterowanie widać tylko chwilę po ruchu myszy albo dotknięciu: na ścianie
   // przez cały dzień wisiałyby przyciski, których kibic i tak nie użyje.
   const [sterowanie, setSterowanie] = useState(false);
@@ -117,9 +111,11 @@ export default function EkranClient() {
     const w = parametry.get('widok');
     if (w && (WIDOKI as readonly string[]).includes(w)) setPrzypietyWidok(w as Widok);
     const u = parametry.get('uklad');
-    if (u && UKLADY_EKRANU.some((x) => x.klucz === u)) setUklad(u as UkladEkranu);
+    if (czyUkladEkranu(u)) setUklad(u);
+    if (parametry.get('motyw') === 'jasny') setMotyw('jasny');
     const t = window.setInterval(() => setKrok((k) => k + 1), CZAS_WIDOKU_MS);
-    return () => window.clearInterval(t);
+    const tu = window.setInterval(() => setKrokUkladu((k) => k + 1), CZAS_UKLADU_NA_ZMIANE_MS);
+    return () => { window.clearInterval(t); window.clearInterval(tu); };
   }, []);
 
   // Zegar po montażu (AGENTS.md: „teraz” nie w renderze serwera).
@@ -150,11 +146,19 @@ export default function EkranClient() {
     };
   }, []);
 
+  const ustawWAdresie = (klucz: string, wartosc: string | null) => {
+    const url = new URL(window.location.href);
+    if (wartosc) url.searchParams.set(klucz, wartosc); else url.searchParams.delete(klucz);
+    window.history.replaceState(null, '', url.pathname + url.search);
+  };
   const zmienUklad = (u: UkladEkranu) => {
     setUklad(u);
-    const url = new URL(window.location.href);
-    if (u === 'wszystko') url.searchParams.delete('uklad'); else url.searchParams.set('uklad', u);
-    window.history.replaceState(null, '', url.pathname + url.search);
+    setKrokUkladu(0);
+    ustawWAdresie('uklad', u === 'wszystko' ? null : u);
+  };
+  const zmienMotyw = (m: MotywEkranu) => {
+    setMotyw(m);
+    ustawWAdresie('motyw', m === 'jasny' ? 'jasny' : null);
   };
 
   const przypnijWidok = (w: Widok | null) => {
@@ -166,10 +170,10 @@ export default function EkranClient() {
   };
 
   if (turniej === undefined || !teraz) {
-    return <Tlo><p className="m-auto text-[2em] text-slate-400">Ładuję…</p></Tlo>;
+    return <Tlo motyw={motyw}><p className="m-auto text-[2em] text-[color:var(--e-tekst3)]">Ładuję…</p></Tlo>;
   }
   if (turniej === null) {
-    return <Tlo><p className="m-auto text-[2em] text-slate-400">Nie znaleziono turnieju.</p></Tlo>;
+    return <Tlo motyw={motyw}><p className="m-auto text-[2em] text-[color:var(--e-tekst3)]">Nie znaleziono turnieju.</p></Tlo>;
   }
 
   const nazwa = (m: TurniejMecz, s: 'a' | 'b') => nazwaSlotu(m, s, druzynyPoId, meczePoId, grupyPoId);
@@ -200,12 +204,30 @@ export default function EkranClient() {
   const meczeFinalu = mecze
     .filter((m) => (finalowa ? m.grupaId === finalowa.id : m.faza !== 'grupa' && m.faza !== 'liga') && !(m.status === 'walkower' && (!m.druzynaAId || !m.druzynaBId)))
     .sort((a, b) => (a.zaplanowanyAt ?? '').localeCompare(b.zaplanowanyAt ?? '') || a.numer - b.numer);
+  // ── Ogłoszenie i zbiórka (180) ───────────────────────────────────────────
+  const komunikat = turniej.ekranKomunikat?.trim() || '';
+  const linkZbiorki = turniej.ekranLink && /^https?:\/\//i.test(turniej.ekranLink) ? turniej.ekranLink : '';
+  const opisZbiorki = turniej.ekranLinkOpis?.trim() || 'Wesprzyj zbiórkę';
+  const maOgloszenie = !!komunikat || !!linkZbiorki;
+  const doRozegrania = mecze
+    .filter((m) => m.status === 'zaplanowany' || m.status === 'trwa')
+    .sort((a, b) => (a.status === 'trwa' ? -1 : b.status === 'trwa' ? 1 : 0) || (a.zaplanowanyAt ?? '').localeCompare(b.zaplanowanyAt ?? '') || a.numer - b.numer);
+
+  // „Na zmianę”: układy, które mają co pokazać, po kolei co 20 s.
+  const sekwencja = ukladyNaZmiane({
+    maMecz: c.naZywo.length > 0 || c.najblizsze.length > 0,
+    maTabele: tabeleGrup.length > 0,
+    maTerminarz: doRozegrania.length > 0,
+    maOgloszenie,
+  });
+  const ukl: UkladEkranu = uklad === 'zmiana' ? sekwencja[krokUkladu % sekwencja.length] : uklad;
+
   const dostepne: Widok[] = [
     ...(tabeleGrup.length > 0 ? ['tabele' as const] : []),
     ...(rozegrane.length > 0 ? ['wyniki' as const] : []),
     ...(strzelcy.length > 0 ? ['strzelcy' as const] : []),
     ...(meczeFinalu.length > 0 ? ['final' as const] : []),
-  ].filter((w) => uklad !== 'mecze' || w === 'wyniki' || w === 'final');
+  ].filter((w) => ukl !== 'mecze' || w === 'wyniki' || w === 'final');
   const widok: Widok | undefined = przypietyWidok && dostepne.includes(przypietyWidok)
     ? przypietyWidok
     : dostepne[krok % Math.max(1, dostepne.length)];
@@ -216,28 +238,51 @@ export default function EkranClient() {
     final: finalowa ? 'Grupa finałowa' : 'Faza pucharowa',
   };
 
-  // Kod QR: jedyna droga z hali do telefonu kibica. Duży, na białym tle,
-  // z adresem obok dla tych, którzy wolą przepisać.
-  const kartaQr = (poziomo: boolean) => (
-    <div className={`flex items-center gap-[1.2em] rounded-[1em] bg-white/[0.06] p-[0.9em] ${poziomo ? '' : 'flex-col text-center'}`}>
-      <KodQr tekst={link} etykieta={`Kod QR do turnieju: ${linkBezProtokolu}`} className="h-[9em] w-[9em] shrink-0 rounded-[0.4em]" />
+  // Kod QR: jedyna droga z hali do telefonu kibica. Duży, na białym tle
+  // (w obu motywach: telefon czyta ciemne moduły na jasnym), z adresem obok
+  // dla tych, którzy wolą przepisać. `kompakt`, gdy obok stoi drugi kod.
+  const kartaQr = (opcje: { tekst: string; nadtytul: string; tytul: ReactNode; podpis: string; kompakt?: boolean; wyroznij?: boolean }) => (
+    <div className={`flex min-w-0 flex-1 items-center gap-[1em] rounded-[1em] p-[0.9em] ${
+      opcje.wyroznij ? 'border-2 border-[color:var(--e-zywo-ramka)] bg-[color:var(--e-komunikat)]' : 'bg-[color:var(--e-karta)]'
+    }`}>
+      <KodQr tekst={opcje.tekst} etykieta={`Kod QR: ${opcje.podpis}`} className={`${opcje.kompakt ? 'h-[7.5em] w-[7.5em]' : 'h-[9em] w-[9em]'} shrink-0 rounded-[0.4em]`} />
       <div className="min-w-0">
-        <p className="text-[1.25em] text-slate-300">Wyniki, tabele i Twoje mecze w telefonie</p>
-        <p className="font-display text-[3em] font-bold leading-none tracking-tight">
-          bojo<span className="text-primary-400">.pl</span>
-        </p>
-        <p className="mt-[0.3em] truncate text-[1.05em] text-slate-400">{linkBezProtokolu}</p>
+        <p className="truncate text-[1.2em] text-[color:var(--e-tekst2)]">{opcje.nadtytul}</p>
+        <p className={`font-display font-bold leading-tight tracking-tight ${opcje.kompakt ? 'line-clamp-2 text-[2em]' : 'text-[3em] leading-none'}`}>{opcje.tytul}</p>
+        <p className="mt-[0.3em] truncate text-[1em] text-[color:var(--e-tekst3)]">{opcje.podpis}</p>
       </div>
     </div>
   );
+  const bojoTytul = <>bojo<span className="text-[color:var(--e-akcent)]">.pl</span></>;
+  const kartaBojo = (kompakt = false) => kartaQr({
+    tekst: link, nadtytul: 'Wyniki, tabele i Twoje mecze w telefonie', tytul: bojoTytul, podpis: linkBezProtokolu, kompakt,
+  });
+  const kartaZbiorki = (kompakt = false) => linkZbiorki ? kartaQr({
+    tekst: linkZbiorki, nadtytul: 'Zeskanuj i wesprzyj', tytul: opisZbiorki, podpis: adresDoPodpisu(linkZbiorki), kompakt, wyroznij: true,
+  }) : null;
+  // Zbiórka pierwsza: na turnieju charytatywnym to ona jest celem dnia.
+  const blokPromocji = (
+    <div className="flex min-w-0 gap-[0.8em]">
+      {kartaZbiorki(true)}
+      {kartaBojo(!!linkZbiorki)}
+    </div>
+  );
+  // Pasek ogłoszenia pod nagłówkiem, na każdym układzie poza „Ogłoszeniem”
+  // (tam tekst jest całym ekranem).
+  const pasekKomunikatu = komunikat && ukl !== 'ogloszenie' ? (
+    <div className="flex items-center gap-[0.8em] bg-[color:var(--e-komunikat)] px-[1.6em] py-[0.6em]">
+      <Megaphone className="h-[1.6em] w-[1.6em] shrink-0 text-[color:var(--e-akcent)]" aria-hidden />
+      <p className="line-clamp-2 text-[1.5em] font-semibold">{komunikat}</p>
+    </div>
+  ) : null;
 
   const naglowek = (
-    <header className="flex items-center gap-[1.2em] border-b border-white/10 px-[1.6em] py-[0.8em]">
-      <span className="shrink-0 rounded-[0.35em] bg-primary-700 px-[0.5em] py-[0.1em] font-display text-[1.6em] font-bold">bojo.pl</span>
+    <header className="flex items-center gap-[1.2em] border-b border-[color:var(--e-linia)] px-[1.6em] py-[0.8em]">
+      <span className="shrink-0 rounded-[0.35em] bg-primary-700 px-[0.5em] py-[0.1em] font-display text-[1.6em] font-bold text-[#ffffff]">bojo.pl</span>
       <h1 className="min-w-0 flex-1 truncate font-display text-[2em] font-bold">{turniej.nazwa}</h1>
       {postep.wszystkie > 0 && podium.length === 0 && (
-        <p className="shrink-0 text-[1.3em] text-slate-300">
-          <span className="font-display text-[1.4em] font-bold tabular-nums text-white">{postep.rozegrane}</span>
+        <p className="shrink-0 text-[1.3em] text-[color:var(--e-tekst2)]">
+          <span className="font-display text-[1.4em] font-bold tabular-nums text-[color:var(--e-tekst)]">{postep.rozegrane}</span>
           {' '}z {withCount(postep.wszystkie, 'meczu', 'meczów', 'meczów')}
         </p>
       )}
@@ -248,27 +293,29 @@ export default function EkranClient() {
   // ── Po turnieju: podium na cały ekran ────────────────────────────────────
   if (podium.length > 0) {
     return (
-      <Tlo>
+      <Tlo motyw={motyw}>
         {naglowek}
+        {pasekKomunikatu}
         <main className="flex flex-1 flex-col items-center justify-center gap-[1.2em] text-center">
-          <p className="text-[1.6em] font-semibold uppercase tracking-[0.2em] text-primary-300">Turniej zakończony</p>
+          <p className="text-[1.6em] font-semibold uppercase tracking-[0.2em] text-[color:var(--e-akcent)]">Turniej zakończony</p>
           {podium.map((p) => (
             <p
               key={p.druzynaId}
-              className={p.miejsce === 1 ? 'font-display text-[5em] font-bold leading-tight' : 'text-[2.6em] font-semibold text-slate-200'}
+              className={p.miejsce === 1 ? 'font-display text-[5em] font-bold leading-tight' : 'text-[2.6em] font-semibold text-[color:var(--e-tekst2)]'}
             >
               {medal(p.miejsce)} {p.nazwa}
             </p>
           ))}
-          <p className="mt-[0.6em] text-[1.6em] text-slate-300">Dziękujemy za wspólną grę!</p>
-          <div className="mt-[1em]">{kartaQr(true)}</div>
+          <p className="mt-[0.6em] text-[1.6em] text-[color:var(--e-tekst2)]">Dziękujemy za wspólną grę!</p>
+          <div className="mt-[1em] w-[60em] max-w-full">{blokPromocji}</div>
         </main>
       </Tlo>
     );
   }
 
   const nastepny = c.najblizsze.find((m) => m.druzynaAId && m.druzynaBId) ?? c.najblizsze[0];
-  const kolejne = c.najblizsze.filter((m) => c.naZywo.length > 0 || m.id !== nastepny?.id).slice(0, uklad === 'wynik' ? 3 : 5);
+  const kolejne = c.najblizsze.filter((m) => c.naZywo.length > 0 || m.id !== nastepny?.id).slice(0, ukl === 'wynik' ? 3 : 5);
+  const przerwa = c.naZywo.length === 0 ? przerwaTeraz(przerwy, teraz) : null;
 
 
   // ── Klocki ekranu (wspólne dla układów) ──────────────────────────────────
@@ -283,14 +330,14 @@ export default function EkranClient() {
                 const arena = m.arenaId ? arenyPoId.get(m.arenaId) : undefined;
                 const duzy = c.naZywo.length === 1;
                 return (
-                  <div key={m.id} className="rounded-[1em] border-2 border-primary-500 bg-primary-950/40 px-[1.4em] py-[1em]">
+                  <div key={m.id} className="rounded-[1em] border-2 border-[color:var(--e-zywo-ramka)] bg-[color:var(--e-zywo-tlo)] px-[1.4em] py-[1em]">
                     <div className="flex items-center justify-between text-[1.2em]">
-                      <span className="inline-flex items-center gap-[0.4em] font-semibold uppercase tracking-wide text-primary-300">
+                      <span className="inline-flex items-center gap-[0.4em] font-semibold uppercase tracking-wide text-[color:var(--e-akcent)]">
                         <span className="h-[0.6em] w-[0.6em] animate-pulse rounded-full bg-primary-400" aria-hidden />
                         Na żywo{kilkaAren && arena ? ` · ${arena}` : ''} · M{m.numer}
                       </span>
                       {zegar && (
-                        <span className={`font-display font-bold tabular-nums ${poCzasieGry ? 'text-amber-300' : 'text-white'}`}>{zegar}</span>
+                        <span className={`font-display font-bold tabular-nums ${poCzasieGry ? 'text-[color:var(--e-uwaga)]' : 'text-[color:var(--e-tekst)]'}`}>{zegar}</span>
                       )}
                     </div>
                     <div className="mt-[0.4em] grid grid-cols-[1fr_auto_1fr] items-center gap-[0.8em]">
@@ -302,17 +349,32 @@ export default function EkranClient() {
                 );
               })}
             </section>
+          ) : przerwa ? (
+            // PRZERWA W TOKU (176): nazwa organizatora („Licytacje”) zamiast
+            // „Następny mecz o 13:00”, który wyglądał jak zawieszony ekran.
+            <section className="rounded-[1em] border border-[color:var(--e-linia)] bg-[color:var(--e-karta)] px-[1.4em] py-[1em]">
+              <p className="inline-flex items-center gap-[0.5em] text-[1.2em] font-semibold uppercase tracking-wide text-[color:var(--e-tekst2)]">
+                <Coffee className="h-[1em] w-[1em]" aria-hidden /> Przerwa do {chwilaWPolsce(przerwa.doAt).godzina.slice(0, 5)}
+              </p>
+              <p className="mt-[0.3em] font-display text-[2.8em] font-bold leading-tight">{przerwa.nazwa}</p>
+              {przerwa.opis && <p className="mt-[0.3em] line-clamp-2 text-[1.4em] text-[color:var(--e-tekst2)]">{przerwa.opis}</p>}
+              {nastepny && (
+                <p className="mt-[0.6em] text-[1.3em] text-[color:var(--e-tekst3)]">
+                  Potem{nastepny.zaplanowanyAt ? ` o ${godzina(nastepny)}` : ''}: {nazwa(nastepny, 'a')} – {nazwa(nastepny, 'b')}
+                </p>
+              )}
+            </section>
           ) : nastepny ? (
-            <section className="rounded-[1em] border border-white/15 bg-white/5 px-[1.4em] py-[1em]">
-              <p className="text-[1.2em] font-semibold uppercase tracking-wide text-slate-300">
+            <section className="rounded-[1em] border border-[color:var(--e-linia)] bg-[color:var(--e-karta)] px-[1.4em] py-[1em]">
+              <p className="text-[1.2em] font-semibold uppercase tracking-wide text-[color:var(--e-tekst2)]">
                 Następny mecz{nastepny.zaplanowanyAt ? ` · ${godzina(nastepny)}` : ''}{kilkaAren && nastepny.arenaId ? ` · ${arenyPoId.get(nastepny.arenaId)}` : ''}
               </p>
               <p className="mt-[0.4em] font-display text-[2.8em] font-bold leading-tight">
-                {nazwa(nastepny, 'a')} <span className="text-slate-400">–</span> {nazwa(nastepny, 'b')}
+                {nazwa(nastepny, 'a')} <span className="text-[color:var(--e-tekst3)]">–</span> {nazwa(nastepny, 'b')}
               </p>
             </section>
           ) : (
-            <section className="rounded-[1em] border border-white/15 bg-white/5 px-[1.4em] py-[1em]">
+            <section className="rounded-[1em] border border-[color:var(--e-linia)] bg-[color:var(--e-karta)] px-[1.4em] py-[1em]">
               <p className="font-display text-[2.4em] font-bold">
                 {turniej.status === 'trwa' ? 'Za chwilę kolejne mecze' : `Start: ${etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}`}
               </p>
@@ -322,21 +384,21 @@ export default function EkranClient() {
   const blokKolejne = (
     kolejne.length > 0 && (
             <section className="min-h-0">
-              <h2 className="mb-[0.4em] text-[1.2em] font-semibold uppercase tracking-wide text-slate-400">Kolejne mecze</h2>
-              <div className="divide-y divide-white/10">
+              <h2 className="mb-[0.4em] text-[1.2em] font-semibold uppercase tracking-wide text-[color:var(--e-tekst3)]">Kolejne mecze</h2>
+              <div className="divide-y divide-[color:var(--e-linia)]">
                 {terminarzZPrzerwami(kolejne, przerwy.filter((p) => new Date(p.doAt) > teraz), turniej).map((w) => (
                   w.typ === 'przerwa' ? (
-                    <p key={w.przerwaId ?? `p-${w.od}`} className="flex items-center gap-[0.6em] py-[0.45em] text-[1.4em] text-slate-300">
-                      <Coffee className="h-[1em] w-[1em] shrink-0 text-slate-500" aria-hidden />
+                    <p key={w.przerwaId ?? `p-${w.od}`} className="flex items-center gap-[0.6em] py-[0.45em] text-[1.4em] text-[color:var(--e-tekst2)]">
+                      <Coffee className="h-[1em] w-[1em] shrink-0 text-[color:var(--e-tekst4)]" aria-hidden />
                       <span className="tabular-nums">{w.od}–{w.do}</span>
                       <span className="truncate">{w.nazwa ?? 'Przerwa'}</span>
                     </p>
                   ) : (
                     <div key={w.mecz.id} className="flex items-center gap-[0.8em] py-[0.45em] text-[1.6em]">
                       <span className="w-[3.2em] shrink-0 font-bold tabular-nums">{godzina(w.mecz)}</span>
-                      <span className="min-w-0 flex-1 truncate">{nazwa(w.mecz, 'a')} <span className="text-slate-500">–</span> {nazwa(w.mecz, 'b')}</span>
+                      <span className="min-w-0 flex-1 truncate">{nazwa(w.mecz, 'a')} <span className="text-[color:var(--e-tekst4)]">–</span> {nazwa(w.mecz, 'b')}</span>
                       {kilkaAren && w.mecz.arenaId && (
-                        <span className="shrink-0 text-[0.75em] text-slate-400">{arenyPoId.get(w.mecz.arenaId)}</span>
+                        <span className="shrink-0 text-[0.75em] text-[color:var(--e-tekst3)]">{arenyPoId.get(w.mecz.arenaId)}</span>
                       )}
                     </div>
                   )
@@ -352,15 +414,15 @@ export default function EkranClient() {
                       // Miejsca ex aequo (179): ta sama liczba przy drużynach z identycznym bilansem.
                       const miejsca = miejscaWTabeli(wiersze);
                       return (
-                        <div key={grupa?.id ?? 'liga'} className="rounded-[0.6em] bg-white/5 px-[0.8em] py-[0.5em]">
+                        <div key={grupa?.id ?? 'liga'} className="rounded-[0.6em] bg-[color:var(--e-karta)] px-[0.8em] py-[0.5em]">
                           {grupa && (
-                            <p className="mb-[0.2em] text-[1.1em] font-semibold text-slate-300">
+                            <p className="mb-[0.2em] text-[1.1em] font-semibold text-[color:var(--e-tekst2)]">
                               Grupa {grupa.nazwa}{grupa.finalowa ? ' (finałowa)' : ''}
                             </p>
                           )}
                           <table className="w-full text-[1.35em]">
                             <thead>
-                              <tr className="text-[0.65em] uppercase tracking-wide text-slate-500">
+                              <tr className="text-[0.65em] uppercase tracking-wide text-[color:var(--e-tekst4)]">
                                 <th />
                                 <th className="text-left font-medium">Drużyna</th>
                                 <th className="text-right font-medium">M</th>
@@ -370,11 +432,11 @@ export default function EkranClient() {
                             </thead>
                             <tbody>
                               {wiersze.map((w, i) => (
-                                <tr key={w.druzynaId} className={i < awans ? 'text-white' : 'text-slate-300'}>
-                                  <td className={`w-[1.6em] py-[0.15em] pl-[0.3em] tabular-nums ${i < awans ? 'border-l-[0.2em] border-primary-400 font-bold text-primary-300' : 'text-slate-500'}`}>{miejsca[i]}</td>
+                                <tr key={w.druzynaId} className={i < awans ? 'text-[color:var(--e-tekst)]' : 'text-[color:var(--e-tekst2)]'}>
+                                  <td className={`w-[1.6em] py-[0.15em] pl-[0.3em] tabular-nums ${i < awans ? 'border-l-[0.2em] border-[color:var(--e-akcent)] font-bold text-[color:var(--e-akcent)]' : 'text-[color:var(--e-tekst4)]'}`}>{miejsca[i]}</td>
                                   <td className="max-w-0 truncate py-[0.15em] font-medium">{w.nazwa}</td>
-                                  <td className="w-[1.8em] py-[0.15em] text-right tabular-nums text-slate-400">{w.mecze}</td>
-                                  <td className="w-[3.4em] py-[0.15em] text-right tabular-nums text-slate-400">{w.bramkiZdobyte}:{w.bramkiStracone}</td>
+                                  <td className="w-[1.8em] py-[0.15em] text-right tabular-nums text-[color:var(--e-tekst3)]">{w.mecze}</td>
+                                  <td className="w-[3.4em] py-[0.15em] text-right tabular-nums text-[color:var(--e-tekst3)]">{w.bramkiZdobyte}:{w.bramkiStracone}</td>
                                   <td className="w-[2.2em] py-[0.15em] text-right font-bold tabular-nums">{w.punkty}</td>
                                 </tr>
                               ))}
@@ -387,20 +449,93 @@ export default function EkranClient() {
   );
 
   return (
-    <Tlo>
+    <Tlo motyw={motyw}>
       {naglowek}
-      {uklad === 'wynik' ? (
+      {pasekKomunikatu}
+      {ukl === 'terminarz' ? (
+        // TERMINARZ DNIA: wszystkie mecze do rozegrania w kolumnach, w kolejności
+        // godzin, z przerwami. Odpowiedź na najczęstsze pytanie przy stoliku
+        // organizatora: „kiedy gramy?”.
+        <main className="flex min-h-0 flex-1 flex-col gap-[1em] px-[1.6em] py-[1.2em]">
+          <h2 className="text-[1.3em] font-semibold uppercase tracking-wide text-[color:var(--e-tekst3)]">
+            Terminarz · {withCount(doRozegrania.length, 'mecz', 'mecze', 'meczów')} do końca
+          </h2>
+          <div
+            className="min-h-0 flex-1 overflow-hidden"
+            style={{ columnCount: doRozegrania.length > 24 ? 3 : doRozegrania.length > 8 ? 2 : 1, columnGap: '2.4em', fontSize: doRozegrania.length > 36 ? '0.9em' : doRozegrania.length > 16 ? '1.1em' : '1.35em' }}
+          >
+            {terminarzZPrzerwami(doRozegrania, przerwy.filter((p) => new Date(p.doAt) > teraz), turniej).map((w) => (
+              w.typ === 'przerwa' ? (
+                <p key={w.przerwaId ?? `p-${w.od}`} className="flex break-inside-avoid items-center gap-[0.5em] py-[0.35em] text-[1.3em] text-[color:var(--e-tekst3)]">
+                  <Coffee className="h-[1em] w-[1em] shrink-0" aria-hidden />
+                  <span className="tabular-nums">{w.od}–{w.do}</span>
+                  <span className="truncate">{w.nazwa ?? 'Przerwa'}</span>
+                </p>
+              ) : (
+                <div
+                  key={w.mecz.id}
+                  className={`flex break-inside-avoid items-center gap-[0.7em] border-b border-[color:var(--e-linia)] py-[0.35em] text-[1.5em] ${
+                    w.mecz.status === 'trwa' ? 'font-semibold text-[color:var(--e-akcent)]' : ''
+                  }`}
+                >
+                  <span className="w-[2.9em] shrink-0 font-bold tabular-nums">{w.mecz.status === 'trwa' ? 'teraz' : godzina(w.mecz)}</span>
+                  <span className="min-w-0 flex-1 truncate">{nazwa(w.mecz, 'a')} <span className="text-[color:var(--e-tekst4)]">–</span> {nazwa(w.mecz, 'b')}</span>
+                  {kilkaAren && w.mecz.arenaId && <span className="shrink-0 text-[0.7em] text-[color:var(--e-tekst3)]">{arenyPoId.get(w.mecz.arenaId)}</span>}
+                </div>
+              )
+            ))}
+          </div>
+          <div className="w-[60%]">{blokPromocji}</div>
+        </main>
+      ) : ukl === 'ogloszenie' ? (
+        // OGŁOSZENIE: tekst organizatora i kod QR zbiórki na cały ekran
+        // (przerwy, dekoracja, licytacje). Mecz w toku zostaje paskiem na dole.
+        <main className="flex min-h-0 flex-1 flex-col gap-[1.4em] px-[2.4em] py-[1.6em]">
+          {maOgloszenie ? (
+            <div className="flex min-h-0 flex-1 items-center gap-[3em]">
+              <div className="min-w-0 flex-1">
+                {komunikat && <p className="whitespace-pre-line font-display text-[3.6em] font-bold leading-tight">{komunikat}</p>}
+                {linkZbiorki && (
+                  <p className="mt-[0.8em] text-[2em] font-semibold text-[color:var(--e-akcent)]">{opisZbiorki}</p>
+                )}
+                {linkZbiorki && <p className="mt-[0.2em] text-[1.4em] text-[color:var(--e-tekst3)]">{adresDoPodpisu(linkZbiorki)}</p>}
+              </div>
+              {linkZbiorki && (
+                <div className="shrink-0 text-center">
+                  <KodQr tekst={linkZbiorki} etykieta={`Kod QR: ${adresDoPodpisu(linkZbiorki)}`} className="h-[24em] w-[24em] rounded-[0.8em]" />
+                  <p className="mt-[0.6em] text-[1.6em] font-semibold">Zeskanuj i wesprzyj</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="m-auto max-w-[40em] text-center text-[2em] text-[color:var(--e-tekst3)]">
+              Brak ogłoszenia. Organizator dodaje je w panelu turnieju: Ustawienia → Ekran na halę.
+            </p>
+          )}
+          <div className="flex items-end gap-[1.6em]">
+            <div className="min-w-0 flex-1 text-[1.4em]">
+              {c.naZywo.map((m) => (
+                <p key={m.id} className="truncate">
+                  <span className="mr-[0.5em] text-[0.75em] font-semibold uppercase tracking-wide text-[color:var(--e-akcent)]">Na żywo</span>
+                  {nazwa(m, 'a')} <span className="font-display font-bold tabular-nums">{m.wynikA}:{m.wynikB}</span> {nazwa(m, 'b')}
+                </p>
+              ))}
+            </div>
+            <div className="w-[34em] shrink-0">{kartaBojo(true)}</div>
+          </div>
+        </main>
+      ) : ukl === 'wynik' ? (
         // TABLICA WYNIKÓW: mecz w toku (albo następny) na pół ekranu.
         <main className="flex min-h-0 flex-1 flex-col gap-[1.2em] px-[1.6em] py-[1.2em]">
           <div className="flex min-h-0 flex-1 flex-col justify-center" style={{ fontSize: c.naZywo.length > 1 ? '1.4em' : '1.9em' }}>
             {blokTeraz}
           </div>
-          <div className="grid grid-cols-[1.35fr_1fr] items-end gap-[1.6em]">
+          <div className="grid grid-cols-[1.1fr_1fr] items-end gap-[1.6em]">
             <div className="min-w-0">{blokKolejne}</div>
-            {kartaQr(true)}
+            {blokPromocji}
           </div>
         </main>
-      ) : uklad === 'tabele' ? (
+      ) : ukl === 'tabele' ? (
         // WSZYSTKIE TABELE NARAZ, duże. Mecz w toku jednym paskiem nad nimi.
         <main className="flex min-h-0 flex-1 flex-col gap-[1em] px-[1.6em] py-[1.2em]">
           <div className="flex items-center gap-[1.6em]">
@@ -408,24 +543,24 @@ export default function EkranClient() {
               {c.naZywo.length > 0 ? c.naZywo.map((m) => (
                 <p key={m.id} className="flex items-center gap-[0.6em] truncate text-[1.8em] font-semibold">
                   <span className="h-[0.45em] w-[0.45em] shrink-0 animate-pulse rounded-full bg-primary-400" aria-hidden />
-                  <span className="text-[0.6em] uppercase tracking-wide text-primary-300">Na żywo</span>
+                  <span className="text-[0.6em] uppercase tracking-wide text-[color:var(--e-akcent)]">Na żywo</span>
                   <span className="truncate">{nazwa(m, 'a')}</span>
                   <span className="font-display font-bold tabular-nums">{m.wynikA}:{m.wynikB}</span>
                   <span className="truncate">{nazwa(m, 'b')}</span>
                 </p>
               )) : nastepny ? (
-                <p className="truncate text-[1.6em] text-slate-200">
-                  <span className="text-[0.7em] uppercase tracking-wide text-slate-400">Następny{nastepny.zaplanowanyAt ? ` · ${godzina(nastepny)}` : ''}</span>{' '}
-                  {nazwa(nastepny, 'a')} <span className="text-slate-500">–</span> {nazwa(nastepny, 'b')}
+                <p className="truncate text-[1.6em] text-[color:var(--e-tekst2)]">
+                  <span className="text-[0.7em] uppercase tracking-wide text-[color:var(--e-tekst3)]">Następny{nastepny.zaplanowanyAt ? ` · ${godzina(nastepny)}` : ''}</span>{' '}
+                  {nazwa(nastepny, 'a')} <span className="text-[color:var(--e-tekst4)]">–</span> {nazwa(nastepny, 'b')}
                 </p>
               ) : null}
             </div>
-            <div className="shrink-0" style={{ fontSize: '0.75em' }}>{kartaQr(true)}</div>
+            <div className="w-[48%] shrink-0" style={{ fontSize: '0.75em' }}>{blokPromocji}</div>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden" style={{ fontSize: tabeleGrup.length > 4 ? '1em' : tabeleGrup.length > 2 ? '1.2em' : '1.6em' }}>
             {tabeleGrup.length > 0
               ? blokTabele(Math.min(3, tabeleGrup.length))
-              : <p className="text-[1.6em] text-slate-400">Tabele pojawią się po pierwszym meczu.</p>}
+              : <p className="text-[1.6em] text-[color:var(--e-tekst3)]">Tabele pojawią się po pierwszym meczu.</p>}
           </div>
         </main>
       ) : (
@@ -436,7 +571,7 @@ export default function EkranClient() {
             {blokKolejne}
             {/* Kod QR na dole lewej kolumny: widać go cały czas, niezależnie
                 od tego, który widok kręci się po prawej. */}
-            <div className="mt-auto">{kartaQr(true)}</div>
+            <div className="mt-auto">{blokPromocji}</div>
           </div>
   
           <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
@@ -457,7 +592,7 @@ export default function EkranClient() {
                       onClick={() => przypnijWidok(przypietyWidok === w ? null : w)}
                       aria-pressed={przypietyWidok === w}
                       className={`rounded-full px-[0.8em] py-[0.25em] text-[1.05em] font-semibold uppercase tracking-wide transition-colors ${
-                        w === widok ? 'bg-white text-slate-950' : 'text-slate-500 hover:text-slate-300'
+                        w === widok ? 'bg-[color:var(--e-aktywny)] text-[color:var(--e-aktywny-tekst)]' : 'text-[color:var(--e-tekst4)] hover:text-[color:var(--e-tekst2)]'
                       }`}
                     >
                       {TYTUL_WIDOKU[w]}{przypietyWidok === w ? ' · stałe' : ''}
@@ -468,21 +603,21 @@ export default function EkranClient() {
                   {widok === 'tabele' && blokTabele(tabeleGrup.length > 2 ? 2 : 1)}
   
                   {widok === 'wyniki' && (
-                    <div className="divide-y divide-white/10">
+                    <div className="divide-y divide-[color:var(--e-linia)]">
                       {rozegrane.slice(0, 10).map((m) => (
                         <div key={m.id} className="flex items-center gap-[0.8em] py-[0.4em] text-[1.4em]">
-                          <span className="w-[2.6em] shrink-0 text-[0.75em] text-slate-500">{etykietaFazyMeczu(m, grupyPoId).replace('Grupa ', 'Gr. ')}</span>
-                          <span className="min-w-0 flex-1 truncate">{nazwa(m, 'a')} <span className="text-slate-500">–</span> {nazwa(m, 'b')}</span>
+                          <span className="w-[2.6em] shrink-0 text-[0.75em] text-[color:var(--e-tekst4)]">{etykietaFazyMeczu(m, grupyPoId).replace('Grupa ', 'Gr. ')}</span>
+                          <span className="min-w-0 flex-1 truncate">{nazwa(m, 'a')} <span className="text-[color:var(--e-tekst4)]">–</span> {nazwa(m, 'b')}</span>
                           <span className="shrink-0 font-display font-bold tabular-nums">
                             {m.status === 'walkower' ? 'wo.' : `${m.wynikA}:${m.wynikB}`}
                             {m.karneA !== undefined && m.karneB !== undefined && (
-                              <span className="ml-[0.3em] text-[0.7em] font-normal text-slate-400">k. {m.karneA}:{m.karneB}</span>
+                              <span className="ml-[0.3em] text-[0.7em] font-normal text-[color:var(--e-tekst3)]">k. {m.karneA}:{m.karneB}</span>
                             )}
                           </span>
                         </div>
                       ))}
                       {rozegrane.length > 10 && (
-                        <p className="pt-[0.5em] text-[1.1em] text-slate-400">
+                        <p className="pt-[0.5em] text-[1.1em] text-[color:var(--e-tekst3)]">
                           i {withCount(rozegrane.length - 10, 'mecz', 'mecze', 'meczów')} wcześniej · wszystkie na {linkBezProtokolu.split('/')[0]}
                         </p>
                       )}
@@ -490,13 +625,13 @@ export default function EkranClient() {
                   )}
   
                   {widok === 'strzelcy' && (
-                    <ol className="divide-y divide-white/10">
+                    <ol className="divide-y divide-[color:var(--e-linia)]">
                       {strzelcy.slice(0, 10).map((w, i) => (
                         <li key={w.zawodnikId} className="flex items-center gap-[0.8em] py-[0.4em] text-[1.4em]">
-                          <span className={`w-[1.4em] shrink-0 text-right font-bold tabular-nums ${i < 3 ? 'text-primary-300' : 'text-slate-500'}`}>{i + 1}</span>
+                          <span className={`w-[1.4em] shrink-0 text-right font-bold tabular-nums ${i < 3 ? 'text-[color:var(--e-akcent)]' : 'text-[color:var(--e-tekst4)]'}`}>{i + 1}</span>
                           <span className="min-w-0 flex-1 truncate">
                             <span className="font-semibold">{w.imie}</span>
-                            {w.druzynaNazwa && <span className="text-slate-400"> · {w.druzynaNazwa}</span>}
+                            {w.druzynaNazwa && <span className="text-[color:var(--e-tekst3)]"> · {w.druzynaNazwa}</span>}
                           </span>
                           <span className="shrink-0 font-display text-[1.2em] font-bold tabular-nums">{w.gole}</span>
                         </li>
@@ -505,18 +640,18 @@ export default function EkranClient() {
                   )}
   
                   {widok === 'final' && (
-                    <div className="divide-y divide-white/10">
+                    <div className="divide-y divide-[color:var(--e-linia)]">
                       {meczeFinalu.slice(0, 10).map((m) => {
                         const wynik = m.status === 'zakonczony' || m.status === 'walkower' || m.status === 'trwa';
                         return (
                           <div key={m.id} className="flex items-center gap-[0.8em] py-[0.45em] text-[1.4em]">
                             <span className="w-[3.2em] shrink-0 font-bold tabular-nums">{godzina(m)}</span>
                             <span className="min-w-0 flex-1">
-                              {!finalowa && <span className="block text-[0.65em] uppercase tracking-wide text-slate-500">{etykietaFazyMeczu(m, grupyPoId)}</span>}
-                              <span className="block truncate">{nazwa(m, 'a')} <span className="text-slate-500">–</span> {nazwa(m, 'b')}</span>
+                              {!finalowa && <span className="block text-[0.65em] uppercase tracking-wide text-[color:var(--e-tekst4)]">{etykietaFazyMeczu(m, grupyPoId)}</span>}
+                              <span className="block truncate">{nazwa(m, 'a')} <span className="text-[color:var(--e-tekst4)]">–</span> {nazwa(m, 'b')}</span>
                             </span>
                             {wynik && (
-                              <span className={`shrink-0 font-display font-bold tabular-nums ${m.status === 'trwa' ? 'text-primary-300' : ''}`}>
+                              <span className={`shrink-0 font-display font-bold tabular-nums ${m.status === 'trwa' ? 'text-[color:var(--e-akcent)]' : ''}`}>
                                 {m.wynikA}:{m.wynikB}
                               </span>
                             )}
@@ -535,7 +670,7 @@ export default function EkranClient() {
       {/* STEROWANIE UKŁADEM: chwilę po ruchu myszy albo dotknięciu. */}
       <nav
         aria-label="Układ ekranu"
-        className={`fixed bottom-[1em] right-[1em] flex gap-[0.4em] rounded-full bg-slate-800/95 p-[0.35em] shadow-2xl ring-1 ring-white/10 transition-opacity duration-300 ${
+        className={`fixed bottom-[1em] left-1/2 flex -translate-x-1/2 gap-[0.3em] rounded-full bg-[color:var(--e-panel)] p-[0.35em] shadow-2xl ring-1 ring-[color:var(--e-linia)] transition-opacity duration-300 ${
           sterowanie ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
       >
@@ -545,24 +680,52 @@ export default function EkranClient() {
             type="button"
             onClick={() => zmienUklad(u.klucz)}
             aria-pressed={uklad === u.klucz}
-            className={`rounded-full px-[1em] py-[0.45em] text-[1.1em] font-semibold ${
-              uklad === u.klucz ? 'bg-white text-slate-950' : 'text-slate-300 hover:bg-white/10'
+            className={`whitespace-nowrap rounded-full px-[0.9em] py-[0.45em] text-[1.05em] font-semibold ${
+              uklad === u.klucz ? 'bg-[color:var(--e-aktywny)] text-[color:var(--e-aktywny-tekst)]' : 'text-[color:var(--e-tekst2)] hover:bg-[color:var(--e-karta)]'
             }`}
           >
             {u.etykieta}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => zmienMotyw(motyw === 'ciemny' ? 'jasny' : 'ciemny')}
+          aria-label={motyw === 'ciemny' ? 'Jasny motyw' : 'Ciemny motyw'}
+          title={motyw === 'ciemny' ? 'Jasny motyw' : 'Ciemny motyw'}
+          className="ml-[0.4em] rounded-full px-[0.8em] py-[0.45em] text-[color:var(--e-tekst2)] hover:bg-[color:var(--e-karta)]"
+        >
+          {motyw === 'ciemny' ? <Sun className="h-[1.3em] w-[1.3em]" /> : <Moon className="h-[1.3em] w-[1.3em]" />}
+        </button>
       </nav>
     </Tlo>
   );
 }
 
-/** Ciemne tło na cały ekran; rozmiar pisma liczony z szerokości okna. */
-function Tlo({ children }: { children: React.ReactNode }) {
+// MOTYW EKRANU (2026-11-21): ciemny domyślnie (rzutnik w ciemnej hali),
+// jasny na telewizor w jasnej sali albo do druku zrzutu. Kolory jako zmienne
+// CSS, a klasy ekranu czytają je (`text-[color:var(--e-tekst)]`): jeden
+// zestaw klas, dwie palety. Zielony z palety Bojo w obu.
+const PALETY: Record<MotywEkranu, Record<string, string>> = {
+  ciemny: {
+    '--e-tlo': '#020617', '--e-tekst': '#ffffff', '--e-tekst2': '#cbd5e1', '--e-tekst3': '#94a3b8', '--e-tekst4': '#64748b',
+    '--e-karta': 'rgba(255,255,255,0.06)', '--e-linia': 'rgba(255,255,255,0.12)', '--e-panel': 'rgba(30,41,59,0.95)',
+    '--e-akcent': '#7dd8a8', '--e-zywo-ramka': '#22a361', '--e-zywo-tlo': 'rgba(6,29,18,0.6)', '--e-uwaga': '#fcd34d',
+    '--e-aktywny': '#ffffff', '--e-aktywny-tekst': '#020617', '--e-komunikat': 'rgba(34,163,97,0.18)',
+  },
+  jasny: {
+    '--e-tlo': '#f8fafc', '--e-tekst': '#0f172a', '--e-tekst2': '#334155', '--e-tekst3': '#475569', '--e-tekst4': '#64748b',
+    '--e-karta': '#ffffff', '--e-linia': '#e2e8f0', '--e-panel': 'rgba(255,255,255,0.97)',
+    '--e-akcent': '#15663E', '--e-zywo-ramka': '#15803d', '--e-zywo-tlo': '#f0fdf5', '--e-uwaga': '#b45309',
+    '--e-aktywny': '#0f172a', '--e-aktywny-tekst': '#ffffff', '--e-komunikat': '#d8f5e4',
+  },
+};
+
+/** Tło na cały ekran w wybranym motywie; rozmiar pisma liczony z szerokości okna. */
+function Tlo({ children, motyw }: { children: React.ReactNode; motyw: MotywEkranu }) {
   return (
     <div
-      className="flex h-[100dvh] flex-col overflow-hidden bg-slate-950 text-white"
-      style={{ fontSize: 'clamp(12px, 1.05vw, 40px)' }}
+      className="flex h-[100dvh] flex-col overflow-hidden bg-[color:var(--e-tlo)] text-[color:var(--e-tekst)]"
+      style={{ fontSize: 'clamp(12px, 1.05vw, 40px)', ...PALETY[motyw] } as React.CSSProperties}
     >
       {children}
     </div>
