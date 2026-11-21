@@ -12,7 +12,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 
 | Flaga | Wartość | Co chowa | Gdzie warunkuje |
 |---|---|---|---|
-| `SHOW_TURNIEJE` | `false` | Moduł turniejowy — **wyłączona ponownie 2026-09-17, tymczasowo** (decyzja właściciela po przeglądzie na żywo: moduł działa, ale pierwsze wrażenie nie jest gotowe). Trasa `/turnieje` **odpowiada normalnie** — znikają wyłącznie wejścia w nawigacji. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | `app/moje-gry/page.tsx` (link „🏆 Turnieje”), `app/profil/page.tsx` (wiersz „Turnieje”) |
+| `SHOW_TURNIEJE` | `false` | Moduł turniejowy — **wyłączona ponownie 2026-09-17, tymczasowo** (decyzja właściciela po przeglądzie na żywo: moduł działa, ale pierwsze wrażenie nie jest gotowe). Trasa `/turnieje` **odpowiada normalnie** — znikają wyłącznie wejścia w nawigacji. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | `app/moje-gry/page.tsx` (link „🏆 Turnieje”), `app/profil/page.tsx` (wiersz „Turnieje”). **Od 2026-11-21** oba wejścia widzi mimo flagi każdy, kto organizuje, współorganizuje albo gra w turnieju, oraz admin (`lib/useMamTurnieje.ts`) |
 | `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (pusty stan listy), `components/map/VenueExplorer.tsx` (`/mapa`), `components/profil/MojeAlerty.tsx` (`/profil`), `app/boisko/[id]/VenueDetailClient.tsx` (**od 2026-09-21**, pusty stan „Nadchodzące mecze") |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
 | `SHOW_TURNIEJ_OGLOSZENIA` | `false` | Ogłoszenia organizatora na stronie turnieju (lista na Info, pasek „Ogłoszenia (N)” na innych zakładkach). **Wyłączona 2026-11-21** przed przekazaniem turnieju w Luboniu; dane i wyzwalacz powiadomień zostają | `app/turnieje/[id]/TurniejClient.tsx` |
@@ -5066,6 +5066,18 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
 - Zadania przed przekazaniem turnieju: `supabase/zadania/turnieje-usun-poza-marysia.sql`
   (usuwa wszystkie turnieje poza `e9a3763f…`) i `supabase/zadania/turniej-marysi-wyzeruj-wyniki.sql`
   (mecze z powrotem „zaplanowane”, bez zdarzeń; drużyny, terminarz i przerwy zostają).
+- **Samobój pod golem (2026-11-21):** w konsoli meczu „GOL” drużyny X otwiera skład X,
+  a na dole arkusza obok „Zapisz bez strzelca” jest „Samobój”: otwiera skład rywala („Kto
+  strzelił samobója?”), zdarzenie `samobojczy` dostaje drużynę strzelającego, wynik liczy
+  się drużynie X (wyzwalacz z `147`). Osobny przycisk „Samobójczy” przy kartkach zniknął.
+  Pominięcie strzelca: „Zapisz bez strzelca” (kartki: „Zapisz bez nazwiska”), bez „Nie wiem kto”.
+- **Bez „bez goli” i „Jeszcze nikt nie strzelił” (2026-11-21):** rozwinięty wiersz wyniku
+  pokazuje wyłącznie wpisanych strzelców (gol bez strzelca jest pomijany), a sekcja
+  „Statystyki graczy” na zakładce Mecze pojawia się dopiero, gdy ktoś wpisał strzelca albo
+  zawodnika meczu.
+- **Tabele: „Wyniki i terminarz” pod tabelą grupy (2026-11-21):** rozwijana lista pod każdą
+  tabelą grupy (poza grupą finałową) ma dziś rozegrane I najbliższe mecze grupy, po godzinie
+  (`porownajTermin`); wcześniej „Pokaż wyniki (N)” pokazywało tylko rozegrane.
 - **Karta meczu w dwóch wierszach (2026-11-21):** górny wiersz `KartaMeczu`: po lewej numer,
   grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
   spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,

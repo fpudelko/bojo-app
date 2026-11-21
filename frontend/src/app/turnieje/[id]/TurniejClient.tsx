@@ -91,7 +91,7 @@ function MeczeGrupy({ mecze, wiersz }: {
         aria-expanded={rozwiniete}
       >
         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${rozwiniete ? 'rotate-180' : ''}`} />
-        {rozwiniete ? 'Zwiń wyniki' : `Pokaż wyniki (${mecze.length})`}
+        {rozwiniete ? 'Zwiń' : `Wyniki i terminarz (${mecze.length})`}
       </button>
       {rozwiniete && (
         <div className="mt-2 space-y-2">
@@ -438,6 +438,9 @@ export default function TurniejClient() {
     .map((m) => ({ mvpZawodnikId: m.mvpZawodnikId }));
   const klasyfikacje = obliczKlasyfikacje(zdarzenia, mvpPoMeczach, zawodnicyDoStatystyk, druzynyPoId);
   const strzelcy = posortujKlasyfikacje(klasyfikacje, 'gole');
+  // Z samych zdarzeń, nie z klasyfikacji: niezalogowany nie widzi składów,
+  // więc klasyfikacja jest u niego pusta, a strzelcy mimo to są wpisani.
+  const maWpisanychStrzelcow = zdarzenia.some((z) => !!z.zawodnikId && (z.typ === 'gol' || z.typ === 'punkty'));
   const zdobycz = etykietaZdobyczy(turniej?.sport ?? '');
   const mvpList = posortujKlasyfikacje(klasyfikacje, 'mvp');
   const dojazd = linkDojazdu({ lat: turniej.lat, lng: turniej.lng, adres: turniej.miejsceAdres });
@@ -1043,17 +1046,22 @@ export default function TurniejClient() {
               </div>
             )}
 
-            {meczeRozegrane.length > 0 && (
+            {/* Tylko gdy ktoś WPISAŁ strzelca albo zawodnika meczu (2026-11-21).
+                „Jeszcze nikt nie strzelił” kłamało przy wynikach wpisanych bez
+                strzelców: gole padły, tylko nikt ich nie przypisał. */}
+            {meczeRozegrane.length > 0 && (maWpisanychStrzelcow || mvpList.some((w) => w.mvp > 0)) && (
               <div className="space-y-3 border-t border-slate-100 dark:border-slate-700 pt-4">
                 <h2 className="text-sm font-semibold text-slate-500">Statystyki graczy</h2>
                 {!user ? (
                   <SciankaLogowania tytul="Statystyki graczy" />
                 ) : (
                   <div className="space-y-4">
-                    <div>
-                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{zdobycz.naglowek}</h3>
-                      <Klasyfikacja wpisy={strzelcy} klucz="gole" etykietaKolumny={zdobycz.kolumna} pusteMiejsce={zdobycz.puste} />
-                    </div>
+                    {strzelcy.some((w) => w.gole > 0) && (
+                      <div>
+                        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{zdobycz.naglowek}</h3>
+                        <Klasyfikacja wpisy={strzelcy.filter((w) => w.gole > 0)} klucz="gole" etykietaKolumny={zdobycz.kolumna} pusteMiejsce="" />
+                      </div>
+                    )}
                     {/* Bez klasyfikacji asyst (asysty wypadły z modułu 2026-11-08).
                         Zawodnik meczu jest opcjonalny, więc jego lista pokazuje
                         się dopiero, gdy ktoś go faktycznie wskazał. */}
@@ -1111,7 +1119,9 @@ export default function TurniejClient() {
                 )}
                 {grupa && !grupa.finalowa && (
                   <MeczeGrupy
-                    mecze={meczeGrupowe.filter((m) => m.grupaId === grupa.id && rozegrany(m))}
+                    // Rozegrane i najbliższe mecze grupy, po godzinie (2026-11-21):
+                    // pod tabelą czytający pyta też „z kim jeszcze gramy”.
+                    mecze={meczeGrupowe.filter((m) => m.grupaId === grupa.id).sort(porownajTermin)}
                     wiersz={kafelekMeczu}
                   />
                 )}
