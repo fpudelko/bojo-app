@@ -30,7 +30,7 @@ import type { Turniej, TurniejMecz, TurniejDruzyna, TurniejArena, TurniejZdarzen
 const TYTUL_ARKUSZA: Record<ZdarzenieTyp, string> = {
   gol: 'Kto strzelił?',
   punkty: 'Kto zdobył punkty?',
-  samobojczy: 'Kto strzelił samobójczego?',
+  samobojczy: 'Kto strzelił samobója?',
   zolta: 'Kto dostał żółtą kartkę?',
   czerwona: 'Kto dostał czerwoną kartkę?',
 };
@@ -270,6 +270,9 @@ export default function MeczClient() {
   const zapytajOZawodnika = (druzynaId: string, typ: ZdarzenieTyp, wartosc = 1) => {
     setArkusz({ druzynaId, typ, wartosc });
   };
+
+  const przeciwnik = (druzynaId: string): string | undefined =>
+    druzynaId === mecz?.druzynaAId ? mecz?.druzynaBId : druzynaId === mecz?.druzynaBId ? mecz?.druzynaAId : undefined;
 
   const odpowiedzArkusza = (zawodnikId: string | undefined) => {
     if (!arkusz) return;
@@ -767,11 +770,6 @@ export default function MeczClient() {
                         // a znaczenie niesie sama ikona kartki (audyt 5, N10).
                         className="min-h-[44px] min-w-[44px] rounded-lg bg-slate-100 dark:bg-slate-700 text-base"
                       >🟥</button>
-                      <button
-                        onClick={() => dodajZdarzenieAkcja(druzynaId, 'samobojczy')}
-                        aria-label={`Samobójczy, ${nazwaDruzyny(druzynaId)}`}
-                        className="min-h-[44px] rounded-lg bg-slate-100 dark:bg-slate-700 px-3 text-xs font-medium text-slate-600 dark:text-slate-300"
-                      >Samobójczy</button>
                     </div>
                   )}
                 </div>
@@ -924,7 +922,19 @@ export default function MeczClient() {
           tytul={TYTUL_ARKUSZA[arkusz.typ]}
           podtytul={nazwaDruzyny(arkusz.druzynaId)}
           zawodnicy={skladDruzyny(arkusz.druzynaId)}
-          etykietaPominiecia="Nie wiem kto, zapisz bez nazwiska"
+          // „Zapisz bez strzelca”, bez „Nie wiem kto” (decyzja właściciela
+          // z 2026-11-21): brak nazwiska to normalny przypadek, nie niewiedza.
+          etykietaPominiecia={arkusz.typ === 'gol' || arkusz.typ === 'samobojczy' || arkusz.typ === 'punkty'
+            ? 'Zapisz bez strzelca' : 'Zapisz bez nazwiska'}
+          // SAMOBÓJ POD GOLEM (2026-11-21): gol drużyny X padł z samobója
+          // rywala. Osobny przycisk „Samobójczy” stał przy kartkach i nie było
+          // jasne, czyj to gol. Teraz: „GOL” drużyny X → „Samobój” → skład
+          // RYWALA. Zdarzenie dostaje drużynę strzelającego, a wyzwalacz z 147
+          // liczy je drużynie przeciwnej.
+          akcjaDodatkowa={arkusz.typ === 'gol' && przeciwnik(arkusz.druzynaId) ? {
+            etykieta: 'Samobój',
+            onClick: () => setArkusz({ druzynaId: przeciwnik(arkusz.druzynaId)!, typ: 'samobojczy', wartosc: 1 }),
+          } : undefined}
           onWybor={odpowiedzArkusza}
           onZamknij={() => {
             // Zamknięcie arkusza anuluje zdarzenie (prowadzący pomylił drużynę).

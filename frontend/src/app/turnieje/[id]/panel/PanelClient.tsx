@@ -1,5 +1,6 @@
 'use client';
 
+import { tabeleGrupTurnieju, maRemisWTabeli } from '@/lib/turniejTabela';
 import { useAdmin } from '@/lib/admin';
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useMemo, useState } from 'react';
@@ -30,6 +31,7 @@ import {
 } from '@/lib/turniejDruzyny';
 import {
   getGrupy, dodajGrupe, usunGrupe, getAreny, dodajArene, zmienNazweAreny, usunArene,
+  ustawKolejnoscGrupy, ustawKomentarzGrupy,
   getMecze, zapiszTerminarz, updateMecz, rozpocznijMecz, dodajZdarzenie, zakonczMecz, cofnijOstatnieZdarzenie,
   getPrzerwy, dodajPrzerwe, zmienPrzerwe, usunPrzerwe,
 } from '@/lib/turniejMecze';
@@ -109,6 +111,9 @@ export default function PanelClient() {
   const [nowaNazwa, setNowaNazwa] = useState('');
   const [nowaArenaNazwa, setNowaArenaNazwa] = useState('');
   const [emailWspolorganizatora, setEmailWspolorganizatora] = useState('');
+  // Remis w tabeli (179): kolejność i komentarz grupy w trakcie edycji.
+  const [kolejnoscEdycja, setKolejnoscEdycja] = useState<Record<string, string[]>>({});
+  const [komentarzEdycja, setKomentarzEdycja] = useState<Record<string, string>>({});
   const [liczbaGrupWybor, setLiczbaGrupWybor] = useState<number | null>(null);
   const [podglad, setPodglad] = useState<NowyMecz[] | null>(null);
   // Pierwsza dotknięta drużyna przy ręcznej zamianie par w drabince.
@@ -470,6 +475,12 @@ export default function PanelClient() {
   // Grupa finałowa (175) powstaje sama przy generowaniu terminarza i nie ma
   // przypisanych drużyn, więc nie pokazuje się w losowaniu ani przy wyborze.
   const grupyZwykle = grupy.filter((g) => !g.finalowa);
+  // Grupy, w których jest remis do rozstrzygnięcia albo kolejność już ustalona
+  // ręcznie (179). Tylko z rozegranym meczem: pusta tabela to nie remis.
+  const tabeleDoRozstrzygniecia = tabeleGrupTurnieju(grupy, druzyny, mecze, {
+    punktyZaWygrana: turniej.punktyZaWygrana, punktyZaRemis: turniej.punktyZaRemis,
+  }).filter(({ grupa, wiersze }) => wiersze.some((w) => w.mecze > 0)
+    && (!!grupa.kolejnoscReczna || maRemisWTabeli(wiersze)));
   const grupyPoId = new Map(grupy.map((g) => [g.id, g]));
   const liczbaGrupDomyslna = domyslnaLiczbaGrup(wTurnieju.length);
 
@@ -771,6 +782,19 @@ export default function PanelClient() {
       await wczytaj();
     } finally {
       setZapisujeGodziny(false);
+    }
+  };
+
+  const zapiszRozstrzygniecie = async (grupaId: string, kolejnosc: string[] | null, komentarz: string) => {
+    try {
+      await ustawKolejnoscGrupy(grupaId, kolejnosc);
+      await ustawKomentarzGrupy(grupaId, komentarz);
+      setKolejnoscEdycja((k) => { const n = { ...k }; delete n[grupaId]; return n; });
+      setKomentarzEdycja((k) => { const n = { ...k }; delete n[grupaId]; return n; });
+      await wczytaj();
+      toast(kolejnosc ? 'Kolejność zapisana' : 'Wróciła kolejność liczona');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać kolejności', 'error');
     }
   };
 
@@ -1257,6 +1281,72 @@ export default function PanelClient() {
                     <button onClick={() => przyjmij(d, 'odrzucona')} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500"><XIcon className="h-3.5 w-3.5" /> Odrzuć</button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* REMIS W TABELI (179, 2026-11-21). Grupa finałowa w Luboniu
+                skończyła się trzema drużynami z identycznym bilansem, a Bojo
+                ogłosiło podium alfabetem. Karta pojawia się przy grupie z
+                miejscem ex aequo (albo z kolejnością już ustaloną ręcznie):
+                organizator przestawia drużyny i może dopisać, jak rozstrzygnął. */}
+            {tabeleDoRozstrzygniecia.length > 0 && (
+              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-4 shadow-sm">
+                <div>
+                  <h2 className="text-sm font-semibold text-ink">Remis w tabeli</h2>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    Drużyny z tymi samymi punktami, bilansem i bramkami zajmują miejsce ex aequo. Ustal kolejność strzałkami; komentarz pokaże się pod tabelą.
+                  </p>
+                </div>
+                {tabeleDoRozstrzygniecia.map(({ grupa, wiersze }) => {
+                  const kolejnosc = kolejnoscEdycja[grupa.id] ?? wiersze.map((w) => w.druzynaId);
+                  const komentarz = komentarzEdycja[grupa.id] ?? grupa.komentarz ?? '';
+                  const przesun = (i: number, o: number) => {
+                    const nowa = [...kolejnosc];
+                    [nowa[i], nowa[i + o]] = [nowa[i + o], nowa[i]];
+                    setKolejnoscEdycja((k) => ({ ...k, [grupa.id]: nowa }));
+                  };
+                  return (
+                    <div key={grupa.id} className="space-y-2 rounded-xl border border-slate-100 dark:border-slate-700 p-3">
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-300">
+                        Grupa {grupa.nazwa}{grupa.finalowa ? ' (finałowa)' : ''}
+                      </p>
+                      <ol className="space-y-1">
+                        {kolejnosc.map((dId, i) => {
+                          const w = wiersze.find((x) => x.druzynaId === dId);
+                          return (
+                            <li key={dId} className="flex items-center gap-2">
+                              <span className="w-5 shrink-0 text-center text-sm font-semibold text-slate-500">{i + 1}</span>
+                              <span className="min-w-0 flex-1 break-words text-sm font-medium text-ink">
+                                {w?.nazwa ?? '?'} <span className="text-xs font-normal text-slate-500">{w ? `${w.punkty} pkt, ${w.bramkiZdobyte}:${w.bramkiStracone}` : ''}</span>
+                              </span>
+                              <button onClick={() => przesun(i, -1)} disabled={i === 0} aria-label={`Wyżej: ${w?.nazwa ?? ''}`}
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 disabled:opacity-30">↑</button>
+                              <button onClick={() => przesun(i, 1)} disabled={i === kolejnosc.length - 1} aria-label={`Niżej: ${w?.nazwa ?? ''}`}
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 disabled:opacity-30">↓</button>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                      <textarea
+                        value={komentarz}
+                        maxLength={300}
+                        rows={2}
+                        placeholder="Komentarz pod tabelą, np. „O 1. miejscu zdecydowały karne po meczu”"
+                        onChange={(e) => setKomentarzEdycja((k) => ({ ...k, [grupa.id]: e.target.value }))}
+                        className={inputCls}
+                        aria-label={`Komentarz pod tabelą grupy ${grupa.nazwa}`}
+                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button size="sm" onClick={() => zapiszRozstrzygniecie(grupa.id, kolejnosc, komentarz)}>Zapisz kolejność</Button>
+                        {grupa.kolejnoscReczna && (
+                          <button onClick={() => zapiszRozstrzygniecie(grupa.id, null, komentarz)} className="min-h-[44px] px-2 text-sm font-medium text-slate-500">
+                            Wróć do liczonej
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 

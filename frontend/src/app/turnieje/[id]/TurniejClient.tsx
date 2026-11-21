@@ -1,6 +1,6 @@
 'use client';
 
-import WierszWyniku from '@/components/turnieje/WierszWyniku';
+import WierszMeczu from '@/components/turnieje/WierszMeczu';
 import { etykietaZakladkiTurnieju } from '@/lib/turniejEtykiety';
 import { SHOW_TURNIEJ_OGLOSZENIA } from '@/lib/features';
 import { useAdmin } from '@/lib/admin';
@@ -33,7 +33,6 @@ import { linkDojazdu } from '@/lib/utils';
 import { withCount } from '@/lib/plural';
 import { useWstecz } from '@/lib/historia';
 import { sportEmoji } from '@/lib/sports';
-import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
 import Drabinka from '@/components/turnieje/Drabinka';
 import Klasyfikacja from '@/components/turnieje/Klasyfikacja';
@@ -78,7 +77,7 @@ type WidokMeczow = 'najblizsze' | 'rozegrane';
 /** Rozegrane mecze jednej grupy, zwinięte pod jej tabelą. */
 function MeczeGrupy({ mecze, wiersz }: {
   mecze: TurniejMecz[];
-  /** Jak narysować mecz: rozegrany idzie jednym wierszem (`WierszWyniku`). */
+  /** Jak narysować mecz (`WierszMeczu`, jeden wiersz). */
   wiersz: (m: TurniejMecz) => React.ReactNode;
 }) {
   const [rozwiniete, setRozwiniete] = useState(false);
@@ -91,7 +90,7 @@ function MeczeGrupy({ mecze, wiersz }: {
         aria-expanded={rozwiniete}
       >
         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${rozwiniete ? 'rotate-180' : ''}`} />
-        {rozwiniete ? 'Zwiń wyniki' : `Pokaż wyniki (${mecze.length})`}
+        {rozwiniete ? 'Zwiń' : `Wyniki i terminarz (${mecze.length})`}
       </button>
       {rozwiniete && (
         <div className="mt-2 space-y-2">
@@ -382,40 +381,28 @@ export default function TurniejClient() {
   const przerwyPrzedNami = ostatniRozegrany ? przerwy.filter((p) => p.doAt > ostatniRozegrany) : przerwy;
 
   const zawodnicyDoStatystyk = druzyny.flatMap((d) => d.zawodnicy ?? []);
-  const zawodnicyPoId = new Map(zawodnicyDoStatystyk.map((z) => [z.id, z.imie]));
-  // ROZEGRANY MECZ JEDNYM WIERSZEM (2026-11-21): kto z kim, wynik, grupa;
-  // reszta po rozwinięciu. Mecz przed nami i na żywo zostaje pełną kartą,
-  // bo tam godzina i boisko są właśnie tym, czego się szuka.
+  // KAŻDY MECZ JEDNYM WIERSZEM (2026-11-21): przyszły i rozegrany tak samo,
+  // szczegóły na stronie meczu. Boisko tylko przy kilku boiskach.
   const kafelekMeczu = (m: TurniejMecz) => (
-    (m.status === 'zakonczony' || m.status === 'walkower') && !czyWolnyLos(m) ? (
-      <WierszWyniku
-        key={m.id}
-        mecz={m}
-        druzynyPoId={druzynyPoId}
-        arenyPoId={arenyPoId}
-        grupyPoId={grupyPoId}
-        zdarzenia={zdarzenia}
-        zawodnicyPoId={zawodnicyPoId}
-        szczegolyHref={`/turnieje/${id}/mecz/${m.id}`}
-      />
-    ) : (
-      <KartaMeczu
-        key={m.id}
-        mecz={m}
-        druzynyPoId={druzynyPoId}
-        meczePoId={meczePoId}
-        arenyPoId={arenyPoId}
-        grupyPoId={grupyPoId}
-        przygaszona={czyWolnyLos(m)}
-        onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
-      />
-    )
+    <WierszMeczu
+      key={m.id}
+      mecz={m}
+      href={`/turnieje/${id}/mecz/${m.id}`}
+      druzynyPoId={druzynyPoId}
+      meczePoId={meczePoId}
+      arenyPoId={arenyPoId}
+      grupyPoId={grupyPoId}
+      pokazBoisko={areny.length > 1}
+    />
   );
   const mvpPoMeczach = mecze
     .filter((m) => m.status === 'zakonczony' || m.status === 'walkower')
     .map((m) => ({ mvpZawodnikId: m.mvpZawodnikId }));
   const klasyfikacje = obliczKlasyfikacje(zdarzenia, mvpPoMeczach, zawodnicyDoStatystyk, druzynyPoId);
   const strzelcy = posortujKlasyfikacje(klasyfikacje, 'gole');
+  // Z samych zdarzeń, nie z klasyfikacji: niezalogowany nie widzi składów,
+  // więc klasyfikacja jest u niego pusta, a strzelcy mimo to są wpisani.
+  const maWpisanychStrzelcow = zdarzenia.some((z) => !!z.zawodnikId && (z.typ === 'gol' || z.typ === 'punkty'));
   const zdobycz = etykietaZdobyczy(turniej?.sport ?? '');
   const mvpList = posortujKlasyfikacje(klasyfikacje, 'mvp');
   const dojazd = linkDojazdu({ lat: turniej.lat, lng: turniej.lng, adres: turniej.miejsceAdres });
@@ -614,6 +601,7 @@ export default function TurniejClient() {
                     : 'text-sm font-medium text-slate-600 dark:text-slate-300'}
                 >
                   {medal(m.miejsce)} {m.nazwa}
+                  {m.exAequo && <span className="ml-1.5 text-xs font-normal text-slate-500">ex aequo</span>}
                 </p>
               ))}
             </div>
@@ -1031,17 +1019,22 @@ export default function TurniejClient() {
               </div>
             )}
 
-            {meczeRozegrane.length > 0 && (
+            {/* Tylko gdy ktoś WPISAŁ strzelca albo zawodnika meczu (2026-11-21).
+                „Jeszcze nikt nie strzelił” kłamało przy wynikach wpisanych bez
+                strzelców: gole padły, tylko nikt ich nie przypisał. */}
+            {meczeRozegrane.length > 0 && (maWpisanychStrzelcow || mvpList.some((w) => w.mvp > 0)) && (
               <div className="space-y-3 border-t border-slate-100 dark:border-slate-700 pt-4">
                 <h2 className="text-sm font-semibold text-slate-500">Statystyki graczy</h2>
                 {!user ? (
                   <SciankaLogowania tytul="Statystyki graczy" />
                 ) : (
                   <div className="space-y-4">
-                    <div>
-                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{zdobycz.naglowek}</h3>
-                      <Klasyfikacja wpisy={strzelcy} klucz="gole" etykietaKolumny={zdobycz.kolumna} pusteMiejsce={zdobycz.puste} />
-                    </div>
+                    {strzelcy.some((w) => w.gole > 0) && (
+                      <div>
+                        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{zdobycz.naglowek}</h3>
+                        <Klasyfikacja wpisy={strzelcy.filter((w) => w.gole > 0)} klucz="gole" etykietaKolumny={zdobycz.kolumna} pusteMiejsce="" />
+                      </div>
+                    )}
                     {/* Bez klasyfikacji asyst (asysty wypadły z modułu 2026-11-08).
                         Zawodnik meczu jest opcjonalny, więc jego lista pokazuje
                         się dopiero, gdy ktoś go faktycznie wskazał. */}
@@ -1109,7 +1102,7 @@ export default function TurniejClient() {
                 {grupa?.finalowa ? (
                   <>
                     {wiersze.length > 0 ? (
-                      <TabelaGrupy wiersze={wiersze} />
+                      <TabelaGrupy wiersze={wiersze} komentarz={grupa?.komentarz} />
                     ) : (
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         Drużyny wejdą tu po rozstrzygnięciu swoich grup.
@@ -1125,11 +1118,13 @@ export default function TurniejClient() {
                     </div>
                   </>
                 ) : (
-                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} />
+                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} komentarz={grupa?.komentarz} />
                 )}
                 {grupa && !grupa.finalowa && (
                   <MeczeGrupy
-                    mecze={meczeGrupowe.filter((m) => m.grupaId === grupa.id && rozegrany(m))}
+                    // Rozegrane i najbliższe mecze grupy, po godzinie (2026-11-21):
+                    // pod tabelą czytający pyta też „z kim jeszcze gramy”.
+                    mecze={meczeGrupowe.filter((m) => m.grupaId === grupa.id).sort(porownajTermin)}
                     wiersz={kafelekMeczu}
                   />
                 )}

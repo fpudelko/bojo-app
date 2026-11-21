@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { centrumTurnieju } from '@/lib/turniejPulpit';
 import { tabeleTurnieju } from '@/lib/turniejTabela';
-import type { TurniejGrupa, TurniejMecz } from '@/types';
+import type { TurniejDruzyna, TurniejGrupa, TurniejMecz } from '@/types';
 
 // Centrum dowodzenia panelu na komputerze (2026-11-21). „Teraz” jest
 // argumentem, bo dzień turnieju to jedyny stan, którego nie da się obejrzeć
@@ -78,7 +78,7 @@ describe('tabeleTurnieju', () => {
     { id: 'd1', nazwa: 'Jedynka', grupaId: 'gA' },
     { id: 'd2', nazwa: 'Dwójka', grupaId: 'gA' },
     { id: 'd3', nazwa: 'Trójka', grupaId: 'gB' },
-  ];
+  ] as TurniejDruzyna[];
 
   it('liczy tabelę grupy z jej drużyn, a finałowej z drużyn wpisanych do jej meczów', () => {
     const tabele = tabeleTurnieju(turniej, grupy, [

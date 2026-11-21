@@ -15,7 +15,7 @@ describe('wiersz wyniku', () => {
     expect(znacznikFazy({ faza: 'final' }, grupy)).toBe('Finał');
   });
 
-  it('strzelcy po stronach, samobój dla rywala, bez nazwiska „gol”', () => {
+  it('strzelcy po stronach, samobój dla rywala, gol bez strzelca pominięty', () => {
     const mecz = { id: 'm1', druzynaAId: 'A', druzynaBId: 'B' };
     const z = [
       zd({ zawodnikId: 'z1', minuta: 3 }),
@@ -27,7 +27,7 @@ describe('wiersz wyniku', () => {
     const imiona = new Map([['z1', 'Kowalski'], ['z2', 'Nowak']]);
     expect(strzelcyMeczu(mecz, z, imiona)).toEqual({
       a: ["Kowalski 3'", 'Nowak (sam.)'],
-      b: ['gol'],
+      b: [],
     });
   });
 });

@@ -3,6 +3,7 @@
 // z pełnym opisem w `title`, żeby zmieściła się na najmniejszym telefonie bez
 // przewijania w bok.
 import type { WierszTabeli } from '@/types';
+import { miejscaWTabeli } from '@/lib/turniejTabela';
 
 export interface TabelaGrupyProps {
   wiersze: readonly WierszTabeli[];
@@ -22,9 +23,11 @@ export interface TabelaGrupyProps {
    * decydują punkty i bilans. Z/R/P są na stronie turnieju.
    */
   kompakt?: boolean;
+  /** Zdanie organizatora pod tabelą (179), np. jak rozstrzygnięto remis. */
+  komentarz?: string;
 }
 
-export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt }: TabelaGrupyProps) {
+export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt, komentarz }: TabelaGrupyProps) {
   if (wiersze.length === 0) {
     return <p className="py-6 text-center text-sm text-slate-400">Jeszcze żaden mecz nie został rozegrany.</p>;
   }
@@ -33,8 +36,12 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt }: Tabela
   // z której awansuje trójka, podświetlenie całej tabeli nie niesie informacji.
   const miejscaAwansu = awansujeZGrupy && awansujeZGrupy < wiersze.length ? awansujeZGrupy : 0;
   const awansuje = (i: number) => i < miejscaAwansu;
+  // Remis: to samo miejsce dla drużyn z identycznym bilansem (2026-11-21).
+  const miejsca = miejscaWTabeli(wiersze);
+  const exAequo = miejsca.some((m, i) => i > 0 && m === miejsca[i - 1]);
 
   return (
+    <div className="space-y-1.5">
     <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
       <table className="w-full text-sm">
         <thead>
@@ -67,7 +74,7 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt }: Tabela
                   awansuje(i) ? 'border-l-[3px] border-primary-600 font-semibold text-primary-700 dark:text-primary-400' : '',
                 ].join(' ')}
               >
-                {i + 1}
+                {miejsca[i]}
               </td>
               <td className={`min-w-0 ${kompakt ? '' : 'max-w-[9rem]'} break-words px-2 py-2.5 font-medium leading-5 text-ink`}>
                 {w.nazwa}
@@ -85,6 +92,15 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt }: Tabela
           ))}
         </tbody>
       </table>
+    </div>
+      {exAequo && (
+        <p className="px-1 text-xs text-slate-500 dark:text-slate-400">
+          Ten sam numer miejsca: drużyny ex aequo (te same punkty, bilans i bramki). Kolejność może ustalić organizator.
+        </p>
+      )}
+      {komentarz && (
+        <p className="whitespace-pre-wrap px-1 text-sm text-slate-600 dark:text-slate-300">{komentarz}</p>
+      )}
     </div>
   );
 }

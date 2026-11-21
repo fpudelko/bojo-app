@@ -12,7 +12,7 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 
 | Flaga | Wartość | Co chowa | Gdzie warunkuje |
 |---|---|---|---|
-| `SHOW_TURNIEJE` | `false` | Moduł turniejowy — **wyłączona ponownie 2026-09-17, tymczasowo** (decyzja właściciela po przeglądzie na żywo: moduł działa, ale pierwsze wrażenie nie jest gotowe). Trasa `/turnieje` **odpowiada normalnie** — znikają wyłącznie wejścia w nawigacji. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | `app/moje-gry/page.tsx` (link „🏆 Turnieje”), `app/profil/page.tsx` (wiersz „Turnieje”) |
+| `SHOW_TURNIEJE` | `false` | Moduł turniejowy — **wyłączona ponownie 2026-09-17, tymczasowo** (decyzja właściciela po przeglądzie na żywo: moduł działa, ale pierwsze wrażenie nie jest gotowe). Trasa `/turnieje` **odpowiada normalnie** — znikają wyłącznie wejścia w nawigacji. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | `app/moje-gry/page.tsx` (link „🏆 Turnieje”), `app/profil/page.tsx` (wiersz „Turnieje”). **Od 2026-11-21** oba wejścia widzi mimo flagi każdy, kto organizuje, współorganizuje albo gra w turnieju, oraz admin (`lib/useMamTurnieje.ts`) |
 | `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (pusty stan listy), `components/map/VenueExplorer.tsx` (`/mapa`), `components/profil/MojeAlerty.tsx` (`/profil`), `app/boisko/[id]/VenueDetailClient.tsx` (**od 2026-09-21**, pusty stan „Nadchodzące mecze") |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
 | `SHOW_TURNIEJ_OGLOSZENIA` | `false` | Ogłoszenia organizatora na stronie turnieju (lista na Info, pasek „Ogłoszenia (N)” na innych zakładkach). **Wyłączona 2026-11-21** przed przekazaniem turnieju w Luboniu; dane i wyzwalacz powiadomień zostają | `app/turnieje/[id]/TurniejClient.tsx` |
@@ -5113,15 +5113,38 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
 - Zadania przed przekazaniem turnieju: `supabase/zadania/turnieje-usun-poza-marysia.sql`
   (usuwa wszystkie turnieje poza `e9a3763f…`) i `supabase/zadania/turniej-marysi-wyzeruj-wyniki.sql`
   (mecze z powrotem „zaplanowane”, bez zdarzeń; drużyny, terminarz i przerwy zostają).
+- **Samobój pod golem (2026-11-21):** w konsoli meczu „GOL” drużyny X otwiera skład X,
+  a na dole arkusza obok „Zapisz bez strzelca” jest „Samobój”: otwiera skład rywala („Kto
+  strzelił samobója?”), zdarzenie `samobojczy` dostaje drużynę strzelającego, wynik liczy
+  się drużynie X (wyzwalacz z `147`). Osobny przycisk „Samobójczy” przy kartkach zniknął.
+  Pominięcie strzelca: „Zapisz bez strzelca” (kartki: „Zapisz bez nazwiska”), bez „Nie wiem kto”.
+- **Bez „bez goli” i „Jeszcze nikt nie strzelił” (2026-11-21):** rozwinięty wiersz wyniku
+  pokazuje wyłącznie wpisanych strzelców (gol bez strzelca jest pomijany), a sekcja
+  „Statystyki graczy” na zakładce Mecze pojawia się dopiero, gdy ktoś wpisał strzelca albo
+  zawodnika meczu.
+- **Remis w tabeli (2026-11-21, migracja `179`):** drużyny z tymi samymi punktami, różnicą
+  i bramkami zdobytymi mają w tabeli ten sam numer miejsca (`miejscaWTabeli()`) z dopiskiem pod
+  tabelą, a podium z tabeli (liga, grupa finałowa) daje im ten sam medal z „ex aequo”
+  (`podiumZTabeli()`, też w tekście udostępnienia). Panel → Drużyny → „Remis w tabeli”: karta
+  przy grupie z remisem; organizator przestawia drużyny strzałkami i dopisuje komentarz
+  pokazywany pod tabelą (`ustawKolejnoscGrupy()`, `ustawKomentarzGrupy()`). Kolejność bije
+  liczoną także w bazie, więc grupa finałowa i drabinka dostają drużyny w tej kolejności.
+  Wspólne liczenie tabel: `tabeleGrupTurnieju()` w `lib/turniejTabela.ts`. Liga bez grup nie ma
+  gdzie zapisać kolejności (brak wiersza w `turniej_grupy`).
+- **Tabele: „Wyniki i terminarz” pod tabelą grupy (2026-11-21):** rozwijana lista pod każdą
+  tabelą grupy (poza grupą finałową) ma dziś rozegrane I najbliższe mecze grupy, po godzinie
+  (`porownajTermin`); wcześniej „Pokaż wyniki (N)” pokazywało tylko rozegrane.
 - **Karta meczu w dwóch wierszach (2026-11-21):** górny wiersz `KartaMeczu`: po lewej numer,
   grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
   spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,
   „Walkower”, „Odwołany” i „Wolny los” zastępują godzinę w prawym rogu.
-- **Rozegrany mecz jednym wierszem (2026-11-21):** na zakładkach Mecze i Tabele mecz
-  zakończony albo walkower to `components/turnieje/WierszWyniku.tsx`: znacznik grupy albo fazy
-  (`znacznikFazy()`: „A”, „½”, „Finał”), drużyny i wynik. Dotknięcie rozwija strzelców
-  (`strzelcyMeczu()`, samobój dla rywala; bez nazwiska dla niezalogowanego), termin, boisko
-  i „Szczegóły meczu”. Mecz przed nami i na żywo zostaje pełną `KartaMeczu`.
+- **Każdy mecz jednym wierszem (2026-11-21):** na zakładkach Mecze i Tabele mecz przyszły,
+  trwający i rozegrany ma ten sam wiersz `components/turnieje/WierszMeczu.tsx`: znacznik grupy
+  albo fazy (`znacznikFazy()`), mała data („28.11”, „Dziś”) nad większą godziną, drużyny
+  (ucinane wielokropkiem), wynik albo „vs”, boisko tylko przy kilku boiskach. Trwający mecz
+  zamiast godziny ma „● żywo”. Cały wiersz prowadzi na stronę meczu; strzelcy i przebieg są
+  tam. Zastąpił rozwijany `WierszWyniku` i trzywierszową kartę na stronie turnieju
+  (`KartaMeczu` zostaje w panelu i drabince).
 - **Strona meczu i ekran drużyny: wstecz na turniej (2026-11-21).** Strzałka prowadzi zawsze
   na stronę turnieju (`?tab=mecze` / `?tab=druzyny`), a pod nagłówkiem jest pasek zakładek
   turnieju (`components/turnieje/ZakladkiTurnieju.tsx`, podpisy z `etykietaZakladkiTurnieju()`).

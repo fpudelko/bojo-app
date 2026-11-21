@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-21 · migracja `178` · 61 tabel
+**Stan na:** 2026-11-21 · migracja `179` · 61 tabel
 
 ---
 
@@ -481,7 +481,7 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-11-21 (2) — Panel turnieju na komputerze i ekran wyników na halę
+### 2026-11-21 (3) — Panel turnieju na komputerze i ekran wyników na halę
 
 PROBLEM: na komputerze panel turnieju w Bojo był kolumną szerokości telefonu na środku
 ekranu. W dniu turnieju organizator przy laptopie przełączał zakładki, żeby zobaczyć naraz
@@ -519,6 +519,32 @@ PYTANIA:
 - Jak pokazać wyniki turnieju na rzutniku albo telewizorze na hali?
 - Jak cofnąć gola wpisanego przez pomyłkę?
 - Czy organizator może wybrać, co pokazuje ekran turnieju na hali?
+
+### 2026-11-21 (2) — Turniej w Bojo: wyniki jednym wierszem, samobój pod golem, wejście dla uczestników
+
+PROBLEM: lista wyników turnieju w Bojo powtarzała przy każdym meczu datę, godzinę i boisko,
+a wpisanie gola samobójczego nie mówiło, czyj to gol. Napisy „bez goli” i „Jeszcze nikt nie
+strzelił” kłamały, gdy wynik wpisano bez strzelców.
+
+ROZWIĄZANIE BOJO: każdy mecz turnieju, przyszły i rozegrany, to jeden wiersz: grupa albo faza,
+data i godzina, drużyny, wynik albo „vs”, boisko tylko przy kilku boiskach. Strzelcy i przebieg
+są na stronie meczu, do której prowadzi wiersz. W konsoli meczu „GOL” ma na dole opcję „Samobój”, która pyta o zawodnika
+drużyny przeciwnej; strzelca można pominąć („Zapisz bez strzelca”). Statystyki graczy
+pokazują się tylko, gdy ktoś wpisał strzelców. Ze strony meczu i drużyny strzałka wraca do
+turnieju, a pod nagłówkiem są zakładki turnieju. Wejście „🏆 Turnieje” obok Moich meczów
+widzi ten, kto organizuje albo gra w turnieju. Remis w tabeli (te same punkty, bilans i bramki)
+daje drużynom to samo miejsce i ten sam medal na podium z dopiskiem „ex aequo”; organizator
+ustala kolejność w panelu i może dopisać komentarz pod tabelą.
+
+MECHANIKA: `components/turnieje/WierszMeczu.tsx`, `KartaMeczu.tsx`, `ArkuszSkladu.tsx`,
+`ZakladkiTurnieju.tsx`, `strzelcyMeczu()`/`znacznikFazy()` w `lib/turniejEtykiety.ts`,
+`lib/useMamTurnieje.ts`. Bez migracji. Szczegóły → [funkcje.md](./funkcje.md).
+
+PYTANIA:
+- Jak wpisać gola samobójczego w turnieju w Bojo?
+- Czy można zapisać gola bez strzelca?
+- Gdzie znajdę turnieje, w których gram?
+- Co pokazuje Bojo, gdy drużyny w grupie mają identyczny bilans?
 
 ### 2026-11-21 — Adresy turniejów i meczów z nazwą i datą zamiast uuid
 
@@ -707,24 +733,3 @@ MECHANIKA: `components/home/landing/hero/` (`HeroTelefon.tsx`, `HeroChip.tsx`,
 napisy w `LANDING_ANIMACJA` (`landing/content.ts`, sprawdzane testem zakazanych fraz),
 daty w `lib/datyHero.ts`. Zastępuje `PhoneCarousel` i `RotatingBadge`. Test
 klikalności: `e2e/hero-animacja.klikalnosc.spec.ts`. Bez migracji.
-
-### 2026-09-28 (4) — Gracz bez konta deklaruje kartę sportową przy zapisie
-
-PROBLEM: mecz w Bojo, w którym organizator akceptuje kartę sportową (Multisport,
-FitProfit, Medicover), pokazywał pole „Mam kartę sportową" i zniżkę tylko graczowi
-zalogowanemu. Gracz zapisujący się bez konta („Dołącz do meczu bez logowania") nie miał
-tego pola wcale: widział pełną cenę, a organizator nie wiedział, że ten gracz wejdzie
-na kartę. Okno bez konta kazało też kliknąć jedyną dostępną metodę płatności, zanim
-odblokowało „Zapisz się", i przy meczu z akceptacją zapisów pisało o liście rezerwowej
-albo zamkniętych zapisach, choć prośba gracza i tak czeka na organizatora.
-
-ROZWIĄZANIE BOJO: okno zapisu bez konta ma to samo pole „Mam kartę sportową" co okno
-dla zalogowanego (z wyborem karty, gdy mecz akceptuje kilka), a koszt pokazuje cenę po
-zniżce. Jedyna metoda płatności jest zaznaczona od razu. Przy meczu z akceptacją zapisów
-okno nie zapowiada rezerwy i nie blokuje wysłania prośby.
-
-MECHANIKA: migracja `170` dokłada `p_dostawca_karty` do `dolacz_do_meczu_jako_goscie()`
-(ta sama reguła co `dolacz_do_meczu()`: dostawca zapisywany tylko przy zaznaczonej
-karcie), `joinEventAsGuest()` w `lib/events.ts`, okno gościa w
-`app/wydarzenia/[id]/EventDetailClient.tsx`. Cena przez `priceForParticipant()`
-(`lib/payments.ts`).

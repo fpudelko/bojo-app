@@ -26,7 +26,7 @@ import { linkDoTurnieju } from '@/lib/turniejShare';
 import { useAuth } from '@/lib/auth';
 import KodQr from '@/components/ui/KodQr';
 import { centrumTurnieju, postepTurnieju } from '@/lib/turniejPulpit';
-import { tabeleTurnieju } from '@/lib/turniejTabela';
+import { tabeleTurnieju, miejscaWTabeli } from '@/lib/turniejTabela';
 import { terminarzZPrzerwami, stanTurnieju, etykietaTerminu, etykietaZdobyczy, etykietaFazyMeczu } from '@/lib/turniejEtykiety';
 import { podiumTurnieju, medal } from '@/lib/turniejPodium';
 import { czasGry, poCzasie } from '@/lib/turniejWynik';
@@ -334,6 +334,8 @@ export default function EkranClient() {
                   <div className={`grid gap-[0.8em] ${tabeleGrup.length > 2 ? 'grid-cols-2' : ''}`}>
                     {tabeleGrup.map(({ grupa, wiersze }) => {
                       const awans = grupa && !grupa.finalowa && turniej.awansujeZGrupy < wiersze.length ? turniej.awansujeZGrupy : 0;
+                      // Miejsca ex aequo (179): ta sama liczba przy drużynach z identycznym bilansem.
+                      const miejsca = miejscaWTabeli(wiersze);
                       return (
                         <div key={grupa?.id ?? 'liga'} className="rounded-[0.6em] bg-white/5 px-[0.8em] py-[0.5em]">
                           {grupa && (
@@ -354,7 +356,7 @@ export default function EkranClient() {
                             <tbody>
                               {wiersze.map((w, i) => (
                                 <tr key={w.druzynaId} className={i < awans ? 'text-white' : 'text-slate-300'}>
-                                  <td className={`w-[1.6em] py-[0.15em] pl-[0.3em] tabular-nums ${i < awans ? 'border-l-[0.2em] border-primary-400 font-bold text-primary-300' : 'text-slate-500'}`}>{i + 1}</td>
+                                  <td className={`w-[1.6em] py-[0.15em] pl-[0.3em] tabular-nums ${i < awans ? 'border-l-[0.2em] border-primary-400 font-bold text-primary-300' : 'text-slate-500'}`}>{miejsca[i]}</td>
                                   <td className="max-w-0 truncate py-[0.15em] font-medium">{w.nazwa}</td>
                                   <td className="w-[1.8em] py-[0.15em] text-right tabular-nums text-slate-400">{w.mecze}</td>
                                   <td className="w-[3.4em] py-[0.15em] text-right tabular-nums text-slate-400">{w.bramkiZdobyte}:{w.bramkiStracone}</td>

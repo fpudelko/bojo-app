@@ -585,8 +585,9 @@ export function znacznikFazy(
 }
 
 /** Strzelcy meczu po stronach. Samobój liczy się drużynie przeciwnej
- *  (tak liczy wynik wyzwalacz z 147), z dopiskiem „(sam.)”. Bez nazwiska
- *  (gość nie widzi składu, RLS z 145) zostaje samo „gol”. */
+ *  (tak liczy wynik wyzwalacz z 147), z dopiskiem „(sam.)”. Gol bez
+ *  wskazanego strzelca (albo bez nazwiska, gdy gość nie widzi składu, RLS
+ *  z 145) jest POMIJANY: lista mówi tylko, kogo wpisano, nigdy „bez goli”. */
 export function strzelcyMeczu(
   mecz: Pick<TurniejMecz, 'id' | 'druzynaAId' | 'druzynaBId'>,
   zdarzenia: readonly TurniejZdarzenie[],
@@ -597,7 +598,8 @@ export function strzelcyMeczu(
     if (z.meczId !== mecz.id || (z.typ !== 'gol' && z.typ !== 'samobojczy')) continue;
     const zDruzynyA = z.druzynaId === mecz.druzynaAId;
     const dlaA = z.typ === 'gol' ? zDruzynyA : !zDruzynyA;
-    const imie = (z.zawodnikId && zawodnicyPoId.get(z.zawodnikId)) || 'gol';
+    const imie = z.zawodnikId ? zawodnicyPoId.get(z.zawodnikId) : undefined;
+    if (!imie) continue;
     const minuta = z.minuta !== undefined ? ` ${z.minuta}'` : '';
     const opis = `${imie}${z.typ === 'samobojczy' ? ' (sam.)' : ''}${minuta}`;
     for (let i = 0; i < Math.max(1, z.wartosc); i++) (dlaA ? wynik.a : wynik.b).push(opis);

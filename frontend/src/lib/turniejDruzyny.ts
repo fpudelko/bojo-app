@@ -331,3 +331,4 @@ export function mozeEdytowacSklad(t: Pick<Turniej, 'status'>, d: Pick<TurniejDru
   return true;
 }
 
+
