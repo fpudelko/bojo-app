@@ -21,6 +21,7 @@
  * a przyciski kapitana pokazują się wyłącznie kapitanowi.
  */
 
+import { useAdmin } from '@/lib/admin';
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -55,6 +56,7 @@ const inputCls =
 
 export default function DruzynaClient() {
   const { id, druzynaId } = useParams<{ id: string; druzynaId: string }>();
+  const jestAdmin = useAdmin();
   useAdresWPasku({ [id]: useAdres('turniej', id) });
   const router = useRouter();
   const wstecz = useWstecz(`/turnieje/${id}?tab=druzyny`);
@@ -119,7 +121,7 @@ export default function DruzynaClient() {
   // drużyny dodane ręcznie w panelu nie mają kapitana, a organizator dostaje
   // składy na kartce i chce je wpisać sam. RLS przepuszczało go od `145`
   // (`czy_kapitan_druzyny()` obejmuje zarządzających), brakowało interfejsu.
-  const jestOrganizatorem = !!user && turniej?.organizatorId === user.id;
+  const jestOrganizatorem = !!user && (turniej?.organizatorId === user.id || jestAdmin);
   const prowadziSklad = jestKapitanem || jestOrganizatorem;
   const link = typeof window !== 'undefined' && druzyna
     ? `${window.location.origin}/t/${druzyna.kodDolaczenia}`

@@ -1958,6 +1958,31 @@ DELETE FROM turnieje WHERE id IN (:AD_T1::uuid, :AD_T2::uuid);
 SELECT _oczekuj('adres znika razem z turniejem',
                 (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id IN (:AD_T1::uuid, :AD_T2::uuid)), 0);
 
+SELECT _sekcja('Współorganizator po e-mailu (migracja 178)');
+\set WO_T '''ffffffff-0000-4000-8000-0000000001c1'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:WO_T::uuid, :ORGANIZATOR::uuid, 'Współorganizator do testów', 'piłka nożna', 'zapisy', CURRENT_DATE);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie doda współorganizatora',
+  format('SELECT dodaj_wspolorganizatora(%L, ''rls-obcy@example.com'')', :WO_T));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('nieznany e-mail daje błąd, nie cichy brak',
+  format('SELECT dodaj_wspolorganizatora(%L, ''nie-ma-takiego@example.com'')', :WO_T));
+SELECT dodaj_wspolorganizatora(:WO_T::uuid, ' RLS-Czlonek@Example.com ');
+RESET ROLE;
+SELECT _oczekuj('organizator dodał współorganizatora po e-mailu (wielkość liter bez znaczenia)',
+                (SELECT count(*) FROM turniej_osoby WHERE turniej_id = :WO_T::uuid AND user_id = :CZLONEK::uuid AND moze_edytowac), 1);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+UPDATE turnieje SET nazwa = 'Zmienione przez współorganizatora' WHERE id = :WO_T::uuid;
+SELECT _oczekuj_wyjatek('współorganizator nie nada praw dalej',
+  format('SELECT dodaj_wspolorganizatora(%L, ''rls-obcy@example.com'')', :WO_T));
+RESET ROLE;
+SELECT _oczekuj('współorganizator zmienia ustawienia turnieju',
+                (SELECT count(*) FROM turnieje WHERE id = :WO_T::uuid AND nazwa = 'Zmienione przez współorganizatora'), 1);
+DELETE FROM turnieje WHERE id = :WO_T::uuid;
+
 SELECT _sekcja('Każda tabela w public ma włączone RLS');
 DO $$
 DECLARE

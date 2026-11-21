@@ -1,5 +1,6 @@
 'use client';
 
+import { useAdmin } from '@/lib/admin';
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -18,6 +19,7 @@ import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { blikPhoneDigits, formatBlikPhone } from '@/lib/payments';
 import {
   getTurniej, uprawnieniaTurnieju, getOsobyTurnieju, czyTurniejProbny, utworzProbeTurnieju,
+  dodajWspolorganizatora, usunOsobeTurnieju,
   updateTurniej, setStatusTurnieju, deleteTurniej,
   getBlikTurnieju, ustawBlikTurnieju, setOkladkaTurnieju,
 } from '@/lib/turnieje';
@@ -86,6 +88,7 @@ function toCsv(kontakty: KontaktDruzyny[]): string {
 
 export default function PanelClient() {
   const { id } = useParams<{ id: string }>();
+  const jestAdmin = useAdmin();
   useAdresWPasku({ [id]: useAdres('turniej', id) });
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -102,6 +105,7 @@ export default function PanelClient() {
   const [ladowanie, setLadowanie] = useState(true);
   const [nowaNazwa, setNowaNazwa] = useState('');
   const [nowaArenaNazwa, setNowaArenaNazwa] = useState('');
+  const [emailWspolorganizatora, setEmailWspolorganizatora] = useState('');
   const [liczbaGrupWybor, setLiczbaGrupWybor] = useState<number | null>(null);
   const [podglad, setPodglad] = useState<NowyMecz[] | null>(null);
   // Pierwsza dotknięta drużyna przy ręcznej zamianie par w drabince.
@@ -177,8 +181,8 @@ export default function PanelClient() {
   }, [id]);
 
   const uprawnienia = useMemo(
-    () => (turniej ? uprawnieniaTurnieju(turniej, osoby.find((o) => o.userId === user?.id) ?? null, user?.id) : null),
-    [turniej, osoby, user],
+    () => (turniej ? uprawnieniaTurnieju(turniej, osoby.find((o) => o.userId === user?.id) ?? null, user?.id, jestAdmin) : null),
+    [turniej, osoby, user, jestAdmin],
   );
 
   if (authLoading || ladowanie) {
@@ -735,6 +739,29 @@ export default function PanelClient() {
     }
   };
 
+  const dodajWspolorganizatoraAkcja = async () => {
+    try {
+      const nazwa = await dodajWspolorganizatora(id, emailWspolorganizatora);
+      setEmailWspolorganizatora('');
+      await wczytaj();
+      toast(`${nazwa} jest współorganizatorem`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się dodać współorganizatora', 'error');
+    }
+  };
+
+  const usunWspolorganizatoraAkcja = async (userId: string, imie?: string) => {
+    const wynik = await potwierdz({
+      tytul: `Odebrać uprawnienia${imie ? `: ${imie}` : ''}?`,
+      konsekwencje: ['Ta osoba przestanie widzieć panel turnieju'],
+      potwierdzLabel: 'Odbierz',
+      wariant: 'destrukcyjny',
+    });
+    if (wynik !== 'tak') return;
+    try { await usunOsobeTurnieju(id, userId); await wczytaj(); toast('Uprawnienia odebrane'); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się odebrać uprawnień', 'error'); }
+  };
+
   const dodajAreneAkcja = async () => {
     if (nowaArenaNazwa.trim().length < 1) return;
     try {
@@ -1017,13 +1044,16 @@ export default function PanelClient() {
                 {/* „Przetestuj" OBOK „Rozpocznij" (decyzja właściciela
                     z 2026-11-08): widok dnia turnieju organizator ma zobaczyć
                     wcześniej, na kopii, a nie pierwszy raz w sobotę o 10:00. */}
+                {/* „Przetestuj” od 2026-11-21 tylko dla admina (decyzja
+                    właściciela): organizator dostaje gotowy turniej, a próby
+                    robi Bojo przed przekazaniem. */}
                 {mozeRozpoczac && (
                   <div className="flex gap-2">
                     <Button onClick={rozpocznijTurniej} className="flex-1">Rozpocznij turniej</Button>
-                    <Button variant="outline" onClick={przetestuj} className="flex-1">Przetestuj</Button>
+                    {jestAdmin && <Button variant="outline" onClick={przetestuj} className="flex-1">Przetestuj</Button>}
                   </div>
                 )}
-                {mozeRozpoczac && (
+                {mozeRozpoczac && jestAdmin && (
                   <p className="text-xs text-slate-500">
                     „Przetestuj” robi kopię z tym samym terminarzem. Wpiszesz w niej wyniki jak w dniu
                     turnieju, a prawdziwy turniej i zawodnicy niczego nie zobaczą.
@@ -1421,7 +1451,10 @@ export default function PanelClient() {
           </Button>
         )}
 
-        {zakladka === 'ustawienia' && uprawnienia?.jestOrganizatorem && (
+        {/* Ustawienia dla organizatora, admina i współorganizatora (178,
+            2026-11-21). Współorganizatorowi brakuje tylko kasowania turnieju
+            i nadawania praw dalej: tego RLS z 145 i tak by nie przepuścił. */}
+        {zakladka === 'ustawienia' && uprawnienia?.mozeEdytowac && (
           <div key={wersjaUstawien} className={`space-y-5 ${maSzkic ? 'pb-24' : ''}`}>
             {/* Ta zakładka edytuje publiczną stronę turnieju (zakładka Info)
                 razem z ustawieniami operacyjnymi (BLIK, zapisy) w jednym
@@ -1433,6 +1466,51 @@ export default function PanelClient() {
               Tu edytujesz publiczną stronę turnieju (nazwę, zdjęcia, sponsorów i inne
               elementy, które widzi każdy na zakładce Info) oraz ustawienia zapisów.
             </p>
+
+            {/* WSPÓŁORGANIZATORZY (178): konto po e-mailu, pełne prawa do
+                prowadzenia turnieju. Dodaje i usuwa tylko organizator. */}
+            {uprawnienia?.jestOrganizatorem && (
+              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-ink">Współorganizatorzy</h2>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    Mogą wszystko co Ty, poza usunięciem turnieju: wpisywać wyniki, zmieniać terminarz, drużyny i ustawienia.
+                  </p>
+                </div>
+                {osoby.filter((o) => o.mozeEdytowac).map((o) => (
+                  <div key={o.userId} className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{o.imie ?? 'Współorganizator'}</span>
+                    <button
+                      onClick={() => usunWspolorganizatoraAkcja(o.userId, o.imie)}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center text-slate-400 hover:text-red-500"
+                      aria-label={`Odbierz uprawnienia: ${o.imie ?? 'współorganizator'}`}
+                    >
+                      <XIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    inputMode="email"
+                    autoComplete="off"
+                    value={emailWspolorganizatora}
+                    onChange={(e) => setEmailWspolorganizatora(e.target.value)}
+                    placeholder="E-mail konta w Bojo"
+                    aria-label="E-mail współorganizatora"
+                    className={inputCls}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={dodajWspolorganizatoraAkcja}
+                    disabled={!emailWspolorganizatora.includes('@')}
+                    className="shrink-0 inline-flex items-center gap-1.5"
+                  >
+                    <Plus className="h-4 w-4" /> Dodaj
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Okładka: miniatura na liście `/turnieje` i (od 2026-11-08)
                 szeroki baner na górze strony turnieju. */}
@@ -1694,22 +1772,16 @@ export default function PanelClient() {
                     <Ban className="h-3.5 w-3.5" /> Odwołaj turniej
                   </button>
                 )}
-                <button onClick={usunTurniej} className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600">
-                  <Trash2 className="h-3.5 w-3.5" /> Usuń turniej
-                </button>
+                {uprawnienia?.jestOrganizatorem && (
+                  <button onClick={usunTurniej} className="inline-flex items-center gap-1.5 text-xs text-slate-400 transition-colors hover:text-red-600">
+                    <Trash2 className="h-3.5 w-3.5" /> Usuń turniej
+                  </button>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* Współorganizator z `moze_edytowac` nie widzi reszty Ustawień
-            (te zostają przy organizatorze), ale galerią i sponsorami
-            zarządzać może — pozwala mu na to RLS z migracji `159`
-            (`czy_zarzadza_turniejem()`), więc interfejs nie może być
-            węższy niż baza. */}
-        {zakladka === 'ustawienia' && !uprawnienia?.jestOrganizatorem && uprawnienia?.mozeEdytowac && (
-          <div className="space-y-5">{sekcjeMediow}</div>
-        )}
       </main>
       {/* Przyklejony do dołu, nad dolną nawigacją: widać go niezależnie od
           tego, które pole się zmieniło. */}

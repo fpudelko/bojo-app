@@ -5056,6 +5056,15 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   kanoniczny i JSON-LD meczu też idą z adresu (`pobierzAdres()` w `lib/adresy.ts`). Bez
   migracji `177` wszystko zostaje przy uuid. Powiadomienia i listy dalej linkują po uuid:
   pasek i tak pokaże nazwę.
+- **Współorganizatorzy i admin (2026-11-21, migracja `178`):** Ustawienia → „Współorganizatorzy”:
+  organizator (albo admin) dodaje konto po e-mailu (`dodajWspolorganizatora()`), odbiera prawa
+  krzyżykiem (`usunOsobeTurnieju()`). Współorganizator widzi cały panel z Ustawieniami, bez
+  „Usuń turniej” i bez nadawania praw dalej. Admin Bojo jest w interfejsie organizatorem
+  każdego turnieju (`uprawnieniaTurnieju(…, jestAdmin)`, tak jak `czy_organizator_turnieju()`
+  w bazie). „Przetestuj” widzi wyłącznie admin.
+- Zadania przed przekazaniem turnieju: `supabase/zadania/turnieje-usun-poza-marysia.sql`
+  (usuwa wszystkie turnieje poza `e9a3763f…`) i `supabase/zadania/turniej-marysi-wyzeruj-wyniki.sql`
+  (mecze z powrotem „zaplanowane”, bez zdarzeń; drużyny, terminarz i przerwy zostają).
 - Jednorazowe zadanie `supabase/zadania/turniej-marysi-organizator.sql`: organizator,
   kapitan z drugiego konta i regulamin turnieju pokazowego do testu wpisywania wyników.
 

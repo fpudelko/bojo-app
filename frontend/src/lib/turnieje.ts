@@ -96,8 +96,11 @@ export function uprawnieniaTurnieju(
   turniej: Pick<Turniej, 'organizatorId'>,
   osoba: Pick<TurniejOsoba, 'userId' | 'mozeEdytowac' | 'mozeProwadzic' | 'mozeZarzadzacDruzynami'> | null | undefined,
   userId: string | undefined,
+  /** Admin Bojo jest organizatorem KAŻDEGO turnieju (2026-11-21), tak samo
+   *  jak w bazie: `czy_organizator_turnieju()` (145) przepuszcza `is_admin`. */
+  jestAdmin = false,
 ): TurniejUprawnienia {
-  const jestOrganizatorem = !!userId && turniej.organizatorId === userId;
+  const jestOrganizatorem = !!userId && (turniej.organizatorId === userId || jestAdmin);
   if (jestOrganizatorem) {
     return { jestOrganizatorem: true, mozeEdytowac: true, mozeProwadzic: true, mozeZarzadzacDruzynami: true };
   }
@@ -300,6 +303,26 @@ export async function getMojeTurnieje(userId: string): Promise<Turniej[]> {
  * `profiles` jest publicznie czytelne (migracja `005`), więc drugie zapytanie
  * nie wymaga dodatkowych uprawnień.
  */
+/**
+ * Współorganizator po e-mailu (migracja 178): pełne prawa do prowadzenia
+ * turnieju. Konto musi już istnieć; inaczej baza mówi, co zrobić.
+ */
+export async function dodajWspolorganizatora(turniejId: string, email: string): Promise<string> {
+  const { data, error } = await supabase.rpc('dodaj_wspolorganizatora', { p_turniej: turniejId, p_email: email.trim() });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Ta funkcja jeszcze nie działa na tej bazie (brak migracji 178).');
+    throw new Error(error.message);
+  }
+  const wiersz = Array.isArray(data) ? data[0] : data;
+  return (wiersz?.nazwa as string | undefined) ?? 'Współorganizator';
+}
+
+/** Odebranie praw współorganizatorowi (polityka z 145: tylko organizator). */
+export async function usunOsobeTurnieju(turniejId: string, userId: string): Promise<void> {
+  const { error } = await supabase.from('turniej_osoby').delete().eq('turniej_id', turniejId).eq('user_id', userId);
+  if (error) throw new Error(error.message);
+}
+
 export async function getOsobyTurnieju(turniejId: string): Promise<TurniejOsoba[]> {
   const { data, error } = await supabase
     .from('turniej_osoby')
