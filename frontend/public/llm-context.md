@@ -497,12 +497,8 @@ X z Y meczów”, „Rozpocznij turniej”, „Przetestuj”), Drużyny (z podzi
 przełącznikiem grupy przy drużynie) i Ustawienia. Ustawienia nie zapisują się same:
 zmiany zatwierdza przycisk „Zapisz zmiany” przyklejony do dołu ekranu. Areny (boiska, hale,
 korty) ustawia się w Ustawieniach, a przy kilku arenach terminarz pozwala przypisać arenę
-<<<<<<< HEAD
 do meczu. Przerwa nachodząca na mecze nie jest blokowana: Bojo pyta, czy
 przesunąć te mecze i wszystkie po nich za przerwę, czy zapisać bez przesuwania.
-=======
-do meczu.
->>>>>>> 21298383f8741052cfe163868bc240b1bfddc3a6
 
 MECHANIKA: `components/turnieje/KartaMeczu.tsx`, `terminMeczuNaKarcie()` w
 `lib/turniejEtykiety.ts`, `app/turnieje/[id]/TurniejClient.tsx`,

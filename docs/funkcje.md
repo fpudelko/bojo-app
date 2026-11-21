@@ -5032,7 +5032,6 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   „Odrzuć / Zapisz zmiany” zapisuje wszystko naraz (`updateTurniej()` + nazwy aren);
   wyjście ze strony z niezapisanym szkicem pyta przeglądarka. Okładka, BLIK, galeria,
   sponsorzy, zamknięcie zapisów i usunięcie zostają osobnymi akcjami.
-<<<<<<< HEAD
 - **Przerwy (2026-11-21):** „Nazwij” i „Edytuj” otwierają formularz w miejscu przerwy
   w terminarzu, nie nad nim. Przerwa nachodząca na zaplanowane mecze nie jest blokowana:
   okno pyta „Przesuń mecze” (pierwszy kolidujący mecz i wszystkie po nim startują po
@@ -5040,8 +5039,6 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   „Popraw godziny” (`meczeNachodzaceNaPrzerwe()` w `lib/turniejEtykiety.ts`). Pola godzin
   mieszczą się w karcie na iPhonie; pola „Zasad gry” stoją w jednej linii przy
   dwulinijkowym podpisie. Strona meczu: „Następny na tym boisku”.
-=======
->>>>>>> 21298383f8741052cfe163868bc240b1bfddc3a6
 - Jednorazowe zadanie `supabase/zadania/turniej-marysi-organizator.sql`: organizator,
   kapitan z drugiego konta i regulamin turnieju pokazowego do testu wpisywania wyników.
 
