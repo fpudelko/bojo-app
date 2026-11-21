@@ -59,8 +59,10 @@ export default function ZasadyGry({ format, wartosci, onChange, onZatwierdz, dis
   const maTabele = format === 'liga' || maGrupy;
   const maDrabinke = format === 'puchar' || format === 'grupy_puchar';
 
+  // Kolumna z polem na dole: gdy podpis obok zawinie się na dwie linie
+  // („Przerwa między meczami”), oba pola i tak stoją w jednej linii.
   const pole = (klucz: keyof typeof GRANICE_ZASAD, etykieta: string, jednostka?: string) => (
-    <div>
+    <div className="flex flex-col justify-between">
       <label className={labelCls} htmlFor={`zasada-${klucz}`}>{etykieta}</label>
       <div className="relative">
         <input

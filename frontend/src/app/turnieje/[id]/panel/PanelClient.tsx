@@ -35,7 +35,10 @@ import {
   zamienDruzynyWDrabince, type MiejsceWDrabince,
   szacunekCzasu, type NowyMecz, drabinkaZGrup, grupaFinalowaZGrup, nazwaMiejscaWGrupie,
 } from '@/lib/turniejFormat';
-import { odmienZawodnikow, odmienDruzyny, etykietaTerminu, FORMAT_LABEL, etykietaTerminuMeczu, porownajTermin, terminarzZPrzerwami } from '@/lib/turniejEtykiety';
+import {
+  odmienZawodnikow, odmienDruzyny, etykietaTerminu, FORMAT_LABEL, etykietaTerminuMeczu, porownajTermin, terminarzZPrzerwami,
+  meczeNachodzaceNaPrzerwe, przesuniecieZaPrzerwe,
+} from '@/lib/turniejEtykiety';
 import {
   pulpitPrzedTurniejem, postepTurnieju, mozeRozpoczacTurniej,
 } from '@/lib/turniejPulpit';
@@ -130,7 +133,10 @@ export default function PanelClient() {
   // Przerwy z nazwą (176) i formularz jednej przerwy (nowej albo edytowanej).
   const [przerwy, setPrzerwy] = useState<TurniejPrzerwa[]>([]);
   const [przerwaEdycja, setPrzerwaEdycja] = useState<
-    { id?: string; nazwa: string; od: string; do: string; opis: string } | null
+    // `wiersz`: klucz wiersza przerwy w terminarzu, w którego miejscu stoi
+    // formularz („Nazwij” / „Edytuj”). Bez niego (nowa przerwa) formularz
+    // stoi nad terminarzem.
+    { id?: string; wiersz?: string; nazwa: string; od: string; do: string; opis: string } | null
   >(null);
 
   const tabParam = searchParams.get('tab');
@@ -580,12 +586,36 @@ export default function PanelClient() {
       odAt: instantZCzasuPolskiego(dzien, od),
       doAt: instantZCzasuPolskiego(dzien, doGodz),
     };
+    // PRZERWA NA MECZACH (2026-11-21): nie blokujemy, pytamy. Organizator
+    // czasem świadomie gra obok przerwy na drugiej arenie; częściej pomylił
+    // godzinę albo chce, żeby mecze poszły po przerwie.
+    const kolizje = meczeNachodzaceNaPrzerwe(mecze, dane.odAt, dane.doAt, turniej.czasMeczuMin);
+    let przesun: { id: string; zaplanowanyAt: string }[] = [];
+    if (kolizje.length > 0) {
+      const numery = [...kolizje].sort((a, b) => a.numer - b.numer).map((m) => `M${m.numer}`).join(', ');
+      const wynik = await potwierdz({
+        tytul: 'Przerwa nachodzi na mecze',
+        konsekwencje: [
+          `${od}–${doGodz} pokrywa się z: ${numery}`,
+          '„Przesuń mecze”: te mecze i wszystkie po nich zaczną się po przerwie, odstępy zostają',
+        ],
+        potwierdzLabel: 'Przesuń mecze',
+        akcjaDodatkowaLabel: 'Zapisz bez przesuwania',
+        anulujLabel: 'Popraw godziny',
+      });
+      if (wynik === 'nie') return;
+      if (wynik === 'tak') przesun = przesuniecieZaPrzerwe(mecze, dane.odAt, dane.doAt, turniej.czasMeczuMin);
+    }
     try {
       if (przerwaEdycja.id) await zmienPrzerwe(przerwaEdycja.id, dane);
       else await dodajPrzerwe(id, dane);
+      for (const z of przesun) await updateMecz(z.id, { zaplanowanyAt: z.zaplanowanyAt });
       setPrzerwaEdycja(null);
       setPrzerwy(await getPrzerwy(id));
-      toast('Przerwa zapisana');
+      if (przesun.length > 0) await wczytaj();
+      toast(przesun.length > 0
+        ? `Przerwa zapisana, przesunięto ${withCount(przesun.length, 'mecz', 'mecze', 'meczów')}`
+        : 'Przerwa zapisana');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się zapisać przerwy', 'error');
     }
@@ -600,6 +630,64 @@ export default function PanelClient() {
       toast(e instanceof Error ? e.message : 'Nie udało się usunąć przerwy', 'error');
     }
   };
+
+  const formularzPrzerwy = () => przerwaEdycja && (
+    <div className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5">
+      <p className="text-sm font-semibold text-ink">{przerwaEdycja.id ? 'Edytuj przerwę' : 'Nowa przerwa'}</p>
+      <div>
+        <label htmlFor="przerwa-nazwa" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Nazwa</label>
+        <input
+          id="przerwa-nazwa"
+          value={przerwaEdycja.nazwa}
+          maxLength={60}
+          placeholder="np. Konkurs obijania poprzeczki"
+          onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, nazwa: e.target.value } : p))}
+          className={inputCls}
+        />
+      </div>
+      {/* `min-w-0` + `appearance-none`: pole godziny w Safari ma własną
+          minimalną szerokość i wychodziło poza kartę. */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="min-w-0">
+          <label htmlFor="przerwa-od" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Od</label>
+          <input id="przerwa-od" type="time" value={przerwaEdycja.od}
+            onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, od: e.target.value } : p))}
+            className={`${inputCls} min-w-0 appearance-none`} />
+        </div>
+        <div className="min-w-0">
+          <label htmlFor="przerwa-do" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Do</label>
+          <input id="przerwa-do" type="time" value={przerwaEdycja.do}
+            onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, do: e.target.value } : p))}
+            className={`${inputCls} min-w-0 appearance-none`} />
+        </div>
+      </div>
+      <div>
+        <label htmlFor="przerwa-opis" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Opis (opcjonalnie)</label>
+        <textarea
+          id="przerwa-opis"
+          rows={2}
+          maxLength={300}
+          value={przerwaEdycja.opis}
+          placeholder="np. Grupa C: przyjazd do 12:25. A i B zostają do końca konkursu."
+          onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, opis: e.target.value } : p))}
+          className={inputCls}
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={zapiszPrzerwe}>Zapisz przerwę</Button>
+        <Button size="sm" variant="outline" onClick={() => setPrzerwaEdycja(null)}>Anuluj</Button>
+        {przerwaEdycja.id && (
+          <button
+            type="button"
+            onClick={() => usunPrzerweAkcja(przerwaEdycja.id!)}
+            className="ml-auto text-sm font-medium text-red-600"
+          >
+            Usuń przerwę
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   const zacznijEdycjeGodzin = () => {
     const start: Record<string, string> = {};
@@ -1258,75 +1346,24 @@ export default function PanelClient() {
                   </div>
                   {/* PRZERWA Z NAZWĄ (176, Luboń): „Konkurs obijania poprzeczki”
                       z opisem „grupa C do 12:25” zamiast gołego „Przerwa”.
-                      Widać ją w terminarzu i na zakładce Info. */}
-                  {przerwaEdycja && (
-                    <div className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5">
-                      <p className="text-sm font-semibold text-ink">{przerwaEdycja.id ? 'Edytuj przerwę' : 'Nowa przerwa'}</p>
-                      <div>
-                        <label htmlFor="przerwa-nazwa" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Nazwa</label>
-                        <input
-                          id="przerwa-nazwa"
-                          value={przerwaEdycja.nazwa}
-                          maxLength={60}
-                          placeholder="np. Konkurs obijania poprzeczki"
-                          onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, nazwa: e.target.value } : p))}
-                          className={inputCls}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label htmlFor="przerwa-od" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Od</label>
-                          <input id="przerwa-od" type="time" value={przerwaEdycja.od}
-                            onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, od: e.target.value } : p))}
-                            className={inputCls} />
-                        </div>
-                        <div>
-                          <label htmlFor="przerwa-do" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Do</label>
-                          <input id="przerwa-do" type="time" value={przerwaEdycja.do}
-                            onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, do: e.target.value } : p))}
-                            className={inputCls} />
-                        </div>
-                      </div>
-                      <div>
-                        <label htmlFor="przerwa-opis" className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">Opis (opcjonalnie)</label>
-                        <textarea
-                          id="przerwa-opis"
-                          rows={2}
-                          maxLength={300}
-                          value={przerwaEdycja.opis}
-                          placeholder="np. Grupa C: przyjazd do 12:25. A i B zostają do końca konkursu."
-                          onChange={(e) => setPrzerwaEdycja((p) => (p ? { ...p, opis: e.target.value } : p))}
-                          className={inputCls}
-                        />
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" onClick={zapiszPrzerwe}>Zapisz przerwę</Button>
-                        <Button size="sm" variant="outline" onClick={() => setPrzerwaEdycja(null)}>Anuluj</Button>
-                        {przerwaEdycja.id && (
-                          <button
-                            type="button"
-                            onClick={() => usunPrzerweAkcja(przerwaEdycja.id!)}
-                            className="ml-auto text-sm font-medium text-red-600"
-                          >
-                            Usuń przerwę
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                      Nowa przerwa: formularz nad terminarzem. „Nazwij” i
+                      „Edytuj”: w miejscu przerwy, bez przewijania (2026-11-21). */}
+                  {przerwaEdycja && !przerwaEdycja.wiersz && formularzPrzerwy()}
                   {terminarzZPrzerwami(meczePoTerminie, przerwy, turniej).map((w) => {
                     if (w.typ === 'przerwa') {
                       const nazwana = w.przerwaId ? przerwy.find((p) => p.id === w.przerwaId) : undefined;
+                      const klucz = w.przerwaId ?? `p-${w.od}`;
+                      if (przerwaEdycja?.wiersz === klucz) return <div key={klucz}>{formularzPrzerwy()}</div>;
                       return (
                         <WierszPrzerwy
-                          key={w.przerwaId ?? `p-${w.od}`}
+                          key={klucz}
                           od={w.od}
                           do={w.do}
                           nazwa={w.nazwa}
                           opis={w.opis}
                           akcja={godzinyEdycja ? undefined : nazwana
-                            ? { etykieta: 'Edytuj', onClick: () => setPrzerwaEdycja({ id: nazwana.id, nazwa: nazwana.nazwa, od: w.od, do: w.do, opis: nazwana.opis ?? '' }) }
-                            : { etykieta: 'Nazwij', onClick: () => setPrzerwaEdycja({ nazwa: '', od: w.od, do: w.do, opis: '' }) }}
+                            ? { etykieta: 'Edytuj', onClick: () => setPrzerwaEdycja({ id: nazwana.id, wiersz: klucz, nazwa: nazwana.nazwa, od: w.od, do: w.do, opis: nazwana.opis ?? '' }) }
+                            : { etykieta: 'Nazwij', onClick: () => setPrzerwaEdycja({ wiersz: klucz, nazwa: '', od: w.od, do: w.do, opis: '' }) }}
                         />
                       );
                     }
@@ -1342,7 +1379,7 @@ export default function PanelClient() {
                                 aria-label={`Godzina meczu M${m.numer}`}
                                 value={godzinyEdycja[m.id] ?? ''}
                                 onChange={(e) => setGodzinyEdycja((g) => (g ? { ...g, [m.id]: e.target.value } : g))}
-                                className={inputCls}
+                                className={`${inputCls} min-w-0 appearance-none px-2`}
                               />
                               {/* Arena tylko, gdy jest z czego wybierać. */}
                               {areny.length > 1 && (
@@ -1592,12 +1629,12 @@ export default function PanelClient() {
                 <input
                   value={nowaArenaNazwa}
                   onChange={(e) => setNowaArenaNazwa(e.target.value)}
-                  placeholder="np. Boisko 2, Hala B, Kort 1"
+                  placeholder="np. Hala B, Kort 1"
                   aria-label="Nazwa nowej areny"
                   className={inputCls}
                 />
                 <Button size="sm" variant="outline" onClick={dodajAreneAkcja} disabled={nowaArenaNazwa.trim().length < 1} className="shrink-0 inline-flex items-center gap-1.5">
-                  <Plus className="h-4 w-4" /> Dodaj arenę
+                  <Plus className="h-4 w-4" /> Dodaj
                 </Button>
               </div>
             </div>

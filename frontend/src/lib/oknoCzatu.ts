@@ -62,6 +62,21 @@ export function zmierzOkno(wysokoscOkna: number, piszemy: boolean): OknoCzatu {
   return { wysokosc: Math.round(wysokoscOkna), klawiatura: piszemy };
 }
 
+/** Ile pikseli różnicy między oknem a widocznym obszarem to jeszcze pasek
+ *  adresu Safari, a nie klawiatura (pasek ma ok. 50-80 px). */
+const PROG_KLAWIATURY_PX = 120;
+
+/**
+ * Czy dolny pasek ma się schować: kursor w polu tekstowym ALBO widoczny obszar
+ * wyraźnie niższy niż okno. Drugi warunek od 2026-11-21: po zamknięciu
+ * klawiatury albo kółka godzin Safari na iPhonie potrafi trzymać okno
+ * skurczone, gdy fokus już zszedł z pola, a dolne menu wisiało wtedy w połowie
+ * ekranu, nad terminarzem (zgłoszone ze zrzutem z panelu turnieju).
+ */
+export function klawiaturaZaslania(wPolu: boolean, wysokoscOkna: number, wysokoscWidoczna: number): boolean {
+  return wPolu || wysokoscOkna - wysokoscWidoczna > PROG_KLAWIATURY_PX;
+}
+
 /** Czy skupienie siedzi w polu, które otwiera klawiaturę ekranową. */
 export function wPoluTekstowym(el: Element | null): boolean {
   if (!el) return false;
@@ -197,8 +212,10 @@ export function useZnacznikKlawiatury(aktywny: boolean): void {
     if (!aktywny || typeof window === 'undefined' || !window.visualViewport) return;
     const znacznik = document.documentElement.dataset;
     const odepnij = nasluchujWidocznegoOkna(() => {
-      if (wPoluTekstowym(document.activeElement)) znacznik.klawiatura = '1';
-      else delete znacznik.klawiatura;
+      const vv = window.visualViewport;
+      if (klawiaturaZaslania(wPoluTekstowym(document.activeElement), window.innerHeight, vv?.height ?? window.innerHeight)) {
+        znacznik.klawiatura = '1';
+      } else delete znacznik.klawiatura;
     });
     return () => {
       odepnij();

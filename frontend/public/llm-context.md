@@ -497,7 +497,8 @@ X z Y meczów”, „Rozpocznij turniej”, „Przetestuj”), Drużyny (z podzi
 przełącznikiem grupy przy drużynie) i Ustawienia. Ustawienia nie zapisują się same:
 zmiany zatwierdza przycisk „Zapisz zmiany” przyklejony do dołu ekranu. Areny (boiska, hale,
 korty) ustawia się w Ustawieniach, a przy kilku arenach terminarz pozwala przypisać arenę
-do meczu.
+do meczu. Przerwa nachodząca na mecze nie jest blokowana: Bojo pyta, czy
+przesunąć te mecze i wszystkie po nich za przerwę, czy zapisać bez przesuwania.
 
 MECHANIKA: `components/turnieje/KartaMeczu.tsx`, `terminMeczuNaKarcie()` w
 `lib/turniejEtykiety.ts`, `app/turnieje/[id]/TurniejClient.tsx`,
@@ -518,7 +519,7 @@ godzinę każdego meczu („Zmień godziny”), listy meczów idą po godzinie z
 „Popraw wynik” na stronie rozegranego meczu otwiera go do ponownego wpisania, a gdy mecz
 zależny już się zaczął, Bojo mówi to od razu. Mecze grupy finałowej są podpisane „Grupa
 finałowa F”, pulpit po ostatnim wyniku mówi „Wszystkie mecze rozegrane”, a karta
-„Następny na tej arenie” wskazuje mecz po bieżącym w terminarzu. Organizator nadaje
+„Następny na tym boisku” wskazuje mecz po bieżącym w terminarzu. Organizator nadaje
 przerwom nazwę i opis („Konkurs obijania poprzeczki, 12:40–13:00, grupa C do 12:25”):
 przerwa stoi w terminarzu i na zakładce Info (migracja `176`, tabela `turniej_przerwy`).
 

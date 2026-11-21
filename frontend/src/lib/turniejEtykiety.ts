@@ -499,3 +499,45 @@ export function terminarzZPrzerwami<M extends Pick<TurniejMecz, 'zaplanowanyAt' 
   for (const p of nazwane) if (!uzyte.has(p.id)) dodajNazwana(p);
   return wynik;
 }
+
+/**
+ * Mecze, na które nachodzi przerwa (2026-11-21): zaplanowane, z godziną,
+ * których czas gry [start, start + czasMeczuMin) przecina [odAt, doAt).
+ * Panel ostrzega przed zapisem takiej przerwy i proponuje przesunięcie.
+ */
+export function meczeNachodzaceNaPrzerwe<M extends Pick<TurniejMecz, 'id' | 'zaplanowanyAt' | 'status'>>(
+  mecze: readonly M[],
+  odAt: string,
+  doAt: string,
+  czasMeczuMin: number,
+): M[] {
+  const od = new Date(odAt).getTime();
+  const doMs = new Date(doAt).getTime();
+  return mecze.filter((m) => {
+    if (m.status !== 'zaplanowany' || !m.zaplanowanyAt) return false;
+    const start = new Date(m.zaplanowanyAt).getTime();
+    const koniec = start + czasMeczuMin * 60_000;
+    return start < doMs && koniec > od;
+  });
+}
+
+/**
+ * Przesunięcie terminarza za przerwę: pierwszy nachodzący mecz startuje o
+ * końcu przerwy, a wszystkie zaplanowane mecze od niego dalej przesuwają się
+ * o tyle samo, więc kolejność i odstępy zostają. Pusta lista = nic nie koliduje.
+ */
+export function przesuniecieZaPrzerwe<M extends Pick<TurniejMecz, 'id' | 'zaplanowanyAt' | 'status'>>(
+  mecze: readonly M[],
+  odAt: string,
+  doAt: string,
+  czasMeczuMin: number,
+): { id: string; zaplanowanyAt: string }[] {
+  const kolizje = meczeNachodzaceNaPrzerwe(mecze, odAt, doAt, czasMeczuMin);
+  if (kolizje.length === 0) return [];
+  const pierwszy = Math.min(...kolizje.map((m) => new Date(m.zaplanowanyAt!).getTime()));
+  const delta = new Date(doAt).getTime() - pierwszy;
+  if (delta <= 0) return [];
+  return mecze
+    .filter((m) => m.status === 'zaplanowany' && m.zaplanowanyAt && new Date(m.zaplanowanyAt).getTime() >= pierwszy)
+    .map((m) => ({ id: m.id, zaplanowanyAt: new Date(new Date(m.zaplanowanyAt!).getTime() + delta).toISOString() }));
+}

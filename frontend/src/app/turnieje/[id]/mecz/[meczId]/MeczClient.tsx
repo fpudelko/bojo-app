@@ -891,7 +891,7 @@ export default function MeczClient() {
           >
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                {nastepnyZalegly ? 'Najwcześniejszy mecz bez wyniku' : 'Następny na tej arenie'}
+                {nastepnyZalegly ? 'Najwcześniejszy mecz bez wyniku' : 'Następny na tym boisku'}
               </p>
               <p className="truncate text-sm font-semibold text-ink">
                 {nazwaDruzynyZListy(nastepnyNaArenie.druzynaAId)} – {nazwaDruzynyZListy(nastepnyNaArenie.druzynaBId)}

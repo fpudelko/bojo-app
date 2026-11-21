@@ -30,7 +30,9 @@ export function tekstUdostepnieniaTurnieju(
   const linie = [`🏆 ${t.nazwa}: turniej w Bojo`, '', `${kiedy}, godz. ${t.godzinaStartu}`];
   if (t.miejsceNazwa) linie.push(t.miejsceNazwa);
   if (t.wpisoweGrosze > 0) linie.push(`Wpisowe: ${(t.wpisoweGrosze / 100).toFixed(0)} zł/drużyna`);
-  linie.push('', 'Zgłoś drużynę:', link);
+  // Sam link, bez „Zgłoś drużynę:” (decyzja właściciela z 2026-11-21): link
+  // idzie też do kibiców i rodziców, a po zamknięciu zapisów zachęta kłamała.
+  linie.push('', link);
   return linie.join('\n');
 }
 
