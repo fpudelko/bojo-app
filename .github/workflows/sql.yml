@@ -49,10 +49,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Sekret bywa SAMYM HASŁEM roli `claude_ro` zamiast całego adresu
+      # (2026-11-21). Wtedy adres składa `adres-ro-z-hasla.sh`: host i projekt
+      # z sekretu migracji, hasło z tego. Funkcja niżej jest jedyną drogą do
+      # adresu w obu krokach, żeby się nie rozjechały.
       - name: Sprawdź sekret
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL_RO }}
-        run: ./scripts/sprawdz-adres-bazy.sh SUPABASE_DB_URL_RO >/dev/null
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          case "$(printf '%s' "$DB_URL" | sed 's/^[[:space:]]*//')" in
+            postgres://*|postgresql://*) ./scripts/sprawdz-adres-bazy.sh SUPABASE_DB_URL_RO >/dev/null ;;
+            *) HASLO_RO="$DB_URL" ./scripts/adres-ro-z-hasla.sh >/dev/null ;;
+          esac
 
       - name: Przygotuj zapytanie
         env:
@@ -79,12 +88,16 @@ jobs:
       - name: Uruchom
         env:
           DB_URL: ${{ secrets.SUPABASE_DB_URL_RO }}
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
           set -euo pipefail
           # Adres czyścimy tu jeszcze raz, zamiast przekazywać gotowy przez
           # GITHUB_ENV — connection string z hasłem nie ma powodu podróżować
           # między krokami.
-          ADRES="$(./scripts/sprawdz-adres-bazy.sh SUPABASE_DB_URL_RO)"
+          case "$(printf '%s' "$DB_URL" | sed 's/^[[:space:]]*//')" in
+            postgres://*|postgresql://*) ADRES="$(./scripts/sprawdz-adres-bazy.sh SUPABASE_DB_URL_RO)" ;;
+            *) ADRES="$(HASLO_RO="$DB_URL" ./scripts/adres-ro-z-hasla.sh)" ;;
+          esac
 
           # READ ONLY jako druga linia obrony — rola i tak nie ma prawa zapisu,
           # ale literówka w zapytaniu nie ma prawa niczego ruszyć.
