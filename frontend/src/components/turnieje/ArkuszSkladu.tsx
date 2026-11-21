@@ -21,13 +21,15 @@ import { WARSTWA } from '@/lib/warstwy';
 import type { TurniejZawodnik } from '@/types';
 
 export default function ArkuszSkladu({
-  tytul, podtytul, zawodnicy, etykietaPominiecia, onWybor, onZamknij,
+  tytul, podtytul, zawodnicy, etykietaPominiecia, akcjaDodatkowa, onWybor, onZamknij,
 }: {
   tytul: string;
   podtytul?: string;
   zawodnicy: TurniejZawodnik[];
   /** Tekst na przycisku „nie wskazuję nikogo" — zawsze dostępnym. */
   etykietaPominiecia: string;
+  /** Druga droga pod listą, np. „Samobój” przy golu (2026-11-21). */
+  akcjaDodatkowa?: { etykieta: string; onClick: () => void };
   /** `undefined` = pominięto. */
   onWybor: (zawodnikId: string | undefined) => void;
   onZamknij: () => void;
@@ -78,13 +80,21 @@ export default function ArkuszSkladu({
             amatorskim połowa goli pada bez ustalenia strzelca, a prowadzący
             nie ma czasu pytać. Wymuszenie wyboru zamieniłoby ten ekran
             w formularz. */}
-        <div className="border-t border-slate-100 dark:border-slate-700 px-5 py-4">
+        <div className="flex gap-2 border-t border-slate-100 dark:border-slate-700 px-5 py-4">
           <button
             onClick={() => onWybor(undefined)}
-            className="min-h-[44px] w-full rounded-xl border border-slate-200 dark:border-slate-600 px-4 text-sm font-medium text-slate-600 dark:text-slate-300"
+            className="min-h-[44px] flex-1 rounded-xl border border-slate-200 dark:border-slate-600 px-4 text-sm font-medium text-slate-600 dark:text-slate-300"
           >
             {etykietaPominiecia}
           </button>
+          {akcjaDodatkowa && (
+            <button
+              onClick={akcjaDodatkowa.onClick}
+              className="min-h-[44px] shrink-0 rounded-xl bg-slate-100 dark:bg-slate-700 px-4 text-sm font-medium text-slate-700 dark:text-slate-200"
+            >
+              {akcjaDodatkowa.etykieta}
+            </button>
+          )}
         </div>
       </div>
     </div>

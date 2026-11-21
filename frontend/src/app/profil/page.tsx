@@ -9,6 +9,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth, displayName, avatarUrl } from '@/lib/auth';
 import { SHOW_TURNIEJE } from '@/lib/features';
+import { useMamTurnieje } from '@/lib/useMamTurnieje';
 import { isPelneImie } from '@/lib/profileName';
 import { useAdmin } from '@/lib/admin';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +23,7 @@ import MojeAlerty from '@/components/profil/MojeAlerty';
 export default function ProfilePage() {
   const router = useRouter();
   const { user, loading, signOut, updateDisplayName, uploadAvatar } = useAuth();
+  const mamTurnieje = useMamTurnieje();
   const isAdmin = useAdmin();
   const { resolvedTheme, setTheme } = useTheme();
   // Guard against the server/client theme mismatch on first paint — same
@@ -217,7 +219,7 @@ export default function ProfilePage() {
               <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
             </Link>
           )}
-          {SHOW_TURNIEJE && (
+          {(SHOW_TURNIEJE || mamTurnieje) && (
             <Link
               href="/turnieje"
               className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 transition-colors"

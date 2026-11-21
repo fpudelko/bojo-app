@@ -18,6 +18,7 @@ import { doRozliczenia } from '@/lib/myEvents';
 import PustyStanMeczow from '@/components/home/dashboard/PustyStanMeczow';
 import { useMyInvites } from '@/lib/useMyInvites';
 import { SHOW_TURNIEJE } from '@/lib/features';
+import { useMamTurnieje } from '@/lib/useMamTurnieje';
 import ZaproszeniaTurniejowe from '@/components/turnieje/ZaproszeniaTurniejowe';
 import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
 import type { EventItem } from '@/types';
@@ -63,6 +64,7 @@ function MojeGryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
+  const mamTurnieje = useMamTurnieje();
   const [items, setItems] = useState<{ event: EventItem; relation: MyEventRelation }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -178,8 +180,9 @@ function MojeGryContent() {
         {/* Bez nagłówka "Twoje mecze" i przycisku "+ Nowy mecz" — mecz
             tworzy się z FAB-a w dolnej nawigacji, dostępnego z każdego ekranu. */}
 
-        {/* Turnieje — moduł za flagą, jedno z dwóch wejść (drugie: /profil). */}
-        {SHOW_TURNIEJE && (
+        {/* Turnieje — moduł za flagą, jedno z dwóch wejść (drugie: /profil).
+            Od 2026-11-21 widać je też, gdy ktoś organizuje albo gra w turnieju. */}
+        {(SHOW_TURNIEJE || mamTurnieje) && (
           <Link
             href="/turnieje"
             className="flex items-center justify-between rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"

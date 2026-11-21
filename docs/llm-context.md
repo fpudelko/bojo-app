@@ -481,6 +481,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-21 (2) — Turniej w Bojo: wyniki jednym wierszem, samobój pod golem, wejście dla uczestników
+
+PROBLEM: lista wyników turnieju w Bojo powtarzała przy każdym meczu datę, godzinę i boisko,
+a wpisanie gola samobójczego nie mówiło, czyj to gol. Napisy „bez goli” i „Jeszcze nikt nie
+strzelił” kłamały, gdy wynik wpisano bez strzelców.
+
+ROZWIĄZANIE BOJO: rozegrany mecz turnieju to jeden wiersz (grupa albo faza, drużyny, wynik),
+po dotknięciu rozwija strzelców, termin i link do szczegółów. Karta meczu przed nami ma termin
+w górnym wierszu. W konsoli meczu „GOL” ma na dole opcję „Samobój”, która pyta o zawodnika
+drużyny przeciwnej; strzelca można pominąć („Zapisz bez strzelca”). Statystyki graczy
+pokazują się tylko, gdy ktoś wpisał strzelców. Ze strony meczu i drużyny strzałka wraca do
+turnieju, a pod nagłówkiem są zakładki turnieju. Wejście „🏆 Turnieje” obok Moich meczów
+widzi ten, kto organizuje albo gra w turnieju.
+
+MECHANIKA: `components/turnieje/WierszWyniku.tsx`, `KartaMeczu.tsx`, `ArkuszSkladu.tsx`,
+`ZakladkiTurnieju.tsx`, `strzelcyMeczu()`/`znacznikFazy()` w `lib/turniejEtykiety.ts`,
+`lib/useMamTurnieje.ts`. Bez migracji. Szczegóły → [funkcje.md](./funkcje.md).
+
+PYTANIA:
+- Jak wpisać gola samobójczego w turnieju w Bojo?
+- Czy można zapisać gola bez strzelca?
+- Gdzie znajdę turnieje, w których gram?
+
 ### 2026-11-21 — Adresy turniejów i meczów z nazwą i datą zamiast uuid
 
 PROBLEM: link do turnieju i meczu w Bojo wyglądał jak `bojo.pl/turnieje/e9a3763f-7bd9-…`
@@ -689,30 +712,3 @@ MECHANIKA: migracja `170` dokłada `p_dostawca_karty` do `dolacz_do_meczu_jako_g
 karcie), `joinEventAsGuest()` w `lib/events.ts`, okno gościa w
 `app/wydarzenia/[id]/EventDetailClient.tsx`. Cena przez `priceForParticipant()`
 (`lib/payments.ts`).
-
-### 2026-09-28 (3) — Przypomnienie, zaproszenie i zwolnione miejsce dochodzą także bez powiadomień na telefonie
-
-PROBLEM: przypomnienie dzień przed meczem, zaproszenie imienne, oferta zwolnionego
-miejsca z rezerwy i przypomnienie o rozliczeniu po meczu chodziły wyłącznie dzwonkiem
-w aplikacji i pushem — na produkcji push ma 3 z 33 graczy i 2 z 9 organizatorów.
-Przypomnienie dzień przed czytało 5 z 12 osób (mediana po 19,5 h), 7 z 13 zaproszeń
-nie przeczytano wcale. Gość bez konta z podanym adresem dostawał te same rzeczy
-mailem — założenie konta paradoksalnie pogarszało dostarczalność wiadomości.
-
-ROZWIĄZANIE BOJO: te cztery rodzaje powiadomień idą teraz mailem także do kont
-Z kontem, ale WYŁĄCZNIE gdy konto nie ma żadnej aktywnej subskrypcji push — push
-zostaje kanałem podstawowym, mail jest zapasem, nie drugą kopią. Bezpiecznik
-dzienny chroni wspólny z mailami logowania limit Resend (100/dzień na darmowym
-planie): po przekroczeniu progu nowy powód jest po cichu pomijany, a cztery
-powody krytyczne (odwołanie, zmiana terminu, zmiana warunków, przywrócenie meczu)
-limitu nie mają. Ustawienia maili w profilu pokazują obie grupy osobno. Organizator
-dostaje teraz też propozycję włączenia powiadomień, po wysłaniu linku do nowego
-meczu — wcześniej ta zachęta pytała wyłącznie graczy.
-
-MECHANIKA: migracja `169` (`wyslij_mail_do_konta()` z bezpiecznikiem dziennym
-i treścią czytaną z `notifications.body`, `wyslij_mail_po_powiadomieniu()` z drugim
-warunkiem `NOT EXISTS push_subscriptions`), funkcja brzegowa `powiadom-goscia/tresc.ts`
-(cztery nowe warianty treści), `lib/ustawieniaPowiadomien.ts`
-(`RODZAJE_MAILOWE_ZAWSZE`/`RODZAJE_MAILOWE_BEZ_PUSHA`), `ZachetaPush.tsx` (prop
-`organizator`), `EventDetailClient.tsx` (`zaproponujPowiadomienia()` po `handleShare`).
-Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-1, Z-1a, Z-2.

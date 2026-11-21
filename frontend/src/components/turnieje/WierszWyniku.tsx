@@ -54,19 +54,17 @@ export default function WierszWyniku({
 
       {rozwiniety && strzelcy && (
         <div className="space-y-2.5 border-t border-slate-100 px-3 py-3 text-sm dark:border-slate-700">
-          {/* Pełne nazwy tutaj: w wierszu bywają ucięte. */}
-          <div className="grid grid-cols-2 gap-3">
-            {(['a', 'b'] as const).map((strona) => (
-              <div key={strona} className={strona === 'b' ? 'text-right' : ''}>
-                <p className="break-words text-xs font-semibold text-slate-500 dark:text-slate-300">{strona === 'a' ? nazwaA : nazwaB}</p>
-                {strzelcy[strona].length === 0 ? (
-                  <p className="text-xs text-slate-400">bez goli</p>
-                ) : (
-                  strzelcy[strona].map((s, i) => <p key={i} className="text-sm text-ink">⚽ {s}</p>)
-                )}
-              </div>
-            ))}
-          </div>
+          {/* Strzelcy tylko, gdy ktokolwiek jest wpisany. „Bez goli” kłamało:
+              gole padały, tylko nikt nie wskazał strzelca (2026-11-21). */}
+          {(strzelcy.a.length > 0 || strzelcy.b.length > 0) && (
+            <div className="grid grid-cols-2 gap-3">
+              {(['a', 'b'] as const).map((strona) => (
+                <div key={strona} className={strona === 'b' ? 'text-right' : ''}>
+                  {strzelcy[strona].map((s, i) => <p key={i} className="text-sm text-ink">⚽ {s}</p>)}
+                </div>
+              ))}
+            </div>
+          )}
           {(termin || arena) && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-300">
               {termin && <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {termin.dzien}, {termin.godzina}</span>}
