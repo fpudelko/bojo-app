@@ -95,13 +95,36 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, gr
     >
       {/* Tekst pomocniczy slate-500 / dark slate-300: przy slate-400 numer
           i godzina miały 2,6:1 (audyt wyglądu 2026-11-19, minimum AA 4,5:1). */}
-      <div className="flex min-h-[22px] items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-300">
-        <span className="font-medium">M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}</span>
-        {/* „Zaplanowany” to stan domyślny: plakietka na każdej karcie mówiła
-            to, co i tak widać po godzinie, i robiła z listy szary szum. */}
-        {(wolnyLos || mecz.status !== 'zaplanowany') && (
-          <span className={`rounded-full px-2 py-0.5 font-medium ${status.ton}`}>{status.label}</span>
-        )}
+      {/* GÓRNY WIERSZ: co to za mecz, gdzie i kiedy (2026-11-21). Termin
+          i boisko stały w osobnym, trzecim wierszu pod drużynami; karta była
+          przez to wysoka i ciężka na dole. Teraz: po lewej numer, grupa
+          i boisko, po prawej dzień i godzina na zielonej plakietce, a pod
+          spodem tylko drużyny. Stan („Na żywo”, „Walkower”) wypiera godzinę:
+          w tej chwili to on odpowiada na pytanie „co z tym meczem”. */}
+      <div className="flex min-h-[24px] items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-300">
+        <span className="min-w-0 truncate">
+          <span className="font-medium">M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}</span>
+          {arena && (
+            <span className="ml-1 inline-flex items-center gap-0.5 align-middle">
+              <MapPin className="h-3 w-3 shrink-0" />{arena}
+            </span>
+          )}
+        </span>
+        {(wolnyLos || (mecz.status !== 'zaplanowany' && mecz.status !== 'zakonczony')) ? (
+          <span className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${status.ton}`}>{status.label}</span>
+        ) : termin ? (
+          <span className="inline-flex shrink-0 items-center gap-1.5">
+            <span className="font-medium text-slate-600 dark:text-slate-300">{termin.dzien}</span>
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-bold ${
+                poMeczu ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200'
+                  : 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300'
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" /> {termin.godzina}
+            </span>
+          </span>
+        ) : null}
       </div>
       <div className="mt-2 flex items-center justify-between gap-3">
         {/* Dwie linie zamiast wielokropka: „Unilink Szamotuły & MedKomplex”
@@ -117,28 +140,6 @@ export default function KartaMeczu({ mecz, druzynyPoId, meczePoId, arenyPoId, gr
         )}
         <span className={`min-w-0 flex-1 line-clamp-2 break-words text-right text-base leading-snug ${tonDruzyny('b')}`}>{nazwaB}</span>
       </div>
-      {(termin || arena) && (
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-          {termin && (
-            <span className="inline-flex items-center gap-1.5">
-              <span
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-bold ${
-                  poMeczu ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200'
-                    : 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300'
-                }`}
-              >
-                <Clock className="h-3.5 w-3.5" /> {termin.godzina}
-              </span>
-              <span className="font-medium text-slate-600 dark:text-slate-300">{termin.dzien}</span>
-            </span>
-          )}
-          {arena && (
-            <span className="inline-flex min-w-0 items-center gap-1 text-slate-500 dark:text-slate-300">
-              <MapPin className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{arena}</span>
-            </span>
-          )}
-        </div>
-      )}
     </Wrapper>
   );
 }
