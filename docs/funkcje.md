@@ -5032,6 +5032,13 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   „Odrzuć / Zapisz zmiany” zapisuje wszystko naraz (`updateTurniej()` + nazwy aren);
   wyjście ze strony z niezapisanym szkicem pyta przeglądarka. Okładka, BLIK, galeria,
   sponsorzy, zamknięcie zapisów i usunięcie zostają osobnymi akcjami.
+- **Przerwy (2026-11-21):** „Nazwij” i „Edytuj” otwierają formularz w miejscu przerwy
+  w terminarzu, nie nad nim. Przerwa nachodząca na zaplanowane mecze nie jest blokowana:
+  okno pyta „Przesuń mecze” (pierwszy kolidujący mecz i wszystkie po nim startują po
+  przerwie, odstępy zostają, `przesuniecieZaPrzerwe()`), „Zapisz bez przesuwania” albo
+  „Popraw godziny” (`meczeNachodzaceNaPrzerwe()` w `lib/turniejEtykiety.ts`). Pola godzin
+  mieszczą się w karcie na iPhonie; pola „Zasad gry” stoją w jednej linii przy
+  dwulinijkowym podpisie. Strona meczu: „Następny na tym boisku”.
 - Jednorazowe zadanie `supabase/zadania/turniej-marysi-organizator.sql`: organizator,
   kapitan z drugiego konta i regulamin turnieju pokazowego do testu wpisywania wyników.
 
@@ -5045,7 +5052,7 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
 - F4: nazwy drużyn na kartach meczów i w tabelach w dwóch liniach zamiast wielokropka.
 - F5: pulpit przy komplecie wyników mówi „Wszystkie mecze rozegrane” z linkiem do podium;
   zakończony turniej ma własną kartę zamiast listy przygotowań.
-- F6: „Następny na tej arenie” to pierwszy mecz PO bieżącym w terminarzu; gdy takiego
+- F6: „Następny na tej arenie” (dziś „Następny na tym boisku”) to pierwszy mecz PO bieżącym w terminarzu; gdy takiego
   nie ma, karta mówi „Najwcześniejszy mecz bez wyniku”.
 - F7: mecz z jedną znaną drużyną mówi, na kogo czeka („Czekamy na: Zwycięzca B”).
 - F8: „Popraw wynik” sprawdza mecze zależne przed oknem potwierdzenia i od razu mówi,
