@@ -7,7 +7,7 @@ import { czyWolnyLos, stronaZwyciezcy } from '@/lib/turniejWynik';
 import { nazwaMiejscaWGrupie } from '@/lib/turniejFormat';
 import type { TurniejGrupa, TurniejMecz } from '@/types';
 
-function nazwaSlotu(
+export function nazwaSlotu(
   mecz: TurniejMecz,
   strona: 'a' | 'b',
   druzynyPoId: Map<string, string>,
