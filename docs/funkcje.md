@@ -15,10 +15,11 @@ schowana.** Zanim uznasz coś za niezbudowane, sprawdź tę tabelę.
 | `SHOW_TURNIEJE` | `false` | Moduł turniejowy — **wyłączona ponownie 2026-09-17, tymczasowo** (decyzja właściciela po przeglądzie na żywo: moduł działa, ale pierwsze wrażenie nie jest gotowe). Trasa `/turnieje` **odpowiada normalnie** — znikają wyłącznie wejścia w nawigacji. Plan → [turnieje-plan-duze-klocki.md](./turnieje-plan-duze-klocki.md) | `app/moje-gry/page.tsx` (link „🏆 Turnieje”), `app/profil/page.tsx` (wiersz „Turnieje”) |
 | `SHOW_GAME_ALERTS` | `true` | nic — **włączona 2026-09-12** (powód wyłączenia, brak kanału dostarczania, zniknął: poczta i web-push działają) | `app/wydarzenia/EventsListView.tsx` (pusty stan listy), `components/map/VenueExplorer.tsx` (`/mapa`), `components/profil/MojeAlerty.tsx` (`/profil`), `app/boisko/[id]/VenueDetailClient.tsx` (**od 2026-09-21**, pusty stan „Nadchodzące mecze") |
 | `SHOW_SMS_FEATURES` | `false` | Potwierdzenia SMS i przypomnienia | `app/wydarzenia/[id]/edytuj/page.tsx` |
+| `SHOW_TURNIEJ_OGLOSZENIA` | `false` | Ogłoszenia organizatora na stronie turnieju (lista na Info, pasek „Ogłoszenia (N)” na innych zakładkach). **Wyłączona 2026-11-21** przed przekazaniem turnieju w Luboniu; dane i wyzwalacz powiadomień zostają | `app/turnieje/[id]/TurniejClient.tsx` |
 | `SHOW_MIN_PLAYERS_THRESHOLD` | `false` | Toggle progu „gra się odbędzie" i werdykt „Gramy ✓ / Brakuje N do minimum" (wyłączona 2026-08-21, produktowa decyzja — `events.min_players` i logika zostają) | `EventCapacityFields.tsx` (kreator + edycja), `CzyGramyPanel.tsx` |
 | `FEATURE_RESERVATIONS` | z env `NEXT_PUBLIC_FEATURE_RESERVATIONS` | Rezerwacje obiektów | `LeafletMapImpl.tsx`, `app/admin/[fieldId]/page.tsx` |
 
-Pierwsze trzy: `frontend/src/lib/features.ts` (stałe w kodzie).
+Pierwsze cztery: `frontend/src/lib/features.ts` (stałe w kodzie).
 Ostatnia: `frontend/src/config/features.ts` (zmienna środowiskowa).
 
 **Gry cykliczne (stałe gierki) nie mają już flagi — usunięte całkowicie (decyzja

@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_TURNIEJ_OGLOSZENIA } from '@/lib/features';
 import { useAdmin } from '@/lib/admin';
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useState } from 'react';
@@ -774,7 +775,7 @@ export default function TurniejClient() {
         {/* Ogłoszenia w całości tylko na Info. Na pozostałych zakładkach jeden
             wiersz z liczbą: zawodnik w „Mecze" szuka swojej godziny, a pełne
             ogłoszenie stało przed terminarzem na każdej zakładce (audyt 7). */}
-        {aktywna === 'info' ? (
+        {!SHOW_TURNIEJ_OGLOSZENIA ? null : aktywna === 'info' ? (
           <Ogloszenia
             ogloszenia={ogloszenia}
             blad={ogloszeniaBlad}
