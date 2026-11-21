@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+
+// Klient Supabase w środowisku `node` na Node 20 wymaga WebSocketu (realtime)
+// i wywraca import; tu i tak nie jest potrzebny.
+vi.mock('@/lib/supabase', () => ({ supabase: {} }));
 import { podmienSegmenty, KSZTALT_ADRESU } from '@/lib/adresy';
 import { middleware } from '@/middleware';
 
