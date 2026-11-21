@@ -24,6 +24,8 @@ describe('tekstUdostepnieniaTurnieju', () => {
     expect(tekst).toContain('10:00');
     expect(tekst).toContain('Orlik Winogrady');
     expect(tekst).toContain(link);
+    // Bez zachęty do zapisu: link idzie też do kibiców (2026-11-21).
+    expect(tekst).not.toContain('Zgłoś drużynę');
   });
 
   it('says nothing about wpisowe when it is free', () => {
