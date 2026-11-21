@@ -11,6 +11,11 @@ describe('uprawnieniaTurnieju', () => {
     });
   });
 
+  it('admin Bojo jest organizatorem każdego turnieju (jak czy_organizator_turnieju w bazie)', () => {
+    expect(uprawnieniaTurnieju(turniej, null, 'admin-1', true).jestOrganizatorem).toBe(true);
+    expect(uprawnieniaTurnieju(turniej, null, 'admin-1', false).jestOrganizatorem).toBe(false);
+  });
+
   it('obcy bez wiersza w turniej_osoby nie ma żadnego uprawnienia', () => {
     const u = uprawnieniaTurnieju(turniej, null, 'obcy-1');
     expect(u).toEqual({

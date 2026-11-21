@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-21 · migracja `177` · 61 tabel
+**Stan na:** 2026-11-21 · migracja `178` · 61 tabel
 
 ---
 
@@ -492,6 +492,10 @@ mecz turnieju numer (`…/mecz/5`), zwykły mecz tak samo jak turniej
 i nie zmienia się po zmianie nazwy ani daty, więc rozesłane linki działają dalej. Powtórzona
 nazwa i data dostaje dopisek „-2”. Stare linki z uuid działają; pasek przeglądarki od razu
 pokazuje adres z nazwą. Udostępnienie turnieju wysyła sam link, bez dopisku „Zgłoś drużynę”.
+Organizator turnieju dodaje współorganizatora po adresie e-mail jego konta w Bojo
+(Panel → Ustawienia → Współorganizatorzy); współorganizator może wszystko poza usunięciem
+turnieju i nadawaniem praw dalej. Admin Bojo zarządza każdym turniejem, a „Przetestuj”
+(próba dnia turnieju na kopii) jest dostępne tylko dla admina.
 
 MECHANIKA: migracja `177` (tabela `adresy_z_nazwa`, `nadaj_adres()`, wyzwalacze na `turnieje`
 i `events`), `src/middleware.ts` (adres z nazwą → trasa z uuid), `lib/adresy.ts`,
@@ -502,6 +506,7 @@ PYTANIA:
 - Czy stary link do meczu z długim identyfikatorem dalej działa?
 - Czy adres meczu zmieni się, gdy organizator zmieni nazwę albo datę?
 - Jak podać link do konkretnego meczu turnieju?
+- Jak dodać drugiego organizatora do turnieju w Bojo?
 
 ### 2026-11-20 — Czytelniejsze kafelki meczów turnieju, prostsza zakładka Info i panel bez pulpitu
 

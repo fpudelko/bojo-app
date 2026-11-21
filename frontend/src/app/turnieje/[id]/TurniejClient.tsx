@@ -1,5 +1,6 @@
 'use client';
 
+import { useAdmin } from '@/lib/admin';
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -119,6 +120,7 @@ function MeczeGrupy({
 
 export default function TurniejClient() {
   const { id } = useParams<{ id: string }>();
+  const jestAdmin = useAdmin();
   // Adres z nazwą (177): do linków udostępniania i do paska przeglądarki.
   const adresTurnieju = useAdres('turniej', id);
   useAdresWPasku({ [id]: adresTurnieju });
@@ -303,7 +305,7 @@ export default function TurniejClient() {
     );
   }
 
-  const uprawnienia = uprawnieniaTurnieju(turniej, osoba, user?.id);
+  const uprawnienia = uprawnieniaTurnieju(turniej, osoba, user?.id, jestAdmin);
   const druzynyPoId = new Map(druzyny.map((d) => [d.id, d.nazwa]));
   const meczePoId = new Map(mecze.map((m) => [m.id, m]));
   const arenyPoId = new Map(areny.map((a) => [a.id, a.nazwa]));
