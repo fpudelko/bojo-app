@@ -5091,11 +5091,13 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
   spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,
   „Walkower”, „Odwołany” i „Wolny los” zastępują godzinę w prawym rogu.
-- **Rozegrany mecz jednym wierszem (2026-11-21):** na zakładkach Mecze i Tabele mecz
-  zakończony albo walkower to `components/turnieje/WierszWyniku.tsx`: znacznik grupy albo fazy
-  (`znacznikFazy()`: „A”, „½”, „Finał”), drużyny i wynik. Dotknięcie rozwija strzelców
-  (`strzelcyMeczu()`, samobój dla rywala; bez nazwiska dla niezalogowanego), termin, boisko
-  i „Szczegóły meczu”. Mecz przed nami i na żywo zostaje pełną `KartaMeczu`.
+- **Każdy mecz jednym wierszem (2026-11-21):** na zakładkach Mecze i Tabele mecz przyszły,
+  trwający i rozegrany ma ten sam wiersz `components/turnieje/WierszMeczu.tsx`: znacznik grupy
+  albo fazy (`znacznikFazy()`), mała data („28.11”, „Dziś”) nad większą godziną, drużyny
+  (ucinane wielokropkiem), wynik albo „vs”, boisko tylko przy kilku boiskach. Trwający mecz
+  zamiast godziny ma „● żywo”. Cały wiersz prowadzi na stronę meczu; strzelcy i przebieg są
+  tam. Zastąpił rozwijany `WierszWyniku` i trzywierszową kartę na stronie turnieju
+  (`KartaMeczu` zostaje w panelu i drabince).
 - **Strona meczu i ekran drużyny: wstecz na turniej (2026-11-21).** Strzałka prowadzi zawsze
   na stronę turnieju (`?tab=mecze` / `?tab=druzyny`), a pod nagłówkiem jest pasek zakładek
   turnieju (`components/turnieje/ZakladkiTurnieju.tsx`, podpisy z `etykietaZakladkiTurnieju()`).

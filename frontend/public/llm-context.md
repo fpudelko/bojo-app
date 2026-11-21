@@ -487,9 +487,9 @@ PROBLEM: lista wyników turnieju w Bojo powtarzała przy każdym meczu datę, go
 a wpisanie gola samobójczego nie mówiło, czyj to gol. Napisy „bez goli” i „Jeszcze nikt nie
 strzelił” kłamały, gdy wynik wpisano bez strzelców.
 
-ROZWIĄZANIE BOJO: rozegrany mecz turnieju to jeden wiersz (grupa albo faza, drużyny, wynik),
-po dotknięciu rozwija strzelców, termin i link do szczegółów. Karta meczu przed nami ma termin
-w górnym wierszu. W konsoli meczu „GOL” ma na dole opcję „Samobój”, która pyta o zawodnika
+ROZWIĄZANIE BOJO: każdy mecz turnieju, przyszły i rozegrany, to jeden wiersz: grupa albo faza,
+data i godzina, drużyny, wynik albo „vs”, boisko tylko przy kilku boiskach. Strzelcy i przebieg
+są na stronie meczu, do której prowadzi wiersz. W konsoli meczu „GOL” ma na dole opcję „Samobój”, która pyta o zawodnika
 drużyny przeciwnej; strzelca można pominąć („Zapisz bez strzelca”). Statystyki graczy
 pokazują się tylko, gdy ktoś wpisał strzelców. Ze strony meczu i drużyny strzałka wraca do
 turnieju, a pod nagłówkiem są zakładki turnieju. Wejście „🏆 Turnieje” obok Moich meczów
@@ -497,7 +497,7 @@ widzi ten, kto organizuje albo gra w turnieju. Remis w tabeli (te same punkty, b
 daje drużynom to samo miejsce i ten sam medal na podium z dopiskiem „ex aequo”; organizator
 ustala kolejność w panelu i może dopisać komentarz pod tabelą.
 
-MECHANIKA: `components/turnieje/WierszWyniku.tsx`, `KartaMeczu.tsx`, `ArkuszSkladu.tsx`,
+MECHANIKA: `components/turnieje/WierszMeczu.tsx`, `KartaMeczu.tsx`, `ArkuszSkladu.tsx`,
 `ZakladkiTurnieju.tsx`, `strzelcyMeczu()`/`znacznikFazy()` w `lib/turniejEtykiety.ts`,
 `lib/useMamTurnieje.ts`. Bez migracji. Szczegóły → [funkcje.md](./funkcje.md).
 

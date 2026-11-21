@@ -1,6 +1,6 @@
 'use client';
 
-import WierszWyniku from '@/components/turnieje/WierszWyniku';
+import WierszMeczu from '@/components/turnieje/WierszMeczu';
 import { tabeleGrupTurnieju } from '@/lib/turniejTabela';
 import { etykietaZakladkiTurnieju } from '@/lib/turniejEtykiety';
 import { SHOW_TURNIEJ_OGLOSZENIA } from '@/lib/features';
@@ -34,7 +34,6 @@ import { linkDojazdu } from '@/lib/utils';
 import { withCount } from '@/lib/plural';
 import { useWstecz } from '@/lib/historia';
 import { sportEmoji } from '@/lib/sports';
-import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
 import Drabinka from '@/components/turnieje/Drabinka';
 import Klasyfikacja from '@/components/turnieje/Klasyfikacja';
@@ -79,7 +78,7 @@ type WidokMeczow = 'najblizsze' | 'rozegrane';
 /** Rozegrane mecze jednej grupy, zwinięte pod jej tabelą. */
 function MeczeGrupy({ mecze, wiersz }: {
   mecze: TurniejMecz[];
-  /** Jak narysować mecz: rozegrany idzie jednym wierszem (`WierszWyniku`). */
+  /** Jak narysować mecz (`WierszMeczu`, jeden wiersz). */
   wiersz: (m: TurniejMecz) => React.ReactNode;
 }) {
   const [rozwiniete, setRozwiniete] = useState(false);
@@ -392,34 +391,19 @@ export default function TurniejClient() {
   const przerwyPrzedNami = ostatniRozegrany ? przerwy.filter((p) => p.doAt > ostatniRozegrany) : przerwy;
 
   const zawodnicyDoStatystyk = druzyny.flatMap((d) => d.zawodnicy ?? []);
-  const zawodnicyPoId = new Map(zawodnicyDoStatystyk.map((z) => [z.id, z.imie]));
-  // ROZEGRANY MECZ JEDNYM WIERSZEM (2026-11-21): kto z kim, wynik, grupa;
-  // reszta po rozwinięciu. Mecz przed nami i na żywo zostaje pełną kartą,
-  // bo tam godzina i boisko są właśnie tym, czego się szuka.
+  // KAŻDY MECZ JEDNYM WIERSZEM (2026-11-21): przyszły i rozegrany tak samo,
+  // szczegóły na stronie meczu. Boisko tylko przy kilku boiskach.
   const kafelekMeczu = (m: TurniejMecz) => (
-    (m.status === 'zakonczony' || m.status === 'walkower') && !czyWolnyLos(m) ? (
-      <WierszWyniku
-        key={m.id}
-        mecz={m}
-        druzynyPoId={druzynyPoId}
-        arenyPoId={arenyPoId}
-        grupyPoId={grupyPoId}
-        zdarzenia={zdarzenia}
-        zawodnicyPoId={zawodnicyPoId}
-        szczegolyHref={`/turnieje/${id}/mecz/${m.id}`}
-      />
-    ) : (
-      <KartaMeczu
-        key={m.id}
-        mecz={m}
-        druzynyPoId={druzynyPoId}
-        meczePoId={meczePoId}
-        arenyPoId={arenyPoId}
-        grupyPoId={grupyPoId}
-        przygaszona={czyWolnyLos(m)}
-        onClick={() => router.push(`/turnieje/${id}/mecz/${m.id}`)}
-      />
-    )
+    <WierszMeczu
+      key={m.id}
+      mecz={m}
+      href={`/turnieje/${id}/mecz/${m.id}`}
+      druzynyPoId={druzynyPoId}
+      meczePoId={meczePoId}
+      arenyPoId={arenyPoId}
+      grupyPoId={grupyPoId}
+      pokazBoisko={areny.length > 1}
+    />
   );
   const mvpPoMeczach = mecze
     .filter((m) => m.status === 'zakonczony' || m.status === 'walkower')
