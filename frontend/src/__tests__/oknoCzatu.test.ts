@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  zmierzOkno, styleOknaCzatu, wPoluTekstowym, odstepNadPaskiem, OKNO_NIEZMIERZONE,
+  zmierzOkno, styleOknaCzatu, wPoluTekstowym, klawiaturaZaslania, odstepNadPaskiem, OKNO_NIEZMIERZONE,
 } from '@/lib/oknoCzatu';
 
 // Liczby z iPhone'a 15 Pro (852 pt wysokości), na którym zgłoszono problem:
@@ -84,5 +84,17 @@ describe('styleOknaCzatu', () => {
   it('zmierzone okno odejmuje pasek nawigacji od wysokości', () => {
     expect(styleOknaCzatu({ wysokosc: 450, klawiatura: true }))
       .toEqual({ height: 'calc(450px - var(--bottom-nav-h))' });
+  });
+});
+
+describe('klawiaturaZaslania', () => {
+  it('kursor w polu chowa pasek', () => {
+    expect(klawiaturaZaslania(true, 800, 800)).toBe(true);
+  });
+  it('skurczone okno bez fokusu też (Safari po zamknięciu klawiatury)', () => {
+    expect(klawiaturaZaslania(false, 800, 450)).toBe(true);
+  });
+  it('sam pasek adresu nie chowa paska', () => {
+    expect(klawiaturaZaslania(false, 800, 740)).toBe(false);
   });
 });

@@ -5039,6 +5039,11 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   „Popraw godziny” (`meczeNachodzaceNaPrzerwe()` w `lib/turniejEtykiety.ts`). Pola godzin
   mieszczą się w karcie na iPhonie; pola „Zasad gry” stoją w jednej linii przy
   dwulinijkowym podpisie. Strona meczu: „Następny na tym boisku”.
+- **Dolne menu w połowie ekranu (iPhone, 2026-11-21):** pasek chowa się także wtedy, gdy
+  widoczny obszar jest o ponad 120 px niższy niż okno (`klawiaturaZaslania()` w
+  `lib/oknoCzatu.ts`), nie tylko przy kursorze w polu. Safari po zamknięciu klawiatury
+  albo kółka godzin trzymał okno skurczone i menu wisiało nad terminarzem.
+- Udostępnienie turnieju: sam link, bez dopisku „Zgłoś drużynę” (`tekstUdostepnieniaTurnieju()`).
 - Jednorazowe zadanie `supabase/zadania/turniej-marysi-organizator.sql`: organizator,
   kapitan z drugiego konta i regulamin turnieju pokazowego do testu wpisywania wyników.
 
