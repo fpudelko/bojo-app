@@ -164,17 +164,30 @@ export interface CentrumTurnieju<T> {
   liczbaDoRozegrania: number;
   /** Mecz, który według planu już powinien trwać, gdy nic nie trwa. */
   zaleglyStart: T | null;
+  /**
+   * Mecz do rozpoczęcia TERAZ: pierwszy gotowy (obie drużyny znane) na
+   * wolnej arenie. `null`, gdy wszystkie areny grają. Przy jednej hali
+   * i meczu w toku „Rozpocznij” przy następnym meczu tylko myliło: nie da
+   * się zacząć drugiego meczu na zajętym boisku.
+   */
+  doRozpoczecia: T | null;
+  /**
+   * Mecze w toku dwa razy dłużej niż czas gry: prawie zawsze ktoś zapomniał
+   * kliknąć „Zakończ mecz”. Ten sam próg, przy którym `czasGry()` przestaje
+   * pokazywać zegar.
+   */
+  przeciagniete: T[];
 }
 
 type MeczCentrum = Pick<
   TurniejMecz,
-  'status' | 'numer' | 'zaplanowanyAt' | 'zakonczonyAt' | 'druzynaAId' | 'druzynaBId'
+  'status' | 'numer' | 'zaplanowanyAt' | 'zakonczonyAt' | 'druzynaAId' | 'druzynaBId' | 'arenaId' | 'rozpoczetyAt'
 >;
 
 export function centrumTurnieju<T extends MeczCentrum>(
   mecze: readonly T[],
   teraz: Date,
-  opcje: { najblizsze?: number; ostatnie?: number } = {},
+  opcje: { najblizsze?: number; ostatnie?: number; liczbaAren?: number; czasMeczuMin?: number } = {},
 ): CentrumTurnieju<T> {
   // Wolny los (171): nikt w nim nie gra, więc nie jest ani następnym meczem,
   // ani wynikiem. Ta sama reguła co na stronie publicznej.
@@ -194,7 +207,20 @@ export function centrumTurnieju<T extends MeczCentrum>(
     ? pierwszyGotowy
     : null;
 
+  const zajeteAreny = new Set(naZywo.map((m) => m.arenaId).filter(Boolean));
+  const wolnaArena = naZywo.length < Math.max(1, opcje.liczbaAren ?? 1);
+  const doRozpoczecia = wolnaArena
+    ? doRozegrania.find((m) => m.druzynaAId && m.druzynaBId && !(m.arenaId && zajeteAreny.has(m.arenaId))) ?? null
+    : null;
+
+  const prog = (opcje.czasMeczuMin ?? 0) * 2 * 60_000;
+  const przeciagniete = prog > 0
+    ? naZywo.filter((m) => m.rozpoczetyAt && teraz.getTime() - new Date(m.rozpoczetyAt).getTime() > prog)
+    : [];
+
   return {
+    doRozpoczecia,
+    przeciagniete,
     naZywo,
     najblizsze: doRozegrania.slice(0, opcje.najblizsze ?? 4),
     ostatnie: rozegrane.slice(0, opcje.ostatnie ?? 4),

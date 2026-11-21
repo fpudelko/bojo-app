@@ -5066,6 +5066,24 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     „Wpisz wynik M…” (mecz w toku) albo „Rozpocznij M…”. **Bez opóźnienia względem planu**:
     decyzja właściciela z 2026-11-08 (`postepTurnieju()`) obowiązuje także tu.
   - Drużyny i Ustawienia zostają w kolumnie `max-w-3xl`: formularze na 1100 px czyta się gorzej.
+  - **Bezpieczeństwo i świeżość (2026-11-21):** „Cofnij ostatnie” pod golami kasuje najnowsze
+    zdarzenie meczu (`cofnijOstatnieZdarzenie()`), komunikat mówi, co cofnięto. Panel w stanie
+    `trwa` co 15 s odświeża mecze i drużyny (odpytywanie, nie Realtime: tabele turnieju nie są
+    w publikacji `supabase_realtime`); pauza, gdy karta jest w tle albo trwa edycja godzin lub
+    podgląd terminarza. Zegar meczu „8:46 / 12:00”, bursztynowy po czasie gry (`poCzasie()`).
+  - **Alerty zamiast karty „Wymaga decyzji”:** niebieski pasek nad siatką, znika, gdy pusty.
+    Sygnały: mecz w toku dłużej niż dwa razy czas gry (`przeciagniete`), mecz, który według
+    planu już powinien grać (`zaleglyStart`), czekające zgłoszenia.
+  - **„Rozpocznij” tylko na wolnej arenie** (`doRozpoczecia` w `centrumTurnieju()`): przy jednej
+    hali i meczu w toku przycisku nie ma ani w Najbliższych, ani w pasku stanu.
+  - **Ekran na halę** (`/turnieje/[id]/ekran`, `EkranClient.tsx`): publiczny, `noindex`,
+    otwierany z paska stanu panelu w nowej karcie. Ciemny zawsze, rozmiary w `em` od
+    `font-size` liczonego z szerokości okna (ten sam układ na 1366 px i 4K), odświeżanie co
+    15 s. Lewa kolumna: Na żywo (wynik, zegar) albo Następny mecz, Kolejne mecze z przerwami;
+    prawa: tabele grup (#, drużyna, bramki, punkty, pasek awansu) i ostatnie wyniki. Po
+    końcu turnieju podium na cały ekran. Stopka z adresem strony turnieju. Bez ramki aplikacji:
+    `jestSciezkaWidgetu()` w `lib/widget.ts` obejmuje też tę trasę (bez banera cookies,
+    dolnego paska i okna roli).
   - **Strona turnieju, zakładka Mecze:** od `lg` dwie kolumny, po prawej przyklejone tabele
     grup z legendą awansu i linkiem do zakładki „Tabela i drabinka”. Ta zakładka zostaje
     także na komputerze, bo niesie drabinkę i mecze grup.

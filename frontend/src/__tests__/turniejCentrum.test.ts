@@ -94,3 +94,34 @@ describe('tabeleTurnieju', () => {
     expect(tabeleTurnieju({ ...turniej, format: 'puchar' }, [], [], druzyny)).toEqual([]);
   });
 });
+
+describe('centrumTurnieju: wolna arena i przeciągnięte mecze', () => {
+  const teraz = new Date('2026-11-21T12:30:00Z');
+
+  it('przy jednej hali i meczu w toku nie proponuje rozpoczęcia kolejnego', () => {
+    const c = centrumTurnieju([mecz({ numer: 3, status: 'trwa' }), mecz({ numer: 4 })], teraz, { liczbaAren: 1 });
+    expect(c.doRozpoczecia).toBeNull();
+  });
+
+  it('przy dwóch arenach proponuje pierwszy mecz na WOLNEJ arenie', () => {
+    const c = centrumTurnieju([
+      mecz({ numer: 3, status: 'trwa', arenaId: 'a1' }),
+      mecz({ numer: 4, arenaId: 'a1' }),
+      mecz({ numer: 5, arenaId: 'a2' }),
+    ], teraz, { liczbaAren: 2 });
+    expect(c.doRozpoczecia?.numer).toBe(5);
+  });
+
+  it('bez meczu w toku proponuje pierwszy gotowy', () => {
+    const c = centrumTurnieju([mecz({ numer: 4, druzynaBId: undefined }), mecz({ numer: 5 })], teraz);
+    expect(c.doRozpoczecia?.numer).toBe(5);
+  });
+
+  it('zgłasza mecz w toku dłużej niż dwa razy czas gry', () => {
+    const c = centrumTurnieju([
+      mecz({ numer: 3, status: 'trwa', rozpoczetyAt: '2026-11-21T12:00:00Z' }), // 30 min
+      mecz({ numer: 4, status: 'trwa', rozpoczetyAt: '2026-11-21T12:10:00Z' }), // 20 min
+    ], teraz, { czasMeczuMin: 12 });
+    expect(c.przeciagniete.map((m) => m.numer)).toEqual([3]);
+  });
+});

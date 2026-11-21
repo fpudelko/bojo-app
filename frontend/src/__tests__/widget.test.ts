@@ -19,6 +19,12 @@ describe('jestSciezkaWidgetu', () => {
     expect(jestSciezkaWidgetu('/boisko/moj-widget-obiekt')).toBe(false);
   });
 
+  it('ekran turnieju na halę też jest bez ramki aplikacji', () => {
+    expect(jestSciezkaWidgetu('/turnieje/gramy-dla-marysi-28-11-2026/ekran')).toBe(true);
+    expect(jestSciezkaWidgetu('/turnieje/gramy-dla-marysi-28-11-2026')).toBe(false);
+    expect(jestSciezkaWidgetu('/turnieje/x/mecz/5')).toBe(false);
+  });
+
   it('null (brak ścieżki) nie jest widgetem', () => {
     expect(jestSciezkaWidgetu(null)).toBe(false);
   });

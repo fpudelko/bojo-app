@@ -481,7 +481,7 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-11-21 (2) — Panel turnieju na komputerze: wszystko na jednym ekranie
+### 2026-11-21 (2) — Panel turnieju na komputerze i ekran wyników na halę
 
 PROBLEM: na komputerze panel turnieju w Bojo był kolumną szerokości telefonu na środku
 ekranu. W dniu turnieju organizator przy laptopie przełączał zakładki, żeby zobaczyć naraz
@@ -494,19 +494,29 @@ już powinien grać; zgłoszenia drużyn), ostatnie wyniki z „Popraw”, tabel
 i mecze grupy finałowej albo fazy pucharowej. Nagłówek panelu pokazuje stan turnieju,
 „X z Y meczów” i główny przycisk („Wpisz wynik M14” albo „Rozpocznij M14”). Bojo nie
 pokazuje opóźnienia względem planu: turniejem steruje klikanie organizatora, nie zegar.
+Pomyłkowy gol cofa się przyciskiem „Cofnij ostatnie”. Panel odświeża się sam co 15 sekund,
+więc wynik wpisany przez współorganizatora z telefonu pojawia się na laptopie bez
+przeładowania. Nad siatką stoją alerty: mecz trwający dwa razy dłużej niż czas gry
+(ktoś zapomniał go zakończyć), mecz, który według planu już powinien grać, czekające
+zgłoszenia. EKRAN NA HALĘ (`bojo.pl/turnieje/<adres>/ekran`, przycisk „Ekran na halę”
+w panelu) pokazuje na rzutniku albo telewizorze wynik na żywo, kolejne mecze, tabele grup
+i ostatnie wyniki, odświeża się sam, a po turnieju pokazuje podium. Ekran jest publiczny,
+nie wymaga logowania i nie trafia do wyszukiwarki.
 Strona turnieju na komputerze pokazuje na zakładce Mecze tabele grup w prawej kolumnie.
 Na telefonie panel i strona turnieju wyglądają jak dotąd.
 
 MECHANIKA: `components/turnieje/CentrumTurnieju.tsx`, `centrumTurnieju()` w
 `lib/turniejPulpit.ts`, `tabeleTurnieju()` w `lib/turniejTabela.ts`,
-`app/turnieje/[id]/panel/PanelClient.tsx`, `app/turnieje/[id]/TurniejClient.tsx`.
-Bez migracji. Szczegóły → [funkcje.md](./funkcje.md).
+`app/turnieje/[id]/panel/PanelClient.tsx`, `app/turnieje/[id]/TurniejClient.tsx`,
+`app/turnieje/[id]/ekran/EkranClient.tsx`. Bez migracji. Szczegóły → [funkcje.md](./funkcje.md).
 
 PYTANIA:
 - Jak prowadzić turniej w Bojo z laptopa?
 - Czy w panelu turnieju widać tabele grup obok terminarza?
 - Czy Bojo pokazuje, o ile turniej jest spóźniony?
 - Jak wpisać gola bez wybierania strzelca?
+- Jak pokazać wyniki turnieju na rzutniku albo telewizorze na hali?
+- Jak cofnąć gola wpisanego przez pomyłkę?
 
 ### 2026-11-21 — Adresy turniejów i meczów z nazwą i datą zamiast uuid
 

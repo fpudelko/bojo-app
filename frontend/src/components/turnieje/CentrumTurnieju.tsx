@@ -17,13 +17,13 @@
 // z 2026-11-08, `postepTurnieju()`).
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Coffee } from 'lucide-react';
+import { Coffee, Undo2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
 import { nazwaSlotu } from '@/components/turnieje/KartaMeczu';
 import { centrumTurnieju } from '@/lib/turniejPulpit';
 import { terminarzZPrzerwami } from '@/lib/turniejEtykiety';
-import { czasGry, jestKoszykowka, jestSportemSetowym, wymaganeKarne } from '@/lib/turniejWynik';
+import { czasGry, jestKoszykowka, jestSportemSetowym, poCzasie, wymaganeKarne } from '@/lib/turniejWynik';
 import { chwilaWPolsce } from '@/lib/czasPolski';
 import { plural, withCount } from '@/lib/plural';
 import type { Turniej, TurniejGrupa, TurniejMecz, TurniejPrzerwa, WierszTabeli } from '@/types';
@@ -38,11 +38,14 @@ export interface CentrumTurniejuProps {
   grupyPoId: ReadonlyMap<string, TurniejGrupa>;
   tabele: { grupa?: TurniejGrupa; wiersze: WierszTabeli[] }[];
   liczbaZgloszen: number;
+  liczbaAren: number;
   teraz: Date;
   /** Akcje: wywołujący zapisuje i odświeża dane panelu. */
   onRozpocznij: (m: TurniejMecz) => void;
   onGol: (m: TurniejMecz, druzynaId: string) => void;
   onZakoncz: (m: TurniejMecz) => void;
+  /** Kasuje ostatnie zdarzenie meczu (pomyłka przy „+ Gol”). */
+  onCofnij: (m: TurniejMecz) => void;
 }
 
 const karta = 'rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm';
@@ -53,16 +56,19 @@ const godzina = (m: Pick<TurniejMecz, 'zaplanowanyAt'>) =>
 
 export default function CentrumTurnieju({
   turniej, mecze, przerwy, druzynyPoId, meczePoId, arenyPoId, grupyPoId, tabele,
-  liczbaZgloszen, teraz, onRozpocznij, onGol, onZakoncz,
+  liczbaZgloszen, liczbaAren, teraz, onRozpocznij, onGol, onZakoncz, onCofnij,
 }: CentrumTurniejuProps) {
-  const c = centrumTurnieju(mecze, teraz, { najblizsze: 4, ostatnie: 6 });
+  const c = centrumTurnieju(mecze, teraz, {
+    najblizsze: 4, ostatnie: 6, liczbaAren, czasMeczuMin: turniej.czasMeczuMin,
+  });
   const nazwa = (m: TurniejMecz, s: 'a' | 'b') => nazwaSlotu(m, s, druzynyPoId, meczePoId, grupyPoId);
   const para = (m: TurniejMecz) => `${nazwa(m, 'a')} – ${nazwa(m, 'b')}`;
   const adresMeczu = (m: TurniejMecz) => `/turnieje/${turniej.id}/mecz/${m.id}`;
   // Gole jednym kliknięciem tylko tam, gdzie wynik to gole. Sety i punkty
   // koszykówki (1/2/3) prowadzi się na stronie meczu.
   const szybkieGole = !jestSportemSetowym(turniej.sport) && !jestKoszykowka(turniej.sport);
-  const nastepny = c.najblizsze.find((m) => m.druzynaAId && m.druzynaBId);
+  // Rozpocząć można tylko mecz na wolnej arenie (`doRozpoczecia`).
+  const nastepny = c.doRozpoczecia;
 
   const finalowa = Array.from(grupyPoId.values()).find((g) => g.finalowa);
   const meczeFazyKoncowej = mecze
@@ -79,12 +85,27 @@ export default function CentrumTurnieju({
       {c.naZywo.length > 0 ? c.naZywo.map((m, i) => {
         const arena = m.arenaId ? arenyPoId.get(m.arenaId) : undefined;
         const zegar = czasGry(m.rozpoczetyAt, teraz, turniej.czasMeczuMin);
+        // Po czasie gry zegar bursztynowy, nie czerwony: to informacja dla
+        // prowadzącego, nie awaria (komentarz przy `poCzasie()`).
+        const poCzasieGry = poCzasie(m.rozpoczetyAt, turniej.czasMeczuMin, teraz);
         const karne = wymaganeKarne(m.faza, m.wynikA, m.wynikB);
         return (
           <div key={m.id} className={i > 0 ? 'mt-4 border-t border-slate-100 pt-4 dark:border-slate-700' : ''}>
-            <p className={naglowek}>
-              Teraz{arena ? ` · ${arena}` : ''}{zegar ? ` · ${zegar} gry` : ''}
-            </p>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className={`${naglowek} mb-0`}>Teraz{arena ? ` · ${arena}` : ''}</p>
+              {m.rozpoczetyAt && (
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-sm font-semibold tabular-nums ${
+                    poCzasieGry
+                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                      : 'bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300'
+                  }`}
+                  title="Czas gry / czas meczu z zasad"
+                >
+                  {zegar ?? `ponad ${turniej.czasMeczuMin * 2} min`} / {turniej.czasMeczuMin}:00
+                </span>
+              )}
+            </div>
             <Link href={adresMeczu(m)} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-2">
               <span className="min-w-0 break-words font-semibold text-ink">{nazwa(m, 'a')}</span>
               <span className="font-display text-4xl font-bold tabular-nums text-ink">
@@ -123,9 +144,20 @@ export default function CentrumTurnieju({
               )}
             </div>
             {szybkieGole && (
-              <Link href={adresMeczu(m)} className="mt-2 inline-block text-xs font-medium text-slate-500 hover:text-ink dark:text-slate-400">
-                Strzelcy i kartki na stronie meczu
-              </Link>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <Link href={adresMeczu(m)} className="text-xs font-medium text-slate-500 hover:text-ink dark:text-slate-400">
+                  Strzelcy i kartki na stronie meczu
+                </Link>
+                {m.wynikA + m.wynikB > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onCofnij(m)}
+                    className="inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    <Undo2 className="h-4 w-4" aria-hidden /> Cofnij ostatnie
+                  </button>
+                )}
+              </div>
             )}
           </div>
         );
@@ -144,7 +176,7 @@ export default function CentrumTurnieju({
         </>
       ) : (
         <>
-          <p className={naglowek}>Teraz</p>
+          <p className={naglowek}>Teraz nic nie trwa</p>
           <p className="text-sm text-slate-600 dark:text-slate-300">
             {c.liczbaDoRozegrania > 0
               ? 'Kolejne mecze czekają na drużyny z poprzednich rund.'
@@ -196,6 +228,17 @@ export default function CentrumTurnieju({
 
   // ── Wymaga decyzji ───────────────────────────────────────────────────────
   const decyzje: { klucz: string; tresc: ReactNode }[] = [];
+  for (const m of c.przeciagniete) {
+    const minut = m.rozpoczetyAt ? Math.floor((teraz.getTime() - new Date(m.rozpoczetyAt).getTime()) / 60_000) : 0;
+    decyzje.push({
+      klucz: `dlugo-${m.id}`,
+      tresc: (
+        <button type="button" onClick={() => onZakoncz(m)} className="w-full text-left">
+          M{m.numer} trwa już {minut} min (czas gry {turniej.czasMeczuMin} min) · zakończ mecz
+        </button>
+      ),
+    });
+  }
   if (c.zaleglyStart) {
     const m = c.zaleglyStart;
     decyzje.push({
@@ -217,20 +260,18 @@ export default function CentrumTurnieju({
       ),
     });
   }
-  const kartaDecyzje = (
-    <section className={karta} aria-label="Wymaga decyzji">
-      <p className={naglowek}>Wymaga decyzji</p>
-      {decyzje.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">Nic nie czeka.</p>
-      ) : (
-        <ul className="space-y-2">
-          {decyzje.map((d) => (
-            <li key={d.klucz} className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-              {d.tresc}
-            </li>
-          ))}
-        </ul>
-      )}
+  // ALERTY NA GÓRZE, nie karta na dole (2026-11-21): to, co wymaga decyzji,
+  // ma być pierwszą rzeczą na ekranie, a gdy nic nie czeka, nie zajmuje
+  // miejsca. Niebieski: „wymaga decyzji” (AGENTS.md, kolorystyka).
+  const pasekAlertow = decyzje.length > 0 && (
+    <section aria-label="Wymaga decyzji" className="lg:col-span-2">
+      <ul className="flex flex-wrap gap-2">
+        {decyzje.map((d) => (
+          <li key={d.klucz} className="min-w-0 flex-1 basis-80 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+            {d.tresc}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 
@@ -299,10 +340,10 @@ export default function CentrumTurnieju({
 
   return (
     <div className="hidden gap-4 lg:mb-6 lg:grid lg:grid-cols-2 2xl:grid-cols-[1.15fr_1.9fr]">
+      {pasekAlertow}
       <div className="flex min-w-0 flex-col gap-4">
         {kartaTeraz}
         {kartaNajblizsze}
-        {kartaDecyzje}
       </div>
       {/* Od 2xl prawa część dzieli się na dwie kolumny: wyniki | grupy i finał. */}
       <div className="flex min-w-0 flex-col gap-4 2xl:grid 2xl:grid-cols-[1fr_0.9fr] 2xl:items-start">

@@ -30,7 +30,7 @@ import {
 } from '@/lib/turniejDruzyny';
 import {
   getGrupy, dodajGrupe, usunGrupe, getAreny, dodajArene, zmienNazweAreny, usunArene,
-  getMecze, zapiszTerminarz, updateMecz, rozpocznijMecz, dodajZdarzenie, zakonczMecz,
+  getMecze, zapiszTerminarz, updateMecz, rozpocznijMecz, dodajZdarzenie, zakonczMecz, cofnijOstatnieZdarzenie,
   getPrzerwy, dodajPrzerwe, zmienPrzerwe, usunPrzerwe,
 } from '@/lib/turniejMecze';
 import WierszPrzerwy from '@/components/turnieje/WierszPrzerwy';
@@ -91,7 +91,8 @@ function toCsv(kontakty: KontaktDruzyny[]): string {
 export default function PanelClient() {
   const { id } = useParams<{ id: string }>();
   const jestAdmin = useAdmin();
-  useAdresWPasku({ [id]: useAdres('turniej', id) });
+  const adresTurnieju = useAdres('turniej', id) ?? id;
+  useAdresWPasku({ [id]: adresTurnieju });
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
@@ -156,6 +157,28 @@ export default function PanelClient() {
     const t = window.setInterval(() => setTeraz(new Date()), 15_000);
     return () => window.clearInterval(t);
   }, []);
+
+  // SAMO ODŚWIEŻANIE w trakcie turnieju (2026-11-21). Wynik wpisany przez
+  // współorganizatora z telefonu ma się pojawić na laptopie bez przeładowania
+  // strony: inaczej dwa ekrany pokazują dwa różne stany. Odpytywanie, nie
+  // Realtime: tabele turnieju nie są w publikacji `supabase_realtime`, a mecz
+  // co kilkanaście minut nie potrzebuje opóźnienia poniżej 15 s. Pauza, gdy
+  // karta jest w tle albo organizator coś edytuje (podgląd terminarza,
+  // godziny): odświeżenie nie może nadpisać tego, co ma przed oczami.
+  const statusTurnieju = turniej?.status;
+  const edytuje = podglad !== null || godzinyEdycja !== null;
+  useEffect(() => {
+    if (statusTurnieju !== 'trwa' || edytuje) return;
+    const odswiez = () => {
+      if (document.visibilityState !== 'visible') return;
+      void Promise.all([getMecze(id), getDruzynyZeSkladem(id)])
+        .then(([m, d]) => { setMecze(m); setDruzyny(d); })
+        .catch(() => { /* następna próba za chwilę */ });
+    };
+    const t = window.setInterval(odswiez, 15_000);
+    document.addEventListener('visibilitychange', odswiez);
+    return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', odswiez); };
+  }, [id, statusTurnieju, edytuje]);
 
   const tabParam = searchParams.get('tab');
   // Domyślnie TERMINARZ (2026-11-20). Stary adres `?tab=pulpit` też tu trafia,
@@ -883,9 +906,23 @@ export default function PanelClient() {
 
   // ── Centrum dowodzenia (od `lg`, w trakcie turnieju) ─────────────────────
   const trwa = turniej.status === 'trwa';
-  const centrum = centrumTurnieju(mecze, teraz ?? new Date(0));
+  const centrum = centrumTurnieju(mecze, teraz ?? new Date(0), { liczbaAren: areny.length });
   const meczNaZywo = centrum.naZywo[0];
-  const nastepnyGotowy = centrum.najblizsze.find((m) => m.druzynaAId && m.druzynaBId);
+  const nastepnyGotowy = centrum.doRozpoczecia;
+
+  const cofnijAkcja = async (m: TurniejMecz) => {
+    try {
+      const cofniete = await cofnijOstatnieZdarzenie(m.id);
+      await wczytaj();
+      if (!cofniete) { toast('Nie ma czego cofnąć'); return; }
+      const kto = druzynyPoId.get(cofniete.druzynaId) ?? '';
+      const co = cofniete.typ === 'gol' ? 'gol' : cofniete.typ === 'samobojczy' ? 'gol samobójczy'
+        : cofniete.typ === 'punkty' ? 'punkty' : 'kartkę';
+      toast(`Cofnięto ${co}${kto ? `: ${kto}` : ''}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się cofnąć', 'error');
+    }
+  };
 
   const rozpocznijMeczAkcja = async (m: TurniejMecz) => {
     try { await rozpocznijMecz(m.id); await wczytaj(); toast(`M${m.numer} rozpoczęty`); }
@@ -965,6 +1002,16 @@ export default function PanelClient() {
               >
                 Strona publiczna
               </Link>
+              {/* Nowa karta: ekran idzie na rzutnik albo drugi monitor, panel
+                  zostaje na laptopie. */}
+              <a
+                href={`/turnieje/${adresTurnieju}/ekran`}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex min-h-[36px] items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800"
+              >
+                Ekran na halę
+              </a>
               {meczNaZywo ? (
                 <Link
                   href={`/turnieje/${id}/mecz/${meczNaZywo.id}`}
@@ -1020,7 +1067,9 @@ export default function PanelClient() {
             grupyPoId={grupyPoId}
             tabele={tabeleTurnieju(turniej, grupy, mecze, druzyny)}
             liczbaZgloszen={czekajace.length}
+            liczbaAren={areny.length}
             teraz={teraz}
+            onCofnij={cofnijAkcja}
             onRozpocznij={rozpocznijMeczAkcja}
             onGol={golAkcja}
             onZakoncz={zakonczMeczAkcja}
