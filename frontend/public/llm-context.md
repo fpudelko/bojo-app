@@ -481,6 +481,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-21 (2) — Panel turnieju na komputerze: wszystko na jednym ekranie
+
+PROBLEM: na komputerze panel turnieju w Bojo był kolumną szerokości telefonu na środku
+ekranu. W dniu turnieju organizator przy laptopie przełączał zakładki, żeby zobaczyć naraz
+mecz w toku, kolejne mecze, ostatnie wyniki i tabele grup.
+
+ROZWIĄZANIE BOJO: od szerokości 1024 px zakładka Terminarz w panelu turnieju w trakcie
+turnieju pokazuje obok siebie: mecz w toku (wynik, „+ Gol” dla każdej drużyny, „Zakończ
+mecz”), cztery najbliższe mecze z przerwami, „Wymaga decyzji” (mecz, który według planu
+już powinien grać; zgłoszenia drużyn), ostatnie wyniki z „Popraw”, tabele wszystkich grup
+i mecze grupy finałowej albo fazy pucharowej. Nagłówek panelu pokazuje stan turnieju,
+„X z Y meczów” i główny przycisk („Wpisz wynik M14” albo „Rozpocznij M14”). Bojo nie
+pokazuje opóźnienia względem planu: turniejem steruje klikanie organizatora, nie zegar.
+Strona turnieju na komputerze pokazuje na zakładce Mecze tabele grup w prawej kolumnie.
+Na telefonie panel i strona turnieju wyglądają jak dotąd.
+
+MECHANIKA: `components/turnieje/CentrumTurnieju.tsx`, `centrumTurnieju()` w
+`lib/turniejPulpit.ts`, `tabeleTurnieju()` w `lib/turniejTabela.ts`,
+`app/turnieje/[id]/panel/PanelClient.tsx`, `app/turnieje/[id]/TurniejClient.tsx`.
+Bez migracji. Szczegóły → [funkcje.md](./funkcje.md).
+
+PYTANIA:
+- Jak prowadzić turniej w Bojo z laptopa?
+- Czy w panelu turnieju widać tabele grup obok terminarza?
+- Czy Bojo pokazuje, o ile turniej jest spóźniony?
+- Jak wpisać gola bez wybierania strzelca?
+
 ### 2026-11-21 — Adresy turniejów i meczów z nazwą i datą zamiast uuid
 
 PROBLEM: link do turnieju i meczu w Bojo wyglądał jak `bojo.pl/turnieje/e9a3763f-7bd9-…`
@@ -689,30 +716,3 @@ MECHANIKA: migracja `170` dokłada `p_dostawca_karty` do `dolacz_do_meczu_jako_g
 karcie), `joinEventAsGuest()` w `lib/events.ts`, okno gościa w
 `app/wydarzenia/[id]/EventDetailClient.tsx`. Cena przez `priceForParticipant()`
 (`lib/payments.ts`).
-
-### 2026-09-28 (3) — Przypomnienie, zaproszenie i zwolnione miejsce dochodzą także bez powiadomień na telefonie
-
-PROBLEM: przypomnienie dzień przed meczem, zaproszenie imienne, oferta zwolnionego
-miejsca z rezerwy i przypomnienie o rozliczeniu po meczu chodziły wyłącznie dzwonkiem
-w aplikacji i pushem — na produkcji push ma 3 z 33 graczy i 2 z 9 organizatorów.
-Przypomnienie dzień przed czytało 5 z 12 osób (mediana po 19,5 h), 7 z 13 zaproszeń
-nie przeczytano wcale. Gość bez konta z podanym adresem dostawał te same rzeczy
-mailem — założenie konta paradoksalnie pogarszało dostarczalność wiadomości.
-
-ROZWIĄZANIE BOJO: te cztery rodzaje powiadomień idą teraz mailem także do kont
-Z kontem, ale WYŁĄCZNIE gdy konto nie ma żadnej aktywnej subskrypcji push — push
-zostaje kanałem podstawowym, mail jest zapasem, nie drugą kopią. Bezpiecznik
-dzienny chroni wspólny z mailami logowania limit Resend (100/dzień na darmowym
-planie): po przekroczeniu progu nowy powód jest po cichu pomijany, a cztery
-powody krytyczne (odwołanie, zmiana terminu, zmiana warunków, przywrócenie meczu)
-limitu nie mają. Ustawienia maili w profilu pokazują obie grupy osobno. Organizator
-dostaje teraz też propozycję włączenia powiadomień, po wysłaniu linku do nowego
-meczu — wcześniej ta zachęta pytała wyłącznie graczy.
-
-MECHANIKA: migracja `169` (`wyslij_mail_do_konta()` z bezpiecznikiem dziennym
-i treścią czytaną z `notifications.body`, `wyslij_mail_po_powiadomieniu()` z drugim
-warunkiem `NOT EXISTS push_subscriptions`), funkcja brzegowa `powiadom-goscia/tresc.ts`
-(cztery nowe warianty treści), `lib/ustawieniaPowiadomien.ts`
-(`RODZAJE_MAILOWE_ZAWSZE`/`RODZAJE_MAILOWE_BEZ_PUSHA`), `ZachetaPush.tsx` (prop
-`organizator`), `EventDetailClient.tsx` (`zaproponujPowiadomienia()` po `handleShare`).
-Szczegóły → [faza1-runda10-plan.md](./faza1-runda10-plan.md), Z-1, Z-1a, Z-2.

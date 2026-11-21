@@ -13,6 +13,7 @@ import PanelGaleria from '@/components/turnieje/PanelGaleria';
 import PanelSponsorzy from '@/components/turnieje/PanelSponsorzy';
 import PanelProsbaOWyglad from '@/components/turnieje/PanelProsbaOWyglad';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
+import CentrumTurnieju from '@/components/turnieje/CentrumTurnieju';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
@@ -29,7 +30,7 @@ import {
 } from '@/lib/turniejDruzyny';
 import {
   getGrupy, dodajGrupe, usunGrupe, getAreny, dodajArene, zmienNazweAreny, usunArene,
-  getMecze, zapiszTerminarz, updateMecz,
+  getMecze, zapiszTerminarz, updateMecz, rozpocznijMecz, dodajZdarzenie, zakonczMecz,
   getPrzerwy, dodajPrzerwe, zmienPrzerwe, usunPrzerwe,
 } from '@/lib/turniejMecze';
 import WierszPrzerwy from '@/components/turnieje/WierszPrzerwy';
@@ -43,8 +44,9 @@ import {
   meczeNachodzaceNaPrzerwe, przesuniecieZaPrzerwe,
 } from '@/lib/turniejEtykiety';
 import {
-  pulpitPrzedTurniejem, postepTurnieju, mozeRozpoczacTurniej,
+  pulpitPrzedTurniejem, postepTurnieju, mozeRozpoczacTurniej, centrumTurnieju,
 } from '@/lib/turniejPulpit';
+import { tabeleTurnieju } from '@/lib/turniejTabela';
 import { plural, withCount } from '@/lib/plural';
 import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz, TurniejPrzerwa } from '@/types';
 import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
@@ -144,6 +146,16 @@ export default function PanelClient() {
     // stoi nad terminarzem.
     { id?: string; wiersz?: string; nazwa: string; od: string; do: string; opis: string } | null
   >(null);
+
+  // Zegar centrum dowodzenia (od `lg`, w trakcie turnieju): czas gry meczu
+  // w toku i „miał zacząć się o…”. Ustawiany po montażu, żeby nie liczyć
+  // „teraz” w renderze (AGENTS.md, „Serwer renderuje w UTC”).
+  const [teraz, setTeraz] = useState<Date | null>(null);
+  useEffect(() => {
+    setTeraz(new Date());
+    const t = window.setInterval(() => setTeraz(new Date()), 15_000);
+    return () => window.clearInterval(t);
+  }, []);
 
   const tabParam = searchParams.get('tab');
   // Domyślnie TERMINARZ (2026-11-20). Stary adres `?tab=pulpit` też tu trafia,
@@ -869,15 +881,104 @@ export default function PanelClient() {
   const meczePoId = new Map(mecze.map((m) => [m.id, m]));
   const arenyPoId = new Map(areny.map((a) => [a.id, a.nazwa]));
 
+  // ── Centrum dowodzenia (od `lg`, w trakcie turnieju) ─────────────────────
+  const trwa = turniej.status === 'trwa';
+  const centrum = centrumTurnieju(mecze, teraz ?? new Date(0));
+  const meczNaZywo = centrum.naZywo[0];
+  const nastepnyGotowy = centrum.najblizsze.find((m) => m.druzynaAId && m.druzynaBId);
+
+  const rozpocznijMeczAkcja = async (m: TurniejMecz) => {
+    try { await rozpocznijMecz(m.id); await wczytaj(); toast(`M${m.numer} rozpoczęty`); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się rozpocząć meczu', 'error'); }
+  };
+
+  // Gol bez strzelca, jednym kliknięciem. Wynik liczy wyzwalacz (147) ze
+  // zdarzeń, więc to ten sam zapis co „GOL” na stronie meczu; strzelca można
+  // dopisać tam. Wynik na ekranie rośnie od razu, baza go potwierdza.
+  const golAkcja = async (m: TurniejMecz, druzynaId: string) => {
+    const strona = druzynaId === m.druzynaAId ? 'wynikA' : 'wynikB';
+    setMecze((lista) => lista.map((x) => (x.id === m.id ? { ...x, [strona]: x[strona] + 1 } : x)));
+    const od = m.rozpoczetyAt ? new Date(m.rozpoczetyAt).getTime() : NaN;
+    try {
+      await dodajZdarzenie(m.id, {
+        druzynaId, typ: 'gol',
+        minuta: Number.isNaN(od) ? undefined : Math.max(0, Math.floor((Date.now() - od) / 60_000)),
+      });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać gola', 'error');
+    }
+    await wczytaj();
+  };
+
+  const zakonczMeczAkcja = async (m: TurniejMecz) => {
+    const wynik = await potwierdz({
+      tytul: `Zakończyć M${m.numer}?`,
+      konsekwencje: [
+        `Wynik ${m.wynikA}:${m.wynikB} trafi do tabeli`,
+        'Pomyłkę poprawisz na stronie meczu',
+      ],
+      potwierdzLabel: 'Zakończ mecz',
+    });
+    if (wynik !== 'tak') return;
+    try { await zakonczMecz(m.id); await wczytaj(); toast(`M${m.numer} zakończony`); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się zakończyć meczu', 'error'); }
+  };
+
+  const zmienGodzinyZPaska = () => {
+    if (zakladka !== 'terminarz') router.push(`/turnieje/${id}/panel?tab=terminarz`);
+    zacznijEdycjeGodzin();
+    window.setTimeout(() => document.getElementById('terminarz')?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header />
       <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3 lg:max-w-6xl lg:px-6 2xl:max-w-7xl">
           <button onClick={() => router.push(`/turnieje/${id}`)} aria-label="Wróć" className="shrink-0 text-slate-500 hover:text-ink">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">Panel: {turniej.nazwa}</h1>
+          {/* PASEK STANU od `lg` (2026-11-21): gdzie jesteśmy i co kliknąć
+              teraz, niezależnie od zakładki. Na telefonie postęp stoi nad
+              terminarzem, a pasek nie zmieściłby się obok nazwy. Bez
+              „opóźnienia”: decyzja właściciela z 2026-11-08. */}
+          {trwa && (
+            <div className="hidden shrink-0 items-center gap-3 lg:flex">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 dark:bg-primary-950/50 dark:text-primary-300">
+                <span className="h-2 w-2 rounded-full bg-primary-600" aria-hidden /> Turniej trwa
+              </span>
+              {postep.wszystkie > 0 && (
+                <span className="text-sm text-slate-600 dark:text-slate-300">
+                  <span className="font-display text-lg font-bold tabular-nums text-ink">{postep.rozegrane}</span>
+                  {' '}z {withCount(postep.wszystkie, 'meczu', 'meczów', 'meczów')}
+                </span>
+              )}
+              {mecze.length > 0 && (
+                <Button size="sm" variant="outline" onClick={zmienGodzinyZPaska}>
+                  {areny.length > 1 ? 'Zmień godziny i areny' : 'Zmień godziny'}
+                </Button>
+              )}
+              <Link
+                href={`/turnieje/${id}`}
+                className="inline-flex min-h-[36px] items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800"
+              >
+                Strona publiczna
+              </Link>
+              {meczNaZywo ? (
+                <Link
+                  href={`/turnieje/${id}/mecz/${meczNaZywo.id}`}
+                  className="inline-flex min-h-[36px] items-center rounded-xl bg-primary-600 px-3 text-sm font-semibold text-white hover:bg-primary-700"
+                >
+                  Wpisz wynik M{meczNaZywo.numer}
+                </Link>
+              ) : nastepnyGotowy ? (
+                <Button size="sm" onClick={() => rozpocznijMeczAkcja(nastepnyGotowy)}>
+                  Rozpocznij M{nastepnyGotowy.numer}
+                </Button>
+              ) : null}
+            </div>
+          )}
         </div>
         {/* Cień przy prawej krawędzi. Bez niego pasek kończył się uciętym
             „Us…" i nic nie mówiło, że da się go przesunąć, a za krawędzią
@@ -886,7 +987,7 @@ export default function PanelClient() {
             w całości i cień kłamałby o istnieniu dalszej treści. */}
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-canvas to-transparent md:hidden" />
-          <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
+          <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide lg:max-w-6xl lg:px-6 2xl:max-w-7xl">
           {(['terminarz', 'druzyny', 'ustawienia'] as PanelTab[]).map((z) => (
             <button
               key={z}
@@ -903,7 +1004,31 @@ export default function PanelClient() {
         </div>
       </div>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-5">
+      {/* SZEROKI PANEL od `lg` (2026-11-21): przy 1440 px kolumna 640 px
+          zostawiała ponad połowę ekranu pustą. Szeroko jest tylko to, co
+          z szerokości korzysta (centrum dowodzenia w trakcie turnieju);
+          formularze Drużyn i Ustawień zostają w czytelnej kolumnie. */}
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5 lg:max-w-6xl lg:px-6 2xl:max-w-7xl">
+        {zakladka === 'terminarz' && trwa && teraz && mecze.length > 0 && (
+          <CentrumTurnieju
+            turniej={turniej}
+            mecze={mecze}
+            przerwy={przerwy}
+            druzynyPoId={druzynyPoId}
+            meczePoId={meczePoId}
+            arenyPoId={arenyPoId}
+            grupyPoId={grupyPoId}
+            tabele={tabeleTurnieju(turniej, grupy, mecze, druzyny)}
+            liczbaZgloszen={czekajace.length}
+            teraz={teraz}
+            onRozpocznij={rozpocznijMeczAkcja}
+            onGol={golAkcja}
+            onZakoncz={zakonczMeczAkcja}
+          />
+        )}
+        {/* Pod centrum dowodzenia pełny terminarz stoi pod jego lewą kolumną,
+            nie na środku: inaczej wisiał między dwiema kolumnami. */}
+        <div className={`mx-auto w-full max-w-2xl space-y-5 lg:max-w-3xl ${trwa && mecze.length > 0 ? 'lg:mx-0' : ''}`}>
         {/* STAN TURNIEJU NAD TERMINARZEM (dawny „Pulpit”, 2026-11-20): próba,
             „Rozpocznij / Przetestuj”, braki przed startem, postęp w trakcie.
             Listy „Wpisz wynik” już nie ma: terminarz pod spodem jest tą listą. */}
@@ -911,7 +1036,7 @@ export default function PanelClient() {
           <div className="space-y-4">
             {/* Pierwsza rzecz w terminarzu: ile już rozegrano (2026-11-20). */}
             {postep.wszystkie > 0 && (
-              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+              <div className={`rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm ${trwa ? 'lg:hidden' : ''}`}>
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   Rozegrane <span className="font-display text-lg font-bold text-ink">{postep.rozegrane}</span>
                   {' '}z {withCount(postep.wszystkie, 'meczu', 'meczów', 'meczów')}
@@ -973,7 +1098,7 @@ export default function PanelClient() {
                     </Link>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4">
+                  <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4 lg:hidden">
                     <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
                       <span className="inline-block h-2 w-2 rounded-full bg-primary-600" /> Turniej trwa
                     </p>
@@ -1215,7 +1340,12 @@ export default function PanelClient() {
         )}
 
         {zakladka === 'terminarz' && (
-          <div className="space-y-6">
+          <div id="terminarz" className="scroll-mt-32 space-y-6">
+            {trwa && mecze.length > 0 && (
+              <h2 className="hidden font-display text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 lg:block">
+                Cały terminarz
+              </h2>
+            )}
             <div className="space-y-3">
 
               {podglad ? (
@@ -1781,7 +1911,7 @@ export default function PanelClient() {
             </div>
           </div>
         )}
-
+        </div>
       </main>
       {/* Przyklejony do dołu, nad dolną nawigacją: widać go niezależnie od
           tego, które pole się zmieniło. */}

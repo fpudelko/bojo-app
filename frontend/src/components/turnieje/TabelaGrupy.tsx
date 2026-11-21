@@ -16,9 +16,15 @@ export interface TabelaGrupyProps {
    * każdej grupie czytałby się jak informacja o tej jednej grupie.
    */
   awansujeZGrupy?: number;
+  /**
+   * Same M, B i Pkt (panel organizatora na komputerze, 2026-11-21): tabele
+   * wszystkich grup stoją tam w wąskiej kolumnie obok terminarza, a o awansie
+   * decydują punkty i bilans. Z/R/P są na stronie turnieju.
+   */
+  kompakt?: boolean;
 }
 
-export default function TabelaGrupy({ wiersze, awansujeZGrupy }: TabelaGrupyProps) {
+export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt }: TabelaGrupyProps) {
   if (wiersze.length === 0) {
     return <p className="py-6 text-center text-sm text-slate-400">Jeszcze żaden mecz nie został rozegrany.</p>;
   }
@@ -36,9 +42,9 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy }: TabelaGrupyProp
             <th className="px-2 py-2 text-left font-medium">#</th>
             <th className="px-2 py-2 text-left font-medium">Drużyna</th>
             <th className="px-1.5 py-2 text-center font-medium" title="Mecze">M</th>
-            <th className="px-1.5 py-2 text-center font-medium" title="Zwycięstwa">Z</th>
-            <th className="px-1.5 py-2 text-center font-medium" title="Remisy">R</th>
-            <th className="px-1.5 py-2 text-center font-medium" title="Porażki">P</th>
+            {!kompakt && <th className="px-1.5 py-2 text-center font-medium" title="Zwycięstwa">Z</th>}
+            {!kompakt && <th className="px-1.5 py-2 text-center font-medium" title="Remisy">R</th>}
+            {!kompakt && <th className="px-1.5 py-2 text-center font-medium" title="Porażki">P</th>}
             <th className="px-1.5 py-2 text-center font-medium" title="Bilans bramek">B</th>
             <th className="px-2 py-2 text-center font-medium" title="Punkty">Pkt</th>
           </tr>
@@ -63,14 +69,14 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy }: TabelaGrupyProp
               >
                 {i + 1}
               </td>
-              <td className="min-w-0 max-w-[9rem] break-words px-2 py-2.5 font-medium leading-5 text-ink">
+              <td className={`min-w-0 ${kompakt ? '' : 'max-w-[9rem]'} break-words px-2 py-2.5 font-medium leading-5 text-ink`}>
                 {w.nazwa}
                 {w.rozstrzygnietyRecznie && <span className="ml-1 text-xs text-slate-400" title="Pozycja ustawiona ręcznie">*</span>}
               </td>
               <td className="px-1.5 py-2 text-center text-slate-600 dark:text-slate-300">{w.mecze}</td>
-              <td className="px-1.5 py-2 text-center text-slate-600 dark:text-slate-300">{w.wygrane}</td>
-              <td className="px-1.5 py-2 text-center text-slate-600 dark:text-slate-300">{w.remisy}</td>
-              <td className="px-1.5 py-2 text-center text-slate-600 dark:text-slate-300">{w.przegrane}</td>
+              {!kompakt && <td className="px-1.5 py-2 text-center text-slate-600 dark:text-slate-300">{w.wygrane}</td>}
+              {!kompakt && <td className="px-1.5 py-2 text-center text-slate-600 dark:text-slate-300">{w.remisy}</td>}
+              {!kompakt && <td className="px-1.5 py-2 text-center text-slate-600 dark:text-slate-300">{w.przegrane}</td>}
               <td className="px-1.5 py-2 text-center text-slate-600 dark:text-slate-300">
                 {w.bramkiZdobyte}:{w.bramkiStracone}
               </td>

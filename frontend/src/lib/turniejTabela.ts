@@ -3,7 +3,7 @@
 // drogą do tych samych danych (widok SQL czytałby tabele wprost, z pominięciem
 // polityk nałożonych na `turniej_mecze`/`turniej_druzyny`).
 import { plural } from './plural';
-import type { TurniejMecz, WierszTabeli } from '@/types';
+import type { Turniej, TurniejGrupa, TurniejMecz, WierszTabeli } from '@/types';
 
 export interface OpcjeTabeli {
   punktyZaWygrana: number;
@@ -133,4 +133,46 @@ export function opisAwansu(
   const liczba = awansujeZGrupy === 1 ? 'Pierwsze' : `Pierwsze ${awansujeZGrupy}`;
   const cel = dokad === 'grupa_finalowa' ? 'do grupy finałowej' : 'do fazy pucharowej';
   return `${liczba} ${miejsca} w grupie ${awansuja} ${cel}`;
+}
+
+/**
+ * Tabele wszystkich grup turnieju (albo jedna tabela ligi) w kolejności grup.
+ * Wspólne dla strony turnieju i panelu organizatora (2026-11-21): panel na
+ * komputerze pokazuje tabele obok terminarza, a dwie kopie tego samego
+ * liczenia rozjechałyby się przy pierwszej zmianie reguł grupy finałowej.
+ *
+ * Grupa finałowa (175) nie ma przypisanych drużyn: grają w niej ci, których
+ * baza wpisała do jej meczów po rozstrzygnięciu grup.
+ */
+export function tabeleTurnieju(
+  turniej: Pick<Turniej, 'format' | 'punktyZaWygrana' | 'punktyZaRemis'>,
+  grupy: readonly TurniejGrupa[],
+  mecze: readonly TurniejMecz[],
+  druzyny: readonly { id: string; nazwa: string; grupaId?: string; pozycjaRecznie?: number }[],
+): { grupa?: TurniejGrupa; wiersze: WierszTabeli[] }[] {
+  const meczeGrupowe = mecze.filter((m) => m.faza === 'grupa' || m.faza === 'liga');
+  const pozycjeReczne = new Map(
+    druzyny.filter((d) => d.pozycjaRecznie !== undefined).map((d) => [d.id, d.pozycjaRecznie!]),
+  );
+  const opcje = { punktyZaWygrana: turniej.punktyZaWygrana, punktyZaRemis: turniej.punktyZaRemis };
+  if (grupy.length > 0) {
+    return grupy.map((g) => ({
+      grupa: g,
+      wiersze: posortujTabele(
+        obliczTabele(
+          meczeGrupowe.filter((m) => m.grupaId === g.id),
+          g.finalowa
+            ? druzyny.filter((d) => meczeGrupowe.some(
+                (m) => m.grupaId === g.id && (m.druzynaAId === d.id || m.druzynaBId === d.id)))
+            : druzyny.filter((d) => d.grupaId === g.id),
+          opcje,
+        ),
+        pozycjeReczne,
+      ),
+    }));
+  }
+  if (meczeGrupowe.length > 0 || turniej.format === 'liga') {
+    return [{ grupa: undefined, wiersze: posortujTabele(obliczTabele(meczeGrupowe, druzyny, opcje), pozycjeReczne) }];
+  }
+  return [];
 }

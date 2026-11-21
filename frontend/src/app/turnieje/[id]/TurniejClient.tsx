@@ -24,7 +24,7 @@ import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju, getPrzerwy } from '
 import WierszPrzerwy from '@/components/turnieje/WierszPrzerwy';
 import { chwilaWPolsce } from '@/lib/czasPolski';
 import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy, etykietaTerminuMeczu, porownajTermin, terminarzZPrzerwami } from '@/lib/turniejEtykiety';
-import { obliczTabele, posortujTabele, opisAwansu } from '@/lib/turniejTabela';
+import { opisAwansu, tabeleTurnieju } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
 import { getZdjecia, getSponsorzy } from '@/lib/turniejGaleria';
@@ -313,29 +313,7 @@ export default function TurniejClient() {
     .filter((m) => !rozegrany(m))
     .sort((a, b) => (a.status === 'trwa' ? -1 : b.status === 'trwa' ? 1 : porownajTermin(a, b)));
   const meczeRozegrane = meczeNaLiscie.filter(rozegrany).sort((a, b) => porownajTermin(b, a));
-  const pozycjeReczne = new Map(
-    druzyny.filter((d) => d.pozycjaRecznie !== undefined).map((d) => [d.id, d.pozycjaRecznie!]),
-  );
-  const opcjeTabeli = { punktyZaWygrana: turniej.punktyZaWygrana, punktyZaRemis: turniej.punktyZaRemis };
-  const tabeleGrup: { grupa?: TurniejGrupa; wiersze: ReturnType<typeof posortujTabele> }[] =
-    grupy.length > 0
-      ? grupy.map((g) => ({
-          grupa: g,
-          wiersze: posortujTabele(
-            obliczTabele(
-              meczeGrupowe.filter((m) => m.grupaId === g.id),
-              g.finalowa
-                ? druzyny.filter((d) => meczeGrupowe.some(
-                    (m) => m.grupaId === g.id && (m.druzynaAId === d.id || m.druzynaBId === d.id)))
-                : druzyny.filter((d) => d.grupaId === g.id),
-              opcjeTabeli,
-            ),
-            pozycjeReczne,
-          ),
-        }))
-      : meczeGrupowe.length > 0 || turniej.format === 'liga'
-        ? [{ grupa: undefined, wiersze: posortujTabele(obliczTabele(meczeGrupowe, druzyny, opcjeTabeli), pozycjeReczne) }]
-        : [];
+  const tabeleGrup = tabeleTurnieju(turniej, grupy, mecze, druzyny);
 
   // Drużyny pogrupowane tak, jak realnie grają. „Bez grupy" zbiera te, których
   // losowanie jeszcze nie dotknęło albo których turniej nie ma grup wcale.
@@ -513,11 +491,20 @@ export default function TurniejClient() {
     }
   };
 
+  // DWIE KOLUMNY OD `lg` na zakładce Mecze (2026-11-21): terminarz po lewej,
+  // tabele grup przyklejone po prawej. Na komputerze kibic i organizator
+  // widzą skutek wyniku w tabeli bez przełączania zakładek. Na telefonie bez
+  // zmian: jedna kolumna i osobna zakładka Tabele (z drabinką, która zostaje
+  // tam też na komputerze). Pozostałe zakładki trzymają wąską kolumnę, bo
+  // tekst i formularze na 1100 px czyta się gorzej.
+  const dwieKolumny = aktywna === 'mecze' && tabeleGrup.length > 0;
+  const szerokosc = dwieKolumny ? 'max-w-2xl lg:max-w-6xl lg:px-6' : 'max-w-2xl';
+
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header />
       <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+        <div className={`mx-auto flex ${szerokosc} items-center gap-3 px-4 py-3`}>
           <button onClick={wstecz} aria-label="Wróć" className="-ml-3 flex h-11 w-11 shrink-0 items-center justify-center text-slate-500 hover:text-ink">
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -530,7 +517,7 @@ export default function TurniejClient() {
             </Link>
           )}
         </div>
-        <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide">
+        <div className={`mx-auto flex ${szerokosc} gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide`}>
           {widoczneZakladki.map((z) => (
             <button
               key={z}
@@ -547,7 +534,7 @@ export default function TurniejClient() {
         </div>
       </div>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 py-5">
+      <main className={`mx-auto w-full ${szerokosc} flex-1 space-y-4 px-4 py-5`}>
         {turniej.status === 'szkic' && uprawnienia.mozeEdytowac && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-sm text-amber-800 dark:text-amber-300">
             Ten turniej jest szkicem: nie ma go na liście turniejów, ale każdy, kto ma link, go zobaczy.
@@ -977,7 +964,8 @@ export default function TurniejClient() {
         )}
 
         {aktywna === 'mecze' && (
-          <div className="space-y-4">
+          <div className={dwieKolumny ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6' : ''}>
+          <div className="min-w-0 space-y-4">
             {mojaDruzyna && naszychMeczow > 0 && (
               <div className="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
                 {([true, false] as const).map((nasze) => (
@@ -1067,6 +1055,36 @@ export default function TurniejClient() {
                 )}
               </div>
             )}
+          </div>
+          {dwieKolumny && (
+            <aside
+              aria-label="Tabele"
+              className="hidden space-y-3 lg:sticky lg:top-36 lg:block lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto"
+            >
+              {legendaAwansu && (
+                <p className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                  <span className="h-3 w-[3px] shrink-0 rounded-full bg-primary-600" aria-hidden />
+                  {legendaAwansu}
+                </p>
+              )}
+              {tabeleGrup.filter(({ grupa, wiersze }) => !grupa?.finalowa || wiersze.length > 0).map(({ grupa, wiersze }) => (
+                <div key={grupa?.id ?? 'liga'} className="space-y-1.5">
+                  {grupa && (
+                    <h2 className="font-display text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Grupa {grupa.nazwa}{grupa.finalowa ? ' (finałowa)' : ''}
+                    </h2>
+                  )}
+                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa && !grupa.finalowa ? turniej.awansujeZGrupy : undefined} />
+                </div>
+              ))}
+              <button
+                onClick={() => router.push(`/turnieje/${id}?tab=tabela`)}
+                className="text-sm font-medium text-primary-600"
+              >
+                {meczeDrabinki.length > 0 ? 'Drabinka i mecze grup' : 'Mecze grup'}
+              </button>
+            </aside>
+          )}
           </div>
         )}
 

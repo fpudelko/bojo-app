@@ -136,3 +136,79 @@ export function mozeRozpoczacTurniej(
 ): boolean {
   return (t.status === 'zapisy' || t.status === 'zamkniete_zapisy') && mecze.length > 0;
 }
+
+/**
+ * „Centrum dowodzenia" w dniu turnieju na komputerze (2026-11-21): co trwa,
+ * co następne, co już rozegrane i czy coś czeka na decyzję. Panel na
+ * telefonie pokazuje to samo jako jedną listę terminarza; od `lg` te same
+ * dane stoją obok siebie, żeby organizator przy laptopie nie przełączał
+ * zakładek co mecz.
+ *
+ * Czyste: „teraz" przychodzi z zewnątrz, jak w reszcie tego pliku.
+ *
+ * BEZ „OPÓŹNIENIA" (decyzja właściciela z 2026-11-08, patrz `postepTurnieju`).
+ * Jedyne, co tu wynika z zegara, to wskazanie meczu, który WEDŁUG PLANU już
+ * powinien grać, a nikt go nie rozpoczął. To pytanie o decyzję („rozpocząć?"),
+ * nie wyrzut o obsuwę, i znika przy pierwszym trwającym meczu.
+ */
+export interface CentrumTurnieju<T> {
+  /** Mecze w toku (zwykle jeden; przy kilku arenach więcej). */
+  naZywo: T[];
+  /** Kolejne mecze do rozegrania, po terminie, bez wolnych losów. */
+  najblizsze: T[];
+  /** Ostatnio rozstrzygnięte, od najświeższego. */
+  ostatnie: T[];
+  /** Ile rozstrzygniętych łącznie (do „Wszystkie rozegrane (n)"). */
+  liczbaRozegranych: number;
+  /** Ile nierozegranych łącznie (do „Cały terminarz (n)"). */
+  liczbaDoRozegrania: number;
+  /** Mecz, który według planu już powinien trwać, gdy nic nie trwa. */
+  zaleglyStart: T | null;
+}
+
+type MeczCentrum = Pick<
+  TurniejMecz,
+  'status' | 'numer' | 'zaplanowanyAt' | 'zakonczonyAt' | 'druzynaAId' | 'druzynaBId'
+>;
+
+export function centrumTurnieju<T extends MeczCentrum>(
+  mecze: readonly T[],
+  teraz: Date,
+  opcje: { najblizsze?: number; ostatnie?: number } = {},
+): CentrumTurnieju<T> {
+  // Wolny los (171): nikt w nim nie gra, więc nie jest ani następnym meczem,
+  // ani wynikiem. Ta sama reguła co na stronie publicznej.
+  const prawdziwe = mecze.filter((m) => !(m.status === 'walkower' && (!m.druzynaAId || !m.druzynaBId)));
+  const naZywo = prawdziwe.filter((m) => m.status === 'trwa').sort(porownajTerminMeczu);
+  const doRozegrania = prawdziwe.filter((m) => m.status === 'zaplanowany').sort(porownajTerminMeczu);
+  const rozegrane = prawdziwe
+    .filter((m) => m.status === 'zakonczony' || m.status === 'walkower')
+    // Od NAJŚWIEŻSZEGO zakończenia, nie od godziny w planie: „Popraw” jest
+    // dla meczu, który właśnie wpisano, a ten bywa rozegrany poza kolejnością.
+    .sort((a, b) => (b.zakonczonyAt ?? b.zaplanowanyAt ?? '').localeCompare(a.zakonczonyAt ?? a.zaplanowanyAt ?? '')
+      || b.numer - a.numer);
+
+  const pierwszyGotowy = doRozegrania.find((m) => m.druzynaAId && m.druzynaBId);
+  const zaleglyStart = naZywo.length === 0 && pierwszyGotowy?.zaplanowanyAt
+    && new Date(pierwszyGotowy.zaplanowanyAt).getTime() <= teraz.getTime()
+    ? pierwszyGotowy
+    : null;
+
+  return {
+    naZywo,
+    najblizsze: doRozegrania.slice(0, opcje.najblizsze ?? 4),
+    ostatnie: rozegrane.slice(0, opcje.ostatnie ?? 4),
+    liczbaRozegranych: rozegrane.length,
+    liczbaDoRozegrania: doRozegrania.length,
+    zaleglyStart,
+  };
+}
+
+function porownajTerminMeczu(a: MeczCentrum, b: MeczCentrum): number {
+  if (a.zaplanowanyAt && b.zaplanowanyAt && a.zaplanowanyAt !== b.zaplanowanyAt) {
+    return a.zaplanowanyAt < b.zaplanowanyAt ? -1 : 1;
+  }
+  if (a.zaplanowanyAt && !b.zaplanowanyAt) return -1;
+  if (!a.zaplanowanyAt && b.zaplanowanyAt) return 1;
+  return a.numer - b.numer;
+}
