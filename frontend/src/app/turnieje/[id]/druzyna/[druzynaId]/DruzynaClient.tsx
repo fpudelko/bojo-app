@@ -34,7 +34,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
-import { useWstecz } from '@/lib/historia';
+import ZakladkiTurnieju from '@/components/turnieje/ZakladkiTurnieju';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { getTurniej, getBlikTurnieju } from '@/lib/turnieje';
 import {
@@ -59,7 +59,10 @@ export default function DruzynaClient() {
   const jestAdmin = useAdmin();
   useAdresWPasku({ [id]: useAdres('turniej', id) });
   const router = useRouter();
-  const wstecz = useWstecz(`/turnieje/${id}?tab=druzyny`);
+  // Wstecz ZAWSZE na turniej (decyzja właściciela z 2026-11-21), jak na
+  // stronie meczu; pozostałe zakładki turnieju są w pasku pod strzałką.
+  const adresTurnieju = useAdres('turniej', id) ?? id;
+  const wstecz = () => router.push(`/turnieje/${adresTurnieju}?tab=druzyny`);
   const { user, loading: ladujeSesje } = useAuth();
   const { toast } = useToast();
   const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
@@ -300,9 +303,10 @@ export default function DruzynaClient() {
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header />
       <main className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 py-6">
-        <button onClick={wstecz} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Wróć
+        <button onClick={wstecz} className="inline-flex min-h-[44px] items-center gap-1.5 text-sm text-slate-500 hover:text-ink transition-colors">
+          <ArrowLeft className="h-4 w-4" /> {turniej?.nazwa ?? 'Turniej'}
         </button>
+        {turniej && <div className="-mx-4 -mt-2"><ZakladkiTurnieju adres={adresTurnieju} format={turniej.format} /></div>}
 
         <div>
           <div className="flex items-start gap-2">

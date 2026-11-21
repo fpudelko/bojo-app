@@ -5066,6 +5066,16 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
 - Zadania przed przekazaniem turnieju: `supabase/zadania/turnieje-usun-poza-marysia.sql`
   (usuwa wszystkie turnieje poza `e9a3763f…`) i `supabase/zadania/turniej-marysi-wyzeruj-wyniki.sql`
   (mecze z powrotem „zaplanowane”, bez zdarzeń; drużyny, terminarz i przerwy zostają).
+- **Rozegrany mecz jednym wierszem (2026-11-21):** na zakładkach Mecze i Tabele mecz
+  zakończony albo walkower to `components/turnieje/WierszWyniku.tsx`: znacznik grupy albo fazy
+  (`znacznikFazy()`: „A”, „½”, „Finał”), drużyny i wynik. Dotknięcie rozwija strzelców
+  (`strzelcyMeczu()`, samobój dla rywala; bez nazwiska dla niezalogowanego), termin, boisko
+  i „Szczegóły meczu”. Mecz przed nami i na żywo zostaje pełną `KartaMeczu`.
+- **Strona meczu i ekran drużyny: wstecz na turniej (2026-11-21).** Strzałka prowadzi zawsze
+  na stronę turnieju (`?tab=mecze` / `?tab=druzyny`), a pod nagłówkiem jest pasek zakładek
+  turnieju (`components/turnieje/ZakladkiTurnieju.tsx`, podpisy z `etykietaZakladkiTurnieju()`).
+  Świadomy wyjątek od zasady `useWstecz()` z AGENTS.md: decyzja właściciela, bo z panelu
+  albo z powiadomienia „wstecz” prowadziło nie tam, gdzie czytający chciał wrócić.
 - Jednorazowe zadanie `supabase/zadania/turniej-marysi-organizator.sql`: organizator,
   kapitan z drugiego konta i regulamin turnieju pokazowego do testu wpisywania wyników.
 
