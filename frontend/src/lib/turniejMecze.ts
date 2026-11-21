@@ -9,7 +9,11 @@ import type { TurniejArena, TurniejGrupa, TurniejMecz, TurniejPrzerwa, TurniejZd
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toGrupa(row: any): TurniejGrupa {
-  return { id: row.id, turniejId: row.turniej_id, nazwa: row.nazwa, finalowa: row.finalowa === true };
+  return {
+    id: row.id, turniejId: row.turniej_id, nazwa: row.nazwa, finalowa: row.finalowa === true,
+    komentarz: (row.komentarz as string | null | undefined)?.trim() || undefined,
+    kolejnoscReczna: Array.isArray(row.kolejnosc_reczna) && row.kolejnosc_reczna.length > 0 ? (row.kolejnosc_reczna as string[]) : undefined,
+  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,6 +76,27 @@ export async function getGrupy(turniejId: string): Promise<TurniejGrupa[]> {
     .order('nazwa');
   if (error) throw new Error(error.message);
   return (data ?? []).map(toGrupa);
+}
+
+/** Komentarz pod tabelą grupy (179). Pusty tekst czyści komentarz. */
+export async function ustawKomentarzGrupy(grupaId: string, komentarz: string): Promise<void> {
+  const { error } = await supabase.from('turniej_grupy')
+    .update({ komentarz: komentarz.trim() || null }).eq('id', grupaId);
+  if (error) {
+    if (/komentarz/.test(error.message)) throw new Error('Komentarz zadziała po migracji 179.');
+    throw new Error(error.message);
+  }
+}
+
+/** Kolejność drużyn w grupie ustalona przez organizatora (179); `null`
+ *  wraca do kolejności liczonej. Baza od razu przelicza miejsca z grupy. */
+export async function ustawKolejnoscGrupy(grupaId: string, kolejnosc: string[] | null): Promise<void> {
+  const { error } = await supabase.from('turniej_grupy')
+    .update({ kolejnosc_reczna: kolejnosc && kolejnosc.length > 0 ? kolejnosc : null }).eq('id', grupaId);
+  if (error) {
+    if (/kolejnosc_reczna/.test(error.message)) throw new Error('Kolejność zadziała po migracji 179.');
+    throw new Error(error.message);
+  }
 }
 
 export async function dodajGrupe(turniejId: string, nazwa: string, finalowa = false): Promise<TurniejGrupa> {

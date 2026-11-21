@@ -765,6 +765,10 @@ export interface TurniejGrupa {
   /** Grupa finałowa (175): drużyny trafiają do niej z innych grup przez mecze,
    *  nie przez `TurniejDruzyna.grupaId`. */
   finalowa?: boolean;
+  /** Zdanie organizatora pod tabelą grupy (179), np. jak rozstrzygnięto remis. */
+  komentarz?: string;
+  /** Kolejność drużyn ustalona przez organizatora (179); bije liczoną. */
+  kolejnoscReczna?: string[];
 }
 
 export interface TurniejArena {

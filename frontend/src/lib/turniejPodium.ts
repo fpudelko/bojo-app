@@ -14,11 +14,14 @@
  */
 
 import type { MeczFaza, TurniejMecz, WierszTabeli } from '@/types';
+import { miejscaWTabeli } from './turniejTabela';
 
 export interface MiejsceNaPodium {
   miejsce: 1 | 2 | 3;
   druzynaId: string;
   nazwa: string;
+  /** Miejsce dzielone z inną drużyną (remis w tabeli, 2026-11-21). */
+  exAequo?: boolean;
 }
 
 const MEDALE: Record<1 | 2 | 3, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
@@ -66,13 +69,20 @@ function podiumZDrabinki(
   return podium;
 }
 
-/** Podium z tabeli — dla ligi i dla turnieju, który nie doszedł do drabinki. */
+/** Podium z tabeli — dla ligi i dla turnieju, który nie doszedł do drabinki.
+ *  Remis w tabeli daje miejsce ex aequo (`miejscaWTabeli()`): trzy drużyny
+ *  z tym samym bilansem to trzy złote medale, nie złoto dla pierwszej
+ *  alfabetycznie. Organizator rozstrzyga ręczną pozycją w panelu. */
 function podiumZTabeli(tabela: readonly WierszTabeli[]): MiejsceNaPodium[] {
-  return tabela.slice(0, 3).map((w, i) => ({
-    miejsce: (i + 1) as 1 | 2 | 3,
-    druzynaId: w.druzynaId,
-    nazwa: w.nazwa,
-  }));
+  const miejsca = miejscaWTabeli(tabela);
+  return tabela
+    .map((w, i) => ({
+      miejsce: miejsca[i] as 1 | 2 | 3,
+      druzynaId: w.druzynaId,
+      nazwa: w.nazwa,
+      exAequo: miejsca.filter((m) => m === miejsca[i]).length > 1,
+    }))
+    .filter((m) => m.miejsce <= 3);
 }
 
 /**
@@ -103,7 +113,7 @@ export function tekstPodium(
   krolStrzelcow?: { imie: string; gole: number },
 ): string {
   const linie = [`🏆 Wyniki: ${nazwaTurnieju}`, ''];
-  for (const m of podium) linie.push(`${medal(m.miejsce)} ${m.nazwa}`);
+  for (const m of podium) linie.push(`${medal(m.miejsce)} ${m.nazwa}${m.exAequo ? ' (ex aequo)' : ''}`);
   if (krolStrzelcow && krolStrzelcow.gole > 0) {
     linie.push('', `👟 Król strzelców: ${krolStrzelcow.imie} (${krolStrzelcow.gole})`);
   }

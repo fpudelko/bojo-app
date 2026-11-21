@@ -5075,6 +5075,15 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   pokazuje wyłącznie wpisanych strzelców (gol bez strzelca jest pomijany), a sekcja
   „Statystyki graczy” na zakładce Mecze pojawia się dopiero, gdy ktoś wpisał strzelca albo
   zawodnika meczu.
+- **Remis w tabeli (2026-11-21, migracja `179`):** drużyny z tymi samymi punktami, różnicą
+  i bramkami zdobytymi mają w tabeli ten sam numer miejsca (`miejscaWTabeli()`) z dopiskiem pod
+  tabelą, a podium z tabeli (liga, grupa finałowa) daje im ten sam medal z „ex aequo”
+  (`podiumZTabeli()`, też w tekście udostępnienia). Panel → Drużyny → „Remis w tabeli”: karta
+  przy grupie z remisem; organizator przestawia drużyny strzałkami i dopisuje komentarz
+  pokazywany pod tabelą (`ustawKolejnoscGrupy()`, `ustawKomentarzGrupy()`). Kolejność bije
+  liczoną także w bazie, więc grupa finałowa i drabinka dostają drużyny w tej kolejności.
+  Wspólne liczenie tabel: `tabeleGrupTurnieju()` w `lib/turniejTabela.ts`. Liga bez grup nie ma
+  gdzie zapisać kolejności (brak wiersza w `turniej_grupy`).
 - **Tabele: „Wyniki i terminarz” pod tabelą grupy (2026-11-21):** rozwijana lista pod każdą
   tabelą grupy (poza grupą finałową) ma dziś rozegrane I najbliższe mecze grupy, po godzinie
   (`porownajTermin`); wcześniej „Pokaż wyniki (N)” pokazywało tylko rozegrane.

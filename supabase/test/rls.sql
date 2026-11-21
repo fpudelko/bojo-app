@@ -1983,6 +1983,38 @@ SELECT _oczekuj('współorganizator zmienia ustawienia turnieju',
                 (SELECT count(*) FROM turnieje WHERE id = :WO_T::uuid AND nazwa = 'Zmienione przez współorganizatora'), 1);
 DELETE FROM turnieje WHERE id = :WO_T::uuid;
 
+SELECT _sekcja('Remis w tabeli: kolejność organizatora (migracja 179)');
+\set RT_T '''ffffffff-0000-4000-8000-0000000001d1'''
+\set RT_G '''ffffffff-0000-4000-8000-0000000001d2'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:RT_T::uuid, :ORGANIZATOR::uuid, 'Remis do testów', 'piłka nożna', 'trwa', CURRENT_DATE);
+INSERT INTO turniej_grupy (id, turniej_id, nazwa) VALUES (:RT_G::uuid, :RT_T::uuid, 'A');
+INSERT INTO turniej_druzyny (id, turniej_id, nazwa, status, dodana_recznie, grupa_id) VALUES
+  ('ffffffff-0000-4000-8000-0000000001e1', :RT_T::uuid, 'Alfa', 'przyjeta', true, :RT_G::uuid),
+  ('ffffffff-0000-4000-8000-0000000001e2', :RT_T::uuid, 'Beta', 'przyjeta', true, :RT_G::uuid);
+-- Remis 1:1, czyli identyczny bilans; zwycięzca grupy idzie do meczu zależnego.
+INSERT INTO turniej_mecze (turniej_id, numer, faza, grupa_id, kolejka, druzyna_a_id, druzyna_b_id, status, wynik_a, wynik_b)
+VALUES (:RT_T::uuid, 1, 'grupa', :RT_G::uuid, 1, 'ffffffff-0000-4000-8000-0000000001e1', 'ffffffff-0000-4000-8000-0000000001e2', 'zaplanowany', 0, 0);
+INSERT INTO turniej_mecze (turniej_id, numer, faza, kolejka, zrodlo_a_grupa_id, zrodlo_a_miejsce)
+VALUES (:RT_T::uuid, 2, 'final', 2, :RT_G::uuid, 1);
+UPDATE turniej_mecze SET status = 'zakonczony', wynik_a = 1, wynik_b = 1 WHERE turniej_id = :RT_T::uuid AND numer = 1;
+SELECT _oczekuj('przy remisie liczona kolejność daje 1. miejsce Alfie (po nazwie)',
+  (SELECT count(*) FROM turniej_mecze WHERE turniej_id = :RT_T::uuid AND numer = 2 AND druzyna_a_id = 'ffffffff-0000-4000-8000-0000000001e1'), 1);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+UPDATE turniej_grupy SET kolejnosc_reczna = ARRAY['ffffffff-0000-4000-8000-0000000001e2','ffffffff-0000-4000-8000-0000000001e1']::uuid[],
+       komentarz = 'Karne po meczu' WHERE id = :RT_G::uuid;
+RESET ROLE;
+SELECT _oczekuj('kolejność organizatora od razu przestawia drużynę w meczu zależnym',
+  (SELECT count(*) FROM turniej_mecze WHERE turniej_id = :RT_T::uuid AND numer = 2 AND druzyna_a_id = 'ffffffff-0000-4000-8000-0000000001e2'), 1);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+UPDATE turniej_grupy SET komentarz = 'Przejęte' WHERE id = :RT_G::uuid;
+RESET ROLE;
+SELECT _oczekuj('obcy nie zmieni komentarza grupy (0 wierszy)',
+  (SELECT count(*) FROM turniej_grupy WHERE id = :RT_G::uuid AND komentarz = 'Przejęte'), 0);
+DELETE FROM turnieje WHERE id = :RT_T::uuid;
+
 SELECT _sekcja('Każda tabela w public ma włączone RLS');
 DO $$
 DECLARE

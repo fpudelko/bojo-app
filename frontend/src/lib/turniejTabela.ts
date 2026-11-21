@@ -3,7 +3,7 @@
 // drogą do tych samych danych (widok SQL czytałby tabele wprost, z pominięciem
 // polityk nałożonych na `turniej_mecze`/`turniej_druzyny`).
 import { plural } from './plural';
-import type { TurniejMecz, WierszTabeli } from '@/types';
+import type { TurniejDruzyna, TurniejGrupa, TurniejMecz, WierszTabeli } from '@/types';
 
 export interface OpcjeTabeli {
   punktyZaWygrana: number;
@@ -133,4 +133,71 @@ export function opisAwansu(
   const liczba = awansujeZGrupy === 1 ? 'Pierwsze' : `Pierwsze ${awansujeZGrupy}`;
   const cel = dokad === 'grupa_finalowa' ? 'do grupy finałowej' : 'do fazy pucharowej';
   return `${liczba} ${miejsca} w grupie ${awansuja} ${cel}`;
+}
+
+/**
+ * Miejsca w posortowanej tabeli z remisami (2026-11-21). Drużyny z tą samą
+ * liczbą punktów, różnicą i bramkami zdobytymi zajmują TO SAMO miejsce (ex
+ * aequo): sortowanie po nazwie rozstrzygało je dotąd alfabetem, a podium
+ * ogłaszało zwycięzcę, którego nikt nie wybrał. Wiersz z ręczną pozycją
+ * (`rozstrzygnietyRecznie`) nigdy nie dzieli miejsca: organizator już wybrał.
+ */
+export function miejscaWTabeli(wiersze: readonly WierszTabeli[]): number[] {
+  const miejsca: number[] = [];
+  wiersze.forEach((w, i) => {
+    const p = wiersze[i - 1];
+    const remis = !!p && !w.rozstrzygnietyRecznie && !p.rozstrzygnietyRecznie
+      && p.punkty === w.punkty && p.roznica === w.roznica && p.bramkiZdobyte === w.bramkiZdobyte;
+    miejsca.push(remis ? miejsca[i - 1] : i + 1);
+  });
+  return miejsca;
+}
+
+/** Czy w tabeli jest choć jedno miejsce dzielone. */
+export function maRemisWTabeli(wiersze: readonly WierszTabeli[]): boolean {
+  const m = miejscaWTabeli(wiersze);
+  return m.some((x, i) => i > 0 && x === m[i - 1]);
+}
+
+/** Kolejność ustalona przez organizatora (179) na wierzchu kolejności
+ *  liczonej: drużyny z listy pierwsze, w jej kolejności, oznaczone jako
+ *  rozstrzygnięte ręcznie; reszta za nimi. Lustro `kolejnosc_w_grupie()`. */
+export function zastosujKolejnoscReczna(
+  wiersze: readonly WierszTabeli[],
+  kolejnosc: readonly string[] | undefined,
+): WierszTabeli[] {
+  if (!kolejnosc || kolejnosc.length === 0) return [...wiersze];
+  const poId = new Map(wiersze.map((w) => [w.druzynaId, w]));
+  const reczne = kolejnosc.filter((id) => poId.has(id)).map((id) => ({ ...poId.get(id)!, rozstrzygnietyRecznie: true }));
+  const wybrane = new Set(reczne.map((w) => w.druzynaId));
+  return [...reczne, ...wiersze.filter((w) => !wybrane.has(w.druzynaId))];
+}
+
+/** Tabele wszystkich grup turnieju, posortowane jak na stronie turnieju:
+ *  liczone, potem `pozycja_recznie` (tylko pierwotna grupa drużyny), na końcu
+ *  kolejność organizatora (179). Jedno miejsce dla strony i panelu. */
+export function tabeleGrupTurnieju(
+  grupy: readonly TurniejGrupa[],
+  druzyny: readonly TurniejDruzyna[],
+  mecze: readonly TurniejMecz[],
+  opcje: { punktyZaWygrana: number; punktyZaRemis: number },
+): { grupa: TurniejGrupa; wiersze: WierszTabeli[] }[] {
+  const meczeGrupowe = mecze.filter((m) => m.faza === 'grupa' || m.faza === 'liga');
+  const pozycjeReczne = new Map(
+    druzyny.filter((d) => d.pozycjaRecznie !== undefined).map((d) => [d.id, d.pozycjaRecznie!]),
+  );
+  return grupy.map((g) => ({
+    grupa: g,
+    wiersze: zastosujKolejnoscReczna(posortujTabele(
+      obliczTabele(
+        meczeGrupowe.filter((m) => m.grupaId === g.id),
+        g.finalowa
+          ? druzyny.filter((d) => meczeGrupowe.some(
+              (m) => m.grupaId === g.id && (m.druzynaAId === d.id || m.druzynaBId === d.id)))
+          : druzyny.filter((d) => d.grupaId === g.id),
+        opcje,
+      ),
+      g.finalowa ? new Map() : pozycjeReczne,
+    ), g.kolejnoscReczna),
+  }));
 }

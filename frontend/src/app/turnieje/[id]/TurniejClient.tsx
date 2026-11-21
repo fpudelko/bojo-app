@@ -1,6 +1,7 @@
 'use client';
 
 import WierszWyniku from '@/components/turnieje/WierszWyniku';
+import { tabeleGrupTurnieju } from '@/lib/turniejTabela';
 import { etykietaZakladkiTurnieju } from '@/lib/turniejEtykiety';
 import { SHOW_TURNIEJ_OGLOSZENIA } from '@/lib/features';
 import { useAdmin } from '@/lib/admin';
@@ -319,20 +320,7 @@ export default function TurniejClient() {
   const opcjeTabeli = { punktyZaWygrana: turniej.punktyZaWygrana, punktyZaRemis: turniej.punktyZaRemis };
   const tabeleGrup: { grupa?: TurniejGrupa; wiersze: ReturnType<typeof posortujTabele> }[] =
     grupy.length > 0
-      ? grupy.map((g) => ({
-          grupa: g,
-          wiersze: posortujTabele(
-            obliczTabele(
-              meczeGrupowe.filter((m) => m.grupaId === g.id),
-              g.finalowa
-                ? druzyny.filter((d) => meczeGrupowe.some(
-                    (m) => m.grupaId === g.id && (m.druzynaAId === d.id || m.druzynaBId === d.id)))
-                : druzyny.filter((d) => d.grupaId === g.id),
-              opcjeTabeli,
-            ),
-            pozycjeReczne,
-          ),
-        }))
+      ? tabeleGrupTurnieju(grupy, druzyny, mecze, opcjeTabeli)
       : meczeGrupowe.length > 0 || turniej.format === 'liga'
         ? [{ grupa: undefined, wiersze: posortujTabele(obliczTabele(meczeGrupowe, druzyny, opcjeTabeli), pozycjeReczne) }]
         : [];
@@ -630,6 +618,7 @@ export default function TurniejClient() {
                     : 'text-sm font-medium text-slate-600 dark:text-slate-300'}
                 >
                   {medal(m.miejsce)} {m.nazwa}
+                  {m.exAequo && <span className="ml-1.5 text-xs font-normal text-slate-500">ex aequo</span>}
                 </p>
               ))}
             </div>
@@ -1099,7 +1088,7 @@ export default function TurniejClient() {
                 {grupa?.finalowa ? (
                   <>
                     {wiersze.length > 0 ? (
-                      <TabelaGrupy wiersze={wiersze} />
+                      <TabelaGrupy wiersze={wiersze} komentarz={grupa?.komentarz} />
                     ) : (
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         Drużyny wejdą tu po rozstrzygnięciu swoich grup.
@@ -1115,7 +1104,7 @@ export default function TurniejClient() {
                     </div>
                   </>
                 ) : (
-                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} />
+                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} komentarz={grupa?.komentarz} />
                 )}
                 {grupa && !grupa.finalowa && (
                   <MeczeGrupy
