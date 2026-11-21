@@ -17,7 +17,11 @@ import { usePathname } from 'next/navigation';
  * `usePathname()` dla `/turniej`.
  */
 export function jestSciezkaWidgetu(pathname: string | null): boolean {
-  return pathname?.startsWith('/widget/') ?? false;
+  if (!pathname) return false;
+  // Ekran turnieju na halę (`/turnieje/[id]/ekran`, 2026-11-21) też jest
+  // „bez ramki”: idzie na rzutnik albo telewizor, gdzie baner cookies, dolny
+  // pasek czy okno wyboru roli wisiałyby przez cały dzień nad wynikiem.
+  return pathname.startsWith('/widget/') || /^\/turnieje\/[^/]+\/ekran\/?$/.test(pathname);
 }
 
 export function useJestWidget(): boolean {

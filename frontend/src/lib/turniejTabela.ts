@@ -3,7 +3,7 @@
 // drogą do tych samych danych (widok SQL czytałby tabele wprost, z pominięciem
 // polityk nałożonych na `turniej_mecze`/`turniej_druzyny`).
 import { plural } from './plural';
-import type { TurniejDruzyna, TurniejGrupa, TurniejMecz, WierszTabeli } from '@/types';
+import type { Turniej, TurniejDruzyna, TurniejGrupa, TurniejMecz, WierszTabeli } from '@/types';
 
 export interface OpcjeTabeli {
   punktyZaWygrana: number;
@@ -200,4 +200,27 @@ export function tabeleGrupTurnieju(
       g.finalowa ? new Map() : pozycjeReczne,
     ), g.kolejnoscReczna),
   }));
+}
+
+/**
+ * Tabele turnieju do pokazania: tabele grup (`tabeleGrupTurnieju()`) albo,
+ * bez grup, jedna tabela ligi. Wspólne dla strony turnieju, panelu
+ * organizatora na komputerze i ekranu na halę (2026-11-21): trzy kopie tego
+ * liczenia rozjechałyby się przy pierwszej zmianie reguł (remisy, kolejność
+ * organizatora z 179).
+ */
+export function tabeleTurnieju(
+  turniej: Pick<Turniej, 'format' | 'punktyZaWygrana' | 'punktyZaRemis'>,
+  grupy: readonly TurniejGrupa[],
+  mecze: readonly TurniejMecz[],
+  druzyny: readonly TurniejDruzyna[],
+): { grupa?: TurniejGrupa; wiersze: WierszTabeli[] }[] {
+  const opcje = { punktyZaWygrana: turniej.punktyZaWygrana, punktyZaRemis: turniej.punktyZaRemis };
+  if (grupy.length > 0) return tabeleGrupTurnieju(grupy, druzyny, mecze, opcje);
+  const meczeGrupowe = mecze.filter((m) => m.faza === 'grupa' || m.faza === 'liga');
+  if (meczeGrupowe.length === 0 && turniej.format !== 'liga') return [];
+  const pozycjeReczne = new Map(
+    druzyny.filter((d) => d.pozycjaRecznie !== undefined).map((d) => [d.id, d.pozycjaRecznie!]),
+  );
+  return [{ grupa: undefined, wiersze: posortujTabele(obliczTabele(meczeGrupowe, druzyny, opcje), pozycjeReczne) }];
 }

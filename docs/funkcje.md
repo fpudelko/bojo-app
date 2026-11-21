@@ -5047,6 +5047,59 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   `lib/oknoCzatu.ts`), nie tylko przy kursorze w polu. Safari po zamknięciu klawiatury
   albo kółka godzin trzymał okno skurczone i menu wisiało nad terminarzem.
 - Udostępnienie turnieju: sam link, bez dopisku „Zgłoś drużynę” (`tekstUdostepnieniaTurnieju()`).
+- **Turniej na komputerze (2026-11-21, bez migracji).** Na telefonie bez zmian. Od `lg`
+  (1024 px) panel i zakładka Mecze przestają być kolumną 640 px na środku ekranu:
+  - **Centrum dowodzenia** (`components/turnieje/CentrumTurnieju.tsx`, zakładka Terminarz,
+    stan `trwa`, `hidden lg:grid`): Teraz (mecz w toku, duży wynik, „+ Gol [drużyna]”,
+    „Zakończ mecz” z potwierdzeniem; przy remisie w fazie pucharowej „Karne” prowadzi na
+    stronę meczu; bez meczu w toku następny z „Rozpocznij”), Najbliższe (4, z przerwami),
+    Wymaga decyzji (niebieskie: mecz, który według planu już powinien grać, gdy nic nie
+    trwa; czekające zgłoszenia), Ostatnie wyniki (6, od najświeżej zakończonego,
+    „Popraw” → strona meczu), Grupy (tabele `kompakt`: M, B, Pkt) i Grupa finałowa albo
+    Faza pucharowa. Układ: 2 kolumny od `lg`, 3 od `2xl`. Pod spodem „Cały terminarz”.
+    „+ Gol” zapisuje zdarzenie `gol` bez strzelca (strzelca dopisuje się na stronie meczu);
+    sporty setowe i koszykówka dostają „Prowadź mecz”. Dane: `centrumTurnieju()`
+    w `lib/turniejPulpit.ts`, tabele `tabeleTurnieju()` w `lib/turniejTabela.ts` (wspólne
+    ze stroną turnieju).
+  - **Pasek stanu** w przyklejonym nagłówku panelu (od `lg`, stan `trwa`, każda zakładka):
+    „Turniej trwa”, „X z Y meczów”, „Zmień godziny”, „Strona publiczna” i główny przycisk
+    „Wpisz wynik M…” (mecz w toku) albo „Rozpocznij M…”. **Bez opóźnienia względem planu**:
+    decyzja właściciela z 2026-11-08 (`postepTurnieju()`) obowiązuje także tu.
+  - Drużyny i Ustawienia zostają w kolumnie `max-w-3xl`: formularze na 1100 px czyta się gorzej.
+  - **Bezpieczeństwo i świeżość (2026-11-21):** „Cofnij ostatnie” pod golami kasuje najnowsze
+    zdarzenie meczu (`cofnijOstatnieZdarzenie()`), komunikat mówi, co cofnięto. Panel w stanie
+    `trwa` co 15 s odświeża mecze i drużyny (odpytywanie, nie Realtime: tabele turnieju nie są
+    w publikacji `supabase_realtime`); pauza, gdy karta jest w tle albo trwa edycja godzin lub
+    podgląd terminarza. Zegar meczu „8:46 / 12:00”, bursztynowy po czasie gry (`poCzasie()`).
+  - **Alerty zamiast karty „Wymaga decyzji”:** niebieski pasek nad siatką, znika, gdy pusty.
+    Sygnały: mecz w toku dłużej niż dwa razy czas gry (`przeciagniete`), mecz, który według
+    planu już powinien grać (`zaleglyStart`), czekające zgłoszenia.
+  - **„Rozpocznij” tylko na wolnej arenie** (`doRozpoczecia` w `centrumTurnieju()`): przy jednej
+    hali i meczu w toku przycisku nie ma ani w Najbliższych, ani w pasku stanu.
+  - **Ekran na halę** (`/turnieje/[id]/ekran`, `EkranClient.tsx`): publiczny, `noindex`,
+    otwierany z paska stanu panelu w nowej karcie. Ciemny zawsze, rozmiary w `em` od
+    `font-size` liczonego z szerokości okna (ten sam układ na 1366 px i 4K), odświeżanie co
+    15 s. Lewa kolumna: Na żywo (wynik, zegar) albo Następny mecz, Kolejne mecze z przerwami;
+    prawa: tabele grup (#, drużyna, bramki, punkty, pasek awansu) i ostatnie wyniki. Po
+    końcu turnieju podium na cały ekran. **Prawa kolumna zmienia widok co 12 s**: Grupy,
+    Wyniki (10 ostatnich), Najwięcej goli/punktów (tylko gdy ekran otwiera zalogowany: składy
+    widzi zalogowany, tak jak na stronie turnieju), Grupa finałowa albo Faza pucharowa; pasek
+    nad nią mówi, który widok jest teraz. Kliknięcie nazwy widoku zatrzymuje ekran na nim
+    (dopisek „stałe”), ponowne wraca do rotacji; wybór idzie do adresu
+    (`?widok=tabele|wyniki|strzelcy|final`), więc przetrwa odświeżenie i da się go ustawić z góry. **Kod QR** do strony turnieju (`lib/kodQr.ts` na
+    `qrcode-generator`, rysowany jako SVG `components/ui/KodQr.tsx`, bez zewnętrznego
+    serwisu) z dużym „bojo.pl” i adresem: na dole lewej kolumny i pod podium.
+    **Układ ekranu** (`?uklad=`): Wszystko (domyślny, opisany wyżej), Wynik na żywo (mecz
+    w toku albo następny na pół ekranu, pod nim 3 kolejne mecze i kod QR), Tabele (wszystkie
+    grupy duże, do 3 kolumn, mecz w toku jednym paskiem nad nimi), Mecze i wyniki (jak
+    Wszystko, ale prawa kolumna tylko z wynikami i fazą końcową, bez tabel i strzelców).
+    Organizator wybiera układ z menu „Ekran na halę” w panelu albo na samym ekranie:
+    przełącznik pokazuje się w prawym dolnym rogu na 3 s po ruchu myszy lub dotknięciu. Bez ramki aplikacji:
+    `jestSciezkaWidgetu()` w `lib/widget.ts` obejmuje też tę trasę (bez banera cookies,
+    dolnego paska i okna roli).
+  - **Strona turnieju, zakładka Mecze:** od `lg` dwie kolumny, po prawej przyklejone tabele
+    grup z legendą awansu i linkiem do zakładki „Tabela i drabinka”. Ta zakładka zostaje
+    także na komputerze, bo niesie drabinkę i mecze grup.
 - **Adresy z nazwą (2026-11-21, migracja `177`):** `/turnieje/gramy-dla-marysi-28-11-2026`,
   `/turnieje/<adres>/mecz/5` (numer meczu), `/wydarzenia/czwartkowa-gierka-27-11-2026`.
   `src/middleware.ts` przepisuje (nie przekierowuje) adres z nazwą na trasę z uuid, więc
