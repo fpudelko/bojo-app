@@ -2000,6 +2000,31 @@ SELECT _oczekuj('dotychczasowy organizator zostaje współorganizatorem, nowy wy
                    AND ((user_id = :ORGANIZATOR::uuid AND moze_edytowac) OR user_id = :CZLONEK::uuid)), 1);
 DELETE FROM turnieje WHERE id = :WO_T::uuid;
 
+SELECT _sekcja('Obserwowanie turnieju (migracja 184)');
+\set OB_T '''ffffffff-0000-4000-8000-0000000001e1'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:OB_T::uuid, :ORGANIZATOR::uuid, 'Obserwowany', 'piłka nożna', 'zapisy', CURRENT_DATE);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+INSERT INTO turniej_obserwujacy (turniej_id, user_id) VALUES (:OB_T::uuid, :CZLONEK::uuid);
+SELECT _oczekuj_wyjatek('nie da się zapisać do obserwowania kogoś innego',
+  format('INSERT INTO turniej_obserwujacy (turniej_id, user_id) VALUES (%L, %L)', :OB_T, :OBCY));
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj('obcy nie widzi, kto obserwuje',
+                (SELECT count(*) FROM turniej_obserwujacy WHERE turniej_id = :OB_T::uuid), 0);
+DELETE FROM turniej_obserwujacy WHERE turniej_id = :OB_T::uuid;
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj('organizator też nie dostaje listy obserwujących',
+                (SELECT count(*) FROM turniej_obserwujacy WHERE turniej_id = :OB_T::uuid), 0);
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT _oczekuj('obserwujący widzi swój wpis (obcy nie skasował cudzego)',
+                (SELECT count(*) FROM turniej_obserwujacy WHERE turniej_id = :OB_T::uuid), 1);
+DELETE FROM turniej_obserwujacy WHERE turniej_id = :OB_T::uuid;
+RESET ROLE;
+SELECT _oczekuj('obserwujący przestał obserwować',
+                (SELECT count(*) FROM turniej_obserwujacy WHERE turniej_id = :OB_T::uuid), 0);
+DELETE FROM turnieje WHERE id = :OB_T::uuid;
+
 SELECT _sekcja('Remis w tabeli: kolejność organizatora (migracja 179)');
 \set RT_T '''ffffffff-0000-4000-8000-0000000001d1'''
 \set RT_G '''ffffffff-0000-4000-8000-0000000001d2'''

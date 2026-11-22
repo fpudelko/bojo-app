@@ -2,65 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trophy, Plus, CalendarDays, MapPin } from 'lucide-react';
+import { Trophy, Plus } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
-import { getTurniejePubliczne, getMojeTurnieje, getWszystkieTurnieje, czyTurniejProbny } from '@/lib/turnieje';
+import { getTurniejePubliczne, getMojeTurniejeZRola, getWszystkieTurnieje, type RolaWTurnieju } from '@/lib/turnieje';
+import KartaTurnieju from '@/components/turnieje/KartaTurnieju';
 import { useAdmin } from '@/lib/admin';
-import { stanTurnieju, etykietaTerminu } from '@/lib/turniejEtykiety';
-import { sportEmoji } from '@/lib/sports';
 import type { Turniej } from '@/types';
-
-function KartaTurnieju({ t }: { t: Turniej }) {
-  // Stan liczony z terminarza. Lista pokazywała CZTERY turnieje z identyczną
-  // plakietką „Trwa" — w tym jeden sprzed tygodnia i jeden, w którym został
-  // sam finał. Karta bez meczów (lista ich nie pobiera) dostaje to, co da się
-  // powiedzieć z samej kolumny; szczegół dokłada strona turnieju.
-  const stan = stanTurnieju(t, []);
-
-  return (
-    <Link
-      href={`/turnieje/${t.id}`}
-      className="block rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm hover:shadow-md transition-shadow"
-    >
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-950 text-xl">
-          {t.okladkaUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={t.okladkaUrl} alt="" className="h-11 w-11 rounded-xl object-cover" />
-          ) : sportEmoji(t.sport)}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2">
-            {/* Dwie linijki, nie `truncate`: nazwy turniejów bywają długie
-                („Liga Koszykarska — 3 z 5 kolejek") i ucięte w połowie nie
-                mówią, o który turniej chodzi. */}
-            <h3 className="min-w-0 flex-1 font-display font-semibold text-ink line-clamp-2">{t.nazwa}</h3>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${stan.ton}`}>{stan.label}</span>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-            <span className="inline-flex items-center gap-1">
-              <CalendarDays className="h-3.5 w-3.5" />{etykietaTerminu(t.dataStartu, t.godzinaStartu)}
-            </span>
-            {t.miejsceNazwa && (
-              <span className="inline-flex min-w-0 items-center gap-1"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{t.miejsceNazwa}</span></span>
-            )}
-            <span>{t.liczbaDruzyn ?? 0}/{t.maxDruzyn} drużyn</span>
-          </div>
-          {/* PRÓBA WPROST NA LIŚCIE (uwaga właściciela 2026-11-22): w „Wszystkie”
-              pojawiał się turniej „Próba: …” i nie było wiadomo, skąd się wziął. */}
-          {czyTurniejProbny(t) && (
-            <p className="mt-2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-              <span className="font-semibold">Kopia do ćwiczeń.</span> Powstała z przycisku „Przetestuj” w panelu
-              prawdziwego turnieju. Nikt jej nie widzi. Usuniesz ją w panelu: „Zakończ próbę”.
-            </p>
-          )}
-        </div>
-      </div>
-    </Link>
-  );
-}
 
 // „Wszystkie” tylko dla admina (2026-11-22, prośba właściciela): także
 // szkice, prywatne, odwołane i próby, czyli turnieje, których nie ma na
@@ -69,7 +18,8 @@ type Karta = 'wszystkie' | 'moje' | 'zapisy' | 'trwaja' | 'zakonczone';
 
 const ETYKIETY: Record<Karta, string> = {
   wszystkie: 'Wszystkie',
-  moje: 'Biorę udział',
+  // „Moje”, nie „Biorę udział”: od 184 są tu też obserwowane (2026-11-22).
+  moje: 'Moje',
   zapisy: 'Zapisy',
   // Nie czasownik, tylko przymiotnik: obok stoi plakietka o trwających
   // zapisach i dwa czasowniki obok siebie czytały się jak jedno zdanie.
@@ -79,7 +29,7 @@ const ETYKIETY: Record<Karta, string> = {
 
 const PUSTE: Record<Karta, string> = {
   wszystkie: 'W bazie nie ma jeszcze żadnego turnieju.',
-  moje: 'Nie grasz jeszcze w żadnym turnieju, kapitan Twojej drużyny wyśle Ci link, gdy się zgłosicie.',
+  moje: 'Nie masz jeszcze turniejów. Dołącz do drużyny z linku od kapitana albo kliknij „Obserwuj turniej” na stronie turnieju.',
   zapisy: 'Żaden turniej nie przyjmuje teraz zgłoszeń.',
   trwaja: 'Nic się teraz nie rozgrywa.',
   zakonczone: 'Żaden turniej jeszcze się nie zakończył.',
@@ -99,6 +49,7 @@ export default function TurniejeClient() {
   const [publiczne, setPubliczne] = useState<Turniej[]>([]);
   const [wszystkie, setWszystkie] = useState<Turniej[]>([]);
   const [moje, setMoje] = useState<Turniej[]>([]);
+  const [role, setRole] = useState<Map<string, RolaWTurnieju>>(new Map());
   const [ladowanie, setLadowanie] = useState(true);
   // `null` = użytkownik jeszcze nie wybrał, więc obowiązuje karta domyślna
   // liczona z danych. Zwykły `useState('moje')` pokazałby pustą kartę każdemu,
@@ -109,9 +60,14 @@ export default function TurniejeClient() {
     let aktualne = true;
     Promise.all([
       getTurniejePubliczne(),
-      user ? getMojeTurnieje(user.id) : Promise.resolve([]),
+      user ? getMojeTurniejeZRola(user.id) : Promise.resolve([]),
     ])
-      .then(([pub, mine]) => { if (aktualne) { setPubliczne(pub); setMoje(mine); } })
+      .then(([pub, mine]) => {
+        if (!aktualne) return;
+        setPubliczne(pub);
+        setMoje(mine.map((m) => m.turniej));
+        setRole(new Map(mine.map((m) => [m.turniej.id, m.rola])));
+      })
       .catch(() => { if (aktualne) { setPubliczne([]); setMoje([]); } })
       .finally(() => { if (aktualne) setLadowanie(false); });
     return () => { aktualne = false; };
@@ -213,7 +169,7 @@ export default function TurniejeClient() {
               </div>
             ) : (
               <div className="space-y-3">
-                {widoczne.map((t) => <KartaTurnieju key={t.id} t={t} />)}
+                {widoczne.map((t) => <KartaTurnieju key={t.id} t={t} rola={aktywna === 'moje' ? role.get(t.id) : undefined} />)}
               </div>
             )}
           </>

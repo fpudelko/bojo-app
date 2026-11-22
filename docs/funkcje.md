@@ -5192,6 +5192,14 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   w bazie). „Przetestuj” widzi wyłącznie admin. Kopia „Próba: …” (marker `[TURNIEJ-TEST]`,
   widoczność `na_link`, składy bez kont) ma na liście „Wszystkie” dopisek „Kopia do ćwiczeń”
   z tym, skąd się wzięła i jak ją usunąć; panel próby wypisuje w hasłach, co w niej przećwiczyć.
+- **Turnieje na koncie i obserwowanie (2026-11-22, migracja `184`):** `/moje-gry` ma sekcję
+  „Twoje turnieje” (`MojeTurniejeSekcja.tsx`): karty turniejów, w których użytkownik gra,
+  organizuje, współorganizuje albo obserwuje (`getMojeTurniejeZRola()`), z podpisem roli; bez
+  prób, odwołanych i zakończonych ponad 3 dni temu (`turniejeNaMojeMecze()`), szkic tylko dla
+  organizatora. Pod nimi „🏆 Wszystkie turnieje”. Na zakładce Info turnieju „Obserwuj turniej”
+  / „Obserwujesz turniej” (`obserwujTurniej()`) dla każdego, kto nie gra i nie prowadzi;
+  niezalogowany idzie przez `/logowanie?next=`. Karta `/turnieje` „Biorę udział” nazywa się
+  teraz „Moje” i obejmuje obserwowane. Wspólna karta: `components/turnieje/KartaTurnieju.tsx`.
 - Widoki turniejowe (`/turnieje/**`, `/t/[kod]`, `/k/[kod]`) mają `Header showMobileWordmark`:
   zalogowany na telefonie widzi napis „bojo” w pasku (wcześniej pusty slot bez logo).
 - Zadania przed przekazaniem turnieju: `supabase/zadania/turnieje-usun-poza-marysia.sql`

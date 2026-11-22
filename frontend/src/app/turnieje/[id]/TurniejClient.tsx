@@ -10,7 +10,7 @@ import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CalendarDays, MapPin, Users, Navigation, Settings, Share2, ChevronDown, ChevronRight, Trophy, Wallet, UserRound } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, Users, Navigation, Settings, Share2, ChevronDown, ChevronRight, Trophy, Wallet, UserRound, Bell, BellRing } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
@@ -20,7 +20,7 @@ import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import {
   getTurniej, uprawnieniaTurnieju, getMojaOsobe, przyjmujeZgloszenia,
   getOgloszenia, dodajOgloszenie, usunOgloszenie, getBlikTurnieju,
-  domyslnaZakladka, czyTurniejProbny } from '@/lib/turnieje';
+  domyslnaZakladka, czyTurniejProbny, czyObserwujeTurniej, obserwujTurniej } from '@/lib/turnieje';
 import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju, getPrzerwy } from '@/lib/turniejMecze';
 import WierszPrzerwy from '@/components/turnieje/WierszPrzerwy';
@@ -142,6 +142,29 @@ export default function TurniejClient() {
   // dla kogoś, kto w turnieju gra.
   const [tylkoNaszeReczne, setTylkoNaszeReczne] = useState<boolean | null>(null);
   const [organizator, setOrganizator] = useState<string | null>(null);
+  // OBSERWOWANIE (184, 2026-11-22): kibic albo zawodnik bez drużyny ma
+  // turniej na koncie („Moje mecze”, „/turnieje” → Moje) bez szukania linku.
+  const [obserwuje, setObserwuje] = useState(false);
+  const [obserwujeZapis, setObserwujeZapis] = useState(false);
+  useEffect(() => {
+    if (!user) { setObserwuje(false); return; }
+    let aktualne = true;
+    czyObserwujeTurniej(id, user.id).then((w) => { if (aktualne) setObserwuje(w); });
+    return () => { aktualne = false; };
+  }, [id, user]);
+  const przelaczObserwowanie = async () => {
+    if (!user) return;
+    setObserwujeZapis(true);
+    try {
+      await obserwujTurniej(id, user.id, !obserwuje);
+      setObserwuje(!obserwuje);
+      toast(obserwuje ? 'Nie obserwujesz już turnieju' : 'Obserwujesz. Turniej jest w „Moje mecze”');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać', 'error');
+    } finally {
+      setObserwujeZapis(false);
+    }
+  };
 
   // ODŚWIEŻANIE CO 20 SEKUND, gdy turniej trwa. Plan (§10) zakładał je od
   // początku — świadomie zamiast Supabase Realtime, który wymaga ręcznego
@@ -811,6 +834,30 @@ export default function TurniejClient() {
           <Link href={`/turnieje/${id}/zglos`}>
             <Button className="w-full">Zgłoś drużynę</Button>
           </Link>
+        )}
+
+        {/* Obserwuj: dla każdego, kto nie ma turnieju na koncie z innego
+            powodu (nie gra, nie organizuje). Niezalogowany idzie przez
+            logowanie i wraca tutaj. */}
+        {aktywna === 'info' && !mojaDruzyna && !prawdziweUprawnienia.mozeEdytowac && !czyTurniejProbny(turniej) && (
+          user ? (
+            <Button
+              variant={obserwuje ? 'outline' : 'secondary'}
+              onClick={przelaczObserwowanie}
+              disabled={obserwujeZapis}
+              aria-pressed={obserwuje}
+              className="w-full inline-flex items-center justify-center gap-2"
+            >
+              {obserwuje ? <><BellRing className="h-4 w-4" /> Obserwujesz turniej</> : <><Bell className="h-4 w-4" /> Obserwuj turniej</>}
+            </Button>
+          ) : (
+            <Link
+              href={`/logowanie?next=${encodeURIComponent(`/turnieje/${id}`)}`}
+              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-semibold text-ink dark:border-slate-700"
+            >
+              <Bell className="h-4 w-4" /> Obserwuj turniej
+            </Link>
+          )
         )}
 
         {aktywna === 'info' && (
