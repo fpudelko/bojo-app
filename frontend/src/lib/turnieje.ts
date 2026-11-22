@@ -354,6 +354,18 @@ export async function dodajWspolorganizatora(turniejId: string, email: string): 
   return (wiersz?.nazwa as string | undefined) ?? 'Współorganizator';
 }
 
+/**
+ * Przekazanie organizacji współorganizatorowi (migracja 183). Dotychczasowy
+ * organizator zostaje współorganizatorem, więc nie traci dostępu.
+ */
+export async function przekazOrganizacje(turniejId: string, userId: string): Promise<void> {
+  const { error } = await supabase.rpc('przekaz_organizacje_turnieju', { p_turniej: turniejId, p_user: userId });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Ta funkcja jeszcze nie działa na tej bazie (brak migracji 183).');
+    throw new Error(error.message);
+  }
+}
+
 /** Odebranie praw współorganizatorowi (polityka z 145: tylko organizator). */
 export async function usunOsobeTurnieju(turniejId: string, userId: string): Promise<void> {
   const { error } = await supabase.from('turniej_osoby').delete().eq('turniej_id', turniejId).eq('user_id', userId);

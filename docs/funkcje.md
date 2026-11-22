@@ -5185,7 +5185,8 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   pasek i tak pokaże nazwę.
 - **Współorganizatorzy i admin (2026-11-21, migracja `178`):** Ustawienia → „Współorganizatorzy”:
   organizator (albo admin) dodaje konto po e-mailu (`dodajWspolorganizatora()`), odbiera prawa
-  krzyżykiem (`usunOsobeTurnieju()`). Współorganizator widzi cały panel z Ustawieniami, bez
+  krzyżykiem (`usunOsobeTurnieju()`). „Przekaż organizację” przy współorganizatorze (`przekazOrganizacje()`, migracja
+  `183`) robi z niego organizatora widocznego na stronie, a dotychczasowy zostaje współorganizatorem. Współorganizator widzi cały panel z Ustawieniami, bez
   „Usuń turniej” i bez nadawania praw dalej. Admin Bojo jest w interfejsie organizatorem
   każdego turnieju (`uprawnieniaTurnieju(…, jestAdmin)`, tak jak `czy_organizator_turnieju()`
   w bazie). „Przetestuj” widzi wyłącznie admin. Kopia „Próba: …” (marker `[TURNIEJ-TEST]`,

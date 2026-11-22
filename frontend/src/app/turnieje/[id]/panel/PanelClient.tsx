@@ -22,7 +22,7 @@ import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { blikPhoneDigits, formatBlikPhone } from '@/lib/payments';
 import {
   getTurniej, uprawnieniaTurnieju, getOsobyTurnieju, czyTurniejProbny, utworzProbeTurnieju,
-  dodajWspolorganizatora, usunOsobeTurnieju,
+  dodajWspolorganizatora, usunOsobeTurnieju, przekazOrganizacje,
   updateTurniej, setStatusTurnieju, deleteTurniej,
   getBlikTurnieju, ustawBlikTurnieju, setOkladkaTurnieju,
 } from '@/lib/turnieje';
@@ -825,6 +825,22 @@ export default function PanelClient() {
     if (wynik !== 'tak') return;
     try { await usunOsobeTurnieju(id, userId); await wczytaj(); toast('Uprawnienia odebrane'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się odebrać uprawnień', 'error'); }
+  };
+
+  const przekazOrganizacjeAkcja = async (userId: string, imie?: string) => {
+    const kto = imie ?? 'współorganizator';
+    const wynik = await potwierdz({
+      tytul: `Przekazać organizację: ${kto}?`,
+      konsekwencje: [
+        `Na stronie turnieju będzie „Organizuje ${kto}”`,
+        'Ty zostajesz współorganizatorem i dalej prowadzisz turniej',
+        `Tylko ${kto} będzie mógł usunąć turniej i dodawać współorganizatorów`,
+      ],
+      potwierdzLabel: 'Przekaż',
+    });
+    if (wynik !== 'tak') return;
+    try { await przekazOrganizacje(id, userId); await wczytaj(); toast(`Organizuje teraz ${kto}`); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się przekazać organizacji', 'error'); }
   };
 
   const dodajAreneAkcja = async () => {
@@ -1818,11 +1834,20 @@ export default function PanelClient() {
                   <h2 className="text-sm font-semibold text-ink">Współorganizatorzy</h2>
                   <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                     Mogą wszystko co Ty, poza usunięciem turnieju: wpisywać wyniki, zmieniać terminarz, drużyny i ustawienia.
+                    „Przekaż organizację” robi z tej osoby organizatora widocznego na stronie turnieju.
                   </p>
                 </div>
                 {osoby.filter((o) => o.mozeEdytowac).map((o) => (
                   <div key={o.userId} className="flex items-center gap-2">
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{o.imie ?? 'Współorganizator'}</span>
+                    {/* PRZEKAZANIE (183): turniej przygotowany przez Bojo
+                        dostaje prawdziwego organizatora na stronie. */}
+                    <button
+                      onClick={() => przekazOrganizacjeAkcja(o.userId, o.imie)}
+                      className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/40"
+                    >
+                      Przekaż organizację
+                    </button>
                     <button
                       onClick={() => usunWspolorganizatoraAkcja(o.userId, o.imie)}
                       className="flex h-11 w-11 shrink-0 items-center justify-center text-slate-400 hover:text-red-500"
