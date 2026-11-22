@@ -6,7 +6,7 @@ import { Trophy, Plus, CalendarDays, MapPin } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
-import { getTurniejePubliczne, getMojeTurnieje, getWszystkieTurnieje } from '@/lib/turnieje';
+import { getTurniejePubliczne, getMojeTurnieje, getWszystkieTurnieje, czyTurniejProbny } from '@/lib/turnieje';
 import { useAdmin } from '@/lib/admin';
 import { stanTurnieju, etykietaTerminu } from '@/lib/turniejEtykiety';
 import { sportEmoji } from '@/lib/sports';
@@ -48,6 +48,14 @@ function KartaTurnieju({ t }: { t: Turniej }) {
             )}
             <span>{t.liczbaDruzyn ?? 0}/{t.maxDruzyn} drużyn</span>
           </div>
+          {/* PRÓBA WPROST NA LIŚCIE (uwaga właściciela 2026-11-22): w „Wszystkie”
+              pojawiał się turniej „Próba: …” i nie było wiadomo, skąd się wziął. */}
+          {czyTurniejProbny(t) && (
+            <p className="mt-2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+              <span className="font-semibold">Kopia do ćwiczeń.</span> Powstała z przycisku „Przetestuj” w panelu
+              prawdziwego turnieju. Nikt jej nie widzi. Usuniesz ją w panelu: „Zakończ próbę”.
+            </p>
+          )}
         </div>
       </div>
     </Link>
@@ -141,7 +149,7 @@ export default function TurniejeClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-5 px-4 py-8">
         <div className="flex items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold text-ink">Turnieje</h1>

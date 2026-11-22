@@ -1981,6 +1981,23 @@ SELECT _oczekuj_wyjatek('współorganizator nie nada praw dalej',
 RESET ROLE;
 SELECT _oczekuj('współorganizator zmienia ustawienia turnieju',
                 (SELECT count(*) FROM turnieje WHERE id = :WO_T::uuid AND nazwa = 'Zmienione przez współorganizatora'), 1);
+
+-- Przekazanie organizacji (183): tylko organizator, tylko współorganizatorowi,
+-- a dotychczasowy organizator zostaje z pełnymi prawami.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT _oczekuj_wyjatek('współorganizator nie przejmie turnieju sam',
+  format('SELECT przekaz_organizacje_turnieju(%L, %L)', :WO_T, :CZLONEK));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('organizacji nie da się oddać komuś spoza współorganizatorów',
+  format('SELECT przekaz_organizacje_turnieju(%L, %L)', :WO_T, :OBCY));
+SELECT przekaz_organizacje_turnieju(:WO_T::uuid, :CZLONEK::uuid);
+RESET ROLE;
+SELECT _oczekuj('po przekazaniu organizuje współorganizator',
+                (SELECT count(*) FROM turnieje WHERE id = :WO_T::uuid AND organizator_id = :CZLONEK::uuid), 1);
+SELECT _oczekuj('dotychczasowy organizator zostaje współorganizatorem, nowy wychodzi z listy',
+                (SELECT count(*) FROM turniej_osoby WHERE turniej_id = :WO_T::uuid
+                   AND ((user_id = :ORGANIZATOR::uuid AND moze_edytowac) OR user_id = :CZLONEK::uuid)), 1);
 DELETE FROM turnieje WHERE id = :WO_T::uuid;
 
 SELECT _sekcja('Remis w tabeli: kolejność organizatora (migracja 179)');

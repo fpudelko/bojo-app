@@ -5048,6 +5048,12 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   albo kółka godzin trzymał okno skurczone i menu wisiało nad terminarzem.
 - Udostępnienie turnieju: sam link, bez dopisku „Zgłoś drużynę” (`tekstUdostepnieniaTurnieju()`).
 - **Poprawki z 2026-11-22, druga runda (migracja `182`):**
+  - **Strona turnieju bez strzałki na Info**: Info to strona główna turnieju (zawodnik wchodzi
+    z linku), więc strzałka jest tylko na Mecze/Tabela/Drużyny i wraca do Info
+    (`router.replace`, nie historia). Konsola meczu: „+ GOL”, „+ 🟨”, „+ 🟥”.
+  - **Tekst linków kapitanów** (`tekstLinkowKapitanow()`): pogrubiony nagłówek (`*…*` dla
+    WhatsAppa/Messengera), instrukcja, potem numerowane bloki „nazwa” + link w nowej linii,
+    pusta linia między drużynami; adres kanoniczny `bojo.pl` (bez `www.`).
   - **Strona meczu**: karta „Prowadź mecz na żywo” z opisem hasłami (zegar, gol jednym
     dotknięciem, strzelcy i kartki, kibice widzą wynik) i przyciskiem „Zacznij mecz teraz”
     stoi NAD formularzem wyniku; pod nią „albo, gdy mecz już się skończył” i „Wpisz wynik
@@ -5071,7 +5077,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     kapitanów” → „Przygotuj linki” (`przygotujLinkiKapitanow()`), „Kopiuj link” przy drużynie
     albo „Kopiuj wszystkie linki” (`tekstLinkowKapitanow()`, jedna drużyna na linię, do
     WhatsAppa). Kapitan bez konta widzi drużynę i „Zaloguj się i przejmij drużynę”; po
-    zalogowaniu wybiera siebie z wolnych wpisów składu albo wpisuje imię. Link działa raz,
+    zalogowaniu widzi „Jesteś zalogowany jako …” i „Przejmij drużynę jako {imię}” (imię
+    z konta, `displayName()`), może wybrać siebie z wolnych wpisów, wpisać inne imię albo
+    „Zaloguj się innym kontem” (wylogowanie i powrót na link). Organizator/admin dostaje
+    ostrzeżenie, że link jest dla kapitana i po użyciu przestanie działać. Link działa raz,
     drużyny z kapitanem nie przejmie. Link drużyny `/t/[kod]` dalej tylko dołącza (172).
   - **Karta drużyny** (`KartaDruzyny.tsx`): strzałka rozwija najbliższy mecz i wyniki z
     perspektywy drużyny (Z/R/P, własne gole pierwsze, `meczeDruzyny()`), skład tylko na ekranie
@@ -5176,10 +5185,15 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   pasek i tak pokaże nazwę.
 - **Współorganizatorzy i admin (2026-11-21, migracja `178`):** Ustawienia → „Współorganizatorzy”:
   organizator (albo admin) dodaje konto po e-mailu (`dodajWspolorganizatora()`), odbiera prawa
-  krzyżykiem (`usunOsobeTurnieju()`). Współorganizator widzi cały panel z Ustawieniami, bez
+  krzyżykiem (`usunOsobeTurnieju()`). „Przekaż organizację” przy współorganizatorze (`przekazOrganizacje()`, migracja
+  `183`) robi z niego organizatora widocznego na stronie, a dotychczasowy zostaje współorganizatorem. Współorganizator widzi cały panel z Ustawieniami, bez
   „Usuń turniej” i bez nadawania praw dalej. Admin Bojo jest w interfejsie organizatorem
   każdego turnieju (`uprawnieniaTurnieju(…, jestAdmin)`, tak jak `czy_organizator_turnieju()`
-  w bazie). „Przetestuj” widzi wyłącznie admin.
+  w bazie). „Przetestuj” widzi wyłącznie admin. Kopia „Próba: …” (marker `[TURNIEJ-TEST]`,
+  widoczność `na_link`, składy bez kont) ma na liście „Wszystkie” dopisek „Kopia do ćwiczeń”
+  z tym, skąd się wzięła i jak ją usunąć; panel próby wypisuje w hasłach, co w niej przećwiczyć.
+- Widoki turniejowe (`/turnieje/**`, `/t/[kod]`, `/k/[kod]`) mają `Header showMobileWordmark`:
+  zalogowany na telefonie widzi napis „bojo” w pasku (wcześniej pusty slot bez logo).
 - Zadania przed przekazaniem turnieju: `supabase/zadania/turnieje-usun-poza-marysia.sql`
   (usuwa wszystkie turnieje poza `e9a3763f…`) i `supabase/zadania/turniej-marysi-wyzeruj-wyniki.sql`
   (mecze z powrotem „zaplanowane”, bez zdarzeń; drużyny, terminarz i przerwy zostają).

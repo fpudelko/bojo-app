@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-22 · migracja `182` · 62 tabel
+**Stan na:** 2026-11-22 · migracja `183` · 62 tabel
 
 ---
 

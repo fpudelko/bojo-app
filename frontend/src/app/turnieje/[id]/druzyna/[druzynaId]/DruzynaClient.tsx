@@ -255,7 +255,7 @@ export default function DruzynaClient() {
   if (ladowanie || ladujeSesje) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center text-sm text-slate-400">Ładuję…</div>
       </div>
     );
@@ -264,7 +264,7 @@ export default function DruzynaClient() {
   if (nieZnaleziono || !turniej || !druzyna) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-16 text-center">
           <p className="font-medium text-ink">Nie ma takiej drużyny</p>
           <Link href={`/turnieje/${id}`} className="mt-3 inline-block text-sm font-medium text-primary-600">
@@ -301,7 +301,7 @@ export default function DruzynaClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <main className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 py-6">
         <button onClick={wstecz} className="inline-flex min-h-[44px] items-center gap-1.5 text-sm text-slate-500 hover:text-ink transition-colors">
           <ArrowLeft className="h-4 w-4" /> {turniej?.nazwa ?? 'Turniej'}

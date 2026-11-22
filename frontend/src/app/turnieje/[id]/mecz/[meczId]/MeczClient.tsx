@@ -160,7 +160,7 @@ export default function MeczClient() {
   if (ladowanie) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center text-sm text-slate-400">Ładuję…</div>
       </div>
     );
@@ -169,7 +169,7 @@ export default function MeczClient() {
   if (notFound || !mecz) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center">
           <p className="font-medium text-ink">Nie znaleziono meczu</p>
           <Link href={`/turnieje/${id}`} className="mt-2 inline-block text-sm text-primary-600">Wróć do turnieju</Link>
@@ -496,7 +496,7 @@ export default function MeczClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <button onClick={wstecz} aria-label="Wróć" className="shrink-0 text-slate-500 hover:text-ink">
@@ -811,7 +811,9 @@ export default function MeczClient() {
                       className="flex min-h-[96px] w-full flex-col items-center justify-center gap-1 rounded-2xl bg-primary-50 dark:bg-primary-950 px-2 py-3 active:bg-primary-100 dark:active:bg-primary-900"
                     >
                       <span className="text-2xl">⚽</span>
-                      <span className="text-sm font-bold text-primary-700 dark:text-primary-300">GOL</span>
+                      {/* Plus mówi „dodaj” (prośba właściciela 2026-11-22):
+                          samo „GOL” czytało się jak etykieta, nie przycisk. */}
+                      <span className="text-sm font-bold text-primary-700 dark:text-primary-300">+ GOL</span>
                       <span className="line-clamp-2 text-center text-xs text-slate-500 dark:text-slate-400">
                         {nazwaDruzyny(druzynaId)}
                       </span>
@@ -823,15 +825,15 @@ export default function MeczClient() {
                       <button
                         onClick={() => zapytajOZawodnika(druzynaId, 'zolta')}
                         aria-label={`Żółta kartka, ${nazwaDruzyny(druzynaId)}`}
-                        className="min-h-[44px] min-w-[44px] rounded-lg bg-amber-50 dark:bg-amber-950 text-base"
-                      >🟨</button>
+                        className="min-h-[44px] min-w-[56px] rounded-lg bg-amber-50 px-2 text-base font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                      >+ 🟨</button>
                       <button
                         onClick={() => zapytajOZawodnika(druzynaId, 'czerwona')}
                         aria-label={`Czerwona kartka, ${nazwaDruzyny(druzynaId)}`}
                         // Neutralne tło: czerwień w Bojo znaczy „coś poszło źle",
                         // a znaczenie niesie sama ikona kartki (audyt 5, N10).
-                        className="min-h-[44px] min-w-[44px] rounded-lg bg-slate-100 dark:bg-slate-700 text-base"
-                      >🟥</button>
+                        className="min-h-[44px] min-w-[56px] rounded-lg bg-slate-100 px-2 text-base font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+                      >+ 🟥</button>
                     </div>
                   )}
                 </div>

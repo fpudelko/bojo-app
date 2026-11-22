@@ -33,7 +33,6 @@ import { getZdjecia, getSponsorzy } from '@/lib/turniejGaleria';
 import { podiumTurnieju, tekstPodium, medal } from '@/lib/turniejPodium';
 import { linkDojazdu } from '@/lib/utils';
 import { withCount } from '@/lib/plural';
-import { useWstecz } from '@/lib/historia';
 import { sportEmoji } from '@/lib/sports';
 import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
 import Drabinka from '@/components/turnieje/Drabinka';
@@ -119,7 +118,6 @@ export default function TurniejClient() {
   // Do listy turniejów tylko z linku (pusta historia). Na ten ekran prowadzi
   // też karta meczu, profil gracza i link z WhatsAppa, a `router.push` na
   // sztywnego rodzica odbijał wtedy systemowe „wstecz" z powrotem tutaj.
-  const wstecz = useWstecz('/turnieje');
 
   const [turniej, setTurniej] = useState<Turniej | null>(null);
   const [druzyny, setDruzyny] = useState<TurniejDruzyna[]>([]);
@@ -256,7 +254,7 @@ export default function TurniejClient() {
   if (ladowanie) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center text-sm text-slate-400">Ładuję…</div>
       </div>
     );
@@ -265,7 +263,7 @@ export default function TurniejClient() {
   if (bladWczytania && !turniej) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center">
           <p className="font-medium text-ink">Nie udało się wczytać turnieju</p>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Sprawdź połączenie i spróbuj ponownie.</p>
@@ -283,7 +281,7 @@ export default function TurniejClient() {
   if (notFound || !turniej) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center">
           <p className="font-medium text-ink">Nie znaleziono turnieju</p>
           <Link href="/turnieje" className="mt-2 inline-block text-sm text-primary-600">Wróć do listy turniejów</Link>
@@ -498,12 +496,22 @@ export default function TurniejClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
         <div className={`mx-auto flex ${szerokosc} items-center gap-3 px-4 py-3`}>
-          <button onClick={wstecz} aria-label="Wróć" className="-ml-3 flex h-11 w-11 shrink-0 items-center justify-center text-slate-500 hover:text-ink">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+          {/* STRZAŁKA TYLKO POZA INFO (uwaga właściciela 2026-11-22). Info to
+              strona główna turnieju: zawodnik wchodzi tu z linku i „wstecz”
+              donikąd go nie prowadzi. Na Mecze/Tabela/Drużyny strzałka wraca
+              do Info (`replace`, żeby systemowe „wstecz” nie odbijało). */}
+          {aktywna !== 'info' && (
+            <button
+              onClick={() => router.replace(`/turnieje/${id}?tab=info`)}
+              aria-label="Wróć do informacji o turnieju"
+              className="-ml-3 flex h-11 w-11 shrink-0 items-center justify-center text-slate-500 hover:text-ink"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          )}
           {/* Dwie linie zamiast ucięcia: na 360 px „Gramy dla Marysi - Turniej
               Piłka…" było jedyną nazwą wydarzenia na ekranie (audyt 7). */}
           <h1 className="line-clamp-2 min-w-0 flex-1 font-display text-xl font-bold leading-tight text-ink sm:text-2xl">{turniej.nazwa}</h1>
@@ -546,7 +554,7 @@ export default function TurniejClient() {
         )}
         {czyTurniejProbny(turniej) && (
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3.5 text-sm text-slate-700 dark:text-slate-300">
-            To jest próba turnieju. Wyniki wpisane tutaj nie trafiają do prawdziwego turnieju.
+            To jest próba turnieju: kopia do przećwiczenia dnia turnieju, zrobiona przyciskiem „Przetestuj” w panelu. Wyniki wpisane tutaj nie trafiają do prawdziwego turnieju. Usuniesz ją w panelu: „Zakończ próbę”.
           </div>
         )}
 

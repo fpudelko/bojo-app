@@ -22,7 +22,7 @@ import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { blikPhoneDigits, formatBlikPhone } from '@/lib/payments';
 import {
   getTurniej, uprawnieniaTurnieju, getOsobyTurnieju, czyTurniejProbny, utworzProbeTurnieju,
-  dodajWspolorganizatora, usunOsobeTurnieju,
+  dodajWspolorganizatora, usunOsobeTurnieju, przekazOrganizacje,
   updateTurniej, setStatusTurnieju, deleteTurniej,
   getBlikTurnieju, ustawBlikTurnieju, setOkladkaTurnieju,
 } from '@/lib/turnieje';
@@ -232,7 +232,7 @@ export default function PanelClient() {
   if (authLoading || ladowanie) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center text-sm text-slate-400">Ładuję…</div>
       </div>
     );
@@ -246,7 +246,7 @@ export default function PanelClient() {
   if (!turniej) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center text-sm text-slate-500">Nie znaleziono turnieju.</div>
       </div>
     );
@@ -255,7 +255,7 @@ export default function PanelClient() {
   if (!uprawnienia?.mozeEdytowac && !uprawnienia?.mozeZarzadzacDruzynami) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-16 text-center">
           <p className="font-medium text-ink">Ten panel jest dla organizatora turnieju</p>
           <Link href={`/turnieje/${id}`} className="mt-3 inline-block text-sm text-primary-600">Wróć do turnieju</Link>
@@ -827,6 +827,22 @@ export default function PanelClient() {
     catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się odebrać uprawnień', 'error'); }
   };
 
+  const przekazOrganizacjeAkcja = async (userId: string, imie?: string) => {
+    const kto = imie ?? 'współorganizator';
+    const wynik = await potwierdz({
+      tytul: `Przekazać organizację: ${kto}?`,
+      konsekwencje: [
+        `Na stronie turnieju będzie „Organizuje ${kto}”`,
+        'Ty zostajesz współorganizatorem i dalej prowadzisz turniej',
+        `Tylko ${kto} będzie mógł usunąć turniej i dodawać współorganizatorów`,
+      ],
+      potwierdzLabel: 'Przekaż',
+    });
+    if (wynik !== 'tak') return;
+    try { await przekazOrganizacje(id, userId); await wczytaj(); toast(`Organizuje teraz ${kto}`); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się przekazać organizacji', 'error'); }
+  };
+
   const dodajAreneAkcja = async () => {
     if (nowaArenaNazwa.trim().length < 1) return;
     try {
@@ -995,7 +1011,7 @@ export default function PanelClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3 lg:max-w-6xl lg:px-6 2xl:max-w-7xl">
           <button onClick={() => router.push(`/turnieje/${id}`)} aria-label="Wróć" className="shrink-0 text-slate-500 hover:text-ink">
@@ -1144,10 +1160,13 @@ export default function PanelClient() {
               // ani nowość (audyt 7, Z-8).
               <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-4 space-y-2">
                 <p className="text-sm font-semibold text-ink">To jest próba</p>
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  Wpisuj wyniki, zmieniaj, sprawdzaj drabinkę. Nic z tego nie trafia do prawdziwego
-                  turnieju, a zawodnicy nie dostają powiadomień.
-                </p>
+                <ul className="list-disc space-y-0.5 pl-5 text-sm text-slate-600 dark:text-slate-300">
+                  <li>Kopia z przycisku „Przetestuj”, ten sam terminarz i drużyny</li>
+                  <li>Od razu „w trakcie”: wejdź w mecz, prowadź go na żywo, wpisz wynik</li>
+                  <li>Sprawdź tabelę, drabinkę i ekran na halę</li>
+                  <li>Nic nie trafia do prawdziwego turnieju, zawodnicy nic nie dostają</li>
+                  <li>Kolejne „Przetestuj” zastępuje tę kopię nową</li>
+                </ul>
                 <Button variant="outline" onClick={zakonczProbe} className="w-full">Zakończ próbę i usuń kopię</Button>
               </div>
             )}
@@ -1262,8 +1281,9 @@ export default function PanelClient() {
                 )}
                 {mozeRozpoczac && jestAdmin && (
                   <p className="text-xs text-slate-500">
-                    „Przetestuj” robi kopię z tym samym terminarzem. Wpiszesz w niej wyniki jak w dniu
-                    turnieju, a prawdziwy turniej i zawodnicy niczego nie zobaczą.
+                    „Przetestuj” robi kopię „Próba: {turniej.nazwa}” z tym samym terminarzem, od razu
+                    w trakcie. Przećwiczysz w niej dzień turnieju (wyniki, zegar, drabinka, ekran),
+                    a prawdziwy turniej i zawodnicy niczego nie zobaczą. Kopię usuwa „Zakończ próbę”.
                   </p>
                 )}
 
@@ -1814,11 +1834,20 @@ export default function PanelClient() {
                   <h2 className="text-sm font-semibold text-ink">Współorganizatorzy</h2>
                   <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                     Mogą wszystko co Ty, poza usunięciem turnieju: wpisywać wyniki, zmieniać terminarz, drużyny i ustawienia.
+                    „Przekaż organizację” robi z tej osoby organizatora widocznego na stronie turnieju.
                   </p>
                 </div>
                 {osoby.filter((o) => o.mozeEdytowac).map((o) => (
                   <div key={o.userId} className="flex items-center gap-2">
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{o.imie ?? 'Współorganizator'}</span>
+                    {/* PRZEKAZANIE (183): turniej przygotowany przez Bojo
+                        dostaje prawdziwego organizatora na stronie. */}
+                    <button
+                      onClick={() => przekazOrganizacjeAkcja(o.userId, o.imie)}
+                      className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/40"
+                    >
+                      Przekaż organizację
+                    </button>
                     <button
                       onClick={() => usunWspolorganizatoraAkcja(o.userId, o.imie)}
                       className="flex h-11 w-11 shrink-0 items-center justify-center text-slate-400 hover:text-red-500"
