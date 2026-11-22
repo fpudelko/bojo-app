@@ -4,6 +4,7 @@
 import { supabase } from './supabase';
 import { validateName, validatePhone, normalizePhone, validateEmail } from './validation';
 import { track } from './analytics';
+import { kanonicznyOrigin } from './powrotPoLogowaniu';
 import { zaktualizujJedenWiersz } from './zapytania';
 import type { DruzynaStatus, Turniej, TurniejDruzyna, TurniejZawodnik } from '@/types';
 
@@ -362,13 +363,24 @@ export async function przygotujLinkiKapitanow(turniejId: string): Promise<LinkKa
   }));
 }
 
-/** Tekst do wklejenia na WhatsApp: nazwa drużyny i link, jedna drużyna na linię. */
+/**
+ * Tekst do wklejenia na WhatsApp (2026-11-22, druga wersja po uwadze
+ * właściciela: „nazwa: link” w jednej linii zlewało się w ścianę tekstu).
+ * Nagłówek pogrubiony (`*…*` to pogrubienie w WhatsAppie i Messengerze),
+ * instrukcja w osobnej linii, potem każda drużyna jako numerowany blok:
+ * nazwa pogrubiona, link w następnej linii, pusta linia między drużynami.
+ * Adres zawsze kanoniczny (bojo.pl, nie www.bojo.pl).
+ */
 export function tekstLinkowKapitanow(nazwaTurnieju: string, linki: readonly LinkKapitana[], origin: string): string {
+  const baza = kanonicznyOrigin(origin);
   const doWyslania = linki.filter((l) => l.kod);
   return [
-    `${nazwaTurnieju}: linki dla kapitanów. Otwórz link swojej drużyny, zaloguj się i przejmij drużynę jako kapitan. Każdy link działa raz.`,
+    `*${nazwaTurnieju}: linki dla kapitanów*`,
     '',
-    ...doWyslania.map((l) => `${l.nazwa}: ${origin}/k/${l.kod}`),
+    'Otwórz link swojej drużyny, zaloguj się i przejmij drużynę jako kapitan.',
+    'Każdy link działa tylko raz, nie przesyłaj go dalej.',
+    '',
+    doWyslania.map((l, i) => `${i + 1}. *${l.nazwa}*\n${baza}/k/${l.kod}`).join('\n\n'),
   ].join('\n');
 }
 

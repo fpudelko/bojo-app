@@ -2,20 +2,32 @@ import { describe, it, expect } from 'vitest';
 import { tekstLinkowKapitanow } from '@/lib/turniejDruzyny';
 
 // Linki kapitanów (181): tekst, który organizator wkleja na WhatsApp.
+// Druga wersja (2026-11-22): bloki z pustą linią między drużynami zamiast
+// „nazwa: link” w jednej linii, adres kanoniczny bez www.
 describe('tekstLinkowKapitanow', () => {
-  it('jedna drużyna na linię, tylko drużyny z kodem, z instrukcją na górze', () => {
-    const tekst = tekstLinkowKapitanow('Gramy dla Marysi', [
-      { druzynaId: '1', nazwa: 'Ekipa Marysi', kod: 'AB12CD34' },
-      { druzynaId: '2', nazwa: 'KS Pyry', kapitan: 'Jan' },
-      { druzynaId: '3', nazwa: 'Rossoneri', kod: 'ZZ99YY88' },
-    ], 'https://bojo.pl');
-    const linie = tekst.split('\n');
-    expect(linie[0]).toContain('Gramy dla Marysi');
-    expect(linie[0]).toContain('działa raz');
-    expect(linie.slice(2)).toEqual([
-      'Ekipa Marysi: https://bojo.pl/k/AB12CD34',
-      'Rossoneri: https://bojo.pl/k/ZZ99YY88',
-    ]);
+  const tekst = tekstLinkowKapitanow('Gramy dla Marysi!', [
+    { druzynaId: '1', nazwa: 'AFC Poznań', kod: '3A58E93A' },
+    { druzynaId: '2', nazwa: 'KS Pyry', kapitan: 'Jan' },
+    { druzynaId: '3', nazwa: 'Rossoneri', kod: '3BFA6F33' },
+  ], 'https://www.bojo.pl');
+
+  it('pogrubiony nagłówek, instrukcja, numerowane bloki oddzielone pustą linią', () => {
+    expect(tekst).toBe([
+      '*Gramy dla Marysi!: linki dla kapitanów*',
+      '',
+      'Otwórz link swojej drużyny, zaloguj się i przejmij drużynę jako kapitan.',
+      'Każdy link działa tylko raz, nie przesyłaj go dalej.',
+      '',
+      '1. *AFC Poznań*',
+      'https://bojo.pl/k/3A58E93A',
+      '',
+      '2. *Rossoneri*',
+      'https://bojo.pl/k/3BFA6F33',
+    ].join('\n'));
+  });
+
+  it('pomija drużyny z kapitanem i nie ma długiego myślnika', () => {
+    expect(tekst).not.toContain('KS Pyry');
     expect(tekst).not.toContain('—');
   });
 });

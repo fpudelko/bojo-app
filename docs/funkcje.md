@@ -5051,6 +5051,9 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   - **Strona turnieju bez strzałki na Info**: Info to strona główna turnieju (zawodnik wchodzi
     z linku), więc strzałka jest tylko na Mecze/Tabela/Drużyny i wraca do Info
     (`router.replace`, nie historia). Konsola meczu: „+ GOL”, „+ 🟨”, „+ 🟥”.
+  - **Tekst linków kapitanów** (`tekstLinkowKapitanow()`): pogrubiony nagłówek (`*…*` dla
+    WhatsAppa/Messengera), instrukcja, potem numerowane bloki „nazwa” + link w nowej linii,
+    pusta linia między drużynami; adres kanoniczny `bojo.pl` (bez `www.`).
   - **Strona meczu**: karta „Prowadź mecz na żywo” z opisem hasłami (zegar, gol jednym
     dotknięciem, strzelcy i kartki, kibice widzą wynik) i przyciskiem „Zacznij mecz teraz”
     stoi NAD formularzem wyniku; pod nią „albo, gdy mecz już się skończył” i „Wpisz wynik
