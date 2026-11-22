@@ -23,7 +23,10 @@ import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
 import { nazwaSlotu } from '@/components/turnieje/KartaMeczu';
 import { centrumTurnieju } from '@/lib/turniejPulpit';
 import { terminarzZPrzerwami, meczPrzed } from '@/lib/turniejEtykiety';
-import { czasGry, jestKoszykowka, jestSportemSetowym, poCzasie, wymaganeKarne } from '@/lib/turniejWynik';
+import { jestKoszykowka, jestSportemSetowym, wymaganeKarne } from '@/lib/turniejWynik';
+import {
+  fazaZegara, opisZegara, poCzasiePolowy, startZegara, pauzaZegara, koniecPolowy, type ZmianaZegara,
+} from '@/lib/zegarMeczu';
 import { chwilaWPolsce } from '@/lib/czasPolski';
 import { plural, withCount } from '@/lib/plural';
 import type { Turniej, TurniejGrupa, TurniejMecz, TurniejPrzerwa, WierszTabeli } from '@/types';
@@ -44,6 +47,8 @@ export interface CentrumTurniejuProps {
   onRozpocznij: (m: TurniejMecz) => void;
   onGol: (m: TurniejMecz, druzynaId: string) => void;
   onZakoncz: (m: TurniejMecz) => void;
+  /** Start, pauza, koniec połowy zegara meczu (182). */
+  onZegar: (m: TurniejMecz, zmiana: ZmianaZegara) => void;
   /** Kasuje ostatnie zdarzenie meczu (pomyłka przy „+ Gol”). */
   onCofnij: (m: TurniejMecz) => void;
 }
@@ -56,7 +61,7 @@ const godzina = (m: Pick<TurniejMecz, 'zaplanowanyAt'>) =>
 
 export default function CentrumTurnieju({
   turniej, mecze, przerwy, druzynyPoId, meczePoId, arenyPoId, grupyPoId, tabele,
-  liczbaZgloszen, liczbaAren, teraz, onRozpocznij, onGol, onZakoncz, onCofnij,
+  liczbaZgloszen, liczbaAren, teraz, onRozpocznij, onGol, onZakoncz, onCofnij, onZegar,
 }: CentrumTurniejuProps) {
   const c = centrumTurnieju(mecze, teraz, {
     najblizsze: 4, ostatnie: 6, liczbaAren, czasMeczuMin: turniej.czasMeczuMin,
@@ -84,25 +89,46 @@ export default function CentrumTurnieju({
     <section className={`${karta} border-2 border-primary-600 dark:border-primary-500`} aria-label="Teraz">
       {c.naZywo.length > 0 ? c.naZywo.map((m, i) => {
         const arena = m.arenaId ? arenyPoId.get(m.arenaId) : undefined;
-        const zegar = czasGry(m.rozpoczetyAt, teraz, turniej.czasMeczuMin);
-        // Po czasie gry zegar bursztynowy, nie czerwony: to informacja dla
-        // prowadzącego, nie awaria (komentarz przy `poCzasie()`).
-        const poCzasieGry = poCzasie(m.rozpoczetyAt, turniej.czasMeczuMin, teraz);
+        // Zegar sterowany ręcznie (182). Po czasie połowy bursztynowy, nie
+        // czerwony: to informacja dla prowadzącego, nie awaria.
+        const faza = fazaZegara(m);
+        const poCzasieGry = poCzasiePolowy(m, teraz, turniej.czasMeczuMin);
         const karne = wymaganeKarne(m.faza, m.wynikA, m.wynikB);
         return (
           <div key={m.id} className={i > 0 ? 'mt-4 border-t border-slate-100 pt-4 dark:border-slate-700' : ''}>
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className={`${naglowek} mb-0`}>Teraz{arena ? ` · ${arena}` : ''}</p>
-              {m.rozpoczetyAt && (
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-sm font-semibold tabular-nums ${
-                    poCzasieGry
-                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                      : 'bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300'
-                  }`}
-                  title="Czas gry / czas meczu z zasad"
-                >
-                  {zegar ?? `ponad ${turniej.czasMeczuMin * 2} min`} / {turniej.czasMeczuMin}:00
+              {!jestSportemSetowym(turniej.sport) && (
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-sm font-semibold tabular-nums ${
+                      poCzasieGry
+                        ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                        : faza === 'gra'
+                          ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300'
+                          : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200'
+                    }`}
+                  >
+                    {opisZegara(m, teraz)}
+                  </span>
+                  {/* Sterowanie zegarem także z laptopa: start i pauza. Koniec
+                      połowy i meczu na stronie meczu i przyciskiem obok. */}
+                  <button
+                    type="button"
+                    onClick={() => onZegar(m, faza === 'gra' ? pauzaZegara(m, teraz) : startZegara(m, teraz))}
+                    className="rounded-full border border-slate-300 px-2.5 py-0.5 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
+                  >
+                    {faza === 'gra' ? 'Pauza' : faza === 'pauza' ? 'Wznów' : faza === 'przerwa' ? 'Start 2. poł.' : 'Start'}
+                  </button>
+                  {faza !== 'przerwa' && faza !== 'czeka' && (m.polowa ?? 1) === 1 && (
+                    <button
+                      type="button"
+                      onClick={() => onZegar(m, koniecPolowy())}
+                      className="rounded-full border border-slate-300 px-2.5 py-0.5 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
+                    >
+                      Koniec połowy
+                    </button>
+                  )}
                 </span>
               )}
             </div>

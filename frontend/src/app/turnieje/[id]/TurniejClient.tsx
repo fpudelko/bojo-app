@@ -4,6 +4,8 @@ import WierszMeczu from '@/components/turnieje/WierszMeczu';
 import { etykietaZakladkiTurnieju } from '@/lib/turniejEtykiety';
 import { SHOW_TURNIEJ_OGLOSZENIA } from '@/lib/features';
 import { useAdmin } from '@/lib/admin';
+import { useWidokUczestnika } from '@/lib/widokUczestnika';
+import PrzelacznikWidoku from '@/components/turnieje/PrzelacznikWidoku';
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -105,6 +107,7 @@ function MeczeGrupy({ mecze, wiersz }: {
 export default function TurniejClient() {
   const { id } = useParams<{ id: string }>();
   const jestAdmin = useAdmin();
+  const [jakoUczestnik, ustawWidok] = useWidokUczestnika();
   // Adres z nazwą (177): do linków udostępniania i do paska przeglądarki.
   const adresTurnieju = useAdres('turniej', id);
   useAdresWPasku({ [id]: adresTurnieju });
@@ -289,7 +292,12 @@ export default function TurniejClient() {
     );
   }
 
-  const uprawnienia = uprawnieniaTurnieju(turniej, osoba, user?.id, jestAdmin);
+  const prawdziweUprawnienia = uprawnieniaTurnieju(turniej, osoba, user?.id, jestAdmin);
+  // Widok uczestnika (2026-11-22): organizator ogląda stronę jak zawodnik,
+  // bez przycisków zarządzania. Tylko ukrycie w interfejsie, RLS bez zmian.
+  const uprawnienia = jakoUczestnik
+    ? { jestOrganizatorem: false, mozeEdytowac: false, mozeProwadzic: false, mozeZarzadzacDruzynami: false }
+    : prawdziweUprawnienia;
   const druzynyPoId = new Map(druzyny.map((d) => [d.id, d.nazwa]));
   const meczePoId = new Map(mecze.map((m) => [m.id, m]));
   const arenyPoId = new Map(areny.map((a) => [a.id, a.nazwa]));
@@ -523,6 +531,14 @@ export default function TurniejClient() {
       </div>
 
       <main className={`mx-auto w-full ${szerokosc} flex-1 space-y-4 px-4 py-5`}>
+        {prawdziweUprawnienia.mozeEdytowac && (
+          <div className="flex flex-wrap items-center gap-2">
+            <PrzelacznikWidoku jakoUczestnik={jakoUczestnik} onZmiana={ustawWidok} />
+            {jakoUczestnik && (
+              <span className="text-xs text-slate-500 dark:text-slate-400">Tak widzą turniej zawodnicy i kibice.</span>
+            )}
+          </div>
+        )}
         {turniej.status === 'szkic' && uprawnienia.mozeEdytowac && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-sm text-amber-800 dark:text-amber-300">
             Ten turniej jest szkicem: nie ma go na liście turniejów, ale każdy, kto ma link, go zobaczy.
