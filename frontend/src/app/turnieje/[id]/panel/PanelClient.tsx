@@ -50,6 +50,7 @@ import {
   pulpitPrzedTurniejem, postepTurnieju, mozeRozpoczacTurniej, centrumTurnieju,
 } from '@/lib/turniejPulpit';
 import { tabeleTurnieju } from '@/lib/turniejTabela';
+import { minutaMeczu } from '@/lib/zegarMeczu';
 import { plural, withCount } from '@/lib/plural';
 import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejGrupa, TurniejArena, TurniejMecz, TurniejPrzerwa } from '@/types';
 import type { KontaktDruzyny } from '@/lib/turniejDruzyny';
@@ -964,12 +965,8 @@ export default function PanelClient() {
   const golAkcja = async (m: TurniejMecz, druzynaId: string) => {
     const strona = druzynaId === m.druzynaAId ? 'wynikA' : 'wynikB';
     setMecze((lista) => lista.map((x) => (x.id === m.id ? { ...x, [strona]: x[strona] + 1 } : x)));
-    const od = m.rozpoczetyAt ? new Date(m.rozpoczetyAt).getTime() : NaN;
     try {
-      await dodajZdarzenie(m.id, {
-        druzynaId, typ: 'gol',
-        minuta: Number.isNaN(od) ? undefined : Math.max(0, Math.floor((Date.now() - od) / 60_000)),
-      });
+      await dodajZdarzenie(m.id, { druzynaId, typ: 'gol', minuta: minutaMeczu(m, new Date(), turniej.czasMeczuMin) });
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się zapisać gola', 'error');
     }
@@ -1101,6 +1098,11 @@ export default function PanelClient() {
             liczbaAren={areny.length}
             teraz={teraz}
             onCofnij={cofnijAkcja}
+            onZegar={async (m, z) => {
+              setMecze((lista) => lista.map((x) => (x.id === m.id ? { ...x, zegarOd: z.zegarOd ?? undefined, zegarSekundy: z.zegarSekundy, polowa: z.polowa } : x)));
+              try { await updateMecz(m.id, z); }
+              catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się zapisać zegara', 'error'); await wczytaj(); }
+            }}
             onRozpocznij={rozpocznijMeczAkcja}
             onGol={golAkcja}
             onZakoncz={zakonczMeczAkcja}
@@ -1950,23 +1952,25 @@ export default function PanelClient() {
                 pierwszym terminarzem, bo od niego zależy układ meczów. */}
             <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
               <h2 className="text-sm font-semibold text-ink">Termin, miejsce i drużyny</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              {/* `items-end` + `min-w-0`: pola daty i godziny w Safari mają własną
+                  minimalną szerokość i wychodziły poza kartę (zgłoszenie 2026-11-22). */}
+              <div className="grid grid-cols-2 items-end gap-3">
+                <div className="min-w-0">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Data startu</label>
                   <input
                     type="date"
                     defaultValue={szkic.dataStartu ?? turniej.dataStartu}
                     onChange={(e) => ustawWSzkicu('dataStartu', e.target.value, turniej.dataStartu)}
-                    className={inputCls}
+                    className={`${inputCls} min-w-0 appearance-none`}
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Godzina startu</label>
                   <input
                     type="time"
                     defaultValue={szkic.godzinaStartu ?? (turniej.godzinaStartu ?? '').slice(0, 5)}
                     onChange={(e) => ustawWSzkicu('godzinaStartu', e.target.value, (turniej.godzinaStartu ?? '').slice(0, 5))}
-                    className={inputCls}
+                    className={`${inputCls} min-w-0 appearance-none`}
                   />
                 </div>
               </div>
@@ -1977,9 +1981,9 @@ export default function PanelClient() {
                 onChange={(e) => ustawWSzkicu('miejsceNazwa', e.target.value, turniej.miejsceNazwa ?? '')}
                 className={inputCls}
               />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Ile drużyn najwyżej</label>
+              <div className="grid grid-cols-2 items-end gap-3">
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Maks. drużyn</label>
                   <input
                     type="number" min={2} max={64}
                     defaultValue={szkic.maxDruzyn ?? turniej.maxDruzyn}
@@ -1987,8 +1991,8 @@ export default function PanelClient() {
                     className={inputCls}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Zawodników w drużynie</label>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Maks. zawodników w drużynie</label>
                   <input
                     type="number" min={1} max={40}
                     defaultValue={szkic.maxZawodnikow ?? turniej.maxZawodnikow}

@@ -5047,6 +5047,25 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   `lib/oknoCzatu.ts`), nie tylko przy kursorze w polu. Safari po zamknięciu klawiatury
   albo kółka godzin trzymał okno skurczone i menu wisiało nad terminarzem.
 - Udostępnienie turnieju: sam link, bez dopisku „Zgłoś drużynę” (`tekstUdostepnieniaTurnieju()`).
+- **Poprawki z 2026-11-22, druga runda (migracja `182`):**
+  - **Strona meczu**: karta „Prowadź mecz na żywo” z opisem hasłami (zegar, gol jednym
+    dotknięciem, strzelcy i kartki, kibice widzą wynik) i przyciskiem „Zacznij mecz teraz”
+    stoi NAD formularzem wyniku; pod nią „albo, gdy mecz już się skończył” i „Wpisz wynik
+    końcowy”.
+  - **Zegar meczu** (`lib/zegarMeczu.ts`, kolumny z `182`): po wejściu w tryb na żywo stoi na
+    0:00. „Start”, „Pauza”/„Wznów”, w 1. połowie „Koniec połowy”, potem „Start 2. połowy”,
+    w 2. „Koniec meczu” (otwiera panel zakończenia); „Przejdź do końca meczu” zawsze. Połowa
+    = czas meczu / 2, po niej zegar bursztynowy. Minuta zdarzenia liczona z zegara (w 2.
+    połowie z doliczoną 1.). Centrum dowodzenia: pigułka „1. poł. 03:12” z „Start/Pauza”
+    i „Koniec połowy”; ekran na halę: „1. poł. 03:12”, „Pauza”, „Przerwa”.
+  - **Przełącznik „Organizator / Uczestnik”** (`useWidokUczestnika()` w
+    `lib/widokUczestnika.ts`, `PrzelacznikWidoku.tsx`) na stronie turnieju i meczu, tylko dla
+    zarządzającego / prowadzącego: widok uczestnika ukrywa przyciski zarządzania (RLS bez
+    zmian). Pamiętany w `localStorage`, wspólny dla otwartych kart.
+  - **Ekran na halę: kody QR po dwóch stronach** — kod zbiórki duży (`kartaGlowna`), kod Bojo
+    mały po przeciwnej stronie (`kartaBoczna`); bez zbiórki kod Bojo średni.
+  - **Ustawienia i kreator**: „Maks. drużyn”, „Maks. zawodników w drużynie”, siatki
+    `items-end`, pola daty i godziny `min-w-0 appearance-none` (wychodziły poza kartę w Safari).
 - **Poprawki z 2026-11-22 (sugestie Jana, migracja `181`):**
   - **Link kapitana** (`/k/[kod]`, `app/k/[kod]/page.tsx`): Panel → Drużyny → „Linki dla
     kapitanów” → „Przygotuj linki” (`przygotujLinkiKapitanow()`), „Kopiuj link” przy drużynie

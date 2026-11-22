@@ -811,6 +811,11 @@ export interface TurniejMecz {
   prowadzacyId?: string;
   status: MeczStatus;
   rozpoczetyAt?: string;
+  /** Zegar meczu (182): start bieżącego odcinka gry; brak = zegar stoi. */
+  zegarOd?: string;
+  /** Sekundy zebrane w bieżącej połowie przed `zegarOd`. */
+  zegarSekundy?: number;
+  polowa?: 1 | 2;
   zakonczonyAt?: string;
   wynikA: number;
   wynikB: number;

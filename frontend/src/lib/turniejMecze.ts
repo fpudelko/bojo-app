@@ -52,6 +52,9 @@ function toMecz(row: any): TurniejMecz {
     prowadzacyId: row.prowadzacy_id ?? undefined,
     status: row.status,
     rozpoczetyAt: row.rozpoczety_at ?? undefined,
+    zegarOd: row.zegar_od ?? undefined,
+    zegarSekundy: row.zegar_sekundy ?? 0,
+    polowa: row.polowa === 2 ? 2 : 1,
     zakonczonyAt: row.zakonczony_at ?? undefined,
     wynikA: row.wynik_a,
     wynikB: row.wynik_b,
@@ -227,6 +230,10 @@ export interface ZmianaMeczu {
   prowadzacyId?: string | null;
   status?: TurniejMecz['status'];
   rozpoczetyAt?: string | null;
+  /** Zegar meczu (182), patrz `lib/zegarMeczu.ts`. */
+  zegarOd?: string | null;
+  zegarSekundy?: number;
+  polowa?: 1 | 2;
   /** Wynik siatkówki/plażówki (liczba wygranych setów) — jedyny sport, który
    *  NIE korzysta z `turniej_zdarzenia` (patrz nagłówek migracji 147). Ustawia
    *  `wynik_recznie = true` automatycznie. */
@@ -246,6 +253,9 @@ export async function updateMecz(id: string, zmiany: ZmianaMeczu): Promise<void>
   if ('prowadzacyId' in zmiany) payload.prowadzacy_id = zmiany.prowadzacyId;
   if ('status' in zmiany) payload.status = zmiany.status;
   if ('rozpoczetyAt' in zmiany) payload.rozpoczety_at = zmiany.rozpoczetyAt;
+  if ('zegarOd' in zmiany) payload.zegar_od = zmiany.zegarOd;
+  if (zmiany.zegarSekundy !== undefined) payload.zegar_sekundy = zmiany.zegarSekundy;
+  if (zmiany.polowa !== undefined) payload.polowa = zmiany.polowa;
   if ('sety' in zmiany) payload.sety = zmiany.sety;
   if (zmiany.wynikA !== undefined || zmiany.wynikB !== undefined) {
     if (zmiany.wynikA !== undefined) payload.wynik_a = zmiany.wynikA;

@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-22 · migracja `181` · 62 tabel
+**Stan na:** 2026-11-22 · migracja `182` · 62 tabel
 
 ---
 
@@ -481,6 +481,28 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-22 (2) — Zegar meczu turnieju z pauzą i połowami, widok uczestnika
+
+PROBLEM: zegar meczu turnieju w Bojo ruszał w chwili wejścia w tryb na żywo i nie dawał się
+zatrzymać; organizator nie wiedział, co się stanie po kliknięciu „Prowadź mecz na żywo”, i nie
+mógł zobaczyć turnieju oczami zawodnika.
+
+ROZWIĄZANIE BOJO: na stronie meczu karta „Prowadź mecz na żywo” stoi na górze z opisem
+w jednej linii. Po „Zacznij mecz teraz” zegar czeka na „Start”; prowadzący ma „Pauza”,
+„Koniec połowy”, „Start 2. połowy” i „Koniec meczu”, a „Przejdź do końca meczu” jest zawsze.
+Ekran na halę i panel organizatora pokazują ten sam stan zegara („1. poł. 03:12”, „Przerwa”).
+Organizator przełącza stronę turnieju i meczu między widokiem organizatora i uczestnika.
+Na ekranie na halę kod QR zbiórki jest duży, a kod Bojo mały po drugiej stronie.
+
+MECHANIKA: migracja `182` (`turniej_mecze.zegar_od`, `zegar_sekundy`, `polowa`),
+`lib/zegarMeczu.ts`, `lib/widokUczestnika.ts`, `components/turnieje/PrzelacznikWidoku.tsx`.
+Szczegóły → [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Czy zegar meczu turnieju w Bojo da się zatrzymać?
+- Jak zakończyć pierwszą połowę meczu w Bojo?
+- Jak organizator zobaczy turniej tak, jak widzi go zawodnik?
+
 ### 2026-11-22 — Turniej w Bojo: link kapitana, wyniki na karcie drużyny, przerwy, ekran 16:9
 
 PROBLEM: organizator turnieju w Bojo, który wpisał drużyny sam, nie miał jak oddać ich
@@ -724,23 +746,3 @@ MECHANIKA: migracje `172` (`ustaw_kapitana_druzyny()`, link bez kapitanatu) i `1
 `wpiszWynikZeStrzelcami()` w `lib/turniejMecze.ts`, `czyTurniejProbny()` w
 `lib/turnieje.ts`. Szczegóły → [funkcje.md](./funkcje.md), plan →
 [turnieje-poprawki-lubon.md](./turnieje-poprawki-lubon.md).
-
-### 2026-11-08 — Turniej startuje kliknięciem, wynik meczu wpisuje się jednym ruchem
-
-PROBLEM: w Bojo nie było przycisku rozpoczęcia turnieju (status „trwa" ustawiał się
-wyłącznie z bazy), a jedyną drogą do wyniku meczu było prowadzenie go na żywo, gol po
-golu. Organizator amatorskiego turnieju po meczu chce wpisać „3:1", a nie stać przy
-boisku z telefonem. Pulpit w dniu turnieju mówił też o „opóźnieniu" liczonym z godzin
-terminarza, które na amatorskim turnieju rozjeżdżają się od pierwszego meczu.
-
-ROZWIĄZANIE BOJO: organizator klika „Rozpocznij turniej" w pulpicie panelu, gdy ma gotowy
-terminarz. Od tej chwili na stronie każdego meczu widzi „Wpisz wynik końcowy" z przyciskami
-−/+ i „Zapisz wynik" (przy remisie w fazie pucharowej także karne). Gole ze strzelcami
-zostają jako opcja „Prowadź mecz na żywo". Pulpit trwającego turnieju pokazuje „Rozegrane
-X z Y meczów", listę meczów do wpisania i przycisk „Zakończ turniej". Godziny meczów
-niczego nie blokują.
-
-MECHANIKA: `wpiszWynikMeczu()` w `lib/turniejMecze.ts` (wynik z `wynik_recznie`, potem RPC
-`zakoncz_mecz()`), `postepTurnieju()`, `meczeDoWpisania()`, `mozeRozpoczacTurniej()`
-w `lib/turniejPulpit.ts`, `app/turnieje/[id]/panel/PanelClient.tsx`,
-`app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Bez migracji.

@@ -266,7 +266,7 @@ export default function NowyTurniejPage() {
 
           <div>
             <label className={labelCls}>Data startu *</label>
-            <input type="date" value={dataStartu} onChange={(e) => setDataStartu(e.target.value)} className={inputCls} />
+            <input type="date" value={dataStartu} onChange={(e) => setDataStartu(e.target.value)} className={`${inputCls} min-w-0 appearance-none`} />
           </div>
 
           {/* TERMIN GRANICZNY ZAPISÓW. Kolumna `zapisy_do` istniała w bazie od
@@ -335,9 +335,9 @@ export default function NowyTurniejPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}>Ile drużyn najwyżej</label>
+          <div className="grid grid-cols-2 items-end gap-3">
+            <div className="min-w-0">
+              <label className={labelCls}>Maks. drużyn</label>
               <input
                 type="number" min={2} max={64} value={maxDruzyn || ''}
                 onChange={(e) => setMaxDruzyn(e.target.value === '' ? 0 : Number(e.target.value))}
@@ -345,8 +345,8 @@ export default function NowyTurniejPage() {
                 className={inputCls}
               />
             </div>
-            <div>
-              <label className={labelCls}>Zawodników w drużynie</label>
+            <div className="min-w-0">
+              <label className={labelCls}>Maks. zawodników w drużynie</label>
               <input
                 type="number" min={1} max={40} value={maxZawodnikow || ''}
                 onChange={(e) => setMaxZawodnikow(e.target.value === '' ? 0 : Number(e.target.value))}

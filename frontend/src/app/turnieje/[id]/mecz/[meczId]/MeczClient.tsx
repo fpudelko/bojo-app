@@ -20,11 +20,17 @@ import {
 } from '@/lib/turniejMecze';
 import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
-  czasGry, poCzasie, czyWolnyLos,
+  czyWolnyLos,
 } from '@/lib/turniejWynik';
 import { STATUS_MECZU, etykietaTerminuMeczu, etykietaFazyMeczu, porownajTermin } from '@/lib/turniejEtykiety';
 import { nazwaMiejscaWGrupie } from '@/lib/turniejFormat';
 import ArkuszSkladu from '@/components/turnieje/ArkuszSkladu';
+import { useWidokUczestnika } from '@/lib/widokUczestnika';
+import PrzelacznikWidoku from '@/components/turnieje/PrzelacznikWidoku';
+import {
+  fazaZegara, sekundyPolowy, formatZegara, minutaMeczu, poCzasiePolowy,
+  startZegara, pauzaZegara, koniecPolowy, type ZmianaZegara,
+} from '@/lib/zegarMeczu';
 import type { Turniej, TurniejMecz, TurniejDruzyna, TurniejArena, TurniejZdarzenie, ZdarzenieTyp, TurniejGrupa } from '@/types';
 
 const TYTUL_ARKUSZA: Record<ZdarzenieTyp, string> = {
@@ -60,7 +66,11 @@ export default function MeczClient() {
   const [druzyny, setDruzyny] = useState<TurniejDruzyna[]>([]);
   const [areny, setAreny] = useState<TurniejArena[]>([]);
   const [zdarzenia, setZdarzenia] = useState<TurniejZdarzenie[]>([]);
-  const [prowadzi, setProwadzi] = useState(false);
+  // `prowadziNaprawde` z bazy; `prowadzi` uwzględnia widok uczestnika
+  // (przełącznik 2026-11-22): organizator może zobaczyć mecz jak kibic.
+  const [prowadziNaprawde, setProwadzi] = useState(false);
+  const [jakoUczestnik, ustawWidok] = useWidokUczestnika();
+  const prowadzi = prowadziNaprawde && !jakoUczestnik;
   const [ladowanie, setLadowanie] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -208,9 +218,24 @@ export default function MeczClient() {
   // `tik` jest tu po to, żeby zegar przerysował się co sekundę — wartość
   // nieużywana wprost, liczy się sam fakt zmiany stanu.
   void tik;
-  const czas = czasGry(mecz.rozpoczetyAt, new Date(), turniej?.czasMeczuMin);
+  // ZEGAR STEROWANY RĘCZNIE (182, 2026-11-22): start, pauza, koniec połowy.
+  const faza = fazaZegara(mecz);
+  const czas = formatZegara(sekundyPolowy(mecz, new Date()));
+  const polowaMin = Math.round((turniej?.czasMeczuMin ?? 0) / 2);
   const meczPucharowy = mecz.faza !== 'grupa' && mecz.faza !== 'liga';
-  const minalCzas = poCzasie(mecz.rozpoczetyAt, turniej?.czasMeczuMin ?? 0);
+  const minalCzas = poCzasiePolowy(mecz, new Date(), turniej?.czasMeczuMin ?? 0);
+  const zmienZegar = async (z: ZmianaZegara) => {
+    setMecz((m) => (m ? { ...m, zegarOd: z.zegarOd ?? undefined, zegarSekundy: z.zegarSekundy, polowa: z.polowa } : m));
+    try { await updateMecz(meczId, z); }
+    catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zapisać zegara', 'error');
+      await wczytaj();
+    }
+  };
+  const doKoncaMeczu = () => {
+    setPokazZakoncz(true);
+    window.setTimeout(() => document.getElementById('koniec-meczu')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  };
 
   const przeliczLokalnie = (lista: TurniejZdarzenie[]) => {
     if (!mecz.druzynaAId || !mecz.druzynaBId) return;
@@ -231,12 +256,8 @@ export default function MeczClient() {
    *  nie podawało: przebieg meczu czytał się „⚽ Gol : Ekipa z Osiedla", bez
    *  informacji, kiedy padł. Prowadzący nie ma jak wpisywać minut, ale zegar
    *  i tak je zna. Gdy mecz nie jest rozpoczęty, zostaje `undefined`. */
-  const minutaTeraz = (): number | undefined => {
-    if (!mecz?.rozpoczetyAt) return undefined;
-    const od = new Date(mecz.rozpoczetyAt).getTime();
-    if (Number.isNaN(od)) return undefined;
-    return Math.max(0, Math.floor((Date.now() - od) / 60_000));
-  };
+  const minutaTeraz = (): number | undefined =>
+    mecz ? minutaMeczu(mecz, new Date(), turniej?.czasMeczuMin ?? 0) : undefined;
 
   const dodajZdarzenieAkcja = async (
     druzynaId: string, typ: ZdarzenieTyp, zawodnikId?: string, asystaZawodnikId?: string, wartosc = 1,
@@ -519,6 +540,12 @@ export default function MeczClient() {
       </div>
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 py-5">
+        {prowadziNaprawde && (
+          <div className="flex flex-wrap items-center gap-2">
+            <PrzelacznikWidoku jakoUczestnik={jakoUczestnik} onZmiana={ustawWidok} />
+            {jakoUczestnik && <span className="text-xs text-slate-500 dark:text-slate-400">Tak widzą mecz zawodnicy i kibice.</span>}
+          </div>
+        )}
         <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
           <div className="flex items-center justify-between">
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
@@ -547,32 +574,50 @@ export default function MeczClient() {
               {druzynaB?.nazwa ?? slotZGrupy('b')}
             </span>
           </div>
-          {/* ZEGAR MECZU. Prowadzący pilnuje „2×10 minut" — dotąd stoperem
-              w innej aplikacji, przełączając się tam i z powrotem. Czas liczy
-              się z `rozpoczetyAt` (kolumna), więc odświeżenie strony w 34.
-              minucie nie zaczyna odliczania od zera. Ceną jest brak pauzy —
-              napisany wprost pod zegarem, bo zegar, który po odświeżeniu
-              kłamie, byłby gorszy niż zegar bez pauzy. */}
-          {/* Bez zegara, gdy przekroczył dwukrotność regulaminowego czasu:
-              zamiast liczby, która wygląda na błąd, zdanie, które mówi prawdę
-              o stanie meczu. */}
-          {trwajacy && !czas && (
-            <p className="text-center text-sm font-medium text-slate-500">
-              Mecz w toku. Wynik aktualizuje prowadzący.
-            </p>
-          )}
-          {trwajacy && czas && (
+          {/* ZEGAR MECZU (182): rusza dopiero po „Start” prowadzącego, ma pauzę
+              i dwie połowy. Stan w bazie, więc odświeżenie strony i inne
+              ekrany (hala, panel) pokazują ten sam czas. */}
+          {trwajacy && !setowy && (
             <div className="text-center">
-              <p className={`inline-flex items-center gap-1.5 font-mono text-2xl font-bold ${
-                minalCzas ? 'text-amber-600' : 'text-ink'
-              }`}>
-                <Timer className="h-5 w-5" /> {czas}
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                {faza === 'przerwa' ? 'Przerwa po 1. połowie' : faza === 'czeka' ? 'Przed pierwszym gwizdkiem' : `${mecz.polowa ?? 1}. połowa${faza === 'pauza' ? ' · pauza' : ''}`}
               </p>
-              <p className="text-xs text-slate-400">
-                {minalCzas
-                  ? `Regulaminowe ${turniej?.czasMeczuMin ?? 0} min minęło`
-                  : `od pierwszego gwizdka · ${turniej?.czasMeczuMin ?? 0} min regulaminowe`}
-              </p>
+              {faza !== 'przerwa' && (
+                <p className={`inline-flex items-center gap-1.5 font-mono text-3xl font-bold ${minalCzas ? 'text-amber-600' : faza === 'gra' ? 'text-ink' : 'text-slate-400'}`}>
+                  <Timer className="h-5 w-5" /> {czas}
+                </p>
+              )}
+              {polowaMin > 0 && faza !== 'przerwa' && (
+                <p className="text-xs text-slate-400">
+                  {minalCzas ? `Minęło ${polowaMin} min połowy` : `połowa: ${polowaMin} min`}
+                </p>
+              )}
+              {prowadzi && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {faza === 'czeka' && (
+                    <Button onClick={() => zmienZegar(startZegara(mecz, new Date()))} className="col-span-2 min-h-[48px]">Start</Button>
+                  )}
+                  {faza === 'gra' && (
+                    <Button variant="outline" onClick={() => zmienZegar(pauzaZegara(mecz, new Date()))} className="min-h-[48px]">Pauza</Button>
+                  )}
+                  {faza === 'pauza' && (
+                    <Button onClick={() => zmienZegar(startZegara(mecz, new Date()))} className="min-h-[48px]">Wznów</Button>
+                  )}
+                  {(faza === 'gra' || faza === 'pauza') && ((mecz.polowa ?? 1) === 1 ? (
+                    <Button variant="outline" onClick={() => zmienZegar(koniecPolowy())} className="min-h-[48px]">Koniec połowy</Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => { void zmienZegar(pauzaZegara(mecz, new Date())); doKoncaMeczu(); }} className="min-h-[48px]">Koniec meczu</Button>
+                  ))}
+                  {faza === 'przerwa' && (
+                    <Button onClick={() => zmienZegar(startZegara(mecz, new Date()))} className="col-span-2 min-h-[48px]">Start 2. połowy</Button>
+                  )}
+                </div>
+              )}
+              {prowadzi && !pokazZakoncz && (
+                <button type="button" onClick={doKoncaMeczu} className="mt-2 text-xs font-medium text-slate-500 underline-offset-2 hover:underline">
+                  Przejdź do końca meczu
+                </button>
+              )}
             </div>
           )}
           {mecz.karneA !== undefined && mecz.karneB !== undefined && (
@@ -596,6 +641,28 @@ export default function MeczClient() {
             Turniej jeszcze się nie zaczął. Wyniki wpiszesz po kliknięciu „Rozpocznij turniej”{' '}
             <Link href={`/turnieje/${id}/panel`} className="font-medium text-primary-600">w panelu</Link>.
           </div>
+        )}
+
+        {/* PROWADZENIE NA ŻYWO NA GÓRZE, Z OPISEM (sugestia Jana, 2026-11-22).
+            Przycisk stał pod formularzem wyniku i nie mówił, co się stanie po
+            kliknięciu: był „lekki opór, żeby kliknąć”. Teraz karta mówi
+            hasłami, co tam jest, a szybki wynik zostaje pod nią jako druga
+            droga („albo”). */}
+        {prowadzi && mozeZaczac && (
+          <div className="rounded-xl border border-primary-100 bg-primary-50/50 p-4 dark:border-primary-900 dark:bg-primary-950/30">
+            <p className="text-sm font-semibold text-ink">Prowadź mecz na żywo</p>
+            <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
+              {setowy
+                ? 'Punkty w setach na bieżąco · kibice widzą wynik od razu · tabela liczy się sama'
+                : 'Zegar meczu · gol jednym dotknięciem · strzelcy i kartki · kibice widzą wynik od razu'}
+            </p>
+            <Button onClick={rozpocznijAkcja} className="mt-3 w-full">
+              Zacznij mecz teraz
+            </Button>
+          </div>
+        )}
+        {prowadzi && mozeZaczac && (
+          <p className="text-center text-xs font-medium uppercase tracking-wide text-slate-400">albo, gdy mecz już się skończył</p>
         )}
 
         {/* WYNIK KOŃCOWY JEDNYM RUCHEM. Główna ścieżka prowadzącego: po meczu
@@ -713,11 +780,6 @@ export default function MeczClient() {
           </div>
         )}
 
-        {prowadzi && mozeZaczac && (
-          <Button variant="outline" onClick={rozpocznijAkcja} className="w-full">
-            {setowy ? 'Prowadź mecz na żywo (punkty w setach)' : 'Prowadź mecz na żywo (gole i strzelcy)'}
-          </Button>
-        )}
 
         {/* DWA WIELKIE PRZYCISKI OBOK SIEBIE, po jednym na drużynę. Sześć
             godzin na stojąco, w słońcu, jedną ręką: gol pada i trzeba go
@@ -812,7 +874,7 @@ export default function MeczClient() {
         )}
 
         {prowadzi && trwajacy && obieDruzynyZnane && (
-          <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
+          <div id="koniec-meczu" className="scroll-mt-24 rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
             {!pokazZakoncz ? (
               <Button variant="outline" onClick={() => setPokazZakoncz(true)} className="w-full">Zakończ mecz</Button>
             ) : (

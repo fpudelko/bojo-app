@@ -33,7 +33,8 @@ import { centrumTurnieju, postepTurnieju } from '@/lib/turniejPulpit';
 import { tabeleTurnieju, miejscaWTabeli } from '@/lib/turniejTabela';
 import { terminarzZPrzerwami, meczPrzed, stanTurnieju, etykietaTerminu, etykietaZdobyczy, etykietaFazyMeczu } from '@/lib/turniejEtykiety';
 import { podiumTurnieju, medal } from '@/lib/turniejPodium';
-import { czasGry, poCzasie } from '@/lib/turniejWynik';
+import { jestSportemSetowym } from '@/lib/turniejWynik';
+import { opisZegara, poCzasiePolowy } from '@/lib/zegarMeczu';
 import { chwilaWPolsce, terazWPolsce } from '@/lib/czasPolski';
 import { useAdres } from '@/lib/useAdres';
 import { withCount } from '@/lib/plural';
@@ -238,35 +239,44 @@ export default function EkranClient() {
     final: finalowa ? 'Grupa finałowa' : 'Faza pucharowa',
   };
 
-  // Kod QR: jedyna droga z hali do telefonu kibica. Duży, na białym tle
-  // (w obu motywach: telefon czyta ciemne moduły na jasnym), z adresem obok
-  // dla tych, którzy wolą przepisać. `kompakt`, gdy obok stoi drugi kod.
-  const kartaQr = (opcje: { tekst: string; nadtytul: string; tytul: ReactNode; podpis: string; kompakt?: boolean; wyroznij?: boolean }) => (
-    <div className={`flex min-w-0 flex-1 items-center gap-[1em] rounded-[1em] p-[0.9em] ${
-      opcje.wyroznij ? 'border-2 border-[color:var(--e-zywo-ramka)] bg-[color:var(--e-komunikat)]' : 'bg-[color:var(--e-karta)]'
-    }`}>
-      <KodQr tekst={opcje.tekst} etykieta={`Kod QR: ${opcje.podpis}`} className={`${opcje.kompakt ? 'h-[7.5em] w-[7.5em]' : 'h-[9em] w-[9em]'} shrink-0 rounded-[0.4em]`} />
-      <div className="min-w-0">
-        <p className="truncate text-[1.2em] text-[color:var(--e-tekst2)]">{opcje.nadtytul}</p>
-        <p className={`font-display font-bold leading-tight tracking-tight ${opcje.kompakt ? 'line-clamp-2 text-[2em]' : 'text-[3em] leading-none'}`}>{opcje.tytul}</p>
-        <p className="mt-[0.3em] truncate text-[1em] text-[color:var(--e-tekst3)]">{opcje.podpis}</p>
+  // KODY QR PO DWÓCH STRONACH (2026-11-22, prośba właściciela): kod zbiórki
+  // DUŻY, bo na turnieju charytatywnym to on jest celem dnia, kod Bojo MAŁY
+  // po przeciwnej stronie ekranu, żeby telefon nie łapał dwóch naraz. Bez
+  // zbiórki kod Bojo wraca do średniego rozmiaru. Białe tło w obu motywach:
+  // telefon czyta ciemne moduły na jasnym.
+  type Rozmiar = 'duza' | 'srednia' | 'mala';
+  const ROZMIAR: Record<Rozmiar, { qr: string; nad: string; tytul: string }> = {
+    duza: { qr: 'h-[12em] w-[12em]', nad: 'text-[1.4em]', tytul: 'line-clamp-2 text-[2.6em] leading-tight' },
+    srednia: { qr: 'h-[9em] w-[9em]', nad: 'text-[1.2em]', tytul: 'text-[3em] leading-none' },
+    mala: { qr: 'h-[6em] w-[6em]', nad: 'text-[0.95em]', tytul: 'text-[1.8em] leading-none' },
+  };
+  const kartaQr = (opcje: { tekst: string; nadtytul: string; tytul: ReactNode; podpis: string; rozmiar: Rozmiar; wyroznij?: boolean }) => {
+    const r = ROZMIAR[opcje.rozmiar];
+    return (
+      <div className={`flex min-w-0 items-center gap-[1em] rounded-[1em] p-[0.8em] ${opcje.rozmiar === 'mala' ? 'max-w-[26em]' : ''} ${
+        opcje.wyroznij ? 'border-2 border-[color:var(--e-zywo-ramka)] bg-[color:var(--e-komunikat)]' : 'bg-[color:var(--e-karta)]'
+      }`}>
+        <KodQr tekst={opcje.tekst} etykieta={`Kod QR: ${opcje.podpis}`} className={`${r.qr} shrink-0 rounded-[0.4em]`} />
+        <div className="min-w-0">
+          <p className={`truncate text-[color:var(--e-tekst2)] ${r.nad}`}>{opcje.nadtytul}</p>
+          <p className={`font-display font-bold tracking-tight ${r.tytul}`}>{opcje.tytul}</p>
+          <p className="mt-[0.3em] truncate text-[1em] text-[color:var(--e-tekst3)]">{opcje.podpis}</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
   const bojoTytul = <>bojo<span className="text-[color:var(--e-akcent)]">.pl</span></>;
-  const kartaBojo = (kompakt = false) => kartaQr({
-    tekst: link, nadtytul: 'Wyniki, tabele i Twoje mecze w telefonie', tytul: bojoTytul, podpis: linkBezProtokolu, kompakt,
+  const kartaBojo = (rozmiar: Rozmiar) => kartaQr({
+    tekst: link, nadtytul: rozmiar === 'mala' ? 'Wyniki w telefonie' : 'Wyniki, tabele i Twoje mecze w telefonie',
+    tytul: bojoTytul, podpis: linkBezProtokolu, rozmiar,
   });
-  const kartaZbiorki = (kompakt = false) => linkZbiorki ? kartaQr({
-    tekst: linkZbiorki, nadtytul: 'Zeskanuj i wesprzyj', tytul: opisZbiorki, podpis: adresDoPodpisu(linkZbiorki), kompakt, wyroznij: true,
+  const kartaZbiorki = (rozmiar: Rozmiar = 'duza') => linkZbiorki ? kartaQr({
+    tekst: linkZbiorki, nadtytul: 'Zeskanuj i wesprzyj', tytul: opisZbiorki, podpis: adresDoPodpisu(linkZbiorki), rozmiar, wyroznij: true,
   }) : null;
-  // Zbiórka pierwsza: na turnieju charytatywnym to ona jest celem dnia.
-  const blokPromocji = (
-    <div className="flex min-w-0 gap-[0.8em]">
-      {kartaZbiorki(true)}
-      {kartaBojo(!!linkZbiorki)}
-    </div>
-  );
+  /** Główny kod w danym miejscu: zbiórka (duża), a bez niej Bojo (średni). */
+  const kartaGlowna = linkZbiorki ? kartaZbiorki('duza') : kartaBojo('srednia');
+  /** Kod Bojo po drugiej stronie, tylko gdy główną jest zbiórka. */
+  const kartaBoczna = linkZbiorki ? kartaBojo('mala') : null;
   // Pasek ogłoszenia pod nagłówkiem, na każdym układzie poza „Ogłoszeniem”
   // (tam tekst jest całym ekranem).
   const pasekKomunikatu = komunikat && ukl !== 'ogloszenie' ? (
@@ -307,14 +317,19 @@ export default function EkranClient() {
             </p>
           ))}
           <p className="mt-[0.6em] text-[1.6em] text-[color:var(--e-tekst2)]">Dziękujemy za wspólną grę!</p>
-          <div className="mt-[1em] w-[60em] max-w-full">{blokPromocji}</div>
+          <div className="mt-[1em] flex w-full max-w-[80em] items-end justify-between gap-[2em] px-[2em]">
+            <div>{kartaBoczna}</div>
+            <div>{kartaGlowna}</div>
+          </div>
         </main>
       </Tlo>
     );
   }
 
   const nastepny = c.najblizsze.find((m) => m.druzynaAId && m.druzynaBId) ?? c.najblizsze[0];
-  const kolejne = c.najblizsze.filter((m) => c.naZywo.length > 0 || m.id !== nastepny?.id).slice(0, ukl === 'wynik' ? 3 : 5);
+  // Z dużym kodem zbiórki w lewej kolumnie mniej wierszy, żeby wszystko zmieściło się na scenie.
+  const kolejne = c.najblizsze.filter((m) => c.naZywo.length > 0 || m.id !== nastepny?.id)
+    .slice(0, ukl === 'wynik' ? 3 : linkZbiorki ? 2 : 5);
   const przerwa = c.naZywo.length === 0 ? przerwaTeraz(przerwy, teraz) : null;
 
 
@@ -325,8 +340,9 @@ export default function EkranClient() {
     c.naZywo.length > 0 ? (
             <section className={`grid gap-[1em] ${c.naZywo.length > 1 ? 'grid-cols-2' : ''}`}>
               {c.naZywo.map((m) => {
-                const zegar = czasGry(m.rozpoczetyAt, teraz, turniej.czasMeczuMin);
-                const poCzasieGry = poCzasie(m.rozpoczetyAt, turniej.czasMeczuMin, teraz);
+                // Zegar sterowany przez prowadzącego (182): połowa, pauza, przerwa.
+                const zegar = jestSportemSetowym(turniej.sport) ? null : opisZegara(m, teraz);
+                const poCzasieGry = poCzasiePolowy(m, teraz, turniej.czasMeczuMin);
                 const arena = m.arenaId ? arenyPoId.get(m.arenaId) : undefined;
                 const duzy = c.naZywo.length === 1;
                 return (
@@ -383,7 +399,7 @@ export default function EkranClient() {
   );
   const blokKolejne = (
     kolejne.length > 0 && (
-            <section className="min-h-0">
+            <section className="min-h-0 overflow-hidden">
               <h2 className="mb-[0.4em] text-[1.2em] font-semibold uppercase tracking-wide text-[color:var(--e-tekst3)]">Kolejne mecze</h2>
               <div className="divide-y divide-[color:var(--e-linia)]">
                 {terminarzZPrzerwami(kolejne, przerwy.filter((p) => new Date(p.doAt) > teraz), { ...turniej, poprzedni: meczPrzed(mecze, kolejne[0]) }).map((w) => (
@@ -485,7 +501,10 @@ export default function EkranClient() {
               )
             ))}
           </div>
-          <div className="w-[60%]">{blokPromocji}</div>
+          <div className="flex items-end justify-between gap-[2em]">
+            <div>{kartaBoczna}</div>
+            <div>{kartaGlowna}</div>
+          </div>
         </main>
       ) : ukl === 'ogloszenie' ? (
         // OGŁOSZENIE: tekst organizatora i kod QR zbiórki na cały ekran
@@ -513,7 +532,8 @@ export default function EkranClient() {
             </p>
           )}
           <div className="flex items-end gap-[1.6em]">
-            <div className="min-w-0 flex-1 text-[1.4em]">
+            <div className="shrink-0">{kartaBojo('mala')}</div>
+            <div className="min-w-0 flex-1 text-right text-[1.4em]">
               {c.naZywo.map((m) => (
                 <p key={m.id} className="truncate">
                   <span className="mr-[0.5em] text-[0.75em] font-semibold uppercase tracking-wide text-[color:var(--e-akcent)]">Na żywo</span>
@@ -521,7 +541,6 @@ export default function EkranClient() {
                 </p>
               ))}
             </div>
-            <div className="w-[34em] shrink-0">{kartaBojo(true)}</div>
           </div>
         </main>
       ) : ukl === 'wynik' ? (
@@ -530,15 +549,17 @@ export default function EkranClient() {
           <div className="flex min-h-0 flex-1 flex-col justify-center" style={{ fontSize: c.naZywo.length > 1 ? '1.4em' : '1.9em' }}>
             {blokTeraz}
           </div>
-          <div className="grid grid-cols-[1.1fr_1fr] items-end gap-[1.6em]">
-            <div className="min-w-0">{blokKolejne}</div>
-            {blokPromocji}
+          <div className="flex items-end gap-[1.6em]">
+            {kartaBoczna && <div className="shrink-0">{kartaBoczna}</div>}
+            <div className="min-w-0 flex-1">{blokKolejne}</div>
+            <div className="shrink-0">{kartaGlowna}</div>
           </div>
         </main>
       ) : ukl === 'tabele' ? (
         // WSZYSTKIE TABELE NARAZ, duże. Mecz w toku jednym paskiem nad nimi.
         <main className="flex min-h-0 flex-1 flex-col gap-[1em] px-[1.6em] py-[1.2em]">
           <div className="flex items-center gap-[1.6em]">
+            {kartaBoczna && <div className="shrink-0" style={{ fontSize: '0.8em' }}>{kartaBoczna}</div>}
             <div className="min-w-0 flex-1 space-y-[0.5em]">
               {c.naZywo.length > 0 ? c.naZywo.map((m) => (
                 <p key={m.id} className="flex items-center gap-[0.6em] truncate text-[1.8em] font-semibold">
@@ -555,7 +576,7 @@ export default function EkranClient() {
                 </p>
               ) : null}
             </div>
-            <div className="w-[48%] shrink-0" style={{ fontSize: '0.75em' }}>{blokPromocji}</div>
+            <div className="shrink-0" style={{ fontSize: '0.8em' }}>{kartaGlowna}</div>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden" style={{ fontSize: tabeleGrup.length > 4 ? '1em' : tabeleGrup.length > 2 ? '1.2em' : '1.6em' }}>
             {tabeleGrup.length > 0
@@ -571,7 +592,7 @@ export default function EkranClient() {
             {blokKolejne}
             {/* Kod QR na dole lewej kolumny: widać go cały czas, niezależnie
                 od tego, który widok kręci się po prawej. */}
-            <div className="mt-auto">{blokPromocji}</div>
+            <div className="mt-auto shrink-0">{kartaGlowna}</div>
           </div>
   
           <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
@@ -663,6 +684,8 @@ export default function EkranClient() {
                 </div>
               </>
             )}
+            {/* Kod Bojo po przeciwnej stronie niż duży kod zbiórki. */}
+            {kartaBoczna && <div className="mt-auto flex justify-end pt-[0.8em]">{kartaBoczna}</div>}
           </div>
         </main>
       )}
