@@ -5048,6 +5048,9 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   albo kółka godzin trzymał okno skurczone i menu wisiało nad terminarzem.
 - Udostępnienie turnieju: sam link, bez dopisku „Zgłoś drużynę” (`tekstUdostepnieniaTurnieju()`).
 - **Poprawki z 2026-11-22, druga runda (migracja `182`):**
+  - **Strona turnieju bez strzałki na Info**: Info to strona główna turnieju (zawodnik wchodzi
+    z linku), więc strzałka jest tylko na Mecze/Tabela/Drużyny i wraca do Info
+    (`router.replace`, nie historia). Konsola meczu: „+ GOL”, „+ 🟨”, „+ 🟥”.
   - **Strona meczu**: karta „Prowadź mecz na żywo” z opisem hasłami (zegar, gol jednym
     dotknięciem, strzelcy i kartki, kibice widzą wynik) i przyciskiem „Zacznij mecz teraz”
     stoi NAD formularzem wyniku; pod nią „albo, gdy mecz już się skończył” i „Wpisz wynik
