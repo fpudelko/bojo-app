@@ -44,6 +44,9 @@ export interface OpcjePotwierdzenia {
    *  typu wyniku dotknęłaby wszystkie dotychczasowe wywołania w siedmiu
    *  plikach, które porównują go z gołym stringiem (`wybor === 'nie'`). */
   notatka?: OpcjeNotatki;
+  /** Tekst do przepisania przed odblokowaniem głównego przycisku (np. nazwa
+   *  turnieju przy usunięciu), patrz `OknoPotwierdzenia`. */
+  wpiszAby?: string;
 }
 
 export function usePotwierdzenie() {
@@ -87,6 +90,7 @@ export function usePotwierdzenie() {
       anulujLabel={opcje?.anulujLabel}
       wariant={opcje?.wariant}
       notatka={opcje?.notatka}
+      wpiszAby={opcje?.wpiszAby}
       onNotatkaChange={(tekst) => { notatkaRef.current = tekst; }}
       akcjaDodatkowa={
         opcje?.akcjaDodatkowaLabel

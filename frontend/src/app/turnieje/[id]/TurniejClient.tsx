@@ -23,7 +23,7 @@ import { getDruzyny, getDruzynyZeSkladem, getMojaDruzyne, zamienDruzyneWEkipe } 
 import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju, getPrzerwy } from '@/lib/turniejMecze';
 import WierszPrzerwy from '@/components/turnieje/WierszPrzerwy';
 import { chwilaWPolsce } from '@/lib/czasPolski';
-import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy, etykietaTerminuMeczu, porownajTermin, terminarzZPrzerwami } from '@/lib/turniejEtykiety';
+import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy, etykietaTerminuMeczu, porownajTermin, terminarzZPrzerwami, meczPrzed, zawezDoMeczow } from '@/lib/turniejEtykiety';
 import { opisAwansu, tabeleTurnieju } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
@@ -40,6 +40,7 @@ import Ogloszenia from '@/components/turnieje/Ogloszenia';
 import Galeria from '@/components/turnieje/Galeria';
 import Sponsorzy from '@/components/turnieje/Sponsorzy';
 import KartaDruzyny from '@/components/turnieje/KartaDruzyny';
+import { nazwaSlotu } from '@/components/turnieje/KartaMeczu';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
 import type { Turniej, TurniejDruzyna, TurniejOsoba, TurniejMecz, TurniejArena, TurniejGrupa, TurniejZdarzenie, TurniejOgloszenie, TurniejZdjecie, TurniejSponsor, TurniejPrzerwa } from '@/types';
 import { czyWolnyLos } from '@/lib/turniejWynik';
@@ -943,6 +944,8 @@ export default function TurniejClient() {
                       zalogowany={!!user}
                       czyMoja={d.id === mojaDruzyna?.id && d.kapitanId === user?.id}
                       onZamienWEkipe={zamienWEkipeAkcja}
+                      mecze={mecze}
+                      nazwaSlotu={(m, strona) => nazwaSlotu(m, strona, druzynyPoId, meczePoId, grupyPoId)}
                     />
                   ))}
                 </div>
@@ -1005,11 +1008,16 @@ export default function TurniejClient() {
                 {(widokMeczow === 'najblizsze'
                   // Przerwa w harmonogramie (konkurs, dekoracja) widać jako
                   // przerwę, nie jako zagadkę „czemu następny mecz o 13:00".
-                  // Przy „tylko nasze” zostają same przerwy z nazwą: odstęp
-                  // między meczami jednej drużyny nie jest przerwą turnieju.
-                  ? terminarzZPrzerwami(listaMeczow, przerwyPrzedNami, {
-                      ...turniej, zPrzerwamiWyliczonymi: !tylkoNasze,
-                    })
+                  // Liczona na CAŁYM terminarzu (z meczem przed pierwszym
+                  // najbliższym), a „Nasze mecze” dostają przerwy turnieju
+                  // między swoimi meczami (2026-11-22: dotąd tylko z nazwą).
+                  ? (() => {
+                      const wszystkie = terminarzZPrzerwami(meczePrzyszle, przerwyPrzedNami, {
+                        // Przed meczem w toku przerwa już minęła: bez poprzedniego.
+                        ...turniej, poprzedni: meczePrzyszle[0]?.status === 'trwa' ? undefined : meczPrzed(meczeNaLiscie, meczePrzyszle[0]),
+                      });
+                      return tylkoNasze ? zawezDoMeczow(wszystkie, czyNasz) : wszystkie;
+                    })()
                   : listaMeczow.map((mecz) => ({ typ: 'mecz' as const, mecz }))
                 ).map((w) => (w.typ === 'przerwa' ? (
                   <WierszPrzerwy key={w.przerwaId ?? `p-${w.od}`} od={w.od} do={w.do} nazwa={w.nazwa} opis={w.opis} />

@@ -1,41 +1,52 @@
 // Karta drużyny na publicznej stronie turnieju: nazwa, rozstawienie, status,
-// a po rozwinięciu — skład.
+// a po rozwinięciu najbliższy mecz i wyniki tej drużyny.
 //
-// OSOBNY PLIK, bo skład jest jedynym miejscem w module turniejowym, w którym
-// widać konkretnego CZŁOWIEKA, a nie drużynę — i jedynym, z którego da się
-// wyjść na jego profil. Reguła „zawodnik z kontem jest odnośnikiem, dopisany
-// z ręki nie jest" musi dać się sprawdzić testem, a nie tylko okiem na ekranie
-// (skład stoi za ścianą logowania, więc nie widzi go żaden zrzut).
+// WYNIKI, NIE SKŁAD (decyzja właściciela z 2026-11-22). Rozwinięta karta
+// pokazywała listę nazwisk, a na liście drużyn ktoś pyta raczej „jak im
+// idzie i kiedy grają”. Skład z odnośnikami do profili zawodników żyje na
+// ekranie drużyny (`/turnieje/[id]/druzyna/[id]`), do którego prowadzi
+// „Zobacz mecze i skład”. Wyniki i terminarz są publiczne, więc karta nie
+// potrzebuje już ściany logowania.
 import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, Repeat } from 'lucide-react';
-import SciankaLogowania from './SciankaLogowania';
-import { STATUS_DRUZYNY, odmienZawodnikow } from '@/lib/turniejEtykiety';
-import type { TurniejDruzyna } from '@/types';
+import { STATUS_DRUZYNY, odmienZawodnikow, terminMeczuNaKarcie } from '@/lib/turniejEtykiety';
+import { meczeDruzyny } from '@/lib/turniejWynik';
+import type { TurniejDruzyna, TurniejMecz } from '@/types';
+
+const BILANS: Record<'Z' | 'R' | 'P', { tytul: string; ton: string }> = {
+  Z: { tytul: 'Zwycięstwo', ton: 'bg-primary-100 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300' },
+  R: { tytul: 'Remis', ton: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200' },
+  P: { tytul: 'Porażka', ton: 'bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-100' },
+};
 
 export default function KartaDruzyny({
-  d, zalogowany, czyMoja, onZamienWEkipe,
+  d, zalogowany, czyMoja, onZamienWEkipe, mecze = [], nazwaSlotu,
 }: {
-  d: TurniejDruzyna; zalogowany: boolean; czyMoja: boolean; onZamienWEkipe: (d: TurniejDruzyna) => void;
+  d: TurniejDruzyna;
+  zalogowany: boolean;
+  czyMoja: boolean;
+  onZamienWEkipe: (d: TurniejDruzyna) => void;
+  /** Wszystkie mecze turnieju; karta sama wybiera mecze tej drużyny. */
+  mecze?: readonly TurniejMecz[];
+  /** Nazwa strony meczu (drużyna albo „Zwycięzca A”), jak na karcie meczu. */
+  nazwaSlotu?: (m: TurniejMecz, strona: 'a' | 'b') => string;
 }) {
   const [rozwinieta, setRozwinieta] = useState(false);
   const status = STATUS_DRUZYNY[d.status];
+  const adresDruzyny = `/turnieje/${d.turniejId}/druzyna/${d.id}`;
+  const { najblizszy, wyniki } = meczeDruzyny(mecze, d.id);
+  const przeciwnik = (m: TurniejMecz) => {
+    const strona = m.druzynaAId === d.id ? 'b' : 'a';
+    return nazwaSlotu?.(m, strona) ?? '?';
+  };
   return (
     <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
-      {/* DWA CELE, NIE JEDEN. Cała karta była przyciskiem rozwijającym, więc
-          nazwa drużyny nie prowadziła nigdzie, a do ekranu drużyny trzeba było
-          najpierw rozwinąć kartę i dopiero kliknąć odnośnik w środku. Kapitan
-          nie miał drogi do własnej drużyny inaczej niż przez zachowany link.
-          Do tego nazwa niebędąca odnośnikiem nie daje się ani skopiować, ani
-          otworzyć w nowej karcie.
-
-          Teraz nazwa jest odnośnikiem, a skład rozwija osobny przycisk ze
-          strzałką. Oba cele mają pełną wysokość wiersza, więc na telefonie
-          trafia się w nie kciukiem. Odnośnik w środku zostaje, bo dla własnej
-          drużyny mówi co innego („Zarządzaj drużyną"). */}
+      {/* DWA CELE: nazwa prowadzi na ekran drużyny, strzałka rozwija mecze.
+          Oba mają pełną wysokość wiersza, żeby trafić kciukiem. */}
       <div className="flex items-stretch">
         <Link
-          href={`/turnieje/${d.turniejId}/druzyna/${d.id}`}
+          href={adresDruzyny}
           className="flex min-w-0 flex-1 items-center gap-3 p-3.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40"
         >
           {d.rozstawienie !== undefined && (
@@ -44,15 +55,11 @@ export default function KartaDruzyny({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            {/* Pełna nazwa w dwóch liniach, jak w tabeli i karcie meczu
-                (audyt wyglądu 2026-11-19: „Unilink Szamotuły & Me…”). */}
             <span className="block line-clamp-2 break-words font-medium leading-snug text-ink">{d.nazwa}</span>
             {zalogowany && d.liczbaZawodnikow !== undefined && (
               <span className="text-xs text-slate-400">{odmienZawodnikow(d.liczbaZawodnikow)}</span>
             )}
           </div>
-          {/* „W turnieju” przy każdej z 15 drużyn nie mówi nic: plakietka
-              zostaje tylko tam, gdzie status się różni. */}
           {d.status !== 'przyjeta' && (
             <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
           )}
@@ -60,7 +67,7 @@ export default function KartaDruzyny({
         <button
           onClick={() => setRozwinieta((v) => !v)}
           aria-expanded={rozwinieta}
-          aria-label={rozwinieta ? 'Ukryj skład' : 'Pokaż skład'}
+          aria-label={rozwinieta ? 'Ukryj mecze' : 'Pokaż mecze'}
           className="flex w-11 shrink-0 items-center justify-center text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/40"
         >
           <ChevronDown className={`h-4 w-4 transition-transform ${rozwinieta ? 'rotate-180' : ''}`} />
@@ -68,66 +75,72 @@ export default function KartaDruzyny({
       </div>
       {rozwinieta && (
         <div className="border-t border-slate-100 dark:border-slate-700 p-3.5 space-y-3">
-          {!zalogowany ? (
-            <SciankaLogowania tytul={`Skład drużyny ${d.nazwa}`} />
-          ) : d.zawodnicy && d.zawodnicy.length > 0 ? (
-            /* Zawodnik z kontem prowadzi do swojego profilu — skład to jedyne
-               miejsce w module, gdzie widać konkretnego człowieka, a nazwisko
-               bez odnośnika kończy drogę. Zawodnik dopisany z ręki, bez konta,
-               zostaje zwykłym tekstem: nie ma dokąd prowadzić. */
-            <ul className="space-y-0.5">
-              {d.zawodnicy.map((z) => {
-                const tresc = (
-                  <>
-                    {z.numer !== undefined && (
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-slate-100 dark:bg-slate-700 text-[11px] font-mono">{z.numer}</span>
-                    )}
-                    <span className="min-w-0 flex-1 truncate">{z.imie}</span>
-                    {z.kapitan && <span className="shrink-0 text-xs text-slate-400">kapitan</span>}
-                  </>
-                );
-                return (
-                  <li key={z.id}>
-                    {z.userId ? (
-                      <Link
-                        href={`/gracz/${z.userId}`}
-                        className="-mx-2 flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Najbliższy mecz</p>
+            {najblizszy ? (
+              <Link
+                href={`/turnieje/${d.turniejId}/mecz/${najblizszy.id}`}
+                className="-mx-2 flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/60"
+              >
+                <span className="shrink-0 font-semibold tabular-nums text-ink">
+                  {najblizszy.status === 'trwa'
+                    ? 'Na żywo'
+                    : najblizszy.zaplanowanyAt
+                      ? (() => { const t = terminMeczuNaKarcie(najblizszy.zaplanowanyAt); return `${t.dzien} ${t.godzina}`; })()
+                      : `M${najblizszy.numer}`}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">z {przeciwnik(najblizszy)}</span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+              </Link>
+            ) : (
+              <p className="text-sm text-slate-500 dark:text-slate-400">Brak kolejnych meczów.</p>
+            )}
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Wyniki</p>
+            {wyniki.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">Jeszcze nie grali.</p>
+            ) : (
+              <ul className="space-y-0.5">
+                {wyniki.map((w) => (
+                  <li key={w.mecz.id}>
+                    <Link
+                      href={`/turnieje/${d.turniejId}/mecz/${w.mecz.id}`}
+                      className="-mx-2 flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                    >
+                      <span
+                        title={BILANS[w.bilans].tytul}
+                        aria-label={BILANS[w.bilans].tytul}
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ${BILANS[w.bilans].ton}`}
                       >
-                        {tresc}
-                        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
-                      </Link>
-                    ) : (
-                      <span className="-mx-2 flex min-h-[44px] items-center gap-2 px-2 text-sm text-slate-600 dark:text-slate-300">
-                        {tresc}
+                        {w.bilans}
                       </span>
-                    )}
+                      <span className="w-10 shrink-0 font-mono font-semibold text-ink">
+                        {w.mecz.status === 'walkower' ? 'wo.' : `${w.zdobyte}:${w.stracone}`}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">z {przeciwnik(w.mecz)}</span>
+                    </Link>
                   </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="text-sm text-slate-400">Skład jeszcze pusty.</p>
-          )}
-          {/* Wejście na ekran drużyny — tam mieszka stały link do wysłania
-              kolegom, licznik składu, dopisywanie zawodników i zaproszenia
-              z ekipy. Pokazuje się KAŻDEMU, nie tylko kapitanowi: dla reszty
-              to podgląd składu i meczów tej drużyny. */}
-          <Link
-            href={`/turnieje/${d.turniejId}/druzyna/${d.id}`}
-            className="inline-flex items-center gap-1 text-xs font-medium text-primary-600"
-          >
-            {czyMoja ? 'Zarządzaj drużyną' : 'Otwórz drużynę'}
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-
-          {czyMoja && (
-            <button
-              onClick={() => onZamienWEkipe(d)}
-              className="ml-4 inline-flex items-center gap-1.5 text-xs font-medium text-primary-600"
-            >
-              <Repeat className="h-3.5 w-3.5" /> Zamień drużynę w ekipę
-            </button>
-          )}
+                ))}
+              </ul>
+            )}
+          </div>
+          {/* Wejście na ekran drużyny: skład z profilami, wszystkie mecze,
+              a dla kapitana link dla kolegów i dopisywanie zawodników. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Link href={adresDruzyny} className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-primary-600">
+              {czyMoja ? 'Zarządzaj drużyną' : 'Zobacz mecze i skład'}
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+            {czyMoja && (
+              <button
+                onClick={() => onZamienWEkipe(d)}
+                className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-primary-600"
+              >
+                <Repeat className="h-4 w-4" /> Zamień drużynę w ekipę
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

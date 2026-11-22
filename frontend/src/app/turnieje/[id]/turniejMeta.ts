@@ -31,16 +31,22 @@ export async function generateTurniejMetadata(id: string): Promise<Metadata> {
     const title = `${data.nazwa} · turniej w Bojo`;
     const description = opisTurnieju(data);
 
+    const adres = `/turnieje/${(await pobierzAdres('turniej', id)) ?? id}`;
     return {
       title,
       description,
-      alternates: { canonical: `/turnieje/${(await pobierzAdres('turniej', id)) ?? id}` },
-      openGraph: { title, description },
+      alternates: { canonical: adres },
+      // PEŁNY blok openGraph (2026-11-22). Obiekt `openGraph` tutaj ZASTĘPUJE
+      // ten z layout.tsx w całości, więc strona turnieju traciła `og:type`
+      // i `og:locale`, a `og:url` i `og:site_name` nie miała nigdy. WhatsApp
+      // to wybacza, Messenger pokazywał sam „bojo.pl” bez tytułu (zgłoszenie
+      // właściciela). `og:url` z adresem z nazwą, ten sam co canonical.
+      openGraph: { title, description, url: adres, type: 'website', locale: 'pl_PL', siteName: 'Bojo' },
       // Znaczniki Twittera osobno, bo NIE dziedziczą się po openGraph.
       // Bez nich część komunikatorów pokazywała globalny opis marki
       // z `layout.tsx` („Bojo, zbierz ekipę, zagraj dziś") zamiast turnieju,
       // czyli reklamę w miejscu, w którym miało stać zaproszenie.
-      twitter: { title, description },
+      twitter: { card: 'summary_large_image', title, description },
     };
   } catch {
     return { title: 'Turniej: Bojo' };

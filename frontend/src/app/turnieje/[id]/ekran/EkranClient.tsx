@@ -31,7 +31,7 @@ import { useAuth } from '@/lib/auth';
 import KodQr from '@/components/ui/KodQr';
 import { centrumTurnieju, postepTurnieju } from '@/lib/turniejPulpit';
 import { tabeleTurnieju, miejscaWTabeli } from '@/lib/turniejTabela';
-import { terminarzZPrzerwami, stanTurnieju, etykietaTerminu, etykietaZdobyczy, etykietaFazyMeczu } from '@/lib/turniejEtykiety';
+import { terminarzZPrzerwami, meczPrzed, stanTurnieju, etykietaTerminu, etykietaZdobyczy, etykietaFazyMeczu } from '@/lib/turniejEtykiety';
 import { podiumTurnieju, medal } from '@/lib/turniejPodium';
 import { czasGry, poCzasie } from '@/lib/turniejWynik';
 import { chwilaWPolsce, terazWPolsce } from '@/lib/czasPolski';
@@ -386,7 +386,7 @@ export default function EkranClient() {
             <section className="min-h-0">
               <h2 className="mb-[0.4em] text-[1.2em] font-semibold uppercase tracking-wide text-[color:var(--e-tekst3)]">Kolejne mecze</h2>
               <div className="divide-y divide-[color:var(--e-linia)]">
-                {terminarzZPrzerwami(kolejne, przerwy.filter((p) => new Date(p.doAt) > teraz), turniej).map((w) => (
+                {terminarzZPrzerwami(kolejne, przerwy.filter((p) => new Date(p.doAt) > teraz), { ...turniej, poprzedni: meczPrzed(mecze, kolejne[0]) }).map((w) => (
                   w.typ === 'przerwa' ? (
                     <p key={w.przerwaId ?? `p-${w.od}`} className="flex items-center gap-[0.6em] py-[0.45em] text-[1.4em] text-[color:var(--e-tekst2)]">
                       <Coffee className="h-[1em] w-[1em] shrink-0 text-[color:var(--e-tekst4)]" aria-hidden />
@@ -464,7 +464,7 @@ export default function EkranClient() {
             className="min-h-0 flex-1 overflow-hidden"
             style={{ columnCount: doRozegrania.length > 24 ? 3 : doRozegrania.length > 8 ? 2 : 1, columnGap: '2.4em', fontSize: doRozegrania.length > 36 ? '0.9em' : doRozegrania.length > 16 ? '1.1em' : '1.35em' }}
           >
-            {terminarzZPrzerwami(doRozegrania, przerwy.filter((p) => new Date(p.doAt) > teraz), turniej).map((w) => (
+            {terminarzZPrzerwami(doRozegrania, przerwy.filter((p) => new Date(p.doAt) > teraz), { ...turniej, poprzedni: doRozegrania[0]?.status === 'trwa' ? undefined : meczPrzed(mecze, doRozegrania[0]) }).map((w) => (
               w.typ === 'przerwa' ? (
                 <p key={w.przerwaId ?? `p-${w.od}`} className="flex break-inside-avoid items-center gap-[0.5em] py-[0.35em] text-[1.3em] text-[color:var(--e-tekst3)]">
                   <Coffee className="h-[1em] w-[1em] shrink-0" aria-hidden />
@@ -721,13 +721,30 @@ const PALETY: Record<MotywEkranu, Record<string, string>> = {
 };
 
 /** Tło na cały ekran w wybranym motywie; rozmiar pisma liczony z szerokości okna. */
+// SCENA 16:9 (2026-11-22, zgłoszenie właściciela): ekran ma wyglądać jak na
+// komputerze na KAŻDYM urządzeniu. Telefon w pionie dostawał układ ściśnięty
+// do wąskiej kolumny (nazwy drużyn po słowie w linii, ucięte kolejne mecze).
+// Teraz scena ma zawsze proporcje 16:9 i mieści się w oknie (pasy nad i pod
+// albo po bokach), a pismo liczy się z szerokości SCENY, nie okna: na
+// telefonie to ten sam widok w mniejszej skali, po obróceniu na cały ekran.
+const SZEROKOSC_SCENY = 'min(100vw, calc(100dvh * 16 / 9))';
+
 function Tlo({ children, motyw }: { children: React.ReactNode; motyw: MotywEkranu }) {
   return (
     <div
-      className="flex h-[100dvh] flex-col overflow-hidden bg-[color:var(--e-tlo)] text-[color:var(--e-tekst)]"
-      style={{ fontSize: 'clamp(12px, 1.05vw, 40px)', ...PALETY[motyw] } as React.CSSProperties}
+      className="flex h-[100dvh] w-full items-center justify-center overflow-hidden bg-[color:var(--e-tlo)] text-[color:var(--e-tekst)]"
+      style={PALETY[motyw] as React.CSSProperties}
     >
-      {children}
+      <div
+        className="flex flex-col overflow-hidden"
+        style={{
+          width: SZEROKOSC_SCENY,
+          aspectRatio: '16 / 9',
+          fontSize: `calc(${SZEROKOSC_SCENY} * 0.0105)`,
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }

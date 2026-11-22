@@ -332,3 +332,75 @@ export function mozeEdytowacSklad(t: Pick<Turniej, 'status'>, d: Pick<TurniejDru
 }
 
 
+
+// ---------------------------------------------------------------------------
+// Link kapitana (181): jednorazowe przejęcie drużyny wpisanej przez organizatora
+// ---------------------------------------------------------------------------
+
+export interface LinkKapitana {
+  druzynaId: string;
+  nazwa: string;
+  /** Kod linku `/k/<kod>`; `undefined`, gdy drużyna ma już kapitana. */
+  kod?: string;
+  /** Imię obecnego kapitana, gdy jest. */
+  kapitan?: string;
+}
+
+/** Organizator: kody dla drużyn bez kapitana (nadaje brakujące) i stan reszty. */
+export async function przygotujLinkiKapitanow(turniejId: string): Promise<LinkKapitana[]> {
+  const { data, error } = await supabase.rpc('przygotuj_linki_kapitanow', { p_turniej: turniejId });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Ta funkcja jeszcze nie działa na tej bazie (brak migracji 181).');
+    throw new Error(error.message);
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((r) => ({
+    druzynaId: r.druzyna_id,
+    nazwa: r.nazwa,
+    kod: r.kod ?? undefined,
+    kapitan: r.kapitan ?? undefined,
+  }));
+}
+
+/** Tekst do wklejenia na WhatsApp: nazwa drużyny i link, jedna drużyna na linię. */
+export function tekstLinkowKapitanow(nazwaTurnieju: string, linki: readonly LinkKapitana[], origin: string): string {
+  const doWyslania = linki.filter((l) => l.kod);
+  return [
+    `${nazwaTurnieju}: linki dla kapitanów. Otwórz link swojej drużyny, zaloguj się i przejmij drużynę jako kapitan. Każdy link działa raz.`,
+    '',
+    ...doWyslania.map((l) => `${l.nazwa}: ${origin}/k/${l.kod}`),
+  ].join('\n');
+}
+
+export interface DruzynaZLinkuKapitana {
+  druzynaId: string;
+  nazwa: string;
+  turniejId: string;
+  turniejNazwa: string;
+  kodDolaczenia: string;
+  maKapitana: boolean;
+}
+
+export async function getDruzynaPoKodzieKapitana(kod: string): Promise<DruzynaZLinkuKapitana | null> {
+  const { data, error } = await supabase.rpc('druzyna_po_kodzie_kapitana', { p_kod: kod });
+  if (error) throw new Error(error.message);
+  const r = Array.isArray(data) ? data[0] : data;
+  if (!r) return null;
+  return {
+    druzynaId: r.druzyna_id, nazwa: r.nazwa, turniejId: r.turniej_id, turniejNazwa: r.turniej_nazwa,
+    kodDolaczenia: r.kod_dolaczenia, maKapitana: !!r.ma_kapitana,
+  };
+}
+
+export async function przejmijDruzyneKapitanem(
+  kod: string,
+  opcje: { zawodnikId?: string; imie?: string } = {},
+): Promise<{ druzynaId: string; turniejId: string }> {
+  const { data, error } = await supabase.rpc('przejmij_druzyne_kapitanem', {
+    p_kod: kod, p_zawodnik_id: opcje.zawodnikId ?? null, p_imie: opcje.imie ?? null,
+  });
+  if (error) throw new Error(czytelnyBladDruzyny(error.message));
+  const r = Array.isArray(data) ? data[0] : data;
+  track('turniej_kapitan_przejal_druzyne', { druzynaId: r.druzyna_id });
+  return { druzynaId: r.druzyna_id, turniejId: r.turniej_id };
+}

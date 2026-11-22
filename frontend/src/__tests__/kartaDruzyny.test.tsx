@@ -1,107 +1,93 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import KartaDruzyny from '@/components/turnieje/KartaDruzyny';
-import type { TurniejDruzyna, TurniejZawodnik } from '@/types';
+import { meczeDruzyny } from '@/lib/turniejWynik';
+import type { TurniejDruzyna, TurniejMecz } from '@/types';
 
-// Skład drużyny turniejowej — jedyne miejsce w module, z którego da się wyjść
-// na profil konkretnego człowieka.
-//
-// SKĄD TEN PLIK. Skład stoi za ścianą logowania (RLS, migracja `145`), więc nie
-// widzi go ŻADEN zrzut: `wizualne.spec.ts` chodzi bez bazy i bez konta, a na
-// liście drużyn zobaczy wyłącznie zaproszenie do logowania. Reguła „zawodnik
-// z kontem jest odnośnikiem, zawodnik dopisany z ręki nie jest" nie miała
-// dotąd gdzie się zepsuć głośno.
+// Karta drużyny na stronie turnieju (2026-11-22, decyzja właściciela): po
+// rozwinięciu najbliższy mecz i wyniki tej drużyny, nie skład. Skład
+// z odnośnikami do profili żyje na ekranie drużyny, do którego prowadzi
+// „Zobacz mecze i skład”.
 
 afterEach(cleanup);
 
-const zawodnik = (nadpisz: Partial<TurniejZawodnik> = {}): TurniejZawodnik => ({
-  id: 'z1', druzynaId: 'd1', turniejId: 't1', imie: 'Jakub Kowalski',
-  numer: 1, kapitan: false, createdAt: '2026-09-01T10:00:00Z', ...nadpisz,
-});
-
-const druzyna = (zawodnicy: TurniejZawodnik[]): TurniejDruzyna => ({
+const druzyna: TurniejDruzyna = {
   id: 'd1', turniejId: 't1', nazwa: 'Dragon Team', status: 'przyjeta',
-  kodDolaczenia: 'ABC123', dodanaRecznie: true, liczbaZawodnikow: zawodnicy.length,
-  zawodnicy, createdAt: '2026-09-01T10:00:00Z',
-});
+  kodDolaczenia: 'ABC123', dodanaRecznie: true, liczbaZawodnikow: 7, createdAt: '2026-09-01T10:00:00Z',
+};
 
-function pokazSklad(d: TurniejDruzyna) {
-  render(<KartaDruzyny d={d} zalogowany czyMoja={false} onZamienWEkipe={() => {}} />);
-  fireEvent.click(screen.getByRole('button', { name: /Pokaż skład/ }));
+const mecz = (n: Partial<TurniejMecz> & { numer: number }): TurniejMecz => ({
+  id: `m${n.numer}`, turniejId: 't1', faza: 'grupa', status: 'zaplanowany',
+  wynikA: 0, wynikB: 0, wynikRecznie: false, druzynaAId: 'd1', druzynaBId: 'd2',
+  zaplanowanyAt: `2026-11-28T${String(8 + n.numer).padStart(2, '0')}:00:00Z`,
+  createdAt: '2026-11-01T08:00:00Z', updatedAt: '2026-11-01T08:00:00Z', ...n,
+} as TurniejMecz);
+
+const NAZWY: Record<string, string> = { d1: 'Dragon Team', d2: 'Wilki', d3: 'Orły' };
+const nazwaSlotu = (m: TurniejMecz, s: 'a' | 'b') => NAZWY[(s === 'a' ? m.druzynaAId : m.druzynaBId) ?? ''] ?? '?';
+
+const mecze = [
+  mecz({ numer: 1, status: 'zakonczony', wynikA: 3, wynikB: 1, zwyciezcaId: 'd1' }),
+  mecz({ numer: 2, status: 'zakonczony', druzynaAId: 'd3', druzynaBId: 'd1', wynikA: 2, wynikB: 0, zwyciezcaId: 'd3' }),
+  mecz({ numer: 3, druzynaBId: 'd3' }),
+  mecz({ numer: 4, druzynaAId: 'd2', druzynaBId: 'd3' }), // nie nasz
+];
+
+function rozwin(czyMoja = false) {
+  render(<KartaDruzyny d={druzyna} zalogowany czyMoja={czyMoja} onZamienWEkipe={() => {}} mecze={mecze} nazwaSlotu={nazwaSlotu} />);
+  fireEvent.click(screen.getByRole('button', { name: /Pokaż mecze/ }));
 }
 
-describe('KartaDruzyny — skład', () => {
-  it('zawodnik z kontem prowadzi do swojego profilu', () => {
-    pokazSklad(druzyna([zawodnik({ userId: 'u-1', imie: 'Jakub Kowalski' })]));
-    expect(screen.getByRole('link', { name: /Jakub Kowalski/ }))
-      .toHaveAttribute('href', '/gracz/u-1');
+describe('KartaDruzyny', () => {
+  it('po rozwinięciu pokazuje najbliższy mecz z przeciwnikiem i wyniki z perspektywy drużyny', () => {
+    rozwin();
+    // Najbliższy mecz (M3) z Orłami, pierwszy odnośnik do meczu w karcie.
+    expect(screen.getAllByRole('link').find((l) => l.getAttribute('href') === '/turnieje/t1/mecz/m3')?.textContent).toContain('z Orły');
+    // Wygrana 3:1 z Wilkami i porażka 0:2 z Orłami: własne gole pierwsze.
+    expect(screen.getByText('3:1')).toBeDefined();
+    expect(screen.getByText('0:2')).toBeDefined();
+    expect(screen.getByLabelText('Zwycięstwo')).toBeDefined();
+    expect(screen.getByLabelText('Porażka')).toBeDefined();
   });
 
-  it('zawodnik BEZ konta nie jest odnośnikiem — nie ma dokąd prowadzić', () => {
-    pokazSklad(druzyna([zawodnik({ userId: undefined, imie: 'Dopisany Ręcznie' })]));
-    expect(screen.getByText('Dopisany Ręcznie')).toBeDefined();
-    expect(screen.queryByRole('link', { name: /Dopisany Ręcznie/ })).toBeNull();
+  it('nie pokazuje składu, tylko wejście „Zobacz mecze i skład” na ekran drużyny', () => {
+    rozwin();
+    expect(screen.getByRole('link', { name: /Zobacz mecze i skład/ })).toHaveAttribute('href', '/turnieje/t1/druzyna/d1');
+    expect(screen.queryByText(/Skład drużyny/)).toBeNull();
   });
 
-  it('skład mieszany: odnośnik dostaje tylko ten z kontem', () => {
-    pokazSklad(druzyna([
-      zawodnik({ id: 'z1', userId: 'u-1', imie: 'Z Kontem', numer: 1 }),
-      zawodnik({ id: 'z2', userId: undefined, imie: 'Bez Konta', numer: 2 }),
-    ]));
-    // Liczymy odnośniki W SAMYM SKŁADZIE, nie w całej karcie: poza listą stoi
-    // jeszcze wejście na ekran drużyny (niżej), a asercja o „dokładnie jednym
-    // odnośniku w karcie" psułaby się przy każdym nowym przycisku, zamiast
-    // pilnować reguły, o którą naprawdę chodzi.
-    const sklad = screen.getByRole('list');
-    expect(sklad.querySelectorAll('a')).toHaveLength(1);
-    expect(screen.getByRole('link', { name: /Z Kontem/ })).toHaveAttribute('href', '/gracz/u-1');
+  it('kapitan widzi „Zarządzaj drużyną”', () => {
+    rozwin(true);
+    expect(screen.getByRole('link', { name: /Zarządzaj drużyną/ })).toHaveAttribute('href', '/turnieje/t1/druzyna/d1');
   });
 
-  it('karta prowadzi na ekran drużyny — tam mieszka link do wysłania kolegom', () => {
-    pokazSklad(druzyna([zawodnik({ userId: 'u-1', imie: 'Jakub Kowalski' })]));
-    expect(screen.getByRole('link', { name: /Otwórz drużynę/ }))
-      .toHaveAttribute('href', '/turnieje/t1/druzyna/d1');
+  it('wyniki i najbliższy mecz prowadzą na stronę meczu', () => {
+    rozwin();
+    expect(screen.getByRole('link', { name: /3:1/ })).toHaveAttribute('href', '/turnieje/t1/mecz/m1');
   });
 
-  it('kapitan widzi to samo wejście pod nazwą „Zarządzaj drużyną"', () => {
-    const d = druzyna([zawodnik({ userId: 'u-1', imie: 'Jakub Kowalski' })]);
-    render(<KartaDruzyny d={d} zalogowany czyMoja onZamienWEkipe={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /Pokaż skład/ }));
-    expect(screen.getByRole('link', { name: /Zarządzaj drużyną/ }))
-      .toHaveAttribute('href', '/turnieje/t1/druzyna/d1');
+  it('nazwa drużyny jest odnośnikiem, a karta jest zwinięta, dopóki ktoś jej nie otworzy', () => {
+    render(<KartaDruzyny d={druzyna} zalogowany czyMoja={false} onZamienWEkipe={() => {}} mecze={mecze} nazwaSlotu={nazwaSlotu} />);
+    expect(screen.getByRole('link', { name: /Dragon Team/ })).toHaveAttribute('href', '/turnieje/t1/druzyna/d1');
+    expect(screen.getByRole('button', { name: /Pokaż mecze/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('3:1')).toBeNull();
+  });
+});
+
+describe('meczeDruzyny', () => {
+  it('najbliższy to trwający, potem najwcześniejszy; wyniki od najświeższego', () => {
+    const { najblizszy, wyniki } = meczeDruzyny(mecze, 'd1');
+    expect(najblizszy?.numer).toBe(3);
+    expect(wyniki.map((w) => [w.mecz.numer, w.bilans, w.zdobyte, w.stracone])).toEqual([[2, 'P', 0, 2], [1, 'Z', 3, 1]]);
+    const zTrwajacym = meczeDruzyny([...mecze, mecz({ numer: 9, status: 'trwa' })], 'd1');
+    expect(zTrwajacym.najblizszy?.numer).toBe(9);
   });
 
-  it('niezalogowany widzi ścianę logowania zamiast nazwisk', () => {
-    const d = druzyna([zawodnik({ userId: 'u-1', imie: 'Jakub Kowalski' })]);
-    render(<KartaDruzyny d={d} zalogowany={false} czyMoja={false} onZamienWEkipe={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /Pokaż skład/ }));
-    expect(screen.queryByText('Jakub Kowalski')).toBeNull();
-    expect(screen.getByRole('link', { name: /Zaloguj się/ })).toBeDefined();
-  });
-
-  it('karta jest zwinięta, dopóki ktoś jej nie otworzy', () => {
-    const d = druzyna([zawodnik({ userId: 'u-1' })]);
-    render(<KartaDruzyny d={d} zalogowany czyMoja={false} onZamienWEkipe={() => {}} />);
-    expect(screen.getByRole('button', { name: /Pokaż skład/ })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('Jakub Kowalski')).toBeNull();
-  });
-
-  // Karta była JEDNYM przyciskiem rozwijającym, więc nazwa drużyny nie
-  // prowadziła nigdzie: do ekranu drużyny trzeba było najpierw rozwinąć
-  // kartę, a potem kliknąć odnośnik w środku. Kapitan nie miał drogi do
-  // własnej drużyny inaczej niż przez zachowany link (audyt wiarygodności
-  // 2026-09-23). Teraz nazwa jest odnośnikiem, a skład rozwija osobny cel.
-  it('nazwa drużyny jest odnośnikiem, bez rozwijania karty', () => {
-    const d = druzyna([zawodnik({ userId: 'u-1' })]);
-    render(<KartaDruzyny d={d} zalogowany czyMoja={false} onZamienWEkipe={() => {}} />);
-    expect(screen.getByRole('link', { name: /Dragon Team/ }))
-      .toHaveAttribute('href', '/turnieje/t1/druzyna/d1');
-  });
-
-  it('rozwijanie składu to OSOBNY cel, więc kliknięcie nazwy nie rozwija', () => {
-    const d = druzyna([zawodnik({ userId: 'u-1', imie: 'Jakub Kowalski' })]);
-    render(<KartaDruzyny d={d} zalogowany czyMoja={false} onZamienWEkipe={() => {}} />);
-    fireEvent.click(screen.getByRole('link', { name: /Dragon Team/ }));
-    expect(screen.queryByText('Jakub Kowalski')).toBeNull();
+  it('remis bez zwycięzcy to R, wolny los się nie liczy', () => {
+    const { wyniki } = meczeDruzyny([
+      mecz({ numer: 1, status: 'zakonczony', wynikA: 1, wynikB: 1 }),
+      mecz({ numer: 2, status: 'walkower', druzynaBId: undefined, zwyciezcaId: 'd1' }),
+    ], 'd1');
+    expect(wyniki.map((w) => w.bilans)).toEqual(['R']);
   });
 });

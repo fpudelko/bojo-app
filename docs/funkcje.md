@@ -5047,6 +5047,34 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   `lib/oknoCzatu.ts`), nie tylko przy kursorze w polu. Safari po zamknięciu klawiatury
   albo kółka godzin trzymał okno skurczone i menu wisiało nad terminarzem.
 - Udostępnienie turnieju: sam link, bez dopisku „Zgłoś drużynę” (`tekstUdostepnieniaTurnieju()`).
+- **Poprawki z 2026-11-22 (sugestie Jana, migracja `181`):**
+  - **Link kapitana** (`/k/[kod]`, `app/k/[kod]/page.tsx`): Panel → Drużyny → „Linki dla
+    kapitanów” → „Przygotuj linki” (`przygotujLinkiKapitanow()`), „Kopiuj link” przy drużynie
+    albo „Kopiuj wszystkie linki” (`tekstLinkowKapitanow()`, jedna drużyna na linię, do
+    WhatsAppa). Kapitan bez konta widzi drużynę i „Zaloguj się i przejmij drużynę”; po
+    zalogowaniu wybiera siebie z wolnych wpisów składu albo wpisuje imię. Link działa raz,
+    drużyny z kapitanem nie przejmie. Link drużyny `/t/[kod]` dalej tylko dołącza (172).
+  - **Karta drużyny** (`KartaDruzyny.tsx`): strzałka rozwija najbliższy mecz i wyniki z
+    perspektywy drużyny (Z/R/P, własne gole pierwsze, `meczeDruzyny()`), skład tylko na ekranie
+    drużyny; przycisk „Zobacz mecze i skład” (kapitan: „Zarządzaj drużyną”). Bez ściany
+    logowania: wyniki są publiczne.
+  - **Przerwy**: `terminarzZPrzerwami({ poprzedni })` liczy odstęp przed pierwszym meczem listy
+    od meczu przed nim w całym terminarzu (`meczPrzed()`), więc przerwa po meczu w toku nie
+    znika z „Najbliższych” (strona, centrum dowodzenia, ekran). „Nasze mecze” biorą przerwy
+    całego turnieju (`zawezDoMeczow()`), a po ostatnim naszym meczu tylko te z nazwą.
+  - **Ekran na halę**: scena zawsze 16:9 mieszcząca się w oknie (pismo liczone z szerokości
+    sceny), więc telefon pokazuje ten sam widok co komputer. Układy nazwane opisowo (Pełny
+    widok, Tablica wyników, Tabele grup, Mecze i wyniki, Terminarz dnia, Ogłoszenie i zbiórka,
+    Pokaz na zmianę); w `WyborEkranu.tsx` po rozwinięciu miniatura z `public/ekran-podglad/`
+    (generuje `frontend/scripts/podglady-ekranu.mjs`, zrzut przykładowego turnieju pod
+    adresem bojo.pl) i „Otwórz ten ekran”.
+  - **Usunięcie i odwołanie turnieju** wymagają wpisania nazwy turnieju (`wpiszAby` w
+    `OknoPotwierdzenia` i `usePotwierdzenie`).
+  - **Admin**: zakładka „Wszystkie” na `/turnieje` (`getWszystkieTurnieje()`, także szkice,
+    prywatne, odwołane, próby).
+  - **Podgląd linku**: `turniejMeta.ts` ustawia pełny `openGraph` (`url`, `type`, `locale`,
+    `siteName`) i `twitter:card` `summary_large_image`; obiekt z metadanych strony zastępował
+    ten z layoutu w całości.
 - **Turniej na komputerze (2026-11-21, bez migracji).** Na telefonie bez zmian. Od `lg`
   (1024 px) panel i zakładka Mecze przestają być kolumną 640 px na środku ekranu:
   - **Centrum dowodzenia** (`components/turnieje/CentrumTurnieju.tsx`, zakładka Terminarz,

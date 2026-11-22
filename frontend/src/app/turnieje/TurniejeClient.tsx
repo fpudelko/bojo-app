@@ -6,7 +6,8 @@ import { Trophy, Plus, CalendarDays, MapPin } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
-import { getTurniejePubliczne, getMojeTurnieje } from '@/lib/turnieje';
+import { getTurniejePubliczne, getMojeTurnieje, getWszystkieTurnieje } from '@/lib/turnieje';
+import { useAdmin } from '@/lib/admin';
 import { stanTurnieju, etykietaTerminu } from '@/lib/turniejEtykiety';
 import { sportEmoji } from '@/lib/sports';
 import type { Turniej } from '@/types';
@@ -53,9 +54,13 @@ function KartaTurnieju({ t }: { t: Turniej }) {
   );
 }
 
-type Karta = 'moje' | 'zapisy' | 'trwaja' | 'zakonczone';
+// „Wszystkie” tylko dla admina (2026-11-22, prośba właściciela): także
+// szkice, prywatne, odwołane i próby, czyli turnieje, których nie ma na
+// żadnej publicznej liście, a admin prowadzi je za organizatorów.
+type Karta = 'wszystkie' | 'moje' | 'zapisy' | 'trwaja' | 'zakonczone';
 
 const ETYKIETY: Record<Karta, string> = {
+  wszystkie: 'Wszystkie',
   moje: 'Biorę udział',
   zapisy: 'Zapisy',
   // Nie czasownik, tylko przymiotnik: obok stoi plakietka o trwających
@@ -65,6 +70,7 @@ const ETYKIETY: Record<Karta, string> = {
 };
 
 const PUSTE: Record<Karta, string> = {
+  wszystkie: 'W bazie nie ma jeszcze żadnego turnieju.',
   moje: 'Nie grasz jeszcze w żadnym turnieju, kapitan Twojej drużyny wyśle Ci link, gdy się zgłosicie.',
   zapisy: 'Żaden turniej nie przyjmuje teraz zgłoszeń.',
   trwaja: 'Nic się teraz nie rozgrywa.',
@@ -81,7 +87,9 @@ const AKCJA_PUSTEGO: Partial<Record<Karta, { tekst: string; href: string }>> = {
 
 export default function TurniejeClient() {
   const { user } = useAuth();
+  const jestAdmin = useAdmin();
   const [publiczne, setPubliczne] = useState<Turniej[]>([]);
+  const [wszystkie, setWszystkie] = useState<Turniej[]>([]);
   const [moje, setMoje] = useState<Turniej[]>([]);
   const [ladowanie, setLadowanie] = useState(true);
   // `null` = użytkownik jeszcze nie wybrał, więc obowiązuje karta domyślna
@@ -101,10 +109,20 @@ export default function TurniejeClient() {
     return () => { aktualne = false; };
   }, [user]);
 
+  useEffect(() => {
+    if (!jestAdmin) { setWszystkie([]); return; }
+    let aktualne = true;
+    getWszystkieTurnieje()
+      .then((lista) => { if (aktualne) setWszystkie(lista); })
+      .catch(() => { if (aktualne) setWszystkie([]); });
+    return () => { aktualne = false; };
+  }, [jestAdmin]);
+
   // „Zamknięte zapisy" idą do TRWAJĄCYCH, nie do zapisów: wejść się już nie da,
   // a turniej dzieje się lada chwila. Karta „Zapisy" ma zawierać wyłącznie to,
   // do czego da się dopisać drużynę — inaczej kliknięcie kończy się ślepą uliczką.
   const zawartosc: Record<Karta, Turniej[]> = {
+    wszystkie,
     moje,
     zapisy: publiczne.filter((t) => t.status === 'zapisy'),
     trwaja: publiczne.filter((t) => t.status === 'trwa' || t.status === 'zamkniete_zapisy'),
@@ -113,7 +131,9 @@ export default function TurniejeClient() {
 
   // Kolejność kart jest kolejnością pytań, z którymi się tu wchodzi: najpierw
   // „co z moimi", potem „gdzie mogę wejść", potem „co się dzieje".
-  const karty: Karta[] = user ? ['moje', 'zapisy', 'trwaja', 'zakonczone'] : ['zapisy', 'trwaja', 'zakonczone'];
+  const karty: Karta[] = jestAdmin
+    ? ['wszystkie', 'moje', 'zapisy', 'trwaja', 'zakonczone']
+    : user ? ['moje', 'zapisy', 'trwaja', 'zakonczone'] : ['zapisy', 'trwaja', 'zakonczone'];
   const domyslna: Karta = karty.find((k) => zawartosc[k].length > 0) ?? (user ? 'moje' : 'zapisy');
   const aktywna: Karta = wybrana && karty.includes(wybrana) ? wybrana : domyslna;
   const widoczne = zawartosc[aktywna];

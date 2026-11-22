@@ -198,3 +198,39 @@ export function poCzasie(
   if (Number.isNaN(start)) return false;
   return teraz.getTime() - start >= czasMeczuMin * 60_000;
 }
+
+/**
+ * Mecze jednej drużyny do karty na liście drużyn (2026-11-22): najbliższy
+ * mecz do rozegrania (trwający pierwszy) i wyniki od najświeższego, każdy
+ * z perspektywy tej drużyny (jej gole pierwsze, Z/R/P). Wolny los pomijamy:
+ * nikt w nim nie grał.
+ */
+export function meczeDruzyny<M extends Pick<TurniejMecz,
+  'id' | 'status' | 'numer' | 'zaplanowanyAt' | 'druzynaAId' | 'druzynaBId' | 'wynikA' | 'wynikB' | 'zwyciezcaId' | 'zrodloAMeczId' | 'zrodloBMeczId'>>(
+  mecze: readonly M[],
+  druzynaId: string,
+): {
+  najblizszy: M | null;
+  wyniki: { mecz: M; strona: 'a' | 'b'; bilans: 'Z' | 'R' | 'P'; zdobyte: number; stracone: number }[];
+} {
+  const moje = mecze.filter((m) => (m.druzynaAId === druzynaId || m.druzynaBId === druzynaId) && !czyWolnyLos(m));
+  const termin = (m: M) => m.zaplanowanyAt ?? '';
+  const najblizszy = moje
+    .filter((m) => m.status === 'trwa' || m.status === 'zaplanowany')
+    .sort((a, b) => (a.status === 'trwa' ? -1 : b.status === 'trwa' ? 1 : 0) || termin(a).localeCompare(termin(b)) || a.numer - b.numer)[0] ?? null;
+  const wyniki = moje
+    .filter((m) => m.status === 'zakonczony' || m.status === 'walkower')
+    .sort((a, b) => termin(b).localeCompare(termin(a)) || b.numer - a.numer)
+    .map((m) => {
+      const strona: 'a' | 'b' = m.druzynaAId === druzynaId ? 'a' : 'b';
+      const zwyciezca = stronaZwyciezcy(m);
+      return {
+        mecz: m,
+        strona,
+        bilans: (zwyciezca === null ? 'R' : zwyciezca === strona ? 'Z' : 'P') as 'Z' | 'R' | 'P',
+        zdobyte: strona === 'a' ? m.wynikA : m.wynikB,
+        stracone: strona === 'a' ? m.wynikB : m.wynikA,
+      };
+    });
+  return { najblizszy, wyniki };
+}

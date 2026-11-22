@@ -470,7 +470,16 @@ const godzinaPl = (iso: string) => chwilaWPolsce(iso).godzina.slice(0, 5);
 export function terminarzZPrzerwami<M extends Pick<TurniejMecz, 'zaplanowanyAt' | 'numer'>>(
   mecze: readonly M[],
   przerwy: readonly TurniejPrzerwa[],
-  opcje: { czasMeczuMin: number; przerwaMin: number; zPrzerwamiWyliczonymi?: boolean },
+  opcje: {
+    czasMeczuMin: number; przerwaMin: number; zPrzerwamiWyliczonymi?: boolean;
+    /**
+     * Mecz tuż przed pierwszym z listy (trwający albo ostatni rozegrany).
+     * Bez niego odstęp przed pierwszym meczem listy znikał: na „Najbliższych”
+     * przerwa zaraz po meczu w toku (licytacje 11:44–13:00) nie miała się
+     * do czego policzyć (zgłoszenie właściciela 2026-11-22).
+     */
+    poprzedni?: Pick<TurniejMecz, 'zaplanowanyAt'>;
+  },
 ): WierszTerminarza<M>[] {
   const nazwane = [...przerwy].sort((a, b) => a.odAt.localeCompare(b.odAt));
   const uzyte = new Set<string>();
@@ -491,7 +500,7 @@ export function terminarzZPrzerwami<M extends Pick<TurniejMecz, 'zaplanowanyAt' 
       }
     }
     if (!wstawionoNazwana && opcje.zPrzerwamiWyliczonymi !== false) {
-      const wyliczona = przerwaPrzedMeczem(mecze[i - 1], m, opcje);
+      const wyliczona = przerwaPrzedMeczem(i === 0 ? opcje.poprzedni : mecze[i - 1], m, opcje);
       if (wyliczona) wynik.push({ typ: 'przerwa', ...wyliczona });
     }
     wynik.push({ typ: 'mecz', mecz: m });
@@ -605,4 +614,45 @@ export function strzelcyMeczu(
     for (let i = 0; i < Math.max(1, z.wartosc); i++) (dlaA ? wynik.a : wynik.b).push(opis);
   }
   return wynik;
+}
+
+/**
+ * Mecz, który w CAŁYM terminarzu stoi tuż przed `pierwszy` (po terminie).
+ * Kontekst dla `terminarzZPrzerwami({ poprzedni })`, gdy lista zaczyna się
+ * w środku dnia (najbliższe, kolejne).
+ */
+export function meczPrzed<M extends Pick<TurniejMecz, 'id' | 'zaplanowanyAt' | 'numer'>>(
+  wszystkie: readonly M[],
+  pierwszy: Pick<TurniejMecz, 'id'> | undefined,
+): M | undefined {
+  if (!pierwszy) return undefined;
+  const posortowane = [...wszystkie].filter((m) => m.zaplanowanyAt).sort(porownajTermin);
+  const i = posortowane.findIndex((m) => m.id === pierwszy.id);
+  return i > 0 ? posortowane[i - 1] : undefined;
+}
+
+/**
+ * Terminarz zawężony do meczów jednej drużyny („Nasze mecze”), ale z
+ * przerwami CAŁEGO turnieju. Dotąd lista „tylko nasze” pokazywała same
+ * przerwy z nazwą, więc przerwa wyliczona z harmonogramu (obiad, licytacje
+ * bez nazwy) znikała zawodnikowi. Przerwa zostaje, jeśli po niej jest jeszcze
+ * nasz mecz; po ostatnim naszym meczu zostają tylko przerwy z nazwą
+ * (dekoracja), bo goły odstęp między cudzymi meczami nic nam nie mówi.
+ */
+export function zawezDoMeczow<M>(
+  wiersze: readonly WierszTerminarza<M>[],
+  zostaw: (m: M) => boolean,
+): WierszTerminarza<M>[] {
+  const wynik: WierszTerminarza<M>[] = [];
+  let czekajace: WierszTerminarza<M>[] = [];
+  for (const w of wiersze) {
+    if (w.typ === 'przerwa') {
+      // Ta sama przerwa wyliczona dwa razy pod rząd (dwie areny) wchodzi raz.
+      if (!czekajace.some((c) => c.typ === 'przerwa' && c.od === w.od && c.do === w.do)) czekajace.push(w);
+    } else if (zostaw(w.mecz)) {
+      wynik.push(...czekajace, w);
+      czekajace = [];
+    }
+  }
+  return [...wynik, ...czekajace.filter((w) => w.typ === 'przerwa' && !!w.nazwa)];
 }

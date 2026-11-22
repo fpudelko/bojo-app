@@ -285,6 +285,22 @@ export async function getTurniejePubliczne(limit = 50): Promise<Turniej[]> {
   return (data ?? []).map(toTurniej);
 }
 
+/**
+ * Wszystkie turnieje, także szkice, prywatne, odwołane i próby: lista dla
+ * admina (2026-11-22). RLS i tak przepuszcza SELECT na `turnieje` każdemu
+ * (145), więc to nie jest nowe uprawnienie, tylko lista, której reszta
+ * aplikacji nie pokazuje. Najnowsze terminy na górze.
+ */
+export async function getWszystkieTurnieje(limit = 200): Promise<Turniej[]> {
+  const { data, error } = await supabase
+    .from('turnieje')
+    .select('*, turniej_druzyny(id, status)')
+    .order('data_startu', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(toTurniej);
+}
+
 /** Organizowane przeze mnie + te, w których gram (przez `turniej_zawodnicy`). */
 export async function getMojeTurnieje(userId: string): Promise<Turniej[]> {
   const [organizowane, graneRaw] = await Promise.all([
