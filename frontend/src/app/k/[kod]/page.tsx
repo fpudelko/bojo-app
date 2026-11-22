@@ -11,6 +11,9 @@ import { Loader2, ShieldCheck } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
+import { useAdmin } from '@/lib/admin';
+import { displayName } from '@/lib/profileName';
+import { getTurniej } from '@/lib/turnieje';
 import { useToast } from '@/lib/toast';
 import { validateName } from '@/lib/validation';
 import {
@@ -24,7 +27,9 @@ const inputCls =
 export default function LinkKapitanaPage() {
   const { kod } = useParams<{ kod: string }>();
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
+  const jestAdmin = useAdmin();
+  const [organizatorId, setOrganizatorId] = useState<string | null>(null);
   const { toast } = useToast();
   const [info, setInfo] = useState<DruzynaZLinkuKapitana | null>(null);
   const [druzyna, setDruzyna] = useState<TurniejDruzyna | null>(null);
@@ -41,8 +46,11 @@ export default function LinkKapitanaPage() {
         setInfo(i);
         // Skład (wolne wpisy „to ja”) z kodu dołączenia drużyny.
         if (i) {
-          const d = await getDruzynaPoKodzie(i.kodDolaczenia).catch(() => null);
-          if (aktualne) setDruzyna(d);
+          const [d, t] = await Promise.all([
+            getDruzynaPoKodzie(i.kodDolaczenia).catch(() => null),
+            getTurniej(i.turniejId).catch(() => null),
+          ]);
+          if (aktualne) { setDruzyna(d); setOrganizatorId(t?.organizatorId ?? null); }
         }
       })
       .catch(() => { if (aktualne) setInfo(null); })
@@ -114,8 +122,21 @@ export default function LinkKapitanaPage() {
   }
 
   const wolneWpisy = (druzyna?.zawodnicy ?? []).filter((z) => !z.userId);
-  const dopisz = () => {
-    try { void przejmij({ imie: validateName(imie, 'Imię', 60) }); }
+  const mojeImie = displayName(user);
+  // ZALOGOWANY OD RAZU WIDZI, KIM JEST (uwaga właściciela 2026-11-22). Strona
+  // pokazywała samo pole „Imię i nazwisko”, więc nie było wiadomo, czy to
+  // logowanie, czy rejestracja, ani na jakim koncie przejmuje się drużynę.
+  // Teraz: „Jesteś zalogowany jako …”, przycisk z tym imieniem i „Zaloguj
+  // się innym kontem”. Wpisanie innego imienia zostaje opcją.
+  const zalogujInnym = async () => {
+    await signOut();
+    window.location.href = `/logowanie?next=${encodeURIComponent(`/k/${kod}`)}`;
+  };
+  // ORGANIZATOR NIE PRZEJMUJE PRZEZ POMYŁKĘ: sprawdzając link, zużyłby go
+  // i sam został kapitanem cudzej drużyny.
+  const toOrganizator = jestAdmin || (!!organizatorId && organizatorId === user.id);
+  const dopisz = (imieDoZapisu: string) => {
+    try { void przejmij({ imie: validateName(imieDoZapisu, 'Imię', 60) }); }
     catch (e) { setBlad(e instanceof Error ? e.message : 'Podaj imię'); }
   };
 
@@ -123,11 +144,24 @@ export default function LinkKapitanaPage() {
     <>
       {naglowek}
       {objasnienie}
+      {toOrganizator && (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <p className="font-semibold">Jesteś organizatorem tego turnieju</p>
+          <p className="mt-1">
+            Ten link jest dla kapitana drużyny {info.nazwa}. Jeśli go użyjesz, to Ty zostaniesz kapitanem, a link przestanie
+            działać. Wyślij go kapitanowi.
+          </p>
+        </div>
+      )}
       <div className="mt-4 space-y-3 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         {blad && <p className="text-sm text-red-600">{blad}</p>}
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Jesteś zalogowany jako <span className="font-semibold text-ink">{mojeImie}</span>
+          {user.email ? <span className="text-slate-500"> ({user.email})</span> : null}.
+        </p>
         {wolneWpisy.length > 0 && (
           <div className="space-y-2">
-            <p className="text-sm font-medium text-ink">Jesteś na liście? Wybierz siebie</p>
+            <p className="text-sm font-medium text-ink">Jesteś już na liście składu? Wybierz siebie</p>
             {wolneWpisy.map((z) => (
               <button
                 key={z.id}
@@ -138,15 +172,26 @@ export default function LinkKapitanaPage() {
                 {z.imie}
               </button>
             ))}
-            <p className="pt-1 text-xs text-slate-500 dark:text-slate-400">Nie ma Cię na liście? Wpisz imię niżej.</p>
           </div>
         )}
-        <div className="flex gap-2">
-          <input value={imie} onChange={(e) => setImie(e.target.value)} placeholder="Imię i nazwisko" className={inputCls} aria-label="Imię i nazwisko" />
-          <Button onClick={dopisz} disabled={wTrakcie || imie.trim().length < 1} className="shrink-0">
-            {wTrakcie ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Przejmuję'}
-          </Button>
-        </div>
+        <Button
+          onClick={() => dopisz(mojeImie)}
+          disabled={wTrakcie}
+          variant={toOrganizator ? 'outline' : 'primary'}
+          className="w-full"
+        >
+          {wTrakcie ? <Loader2 className="h-4 w-4 animate-spin" /> : `Przejmij drużynę jako ${mojeImie}`}
+        </Button>
+        <details className="text-sm">
+          <summary className="cursor-pointer text-slate-500 dark:text-slate-400">W składzie pod innym imieniem</summary>
+          <div className="mt-2 flex gap-2">
+            <input value={imie} onChange={(e) => setImie(e.target.value)} placeholder="Imię i nazwisko" className={inputCls} aria-label="Imię i nazwisko" />
+            <Button onClick={() => dopisz(imie)} disabled={wTrakcie || imie.trim().length < 1} className="shrink-0">Przejmuję</Button>
+          </div>
+        </details>
+        <button type="button" onClick={zalogujInnym} className="text-sm font-medium text-primary-600">
+          To nie Ty? Zaloguj się innym kontem
+        </button>
       </div>
     </>,
   );

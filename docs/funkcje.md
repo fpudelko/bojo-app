@@ -5077,7 +5077,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     kapitanów” → „Przygotuj linki” (`przygotujLinkiKapitanow()`), „Kopiuj link” przy drużynie
     albo „Kopiuj wszystkie linki” (`tekstLinkowKapitanow()`, jedna drużyna na linię, do
     WhatsAppa). Kapitan bez konta widzi drużynę i „Zaloguj się i przejmij drużynę”; po
-    zalogowaniu wybiera siebie z wolnych wpisów składu albo wpisuje imię. Link działa raz,
+    zalogowaniu widzi „Jesteś zalogowany jako …” i „Przejmij drużynę jako {imię}” (imię
+    z konta, `displayName()`), może wybrać siebie z wolnych wpisów, wpisać inne imię albo
+    „Zaloguj się innym kontem” (wylogowanie i powrót na link). Organizator/admin dostaje
+    ostrzeżenie, że link jest dla kapitana i po użyciu przestanie działać. Link działa raz,
     drużyny z kapitanem nie przejmie. Link drużyny `/t/[kod]` dalej tylko dołącza (172).
   - **Karta drużyny** (`KartaDruzyny.tsx`): strzałka rozwija najbliższy mecz i wyniki z
     perspektywy drużyny (Z/R/P, własne gole pierwsze, `meczeDruzyny()`), skład tylko na ekranie
