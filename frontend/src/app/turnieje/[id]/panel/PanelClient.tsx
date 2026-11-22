@@ -28,7 +28,7 @@ import {
 } from '@/lib/turnieje';
 import {
   getDruzynyZeSkladem, setStatusDruzyny, dodajDruzyneRecznie, getKontakty, usunDruzyne,
-  ustawGrupeDruzyny, setWpisowe,
+  ustawGrupeDruzyny, setWpisowe, przygotujLinkiKapitanow, tekstLinkowKapitanow, type LinkKapitana,
 } from '@/lib/turniejDruzyny';
 import {
   getGrupy, dodajGrupe, usunGrupe, getAreny, dodajArene, zmienNazweAreny, usunArene,
@@ -120,6 +120,8 @@ export default function PanelClient() {
   // Pierwsza dotknięta drużyna przy ręcznej zamianie par w drabince.
   const [doZamiany, setDoZamiany] = useState<MiejsceWDrabince | null>(null);
   const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
+  // Linki kapitanów (181): `null` = jeszcze nie przygotowane w tej sesji.
+  const [linkiKapitanow, setLinkiKapitanow] = useState<LinkKapitana[] | null>(null);
   const [blikWpis, setBlikWpis] = useState('');
   // Zasady gry w trakcie edycji; `null` = pokaż to, co jest w bazie.
   const [zasadyEdycja, setZasadyEdycja] = useState<WartosciZasad | null>(null);
@@ -439,6 +441,7 @@ export default function PanelClient() {
       konsekwencje: ['Wszyscy zawodnicy dostaną powiadomienie', 'Turniej zostaje w aplikacji jako odwołany'],
       potwierdzLabel: 'Odwołaj turniej',
       wariant: 'destrukcyjny',
+      wpiszAby: turniej.nazwa,
     });
     if (wynik !== 'tak') return;
     try { await setStatusTurnieju(id, 'odwolany'); await wczytaj(); toast('Turniej odwołany'); }
@@ -455,6 +458,7 @@ export default function PanelClient() {
       ],
       potwierdzLabel: 'Usuń turniej',
       wariant: 'destrukcyjny',
+      wpiszAby: turniej.nazwa,
     });
     if (wynik !== 'tak') return;
     try { await deleteTurniej(id); toast('Turniej usunięty'); router.push('/turnieje'); }
@@ -1035,7 +1039,7 @@ export default function PanelClient() {
                 <summary className="inline-flex min-h-[36px] cursor-pointer list-none items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800 [&::-webkit-details-marker]:hidden">
                   Ekran na halę
                 </summary>
-                <div className="absolute right-0 z-20 mt-1 max-h-[75vh] w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                <div className="absolute right-0 z-20 mt-1 max-h-[75vh] w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800">
                   <WyborEkranu adresTurnieju={adresTurnieju} />
                 </div>
               </details>
@@ -1419,6 +1423,67 @@ export default function PanelClient() {
                         <button onClick={() => losujGrupy()} className="min-h-[44px] text-sm font-medium text-primary-600">Losuj ponownie</button>
                         {mecze.length > 0 && <p className="text-xs text-slate-500">Po zmianie grup wygeneruj terminarz od nowa.</p>}
                       </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* LINKI DLA KAPITANÓW (181, 2026-11-22): drużyny wpisane przez
+                organizatora nie mają kapitana. Jednorazowy link na drużynę:
+                kapitan loguje się i przejmuje ją sam, a organizator wkleja
+                komplet na WhatsApp jednym przyciskiem. */}
+            {wTurnieju.length > 0 && uprawnienia?.mozeZarzadzacDruzynami && (
+              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
+                <div>
+                  <h2 className="text-sm font-semibold text-ink">Linki dla kapitanów</h2>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    Każda drużyna bez kapitana dostaje swój link. Kapitan otwiera go, loguje się i przejmuje drużynę.
+                    Link działa raz.
+                  </p>
+                </div>
+                {linkiKapitanow === null ? (
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      try { setLinkiKapitanow(await przygotujLinkiKapitanow(id)); }
+                      catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się przygotować linków', 'error'); }
+                    }}
+                  >
+                    Przygotuj linki
+                  </Button>
+                ) : (
+                  <>
+                    <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+                      {linkiKapitanow.map((l) => (
+                        <li key={l.druzynaId} className="flex min-h-[44px] items-center gap-2 py-1.5 text-sm">
+                          <span className="min-w-0 flex-1 break-words font-medium text-ink">{l.nazwa}</span>
+                          {l.kod ? (
+                            <button
+                              type="button"
+                              onClick={() => kopiuj(`${window.location.origin}/k/${l.kod}`, `Link kapitana: ${l.nazwa}`)}
+                              className="shrink-0 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-ink dark:border-slate-600"
+                            >
+                              Kopiuj link
+                            </button>
+                          ) : (
+                            <span className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
+                              kapitan: {l.kapitan ?? 'jest'}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {linkiKapitanow.some((l) => l.kod) ? (
+                      <Button
+                        size="sm"
+                        onClick={() => kopiuj(tekstLinkowKapitanow(turniej.nazwa, linkiKapitanow, window.location.origin), 'Komplet linków')}
+                        className="w-full"
+                      >
+                        Kopiuj wszystkie linki (do wklejenia na WhatsApp)
+                      </Button>
+                    ) : (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Wszystkie drużyny mają kapitanów.</p>
                     )}
                   </>
                 )}

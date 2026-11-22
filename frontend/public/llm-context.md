@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-21 · migracja `180` · 61 tabel
+**Stan na:** 2026-11-22 · migracja `181` · 62 tabel
 
 ---
 
@@ -481,6 +481,36 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-22 — Turniej w Bojo: link kapitana, wyniki na karcie drużyny, przerwy, ekran 16:9
+
+PROBLEM: organizator turnieju w Bojo, który wpisał drużyny sam, nie miał jak oddać ich
+kapitanom; karta drużyny pokazywała skład zamiast wyników; przerwy wyliczone z harmonogramu
+znikały z list „najbliższe” i „nasze mecze”; ekran na halę ściskał się na telefonie; usunięcie
+i odwołanie turnieju wymagało jednego kliknięcia.
+
+ROZWIĄZANIE BOJO: w panelu turnieju (Drużyny → Linki dla kapitanów) organizator kopiuje komplet
+linków `bojo.pl/k/<kod>` z nazwami drużyn do wklejenia na WhatsApp. Kapitan otwiera link swojej
+drużyny, loguje się, wskazuje siebie w składzie i przejmuje drużynę; link działa raz, drużyny
+z kapitanem nie da się nim przejąć. Karta drużyny na stronie turnieju po rozwinięciu pokazuje
+najbliższy mecz i wyniki (Z/R/P), a przycisk „Zobacz mecze i skład” prowadzi na ekran drużyny.
+Przerwy wyliczone z odstępów w terminarzu pokazują się także po meczu w toku i w widoku
+„Nasze mecze”. Ekran na halę zawsze ma proporcje 16:9, także na telefonie, a wybór układu
+(„Tablica wyników”, „Tabele grup”, „Terminarz dnia”…) pokazuje miniaturę każdego układu.
+Usunięcie i odwołanie turnieju wymaga wpisania jego nazwy. Admin Bojo widzi na `/turnieje`
+zakładkę „Wszystkie” (także szkice i prywatne).
+
+MECHANIKA: migracja `181` (`turniej_kody_kapitana`, `przygotuj_linki_kapitanow()`,
+`druzyna_po_kodzie_kapitana()`, `przejmij_druzyne_kapitanem()`), trasa `app/k/[kod]`,
+`meczeDruzyny()` w `lib/turniejWynik.ts`, `meczPrzed()`/`zawezDoMeczow()` w
+`lib/turniejEtykiety.ts`, `WyborEkranu.tsx`, `wpiszAby` w `OknoPotwierdzenia`.
+Szczegóły → [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Jak kapitan przejmuje drużynę wpisaną przez organizatora turnieju w Bojo?
+- Czy link kapitana da się przesłać dalej?
+- Gdzie zobaczyć wyniki jednej drużyny turnieju?
+- Jak wygląda ekran turnieju na telefonie?
+
 ### 2026-11-21 (4) — Ekran turnieju na halę: ogłoszenie, kod QR zbiórki, jasny motyw, terminarz
 
 PROBLEM: turniej charytatywny w Bojo chce pokazać na ścianie hali nie tylko wyniki, ale też
@@ -714,23 +744,3 @@ MECHANIKA: `wpiszWynikMeczu()` w `lib/turniejMecze.ts` (wynik z `wynik_recznie`,
 `zakoncz_mecz()`), `postepTurnieju()`, `meczeDoWpisania()`, `mozeRozpoczacTurniej()`
 w `lib/turniejPulpit.ts`, `app/turnieje/[id]/panel/PanelClient.tsx`,
 `app/turnieje/[id]/mecz/[meczId]/MeczClient.tsx`. Bez migracji.
-
-### 2026-11-08 — Dołączenie do drużyny turnieju z linku działa, wolny los nie blokuje terminarza
-
-PROBLEM: zawodnik, który otworzył link do drużyny turnieju w Bojo (`/t/[kod]`) i wybrał
-siebie z listy, dopisał się albo chciał zostać kapitanem, dostawał komunikat techniczny
-`column reference "druzyna_id" is ambiguous` i nie trafiał do składu. Organizator
-turnieju pucharowego z liczbą drużyn inną niż 4, 8 albo 16 widział w terminarzu mecz
-„Walkower 0:0 TBD" i napis „Rozegrano już 2 mecze", choć nikt nie zagrał, a przycisk
-„Wygeneruj terminarz od nowa" był wyłączony na stałe.
-
-ROZWIĄZANIE BOJO: wszystkie trzy drogi dołączenia z linku drużyny (kapitan, „to ja",
-nowy zawodnik) zapisują zawodnika w składzie. Wolny los w drabince Bojo jest pokazany
-jako „Wolny los" z drużyną awansującą bez gry, bez wyniku, przygaszony; nie trafia na
-listę meczów na publicznej stronie turnieju i nie liczy się jako rozegrany mecz, więc
-terminarz da się ułożyć od nowa aż do pierwszego prawdziwego meczu.
-
-MECHANIKA: migracja `171` (`dolacz_do_druzyny_kodem()` z kwalifikowanymi kolumnami,
-`czy_wolny_los()` w `zapisz_terminarz()`), `czyWolnyLos()` w `lib/turniejWynik.ts`
-używane przez `KartaMeczu`, `Drabinka`, panel i publiczną stronę turnieju. Testy:
-`supabase/test/rls.sql`, `turniejWolnyLos.test.ts`.

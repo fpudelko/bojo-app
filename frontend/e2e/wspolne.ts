@@ -99,6 +99,7 @@ export const TRASY: Array<[nazwa: string, adres: string]> = [
   ['turniej-panel',        '/turnieje/00000000-0000-4000-8000-000000000000/panel'],
   ['turniej-ekran',        '/turnieje/00000000-0000-4000-8000-000000000000/ekran'],
   ['dolacz-do-druzyny',    '/t/NIEISTNIEJE'],
+  ['link-kapitana',        '/k/NIEISTNIEJE'],
   ['zaproszenie-do-gry',   '/d/NIEISTNIEJE'],
   ['zaproszenie-do-grupy', '/g/NIEISTNIEJE'],
   ['sport-miasto-poznan',  '/pilka-nozna/poznan'],

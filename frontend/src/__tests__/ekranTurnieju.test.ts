@@ -38,3 +38,17 @@ describe('pozostałe', () => {
     expect(new Set(UKLADY_EKRANU.map((u) => u.klucz)).size).toBe(UKLADY_EKRANU.length);
   });
 });
+
+describe('podgladUkladu', () => {
+  it('każdy układ poza „Na zmianę” ma miniaturę w obu motywach w public/', async () => {
+    const { existsSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { podgladUkladu } = await import('@/lib/ekranTurnieju');
+    for (const u of UKLADY_EKRANU.map((x) => x.klucz).filter((k) => k !== 'zmiana')) {
+      for (const m of ['ciemny', 'jasny'] as const) {
+        const sciezka = join(process.cwd(), 'public', podgladUkladu(u as Exclude<typeof u, 'zmiana'>, m));
+        expect(existsSync(sciezka), sciezka).toBe(true);
+      }
+    }
+  });
+});

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { WARSTWA } from '@/lib/warstwy';
@@ -53,6 +54,7 @@ export default function OknoPotwierdzenia({
   notatka,
   onNotatkaChange,
   akcjaDodatkowa,
+  wpiszAby,
   onPotwierdz,
   onAnuluj,
 }: {
@@ -78,11 +80,20 @@ export default function OknoPotwierdzenia({
   /** Druga droga wyjścia, np. „Odwołaj i wyślij wiadomość". Renderuje się pod
    *  główną akcją, nad „Anuluj". */
   akcjaDodatkowa?: AkcjaDodatkowa;
+  /** Tekst, który trzeba przepisać, zanim główny przycisk się odblokuje
+   *  (np. nazwa turnieju przy usunięciu). Dla akcji, których skutek widzi
+   *  kilkadziesiąt osób, a pomyłkowe stuknięcie kosztuje cały turniej
+   *  (zgłoszenie właściciela 2026-11-22). Wielkość liter i spacje na brzegach
+   *  się nie liczą. */
+  wpiszAby?: string;
   onPotwierdz: () => void;
   onAnuluj: () => void;
 }) {
   // Hook musi lecieć bezwarunkowo — także przy zamkniętym oknie.
   useBlokadaPrzewijania(open);
+  const [wpisane, setWpisane] = useState('');
+  useEffect(() => { if (open) setWpisane(''); }, [open, tytul]);
+  const zgodne = !wpiszAby || wpisane.trim().toLowerCase() === wpiszAby.trim().toLowerCase();
 
   if (!open) return null;
 
@@ -145,9 +156,26 @@ export default function OknoPotwierdzenia({
           </div>
         )}
 
+        {wpiszAby && (
+          <div className="mt-4">
+            <label htmlFor="okno-potwierdzenia-wpisz" className="mb-1 block text-sm text-slate-600 dark:text-slate-300">
+              Wpisz <span className="font-semibold text-ink">{wpiszAby}</span>, żeby potwierdzić
+            </label>
+            <input
+              id="okno-potwierdzenia-wpisz"
+              value={wpisane}
+              onChange={(e) => setWpisane(e.target.value)}
+              autoComplete="off"
+              disabled={busy}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-ink focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+            />
+          </div>
+        )}
+
         <div className="mt-5 space-y-2">
           <Button
             onClick={onPotwierdz}
+            disabled={!zgodne}
             isLoading={busy}
             className={`w-full${wariant === 'destrukcyjny' ? ' bg-red-600 hover:bg-red-700' : ''}`}
           >

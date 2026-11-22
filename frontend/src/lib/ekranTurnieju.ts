@@ -13,14 +13,19 @@ export type MotywEkranu = 'ciemny' | 'jasny';
  * „kiedy tego użyć”, nie „co to jest”.
  */
 export const UKLADY_EKRANU: readonly { klucz: UkladEkranu; etykieta: string; opis: string }[] = [
-  { klucz: 'wszystko', etykieta: 'Wszystko', opis: 'na żywo i kolejne mecze, obok tabele i wyniki na zmianę' },
-  { klucz: 'wynik', etykieta: 'Wynik na żywo', opis: 'tablica wyników: mecz w toku na pół ekranu' },
-  { klucz: 'tabele', etykieta: 'Tabele', opis: 'wszystkie grupy w dużym rozmiarze, np. przed fazą pucharową' },
-  { klucz: 'mecze', etykieta: 'Mecze i wyniki', opis: 'na żywo, kolejne mecze i wyniki, bez tabel' },
-  { klucz: 'terminarz', etykieta: 'Terminarz', opis: 'wszystkie mecze do końca dnia: odpowiedź na „kiedy gramy?”' },
-  { klucz: 'ogloszenie', etykieta: 'Ogłoszenie', opis: 'Twój tekst i kod QR zbiórki na cały ekran, na przerwy' },
-  { klucz: 'zmiana', etykieta: 'Na zmianę', opis: 'ekran sam przełącza układy co 20 s, gdy nikt przy nim nie stoi' },
+  { klucz: 'wszystko', etykieta: 'Pełny widok', opis: 'mecz na żywo i kolejne mecze, obok na zmianę tabele, wyniki i strzelcy' },
+  { klucz: 'wynik', etykieta: 'Tablica wyników', opis: 'wynik meczu w toku na pół ekranu, jak na stadionie' },
+  { klucz: 'tabele', etykieta: 'Tabele grup', opis: 'wszystkie grupy w dużym rozmiarze, np. przed fazą pucharową' },
+  { klucz: 'mecze', etykieta: 'Mecze i wyniki', opis: 'mecz na żywo, kolejne mecze i wyniki, bez tabel' },
+  { klucz: 'terminarz', etykieta: 'Terminarz dnia', opis: 'wszystkie mecze do końca dnia: odpowiedź na „kiedy gramy?”' },
+  { klucz: 'ogloszenie', etykieta: 'Ogłoszenie i zbiórka', opis: 'Twój tekst i duży kod QR zbiórki na cały ekran, na przerwy' },
+  { klucz: 'zmiana', etykieta: 'Pokaz na zmianę', opis: 'ekran sam przełącza tablicę wyników, tabele, terminarz i ogłoszenie co 20 s' },
 ];
+
+/** Miniatura układu (zrzut przykładowego turnieju, `scripts/podglady-ekranu.mjs`). */
+export function podgladUkladu(uklad: Exclude<UkladEkranu, 'zmiana'>, motyw: MotywEkranu): string {
+  return `/ekran-podglad/${uklad}-${motyw}.jpg`;
+}
 
 export const CZAS_UKLADU_NA_ZMIANE_MS = 20_000;
 

@@ -53,6 +53,7 @@ export type AnalyticsEvent =
   | 'turniej_dolaczyl_do_druzyny'
   /** Organizator wskazał kapitana albo kapitan przekazał funkcję (migracja 172). */
   | 'turniej_kapitan_ustawiony'
+  | 'turniej_kapitan_przejal_druzyne'
   /** Mecz poprowadzony do końca konsolą prowadzącego (Etap 2). */
   | 'turniej_mecz_poprowadzony'
   | 'turniej_wynik_poprawiony'

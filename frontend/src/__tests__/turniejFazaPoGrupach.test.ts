@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   drabinkaZGrup, grupaFinalowaZGrup, meczeKazdyZKazdym, nazwaMiejscaWGrupie,
 } from '@/lib/turniejFormat';
-import { etykietaFazyMeczu, porownajTermin, przerwaPrzedMeczem, terminarzZPrzerwami } from '@/lib/turniejEtykiety';
+import { etykietaFazyMeczu, porownajTermin, przerwaPrzedMeczem, terminarzZPrzerwami, meczPrzed, zawezDoMeczow } from '@/lib/turniejEtykiety';
 import { opisAwansu } from '@/lib/turniejTabela';
 
 const licznik = () => { let n = 0; return () => `m${++n}`; };
@@ -154,5 +154,20 @@ describe('terminarzZPrzerwami (migracja 176)', () => {
     expect(terminarzZPrzerwami(mecze, [], opcje).map(podpis)).toContain('Przerwa 12:40-13:00');
     expect(terminarzZPrzerwami(mecze, [konkurs], { ...opcje, zPrzerwamiWyliczonymi: false }).map(podpis))
       .toEqual(['M18', 'Konkurs obijania poprzeczki 12:40-13:00', 'M19', 'M32', 'M33']);
+  });
+
+  // Zgłoszenie właściciela 2026-11-22: na „Najbliższych” (lista bez meczu
+  // w toku) i przy „Nasze mecze” znikały przerwy wyliczone z harmonogramu.
+  it('lista od środka dnia liczy przerwę od meczu przed pierwszym (poprzedni)', () => {
+    const najblizsze = mecze.slice(1); // M18 trwa, lista zaczyna się od M19
+    expect(terminarzZPrzerwami(najblizsze, [], opcje).map(podpis)[0]).toBe('M19');
+    expect(terminarzZPrzerwami(najblizsze, [], { ...opcje, poprzedni: meczPrzed(mecze.map((m) => ({ ...m, id: `m${m.numer}` })), { id: 'm19' }) })
+      .map(podpis)).toEqual(['Przerwa 12:40-13:00', 'M19', 'Przerwa 13:12-16:10', 'M32', 'Przerwa 16:22-16:27', 'M33']);
+  });
+
+  it('„Nasze mecze” dostają przerwy turnieju przed swoim meczem, a po ostatnim tylko te z nazwą', () => {
+    const wszystkie = terminarzZPrzerwami(mecze, [dekoracja], opcje);
+    expect(zawezDoMeczow(wszystkie, (m) => m.numer === 18 || m.numer === 32).map(podpis))
+      .toEqual(['M18', 'Przerwa 12:40-13:00', 'Przerwa 13:12-16:10', 'M32', 'Dekoracja 16:39-17:00']);
   });
 });

@@ -2044,6 +2044,50 @@ BEGIN
 END $$;
 DELETE FROM turnieje WHERE id = :EK_T::uuid;
 
+SELECT _sekcja('Link kapitana: jednorazowe przejęcie drużyny (migracja 181)');
+\set LK_T '''ffffffff-0000-4000-8000-000000000201'''
+\set LK_D '''ffffffff-0000-4000-8000-000000000202'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:LK_T::uuid, :ORGANIZATOR::uuid, 'Kapitanowie do testów', 'piłka nożna', 'zamkniete_zapisy', CURRENT_DATE);
+INSERT INTO turniej_druzyny (id, turniej_id, nazwa, status, dodana_recznie)
+VALUES (:LK_D::uuid, :LK_T::uuid, 'Bez kapitana', 'przyjeta', true);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+DO $$ BEGIN
+  PERFORM przygotuj_linki_kapitanow('ffffffff-0000-4000-8000-000000000201');
+  RAISE EXCEPTION 'RLS: obcy przygotował linki kapitanów';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM LIKE 'RLS:%' THEN RAISE; END IF;
+  RAISE NOTICE '  ✓ linki kapitanów przygotowuje tylko organizator';
+END $$;
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT kod AS lk_kod FROM przygotuj_linki_kapitanow(:LK_T::uuid) WHERE druzyna_id = :LK_D::uuid \gset
+SELECT _oczekuj('organizator dostaje kod dla drużyny bez kapitana', (SELECT count(*) FROM turniej_kody_kapitana WHERE druzyna_id = :LK_D::uuid), 1);
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj('obcy nie czyta kodów kapitana (0 wierszy)', (SELECT count(*) FROM turniej_kody_kapitana), 0);
+SET ROLE anon;
+SELECT _oczekuj('strona linku pokazuje drużynę także przed zalogowaniem',
+  (SELECT count(*) FROM druzyna_po_kodzie_kapitana(:'lk_kod') WHERE nazwa = 'Bez kapitana'), 1);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT count(*) FROM przejmij_druzyne_kapitanem(:'lk_kod', NULL, 'Kapitan Testowy');
+RESET ROLE;
+SELECT _oczekuj('kapitan przejął drużynę: kapitan_id i flaga w składzie',
+  (SELECT count(*) FROM turniej_druzyny d JOIN turniej_zawodnicy z ON z.druzyna_id = d.id
+    WHERE d.id = :LK_D::uuid AND d.kapitan_id = :UCZESTNIK::uuid AND z.user_id = :UCZESTNIK::uuid AND z.kapitan), 1);
+SELECT _oczekuj('link kapitana jest jednorazowy (kod zniknął)', (SELECT count(*) FROM turniej_kody_kapitana WHERE druzyna_id = :LK_D::uuid), 0);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+DO $$ BEGIN
+  PERFORM przejmij_druzyne_kapitanem((SELECT 'NIEMA' || 'KOD'), NULL, 'Ktoś');
+  RAISE EXCEPTION 'RLS: zużyty link kapitana zadziałał';
+EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM LIKE 'RLS:%' THEN RAISE; END IF;
+  RAISE NOTICE '  ✓ zużyty albo zły link kapitana nie działa';
+END $$;
+RESET ROLE;
+DELETE FROM turnieje WHERE id = :LK_T::uuid;
+
 SELECT _sekcja('Każda tabela w public ma włączone RLS');
 DO $$
 DECLARE
