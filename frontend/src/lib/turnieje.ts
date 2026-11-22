@@ -302,27 +302,89 @@ export async function getWszystkieTurnieje(limit = 200): Promise<Turniej[]> {
 }
 
 /** Organizowane przeze mnie + te, w których gram (przez `turniej_zawodnicy`). */
-export async function getMojeTurnieje(userId: string): Promise<Turniej[]> {
-  const [organizowane, graneRaw] = await Promise.all([
-    supabase.from('turnieje').select('*, turniej_druzyny(id, status)').eq('organizator_id', userId),
+/** Skąd turniej jest „mój”. Kolejność = ważność, gdy źródeł jest kilka. */
+export type RolaWTurnieju = 'organizujesz' | 'wspolorganizujesz' | 'grasz' | 'obserwujesz';
+
+export interface MojTurniej {
+  turniej: Turniej;
+  rola: RolaWTurnieju;
+}
+
+const KOLEJNOSC_ROL: RolaWTurnieju[] = ['organizujesz', 'wspolorganizujesz', 'grasz', 'obserwujesz'];
+
+/**
+ * Turnieje zalogowanego z rolą (2026-11-22, prośba właściciela: turniej,
+ * w którego drużynie gram, ma być „na koncie”). Cztery źródła: organizator,
+ * współorganizator (`turniej_osoby`, 178), zawodnik (`turniej_zawodnicy`)
+ * i obserwujący (`turniej_obserwujacy`, 184). Bez migracji 184 obserwowane
+ * po prostu nie dochodzą, reszta działa.
+ */
+export async function getMojeTurniejeZRola(userId: string): Promise<MojTurniej[]> {
+  const [organizowane, wspol, grane, obserwowane] = await Promise.all([
+    supabase.from('turnieje').select('id').eq('organizator_id', userId),
+    supabase.from('turniej_osoby').select('turniej_id').eq('user_id', userId),
     supabase.from('turniej_zawodnicy').select('turniej_id').eq('user_id', userId),
+    supabase.from('turniej_obserwujacy').select('turniej_id').eq('user_id', userId),
   ]);
   if (organizowane.error) throw new Error(organizowane.error.message);
-  if (graneRaw.error) throw new Error(graneRaw.error.message);
+  if (grane.error) throw new Error(grane.error.message);
 
-  const idOrganizowanych = new Set((organizowane.data ?? []).map((r) => r.id as string));
-  const idGranych = Array.from(new Set((graneRaw.data ?? []).map((r) => r.turniej_id as string)))
-    .filter((id) => !idOrganizowanych.has(id));
+  const rola = new Map<string, RolaWTurnieju>();
+  const dopisz = (ids: string[], r: RolaWTurnieju) => {
+    for (const id of ids) {
+      const byla = rola.get(id);
+      if (!byla || KOLEJNOSC_ROL.indexOf(r) < KOLEJNOSC_ROL.indexOf(byla)) rola.set(id, r);
+    }
+  };
+  dopisz((organizowane.data ?? []).map((r) => r.id as string), 'organizujesz');
+  dopisz(wspol.error ? [] : (wspol.data ?? []).map((r) => r.turniej_id as string), 'wspolorganizujesz');
+  dopisz((grane.data ?? []).map((r) => r.turniej_id as string), 'grasz');
+  dopisz(obserwowane.error ? [] : (obserwowane.data ?? []).map((r) => r.turniej_id as string), 'obserwujesz');
+  if (rola.size === 0) return [];
 
-  let grane: Turniej[] = [];
-  if (idGranych.length > 0) {
-    const { data, error } = await supabase.from('turnieje').select('*, turniej_druzyny(id, status)').in('id', idGranych);
-    if (error) throw new Error(error.message);
-    grane = (data ?? []).map(toTurniej);
+  const { data, error } = await supabase.from('turnieje').select('*, turniej_druzyny(id, status)').in('id', Array.from(rola.keys()));
+  if (error) throw new Error(error.message);
+  return (data ?? [])
+    .map(toTurniej)
+    .map((t) => ({ turniej: t, rola: rola.get(t.id)! }))
+    .sort((a, b) => a.turniej.dataStartu.localeCompare(b.turniej.dataStartu));
+}
+
+export async function getMojeTurnieje(userId: string): Promise<Turniej[]> {
+  return (await getMojeTurniejeZRola(userId)).map((m) => m.turniej);
+}
+
+/**
+ * Turnieje do pokazania na „Moje mecze”: bez prób, odwołanych i zakończonych
+ * dawniej niż 3 dni temu (podium zostaje chwilę, potem lista ma pokazywać to,
+ * co przed nami). Czysta funkcja, żeby dało się ją testować.
+ */
+export function turniejeNaMojeMecze(lista: readonly MojTurniej[], dzisiaj: string): MojTurniej[] {
+  const granica = new Date(`${dzisiaj}T00:00:00Z`);
+  granica.setUTCDate(granica.getUTCDate() - 3);
+  const odKiedy = granica.toISOString().slice(0, 10);
+  return lista.filter(({ turniej: t, rola }) =>
+    !czyTurniejProbny(t) && t.status !== 'odwolany'
+    // Szkic widzi tylko ten, kto go przygotowuje.
+    && (t.status !== 'szkic' || rola === 'organizujesz' || rola === 'wspolorganizujesz')
+    && (t.status !== 'zakonczony' || t.dataStartu >= odKiedy));
+}
+
+/** Czy zalogowany obserwuje turniej (184). Bez migracji: false. */
+export async function czyObserwujeTurniej(turniejId: string, userId: string): Promise<boolean> {
+  const { data, error } = await supabase.from('turniej_obserwujacy')
+    .select('turniej_id').eq('turniej_id', turniejId).eq('user_id', userId).maybeSingle();
+  return !error && !!data;
+}
+
+export async function obserwujTurniej(turniejId: string, userId: string, obserwuj: boolean): Promise<void> {
+  const { error } = obserwuj
+    ? await supabase.from('turniej_obserwujacy').upsert({ turniej_id: turniejId, user_id: userId }, { onConflict: 'turniej_id,user_id', ignoreDuplicates: true })
+    : await supabase.from('turniej_obserwujacy').delete().eq('turniej_id', turniejId).eq('user_id', userId);
+  if (error) {
+    if (error.code === '42P01' || error.code === 'PGRST205') throw new Error('Obserwowanie jeszcze nie działa na tej bazie (brak migracji 184).');
+    throw new Error(error.message);
   }
-
-  const wszystkie = [...(organizowane.data ?? []).map(toTurniej), ...grane];
-  return wszystkie.sort((a, b) => a.dataStartu.localeCompare(b.dataStartu));
 }
 
 // ---------------------------------------------------------------------------

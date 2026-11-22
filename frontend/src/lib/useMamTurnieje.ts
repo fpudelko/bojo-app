@@ -1,7 +1,8 @@
 'use client';
 // Czy pokazać wejście „🏆 Turnieje” obok Moich meczów (decyzja właściciela
 // z 2026-11-21): tak, gdy zalogowany organizuje albo współorganizuje jakiś
-// turniej, gra w składzie drużyny turniejowej albo jest adminem. Reszta
+// turniej, gra w składzie drużyny turniejowej, obserwuje turniej (184)
+// albo jest adminem. Reszta
 // użytkowników wejścia nie widzi; moduł dalej chowa przed nimi `SHOW_TURNIEJE`.
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
@@ -17,6 +18,7 @@ async function czyMaTurnieje(userId: string): Promise<boolean> {
     ile(supabase.from('turnieje').select('id', { count: 'exact', head: true }).eq('organizator_id', userId)),
     ile(supabase.from('turniej_zawodnicy').select('id', { count: 'exact', head: true }).eq('user_id', userId)),
     ile(supabase.from('turniej_osoby').select('turniej_id', { count: 'exact', head: true }).eq('user_id', userId)),
+    ile(supabase.from('turniej_obserwujacy').select('turniej_id', { count: 'exact', head: true }).eq('user_id', userId)),
   ]);
   return wyniki.some(Boolean);
 }

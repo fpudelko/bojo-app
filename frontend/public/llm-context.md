@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-22 · migracja `183` · 62 tabel
+**Stan na:** 2026-11-22 · migracja `184` · 63 tabel
 
 ---
 
@@ -481,6 +481,32 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-22 (3) — Turnieje na koncie gracza, obserwowanie turnieju, przekazanie organizacji
+
+PROBLEM: zawodnik, który dołączył do drużyny turniejowej w Bojo, nie widział turnieju na swoim
+koncie i musiał szukać linku na WhatsAppie; kibic albo rodzic nie miał jak zapisać turnieju;
+turniej przygotowany przez Bojo pokazywał na stronie złego organizatora.
+
+ROZWIĄZANIE BOJO: na ekranie „Moje mecze” sekcja „Twoje turnieje” pokazuje karty turniejów,
+w których użytkownik gra, które organizuje, współorganizuje albo obserwuje, z podpisem roli
+(„Grasz w drużynie”, „Obserwujesz”). Na stronie turnieju (zakładka Info) przycisk „Obserwuj
+turniej” dodaje turniej do konta; niezalogowany przechodzi przez logowanie. Na liście
+turniejów karta „Moje” (dawniej „Biorę udział”) obejmuje też obserwowane. Organizator
+przekazuje organizację współorganizatorowi przyciskiem „Przekaż organizację” (Ustawienia →
+Współorganizatorzy) i sam zostaje współorganizatorem. Kapitan z linku `/k/…` widzi, na jakim
+koncie przejmuje drużynę.
+
+MECHANIKA: migracje `183` (`przekaz_organizacje_turnieju()`) i `184` (`turniej_obserwujacy`,
+widoczny tylko dla właściciela wpisu), `getMojeTurniejeZRola()` i `turniejeNaMojeMecze()`
+w `lib/turnieje.ts`, `components/turnieje/MojeTurniejeSekcja.tsx`. Szczegóły →
+[funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Gdzie w Bojo zobaczę turniej, w którym gra moja drużyna?
+- Jak obserwować turniej w Bojo, jeśli nie gram?
+- Czy organizator widzi, kto obserwuje turniej?
+- Jak zmienić organizatora turnieju w Bojo?
+
 ### 2026-11-22 (2) — Zegar meczu turnieju z pauzą i połowami, widok uczestnika
 
 PROBLEM: zegar meczu turnieju w Bojo ruszał w chwili wejścia w tryb na żywo i nie dawał się
@@ -721,28 +747,3 @@ MECHANIKA: migracja `174` (`powiadom_o_nastepnym_meczu()` w `Europe/Warsaw`),
 `etykietaTerminuMeczu()` i `stanTurnieju()` w `lib/turniejEtykiety.ts`, `CookieBanner.tsx`
 (`--cookie-h`), `app/t/[kod]/page.tsx`, `DruzynaClient.tsx`, `TurniejClient.tsx`,
 `PanelClient.tsx`, `lib/toast.tsx`. Szczegóły → [funkcje.md](./funkcje.md).
-
-### 2026-11-08 (3) — Prostszy moduł turniejowy: jedna rola, zasady gry, próba, kapitan wskazany przez organizatora
-
-PROBLEM: organizator turnieju w Bojo (turniej pokazowy w Luboniu) gubił się w opcjach:
-pola, które niczego nie robiły (data końca, minimum drużyn, minimalny skład), zakładka
-uprawnień, zapis ustawień bez potwierdzenia, brak pól na czas meczu i punktację, a widok
-dnia turnieju widział pierwszy raz w dniu turnieju. Pierwsza osoba z linku drużyny
-zostawała jej kapitanem, a do wyniku trzeba było klikać plus przy każdym golu i podawać
-asysty.
-
-ROZWIĄZANIE BOJO: kreator i panel turnieju mają sekcję „Zasady gry” i pola terminu,
-miejsca, drużyn, wpisowego, formatu i widoczności z potwierdzeniem „Zapisano”. Turniejem
-zarządza tylko organizator. Link do drużyny tylko dołącza, kapitana wskazuje organizator,
-który sam może wpisać skład. Grupy da się ustawić ręcznie i przestawić po losowaniu, pary
-pierwszej rundy pucharu zamienić w podglądzie. Wynik wpisuje się liczbą, strzelcy są
-opcjonalni (z jednym pytaniem przy zapisie), asysty wypadły, zawodnik meczu jest opcją.
-„Przetestuj” obok „Rozpocznij turniej” robi kopię turnieju do przećwiczenia wyników.
-Okładka stoi na górze strony turnieju.
-
-MECHANIKA: migracje `172` (`ustaw_kapitana_druzyny()`, link bez kapitanatu) i `173`
-(`utworz_probe_turnieju()`), `components/turnieje/ZasadyGry.tsx`,
-`zamienDruzynyWDrabince()` w `lib/turniejFormat.ts`, `goleZWyniku()` /
-`wpiszWynikZeStrzelcami()` w `lib/turniejMecze.ts`, `czyTurniejProbny()` w
-`lib/turnieje.ts`. Szczegóły → [funkcje.md](./funkcje.md), plan →
-[turnieje-poprawki-lubon.md](./turnieje-poprawki-lubon.md).
