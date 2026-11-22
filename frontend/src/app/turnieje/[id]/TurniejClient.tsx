@@ -254,7 +254,7 @@ export default function TurniejClient() {
   if (ladowanie) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center text-sm text-slate-400">Ładuję…</div>
       </div>
     );
@@ -263,7 +263,7 @@ export default function TurniejClient() {
   if (bladWczytania && !turniej) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center">
           <p className="font-medium text-ink">Nie udało się wczytać turnieju</p>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Sprawdź połączenie i spróbuj ponownie.</p>
@@ -281,7 +281,7 @@ export default function TurniejClient() {
   if (notFound || !turniej) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center">
           <p className="font-medium text-ink">Nie znaleziono turnieju</p>
           <Link href="/turnieje" className="mt-2 inline-block text-sm text-primary-600">Wróć do listy turniejów</Link>
@@ -496,7 +496,7 @@ export default function TurniejClient() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
         <div className={`mx-auto flex ${szerokosc} items-center gap-3 px-4 py-3`}>
           {/* STRZAŁKA TYLKO POZA INFO (uwaga właściciela 2026-11-22). Info to
@@ -554,7 +554,7 @@ export default function TurniejClient() {
         )}
         {czyTurniejProbny(turniej) && (
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3.5 text-sm text-slate-700 dark:text-slate-300">
-            To jest próba turnieju. Wyniki wpisane tutaj nie trafiają do prawdziwego turnieju.
+            To jest próba turnieju: kopia do przećwiczenia dnia turnieju, zrobiona przyciskiem „Przetestuj” w panelu. Wyniki wpisane tutaj nie trafiają do prawdziwego turnieju. Usuniesz ją w panelu: „Zakończ próbę”.
           </div>
         )}
 

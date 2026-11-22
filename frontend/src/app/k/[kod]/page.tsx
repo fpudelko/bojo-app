@@ -73,7 +73,7 @@ export default function LinkKapitanaPage() {
 
   const ramka = (tresc: React.ReactNode) => (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">{tresc}</main>
     </div>
   );

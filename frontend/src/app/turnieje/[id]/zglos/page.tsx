@@ -92,7 +92,7 @@ export default function ZglosDruzynePage() {
   if (ladowanie) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center text-sm text-slate-400">Ładuję…</div>
       </div>
     );
@@ -101,7 +101,7 @@ export default function ZglosDruzynePage() {
   if (!turniej) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center text-sm text-slate-500">Nie znaleziono turnieju.</div>
       </div>
     );
@@ -111,7 +111,7 @@ export default function ZglosDruzynePage() {
     const druzyna = druzyny.find((d) => d.id === zgloszona);
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 text-center">
           <h1 className="font-display text-2xl font-bold text-ink mb-2">Zgłoszenie wysłane</h1>
           <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
@@ -146,7 +146,7 @@ export default function ZglosDruzynePage() {
     const status = STATUS_DRUZYNY[mojaDruzyna.status];
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 text-center">
           <h1 className="font-display text-2xl font-bold text-ink">Masz już drużynę w tym turnieju</h1>
           <div className="mt-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
@@ -169,7 +169,7 @@ export default function ZglosDruzynePage() {
   if (!przyjmujeZgloszenia(turniej, liczDruzynyWTurnieju(druzyny))) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 text-center">
           <p className="font-medium text-ink">Zapisy do tego turnieju są zamknięte.</p>
           <Link href={`/turnieje/${id}`} className="mt-2 inline-block text-sm text-primary-600">Wróć do turnieju</Link>
@@ -180,7 +180,7 @@ export default function ZglosDruzynePage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8">
         <button onClick={wstecz} className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink transition-colors">
           <ArrowLeft className="w-4 h-4" /> Wróć

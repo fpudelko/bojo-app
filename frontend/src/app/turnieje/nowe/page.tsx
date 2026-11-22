@@ -157,7 +157,7 @@ export default function NowyTurniejPage() {
     };
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
           <div className="text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-950">
@@ -221,7 +221,7 @@ export default function NowyTurniejPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8">
         <button onClick={wstecz} className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-ink transition-colors">
           <ArrowLeft className="w-4 h-4" /> Wróć

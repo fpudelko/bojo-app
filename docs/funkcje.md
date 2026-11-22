@@ -5188,7 +5188,11 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   krzyżykiem (`usunOsobeTurnieju()`). Współorganizator widzi cały panel z Ustawieniami, bez
   „Usuń turniej” i bez nadawania praw dalej. Admin Bojo jest w interfejsie organizatorem
   każdego turnieju (`uprawnieniaTurnieju(…, jestAdmin)`, tak jak `czy_organizator_turnieju()`
-  w bazie). „Przetestuj” widzi wyłącznie admin.
+  w bazie). „Przetestuj” widzi wyłącznie admin. Kopia „Próba: …” (marker `[TURNIEJ-TEST]`,
+  widoczność `na_link`, składy bez kont) ma na liście „Wszystkie” dopisek „Kopia do ćwiczeń”
+  z tym, skąd się wzięła i jak ją usunąć; panel próby wypisuje w hasłach, co w niej przećwiczyć.
+- Widoki turniejowe (`/turnieje/**`, `/t/[kod]`, `/k/[kod]`) mają `Header showMobileWordmark`:
+  zalogowany na telefonie widzi napis „bojo” w pasku (wcześniej pusty slot bez logo).
 - Zadania przed przekazaniem turnieju: `supabase/zadania/turnieje-usun-poza-marysia.sql`
   (usuwa wszystkie turnieje poza `e9a3763f…`) i `supabase/zadania/turniej-marysi-wyzeruj-wyniki.sql`
   (mecze z powrotem „zaplanowane”, bez zdarzeń; drużyny, terminarz i przerwy zostają).

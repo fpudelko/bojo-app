@@ -64,7 +64,7 @@ export default function DolaczDoDruzynyPage() {
   if (loading || ladowanie) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center text-sm text-slate-400">Ładuję…</div>
       </div>
     );
@@ -73,7 +73,7 @@ export default function DolaczDoDruzynyPage() {
   if (!druzyna) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-16 text-center">
           <p className="font-medium text-ink">Nie znaleziono drużyny o tym kodzie.</p>
           <Link href="/turnieje" className="mt-2 inline-block text-sm text-primary-600">Wróć do turniejów</Link>
@@ -130,7 +130,7 @@ export default function DolaczDoDruzynyPage() {
   if (!user) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 text-center">
           <p className="text-sm text-slate-500 dark:text-slate-400">Zaproszenie do drużyny</p>
           <h1 className="mb-5 font-display text-2xl font-bold text-ink">{druzyna.nazwa}</h1>
@@ -156,7 +156,7 @@ export default function DolaczDoDruzynyPage() {
   if (juzWSkladzie) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
-        <Header />
+        <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 text-center">
           <p className="text-sm text-slate-500 dark:text-slate-400">{turniej ? turniej.nazwa : 'Turniej Bojo'}</p>
           <h1 className="mb-5 font-display text-2xl font-bold text-ink">Jesteś w drużynie {druzyna.nazwa}</h1>
@@ -171,7 +171,7 @@ export default function DolaczDoDruzynyPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
-      <Header />
+      <Header showMobileWordmark />
       <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
         <h1 className="font-display text-2xl font-bold text-ink text-center mb-1">{druzyna.nazwa}</h1>
         <p className="mb-4 text-center text-sm text-slate-500 dark:text-slate-400">
