@@ -507,27 +507,25 @@ PYTANIA:
 - Czy organizator widzi, kto obserwuje turniej?
 - Jak zmienić organizatora turnieju w Bojo?
 
-### 2026-11-22 (2) — Zegar meczu turnieju z pauzą i połowami, widok uczestnika
+### 2026-11-22 (2) — Zegar meczu turnieju z pauzą i połowami
 
 PROBLEM: zegar meczu turnieju w Bojo ruszał w chwili wejścia w tryb na żywo i nie dawał się
 zatrzymać; organizator nie wiedział, co się stanie po kliknięciu „Prowadź mecz na żywo”, i nie
-mógł zobaczyć turnieju oczami zawodnika.
+wiedział, kiedy kończy się połowa.
 
 ROZWIĄZANIE BOJO: na stronie meczu karta „Prowadź mecz na żywo” stoi na górze z opisem
 w jednej linii. Po „Zacznij mecz teraz” zegar czeka na „Start”; prowadzący ma „Pauza”,
 „Koniec połowy”, „Start 2. połowy” i „Koniec meczu”, a „Przejdź do końca meczu” jest zawsze.
 Ekran na halę i panel organizatora pokazują ten sam stan zegara („1. poł. 03:12”, „Przerwa”).
-Organizator przełącza stronę turnieju i meczu między widokiem organizatora i uczestnika.
 Na ekranie na halę kod QR zbiórki jest duży, a kod Bojo mały po drugiej stronie.
 
 MECHANIKA: migracja `182` (`turniej_mecze.zegar_od`, `zegar_sekundy`, `polowa`),
-`lib/zegarMeczu.ts`, `lib/widokUczestnika.ts`, `components/turnieje/PrzelacznikWidoku.tsx`.
+`lib/zegarMeczu.ts`.
 Szczegóły → [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
 
 PYTANIA:
 - Czy zegar meczu turnieju w Bojo da się zatrzymać?
 - Jak zakończyć pierwszą połowę meczu w Bojo?
-- Jak organizator zobaczy turniej tak, jak widzi go zawodnik?
 
 ### 2026-11-22 — Turniej w Bojo: link kapitana, wyniki na karcie drużyny, przerwy, ekran 16:9
 

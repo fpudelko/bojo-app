@@ -5064,10 +5064,9 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     = czas meczu / 2, po niej zegar bursztynowy. Minuta zdarzenia liczona z zegara (w 2.
     połowie z doliczoną 1.). Centrum dowodzenia: pigułka „1. poł. 03:12” z „Start/Pauza”
     i „Koniec połowy”; ekran na halę: „1. poł. 03:12”, „Pauza”, „Przerwa”.
-  - **Przełącznik „Organizator / Uczestnik”** (`useWidokUczestnika()` w
-    `lib/widokUczestnika.ts`, `PrzelacznikWidoku.tsx`) na stronie turnieju i meczu, tylko dla
-    zarządzającego / prowadzącego: widok uczestnika ukrywa przyciski zarządzania (RLS bez
-    zmian). Pamiętany w `localStorage`, wspólny dla otwartych kart.
+  - Przełącznik „Organizator / Uczestnik” (2026-11-22) **usunięty 2026-11-25** decyzją
+    właściciela: ukrywał tylko „Panel”, galerię, ogłoszenia i przyciski prowadzenia meczu,
+    czyli niewiele, a mylił. Widok kibica sprawdza się w oknie prywatnym.
   - **Ekran na halę: kody QR po dwóch stronach** — kod zbiórki duży (`kartaGlowna`), kod Bojo
     mały po przeciwnej stronie (`kartaBoczna`); bez zbiórki kod Bojo średni.
   - **Ustawienia i kreator**: „Maks. drużyn”, „Maks. zawodników w drużynie”, siatki

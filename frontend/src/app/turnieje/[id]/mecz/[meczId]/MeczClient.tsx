@@ -25,8 +25,6 @@ import {
 import { STATUS_MECZU, etykietaTerminuMeczu, etykietaFazyMeczu, porownajTermin } from '@/lib/turniejEtykiety';
 import { nazwaMiejscaWGrupie } from '@/lib/turniejFormat';
 import ArkuszSkladu from '@/components/turnieje/ArkuszSkladu';
-import { useWidokUczestnika } from '@/lib/widokUczestnika';
-import PrzelacznikWidoku from '@/components/turnieje/PrzelacznikWidoku';
 import {
   fazaZegara, sekundyPolowy, formatZegara, minutaMeczu, poCzasiePolowy,
   startZegara, pauzaZegara, koniecPolowy, type ZmianaZegara,
@@ -66,11 +64,7 @@ export default function MeczClient() {
   const [druzyny, setDruzyny] = useState<TurniejDruzyna[]>([]);
   const [areny, setAreny] = useState<TurniejArena[]>([]);
   const [zdarzenia, setZdarzenia] = useState<TurniejZdarzenie[]>([]);
-  // `prowadziNaprawde` z bazy; `prowadzi` uwzględnia widok uczestnika
-  // (przełącznik 2026-11-22): organizator może zobaczyć mecz jak kibic.
-  const [prowadziNaprawde, setProwadzi] = useState(false);
-  const [jakoUczestnik, ustawWidok] = useWidokUczestnika();
-  const prowadzi = prowadziNaprawde && !jakoUczestnik;
+  const [prowadzi, setProwadzi] = useState(false);
   const [ladowanie, setLadowanie] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -540,12 +534,6 @@ export default function MeczClient() {
       </div>
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 py-5">
-        {prowadziNaprawde && (
-          <div className="flex flex-wrap items-center gap-2">
-            <PrzelacznikWidoku jakoUczestnik={jakoUczestnik} onZmiana={ustawWidok} />
-            {jakoUczestnik && <span className="text-xs text-slate-500 dark:text-slate-400">Tak widzą mecz zawodnicy i kibice.</span>}
-          </div>
-        )}
         <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
           <div className="flex items-center justify-between">
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
