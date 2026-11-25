@@ -27,14 +27,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft, Copy, Loader2, Share2, UserPlus, Users, Wallet,
+  Copy, Loader2, Share2, UserPlus, Users, Wallet,
   ChevronRight, Repeat, Settings2, CalendarDays, MapPin,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
-import ZakladkiTurnieju from '@/components/turnieje/ZakladkiTurnieju';
+import RamkaTurnieju, { SZEROKOSC_TURNIEJU } from '@/components/turnieje/RamkaTurnieju';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { getTurniej, getBlikTurnieju } from '@/lib/turnieje';
 import {
@@ -62,10 +62,8 @@ export default function DruzynaClient() {
   const jestAdmin = useAdmin();
   useAdresWPasku({ [id]: useAdres('turniej', id) });
   const router = useRouter();
-  // Wstecz ZAWSZE na turniej (decyzja właściciela z 2026-11-21), jak na
-  // stronie meczu; pozostałe zakładki turnieju są w pasku pod strzałką.
+  // Powrót ZAWSZE na turniej (2026-11-21): „‹ Drużyny” w ramce turnieju.
   const adresTurnieju = useAdres('turniej', id) ?? id;
-  const wstecz = () => router.push(`/turnieje/${adresTurnieju}?tab=druzyny`);
   const { user, loading: ladujeSesje } = useAuth();
   const { toast } = useToast();
   const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
@@ -342,11 +340,16 @@ export default function DruzynaClient() {
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header showMobileWordmark />
-      <main className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 py-6">
-        <button onClick={wstecz} className="inline-flex min-h-[44px] items-center gap-1.5 text-sm text-slate-500 hover:text-ink transition-colors">
-          <ArrowLeft className="h-4 w-4" /> {turniej?.nazwa ?? 'Turniej'}
-        </button>
-        {turniej && <div className="-mx-4 -mt-2"><ZakladkiTurnieju adres={adresTurnieju} format={turniej.format} /></div>}
+      {/* STAŁA RAMKA (2026-11-25): ten sam nagłówek i zakładki co na stronie
+          turnieju; zaznaczone „Drużyny”, a „‹ Drużyny” wraca do listy. */}
+      <RamkaTurnieju
+        turniej={turniej}
+        adres={adresTurnieju}
+        aktywna="druzyny"
+        powrot={{ etykieta: 'Drużyny', href: `/turnieje/${adresTurnieju}?tab=druzyny` }}
+      />
+      <main className={`mx-auto w-full ${SZEROKOSC_TURNIEJU} flex-1 px-4 py-6`}>
+        <div className="space-y-4 lg:mx-auto lg:max-w-2xl">
 
         <div>
           <div className="flex items-start gap-2">
@@ -673,6 +676,7 @@ export default function DruzynaClient() {
             <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
           </Link>
         )}
+        </div>
       </main>
 
       {pokazZaproszenia && user && (

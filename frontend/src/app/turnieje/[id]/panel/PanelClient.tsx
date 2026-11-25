@@ -6,7 +6,7 @@ import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Download, Plus, Check, X as XIcon, Trash2, Ban, ChevronRight } from 'lucide-react';
+import { Download, Plus, Check, X as XIcon, Trash2, Ban, ChevronRight } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import CoverUpload from '@/components/ui/CoverUpload';
@@ -16,6 +16,7 @@ import PanelProsbaOWyglad from '@/components/turnieje/PanelProsbaOWyglad';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import CentrumTurnieju from '@/components/turnieje/CentrumTurnieju';
 import WyborEkranu from '@/components/turnieje/WyborEkranu';
+import RamkaTurnieju, { SZEROKOSC_TURNIEJU } from '@/components/turnieje/RamkaTurnieju';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
@@ -68,12 +69,19 @@ import type { TurniejCreate } from '@/types';
 // i „Przetestuj” stoją nad terminarzem. Podział na grupy siedzi w „Drużynach”
 // (przełącznik grupy przy każdej drużynie): w terminarzu organizator szuka
 // meczów, nie losowania.
-type PanelTab = 'terminarz' | 'druzyny' | 'ustawienia';
+// ROZBICIE NA „PROWADŹ” I „EDYTUJ” (2026-11-25, uwaga właściciela: panel był
+// naraz edytorem wydarzenia i konsolą prowadzącego). „Prowadź” to dzień
+// turnieju: centrum dowodzenia, start i koniec turnieju, lista meczów do
+// kliknięcia. „Edytuj” to przygotowanie, z podzakładkami: Terminarz
+// (generowanie, godziny, przerwy), Drużyny, Ustawienia. Obie są zakładkami
+// w stałej ramce turnieju (`RamkaTurnieju`).
+type PanelTab = 'prowadz' | 'terminarz' | 'druzyny' | 'ustawienia';
 
 // Etykiety, nie surowe klucze z CSS-owym `capitalize`. Tamto wypisywało
 // `Druzyny` bez ogonka, bo klucz jest bez polskich znaków (i musi być, bo
 // idzie do adresu jako `?tab=`). Zgłoszone z testu na żywo.
 const ETYKIETY_PANELU: Record<PanelTab, string> = {
+  prowadz: 'Prowadź',
   terminarz: 'Terminarz',
   druzyny: 'Drużyny',
   ustawienia: 'Ustawienia',
@@ -191,12 +199,14 @@ export default function PanelClient() {
   }, [id, statusTurnieju, edytuje]);
 
   const tabParam = searchParams.get('tab');
-  // Domyślnie TERMINARZ (2026-11-20). Stary adres `?tab=pulpit` też tu trafia,
-  // a `?tab=grupy` do „Drużyn”, gdzie dziś jest podział na grupy.
-  const zakladka: PanelTab =
+  // Domyślnie PROWADŹ (2026-11-25). `?tab=terminarz` (stare powiadomienia)
+  // to dziś „Edytuj → Terminarz”, `?tab=grupy` idzie do „Drużyn”, gdzie jest
+  // podział na grupy, a każdy inny adres (`?tab=pulpit`) do „Prowadź”.
+  const zakladkaZAdresu: PanelTab =
     tabParam === 'druzyny' || tabParam === 'grupy' ? 'druzyny'
       : tabParam === 'ustawienia' ? 'ustawienia'
-      : 'terminarz';
+      : tabParam === 'terminarz' ? 'terminarz'
+      : 'prowadz';
 
   const wczytaj = async () => {
     const [t, d, o, g, a, m] = await Promise.all([
@@ -233,9 +243,13 @@ export default function PanelClient() {
   // start, zegar, gole, kartki i wynik. Widzi tylko terminarz z centrum
   // dowodzenia, bez ustawień, drużyn, godzin, przerw i końca turnieju.
   const tylkoProwadzi = !!uprawnienia?.mozeProwadzic && !uprawnienia.mozeEdytowac;
-  const zakladkiPanelu: PanelTab[] = !tylkoProwadzi
+  // Podzakładki „Edytuj”. Prowadzący mecze ich nie ma: widzi samo „Prowadź”
+  // (a z prawem do składów także „Drużyny”).
+  const zakladkiEdycji: PanelTab[] = !tylkoProwadzi
     ? ['terminarz', 'druzyny', 'ustawienia']
-    : uprawnienia?.mozeZarzadzacDruzynami ? ['terminarz', 'druzyny'] : ['terminarz'];
+    : uprawnienia?.mozeZarzadzacDruzynami ? ['druzyny'] : [];
+  const zakladka: PanelTab = zakladkaZAdresu === 'prowadz' || zakladkiEdycji.includes(zakladkaZAdresu)
+    ? zakladkaZAdresu : 'prowadz';
 
   if (authLoading || ladowanie) {
     return (
@@ -1011,104 +1025,74 @@ export default function PanelClient() {
     catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się zakończyć meczu', 'error'); }
   };
 
-  const zmienGodzinyZPaska = () => {
-    if (zakladka !== 'terminarz') router.push(`/turnieje/${id}/panel?tab=terminarz`);
-    zacznijEdycjeGodzin();
-    window.setTimeout(() => document.getElementById('terminarz')?.scrollIntoView({ behavior: 'smooth' }), 50);
-  };
+
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header showMobileWordmark />
-      <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3 lg:max-w-6xl lg:px-6 2xl:max-w-7xl">
-          <button onClick={() => router.push(`/turnieje/${id}`)} aria-label="Wróć" className="shrink-0 text-slate-500 hover:text-ink">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">Panel: {turniej.nazwa}</h1>
-          {/* PASEK STANU od `lg` (2026-11-21): gdzie jesteśmy i co kliknąć
-              teraz, niezależnie od zakładki. Na telefonie postęp stoi nad
-              terminarzem, a pasek nie zmieściłby się obok nazwy. Bez
-              „opóźnienia”: decyzja właściciela z 2026-11-08. */}
-          {trwa && (
-            <div className="hidden shrink-0 items-center gap-3 lg:flex">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 dark:bg-primary-950/50 dark:text-primary-300">
-                <span className="h-2 w-2 rounded-full bg-primary-600" aria-hidden /> Turniej trwa
-              </span>
-              {postep.wszystkie > 0 && (
-                <span className="text-sm text-slate-600 dark:text-slate-300">
-                  <span className="font-display text-lg font-bold tabular-nums text-ink">{postep.rozegrane}</span>
-                  {' '}z {withCount(postep.wszystkie, 'meczu', 'meczów', 'meczów')}
-                </span>
-              )}
-              {mecze.length > 0 && (
-                <Button size="sm" variant="outline" onClick={zmienGodzinyZPaska}>
-                  {areny.length > 1 ? 'Zmień godziny i areny' : 'Zmień godziny'}
-                </Button>
-              )}
+      {/* STAŁA RAMKA (2026-11-25): ten sam nagłówek i zakładki co na stronie
+          turnieju. „Prowadź” i „Edytuj” to zakładki w tym samym rzędzie,
+          a „Edytuj” ma pod spodem podzakładki Terminarz, Drużyny, Ustawienia. */}
+      <RamkaTurnieju
+        naglowek
+        turniej={turniej}
+        adres={adresTurnieju}
+        aktywna={zakladka === 'prowadz' ? 'prowadz' : 'edytuj'}
+        liczbaDruzyn={wTurnieju.length}
+        akcje={
+          <div className="hidden items-center gap-2 lg:flex">
+            {/* Nowa karta: tablica idzie na telewizor albo projektor, panel
+                zostaje na laptopie. Wybór układu przed otwarciem. */}
+            <details className="relative">
+              <summary className="inline-flex min-h-[36px] cursor-pointer list-none items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800 [&::-webkit-details-marker]:hidden">
+                Tablica wyników
+              </summary>
+              <div className="absolute right-0 z-30 mt-1 max-h-[75vh] w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                <WyborEkranu adresTurnieju={adresTurnieju} />
+              </div>
+            </details>
+            {trwa && (meczNaZywo ? (
               <Link
-                href={`/turnieje/${id}`}
-                className="inline-flex min-h-[36px] items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800"
+                href={`/turnieje/${id}/mecz/${meczNaZywo.id}`}
+                className="inline-flex min-h-[36px] items-center rounded-xl bg-primary-600 px-3 text-sm font-semibold text-white hover:bg-primary-700"
               >
-                Strona publiczna
+                Wpisz wynik M{meczNaZywo.numer}
               </Link>
-              {/* Nowa karta: ekran idzie na rzutnik albo drugi monitor, panel
-                  zostaje na laptopie. */}
-              {/* Wybór układu przed otwarciem (2026-11-21): co ma dominować na
-                  ścianie. Układ da się też zmienić na samym ekranie. */}
-              <details className="relative">
-                <summary className="inline-flex min-h-[36px] cursor-pointer list-none items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800 [&::-webkit-details-marker]:hidden">
-                  Tablica wyników
-                </summary>
-                <div className="absolute right-0 z-20 mt-1 max-h-[75vh] w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                  <WyborEkranu adresTurnieju={adresTurnieju} />
-                </div>
-              </details>
-              {meczNaZywo ? (
-                <Link
-                  href={`/turnieje/${id}/mecz/${meczNaZywo.id}`}
-                  className="inline-flex min-h-[36px] items-center rounded-xl bg-primary-600 px-3 text-sm font-semibold text-white hover:bg-primary-700"
-                >
-                  Wpisz wynik M{meczNaZywo.numer}
-                </Link>
-              ) : nastepnyGotowy ? (
-                <Button size="sm" onClick={() => rozpocznijMeczAkcja(nastepnyGotowy)}>
-                  Rozpocznij M{nastepnyGotowy.numer}
-                </Button>
-              ) : null}
-            </div>
-          )}
-        </div>
-        {/* Cień przy prawej krawędzi. Bez niego pasek kończył się uciętym
-            „Us…" i nic nie mówiło, że da się go przesunąć, a za krawędzią
-            siedzą Ustawienia: zamknięcie zapisów i odwołanie turnieju, czyli
-            akcje pod presją czasu. `md:hidden`, bo od tabletu pasek mieści się
-            w całości i cień kłamałby o istnieniu dalszej treści. */}
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-canvas to-transparent md:hidden" />
-          <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide lg:max-w-6xl lg:px-6 2xl:max-w-7xl">
-          {zakladkiPanelu.map((z) => (
-            <button
-              key={z}
-              onClick={() => router.push(`/turnieje/${id}/panel?tab=${z}`)}
-              className={[
-                'shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                zakladka === z ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800',
-              ].join(' ')}
-            >
-              {ETYKIETY_PANELU[z]}
-            </button>
-          ))}
+            ) : nastepnyGotowy ? (
+              <Button size="sm" onClick={() => rozpocznijMeczAkcja(nastepnyGotowy)}>
+                Rozpocznij M{nastepnyGotowy.numer}
+              </Button>
+            ) : null)}
           </div>
-        </div>
-      </div>
+        }
+      >
+        {zakladka !== 'prowadz' && zakladkiEdycji.length > 1 && (
+          <div className={`mx-auto flex gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide ${SZEROKOSC_TURNIEJU}`}>
+            {zakladkiEdycji.map((z) => (
+              <button
+                key={z}
+                onClick={() => router.push(`/turnieje/${id}/panel?tab=${z}`)}
+                aria-pressed={zakladka === z}
+                className={[
+                  'shrink-0 rounded-full border px-3 py-1 text-sm font-medium transition-colors',
+                  zakladka === z
+                    ? 'border-primary-600 bg-white text-primary-700 dark:bg-slate-800 dark:text-primary-300'
+                    : 'border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800',
+                ].join(' ')}
+              >
+                {ETYKIETY_PANELU[z]}
+              </button>
+            ))}
+          </div>
+        )}
+      </RamkaTurnieju>
 
       {/* SZEROKI PANEL od `lg` (2026-11-21): przy 1440 px kolumna 640 px
           zostawiała ponad połowę ekranu pustą. Szeroko jest tylko to, co
           z szerokości korzysta (centrum dowodzenia w trakcie turnieju);
           formularze Drużyn i Ustawień zostają w czytelnej kolumnie. */}
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5 lg:max-w-6xl lg:px-6 2xl:max-w-7xl">
-        {zakladka === 'terminarz' && trwa && teraz && mecze.length > 0 && (
+      <main className={`mx-auto w-full flex-1 px-4 py-5 ${SZEROKOSC_TURNIEJU}`}>
+        {zakladka === 'prowadz' && trwa && teraz && mecze.length > 0 && (
           <CentrumTurnieju
             turniej={turniej}
             mecze={mecze}
@@ -1138,7 +1122,7 @@ export default function PanelClient() {
         {/* STAN TURNIEJU NAD TERMINARZEM (dawny „Pulpit”, 2026-11-20): próba,
             „Rozpocznij / Przetestuj”, braki przed startem, postęp w trakcie.
             Listy „Wpisz wynik” już nie ma: terminarz pod spodem jest tą listą. */}
-        {zakladka === 'terminarz' && !tylkoProwadzi && (
+        {zakladka === 'prowadz' && !tylkoProwadzi && (
           <div className="space-y-4">
             {/* Pierwsza rzecz w terminarzu: ile już rozegrano (2026-11-20). */}
             {postep.wszystkie > 0 && (
@@ -1576,7 +1560,7 @@ export default function PanelClient() {
           </div>
         )}
 
-        {zakladka === 'terminarz' && (
+        {(zakladka === 'prowadz' || zakladka === 'terminarz') && (
           <div id="terminarz" className="scroll-mt-32 space-y-6">
             {trwa && mecze.length > 0 && (
               <h2 className="hidden font-display text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 lg:block">
@@ -1669,7 +1653,13 @@ export default function PanelClient() {
                     <Button size="sm" variant="outline" onClick={() => { setDoZamiany(null); setPodglad(null); }}>Anuluj</Button>
                   </div>
                 </div>
-              ) : tylkoProwadzi ? null : (
+              ) : zakladka === 'prowadz' ? (
+                mecze.length === 0 ? (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Terminarza jeszcze nie ma.{!tylkoProwadzi && <> Ułożysz go w <Link href={`/turnieje/${id}/panel?tab=terminarz`} className="font-medium text-primary-600">Edytuj → Terminarz</Link>.</>}
+                  </p>
+                ) : null
+              ) : (
                 <div className="space-y-1.5">
                   {/* Po pierwszym ROZEGRANYM meczu generowanie od nowa jest
                       wyłączone, a nie tylko ostrzegane. Wcześniej przycisk był
@@ -1720,7 +1710,7 @@ export default function PanelClient() {
                           Anuluj
                         </Button>
                       </div>
-                    ) : tylkoProwadzi ? null : (
+                    ) : zakladka === 'prowadz' ? null : (
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => setPrzerwaEdycja({ nazwa: '', od: '', do: '', opis: '' })}>
                           Dodaj przerwę
@@ -1748,7 +1738,7 @@ export default function PanelClient() {
                           do={w.do}
                           nazwa={w.nazwa}
                           opis={w.opis}
-                          akcja={godzinyEdycja || tylkoProwadzi ? undefined : nazwana
+                          akcja={godzinyEdycja || zakladka === 'prowadz' ? undefined : nazwana
                             ? { etykieta: 'Edytuj', onClick: () => setPrzerwaEdycja({ id: nazwana.id, wiersz: klucz, nazwa: nazwana.nazwa, od: w.od, do: w.do, opis: nazwana.opis ?? '' }) }
                             : { etykieta: 'Nazwij', onClick: () => setPrzerwaEdycja({ wiersz: klucz, nazwa: '', od: w.od, do: w.do, opis: '' }) }}
                         />
@@ -1812,7 +1802,7 @@ export default function PanelClient() {
         )}
 
         {/* „Zakończ turniej” pod terminarzem, nie nad nim: to ostatni ruch dnia. */}
-        {zakladka === 'terminarz' && turniej.status === 'trwa' && !proba && !tylkoProwadzi && (
+        {zakladka === 'prowadz' && turniej.status === 'trwa' && !proba && !tylkoProwadzi && (
           <Button variant="outline" onClick={zakonczTurniej} className="w-full">
             Zakończ turniej
           </Button>

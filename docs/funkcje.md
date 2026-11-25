@@ -5196,6 +5196,22 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   w bazie). „Przetestuj” widzi wyłącznie admin. Kopia „Próba: …” (marker `[TURNIEJ-TEST]`,
   widoczność `na_link`, składy bez kont) ma na liście „Wszystkie” dopisek „Kopia do ćwiczeń”
   z tym, skąd się wzięła i jak ją usunąć; panel próby wypisuje w hasłach, co w niej przećwiczyć.
+- **Stała ramka turnieju i panel „Prowadź” / „Edytuj” (2026-11-25):**
+  `components/turnieje/RamkaTurnieju.tsx` to jeden nagłówek na stronie turnieju, w panelu,
+  na meczu i na drużynie: nazwa turnieju (link do Info; `<h1>` tylko na stronie turnieju
+  i w panelu, `naglowek`), rząd zakładek Info / Mecze / Tabela / Drużyny, a za kreską
+  „Prowadź” (`mozeProwadzic`, `/panel?tab=prowadz`) i „Edytuj” (`mozeEdytowac`,
+  `/panel?tab=ustawienia`). Uprawnienia ramka liczy sama (`getMojaOsobe()` +
+  `uprawnieniaTurnieju()`). Szerokość ramki i `<main>` wszędzie `SZEROKOSC_TURNIEJU`
+  (`max-w-2xl lg:max-w-6xl`), wąskie treści w kolumnie `lg:max-w-2xl` na środku, więc
+  nagłówek i zakładki nie skaczą między ekranami. Na telefonie pasek przewija się do aktywnej
+  zakładki, cień przy prawej krawędzi. Mecz i drużyna dostają `powrot` („‹ Mecze”).
+  Panel (`PanelClient.tsx`): `prowadz` (domyślny) = centrum dowodzenia, stan turnieju
+  (rozpocznij, próba, postęp), lista meczów do kliknięcia, „Zakończ turniej”; „Edytuj” ma
+  podzakładki Terminarz (generowanie, godziny, przerwy), Drużyny, Ustawienia.
+  `?tab=terminarz` (stare powiadomienia) otwiera „Edytuj → Terminarz”. Prowadzący mecze
+  widzi samo „Prowadź”. „Tablica wyników” i „Wpisz wynik / Rozpocznij M…” stoją w ramce
+  panelu od `lg`.
 - **Prośby gracza do drużyny (2026-11-25, migracja `186`):** ekran drużyny
   (`DruzynaClient.tsx`) dla zalogowanego, który nie gra w żadnej drużynie turnieju i nie
   prowadzi składu: „To ja” przy wpisie bez konta, „Poproś o dołączenie” (wyłączone przy
@@ -5268,9 +5284,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   zamiast godziny ma „● żywo”. Cały wiersz prowadzi na stronę meczu; strzelcy i przebieg są
   tam. Zastąpił rozwijany `WierszWyniku` i trzywierszową kartę na stronie turnieju
   (`KartaMeczu` zostaje w panelu i drabince).
-- **Strona meczu i ekran drużyny: wstecz na turniej (2026-11-21).** Strzałka prowadzi zawsze
-  na stronę turnieju (`?tab=mecze` / `?tab=druzyny`), a pod nagłówkiem jest pasek zakładek
-  turnieju (`components/turnieje/ZakladkiTurnieju.tsx`, podpisy z `etykietaZakladkiTurnieju()`).
+- **Strona meczu i ekran drużyny: wstecz na turniej (2026-11-21).** „‹ Mecze” / „‹ Drużyny”
+  w ramce turnieju prowadzi zawsze na stronę turnieju (`?tab=mecze` / `?tab=druzyny`);
+  od 2026-11-25 pasek zakładek to wspólna `RamkaTurnieju` (niżej), podpisy z
+  `etykietaZakladkiTurnieju()`.
   Świadomy wyjątek od zasady `useWstecz()` z AGENTS.md: decyzja właściciela, bo z panelu
   albo z powiadomienia „wstecz” prowadziło nie tam, gdzie czytający chciał wrócić.
 - Jednorazowe zadanie `supabase/zadania/turniej-marysi-organizator.sql`: organizator,
