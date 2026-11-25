@@ -2000,6 +2000,45 @@ SELECT _oczekuj('dotychczasowy organizator zostaje współorganizatorem, nowy wy
                    AND ((user_id = :ORGANIZATOR::uuid AND moze_edytowac) OR user_id = :CZLONEK::uuid)), 1);
 DELETE FROM turnieje WHERE id = :WO_T::uuid;
 
+SELECT _sekcja('Prowadzący mecze (migracja 185)');
+\set PM_T '''ffffffff-0000-4000-8000-0000000001f1'''
+\set PM_M '''ffffffff-0000-4000-8000-0000000001f2'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:PM_T::uuid, :ORGANIZATOR::uuid, 'Z prowadzącym', 'piłka nożna', 'trwa', CURRENT_DATE);
+INSERT INTO turniej_mecze (id, turniej_id, numer, faza, status)
+VALUES (:PM_M::uuid, :PM_T::uuid, 1, 'grupa', 'zaplanowany');
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie doda prowadzącego',
+  format('SELECT dodaj_osobe_turnieju(%L, ''rls-czlonek@example.com'', ''prowadzacy'')', :PM_T));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('nieznana rola daje błąd',
+  format('SELECT dodaj_osobe_turnieju(%L, ''rls-czlonek@example.com'', ''sedzia'')', :PM_T));
+SELECT dodaj_osobe_turnieju(:PM_T::uuid, 'rls-czlonek@example.com', 'prowadzacy');
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+UPDATE turniej_mecze SET status = 'trwa' WHERE id = :PM_M::uuid;
+UPDATE turnieje SET nazwa = 'Zmienione przez prowadzącego' WHERE id = :PM_T::uuid;
+RESET ROLE;
+SELECT _oczekuj('prowadzący ma tylko moze_prowadzic',
+                (SELECT count(*) FROM turniej_osoby WHERE turniej_id = :PM_T::uuid AND user_id = :CZLONEK::uuid
+                   AND moze_prowadzic AND NOT moze_edytowac AND NOT moze_zarzadzac_druzynami), 1);
+SELECT _oczekuj('prowadzący startuje mecz',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :PM_M::uuid AND status = 'trwa'), 1);
+SELECT _oczekuj('prowadzący NIE zmienia ustawień turnieju (0 wierszy po cichu)',
+                (SELECT count(*) FROM turnieje WHERE id = :PM_T::uuid AND nazwa = 'Z prowadzącym'), 1);
+UPDATE turniej_mecze SET status = 'zakonczony' WHERE id = :PM_M::uuid;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT cofnij_wynik_meczu(:PM_M::uuid);
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT dodaj_osobe_turnieju(:PM_T::uuid, 'rls-czlonek@example.com', 'wspolorganizator');
+RESET ROLE;
+SELECT _oczekuj('prowadzący poprawia wynik (cofnij_wynik_meczu)',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :PM_M::uuid AND status = 'zaplanowany'), 1);
+SELECT _oczekuj('ponowne dodanie zmienia rolę na współorganizatora',
+                (SELECT count(*) FROM turniej_osoby WHERE turniej_id = :PM_T::uuid AND user_id = :CZLONEK::uuid AND moze_edytowac), 1);
+DELETE FROM turnieje WHERE id = :PM_T::uuid;
+
 SELECT _sekcja('Obserwowanie turnieju (migracja 184)');
 \set OB_T '''ffffffff-0000-4000-8000-0000000001e1'''
 INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)

@@ -303,14 +303,14 @@ export async function getWszystkieTurnieje(limit = 200): Promise<Turniej[]> {
 
 /** Organizowane przeze mnie + te, w których gram (przez `turniej_zawodnicy`). */
 /** Skąd turniej jest „mój”. Kolejność = ważność, gdy źródeł jest kilka. */
-export type RolaWTurnieju = 'organizujesz' | 'wspolorganizujesz' | 'grasz' | 'obserwujesz';
+export type RolaWTurnieju = 'organizujesz' | 'wspolorganizujesz' | 'prowadzisz' | 'grasz' | 'obserwujesz';
 
 export interface MojTurniej {
   turniej: Turniej;
   rola: RolaWTurnieju;
 }
 
-const KOLEJNOSC_ROL: RolaWTurnieju[] = ['organizujesz', 'wspolorganizujesz', 'grasz', 'obserwujesz'];
+const KOLEJNOSC_ROL: RolaWTurnieju[] = ['organizujesz', 'wspolorganizujesz', 'prowadzisz', 'grasz', 'obserwujesz'];
 
 /**
  * Turnieje zalogowanego z rolą (2026-11-22, prośba właściciela: turniej,
@@ -322,7 +322,7 @@ const KOLEJNOSC_ROL: RolaWTurnieju[] = ['organizujesz', 'wspolorganizujesz', 'gr
 export async function getMojeTurniejeZRola(userId: string): Promise<MojTurniej[]> {
   const [organizowane, wspol, grane, obserwowane] = await Promise.all([
     supabase.from('turnieje').select('id').eq('organizator_id', userId),
-    supabase.from('turniej_osoby').select('turniej_id').eq('user_id', userId),
+    supabase.from('turniej_osoby').select('turniej_id, moze_edytowac').eq('user_id', userId),
     supabase.from('turniej_zawodnicy').select('turniej_id').eq('user_id', userId),
     supabase.from('turniej_obserwujacy').select('turniej_id').eq('user_id', userId),
   ]);
@@ -337,7 +337,9 @@ export async function getMojeTurniejeZRola(userId: string): Promise<MojTurniej[]
     }
   };
   dopisz((organizowane.data ?? []).map((r) => r.id as string), 'organizujesz');
-  dopisz(wspol.error ? [] : (wspol.data ?? []).map((r) => r.turniej_id as string), 'wspolorganizujesz');
+  const osoby = wspol.error ? [] : (wspol.data ?? []);
+  dopisz(osoby.filter((r) => r.moze_edytowac).map((r) => r.turniej_id as string), 'wspolorganizujesz');
+  dopisz(osoby.filter((r) => !r.moze_edytowac).map((r) => r.turniej_id as string), 'prowadzisz');
   dopisz((grane.data ?? []).map((r) => r.turniej_id as string), 'grasz');
   dopisz(obserwowane.error ? [] : (obserwowane.data ?? []).map((r) => r.turniej_id as string), 'obserwujesz');
   if (rola.size === 0) return [];
@@ -426,6 +428,27 @@ export async function przekazOrganizacje(turniejId: string, userId: string): Pro
     if (error.code === 'PGRST202') throw new Error('Ta funkcja jeszcze nie działa na tej bazie (brak migracji 183).');
     throw new Error(error.message);
   }
+}
+
+/** Rola osoby dodanej do turnieju (185). */
+export type RolaOsobyTurnieju = 'wspolorganizator' | 'prowadzacy';
+
+/**
+ * Dodanie osoby po e-mailu z rolą (185): współorganizator dostaje pełne prawa,
+ * prowadzący mecze tylko start, zegar, gole i wynik. Bez migracji 185
+ * współorganizator idzie starą drogą (178), a prowadzący dostaje komunikat.
+ */
+export async function dodajOsobeTurnieju(turniejId: string, email: string, rola: RolaOsobyTurnieju): Promise<string> {
+  const { data, error } = await supabase.rpc('dodaj_osobe_turnieju', { p_turniej: turniejId, p_email: email.trim(), p_rola: rola });
+  if (error) {
+    if (error.code === 'PGRST202') {
+      if (rola === 'wspolorganizator') return dodajWspolorganizatora(turniejId, email);
+      throw new Error('Prowadzący mecze jeszcze nie działa na tej bazie (brak migracji 185).');
+    }
+    throw new Error(error.message);
+  }
+  const wiersz = Array.isArray(data) ? data[0] : data;
+  return (wiersz?.nazwa as string | undefined) ?? 'Bez nazwy';
 }
 
 /** Odebranie praw współorganizatorowi (polityka z 145: tylko organizator). */

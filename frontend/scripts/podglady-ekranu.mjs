@@ -12,7 +12,9 @@ import { mkdirSync } from 'node:fs';
 
 const [id, baza = 'http://localhost:3005'] = process.argv.slice(2);
 if (!id) { console.error('Podaj id turnieju.'); process.exit(1); }
-const UKLADY = ['wszystko', 'wynik', 'tabele', 'mecze', 'terminarz', 'ogloszenie'];
+// Wybrane układy: EKRAN_UKLADY=mecz,wynik node scripts/podglady-ekranu.mjs <id>
+const WSZYSTKIE = ['wszystko', 'mecz', 'wynik', 'tabele', 'mecze', 'terminarz', 'ogloszenie'];
+const UKLADY = process.env.EKRAN_UKLADY ? process.env.EKRAN_UKLADY.split(',') : WSZYSTKIE;
 mkdirSync('public/ekran-podglad', { recursive: true });
 
 // Strona otwiera się pod adresem bojo.pl skierowanym na lokalny serwer, żeby
