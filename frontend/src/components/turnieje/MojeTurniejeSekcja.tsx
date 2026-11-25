@@ -30,7 +30,7 @@ export default function MojeTurniejeSekcja({ userId, pokazWejscie }: { userId: s
       {moje.length > 0 && (
         <>
           <h2 className="text-sm font-semibold text-ink">Twoje turnieje</h2>
-          {moje.map((m) => <KartaTurnieju key={m.turniej.id} t={m.turniej} rola={m.rola} />)}
+          {moje.map((m) => <KartaTurnieju key={m.turniej.id} t={m.turniej} rola={m.rola} druzyna={m.druzyna} />)}
         </>
       )}
       <Link

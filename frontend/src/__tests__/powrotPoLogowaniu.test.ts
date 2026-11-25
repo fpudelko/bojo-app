@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { zapamietajPowrot, odbierzPowrot, bezpiecznyCel, kanonicznyOrigin } from '@/lib/powrotPoLogowaniu';
 
-beforeEach(() => { sessionStorage.clear(); vi.useRealTimers(); });
+beforeEach(() => { localStorage.clear(); vi.useRealTimers(); });
 afterEach(() => { vi.useRealTimers(); });
 
 describe('bezpiecznyCel', () => {
@@ -46,7 +46,7 @@ describe('zapamietajPowrot / odbierzPowrot', () => {
   });
 
   it('znosi uszkodzoną zawartość pamięci', () => {
-    sessionStorage.setItem('bojo:powrot-po-logowaniu', 'to nie jest JSON');
+    localStorage.setItem('bojo:powrot-po-logowaniu', 'to nie jest JSON');
     expect(odbierzPowrot()).toBeNull();
   });
 });

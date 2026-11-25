@@ -17,7 +17,7 @@ export const ETYKIETA_ROLI: Record<RolaWTurnieju, string> = {
   obserwujesz: 'Obserwujesz',
 };
 
-export default function KartaTurnieju({ t, rola }: { t: Turniej; rola?: RolaWTurnieju }) {
+export default function KartaTurnieju({ t, rola, druzyna }: { t: Turniej; rola?: RolaWTurnieju; druzyna?: string }) {
   // Stan liczony z terminarza. Lista pokazywała CZTERY turnieje z identyczną
   // plakietką „Trwa" — w tym jeden sprzed tygodnia i jeden, w którym został
   // sam finał. Karta bez meczów (lista ich nie pobiera) dostaje to, co da się
@@ -54,14 +54,20 @@ export default function KartaTurnieju({ t, rola }: { t: Turniej; rola?: RolaWTur
             <span>{t.liczbaDruzyn ?? 0}/{t.maxDruzyn} drużyn</span>
           </div>
           {rola && (
-            <p className="mt-1.5 text-xs font-semibold text-primary-700 dark:text-primary-400">{ETYKIETA_ROLI[rola]}</p>
+            <p className="mt-1.5 text-xs font-semibold text-primary-700 dark:text-primary-400">
+              {rola === 'grasz' && druzyna ? `Grasz w: ${druzyna}` : ETYKIETA_ROLI[rola]}
+            </p>
           )}
           {/* PRÓBA WPROST NA LIŚCIE (uwaga właściciela 2026-11-22): w „Wszystkie”
               pojawiał się turniej „Próba: …” i nie było wiadomo, skąd się wziął. */}
           {czyTurniejProbny(t) && (
             <p className="mt-2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-              <span className="font-semibold">Kopia do ćwiczeń.</span> Powstała z przycisku „Przetestuj” w panelu
-              prawdziwego turnieju. Nikt jej nie widzi. Usuniesz ją w panelu: „Zakończ próbę”.
+              {rola === 'grasz' ? (
+                <><span className="font-semibold">Turniej próbny.</span> Wyniki tutaj nie liczą się do prawdziwego turnieju.</>
+              ) : (
+                <><span className="font-semibold">Kopia do ćwiczeń.</span> Powstała z przycisku „Przetestuj” w panelu
+                prawdziwego turnieju. Nie ma jej na liście turniejów. Usuniesz ją w panelu: „Zakończ próbę”.</>
+              )}
             </p>
           )}
         </div>

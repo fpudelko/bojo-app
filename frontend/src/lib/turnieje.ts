@@ -308,6 +308,8 @@ export type RolaWTurnieju = 'organizujesz' | 'wspolorganizujesz' | 'prowadzisz' 
 export interface MojTurniej {
   turniej: Turniej;
   rola: RolaWTurnieju;
+  /** Nazwa drużyny, w której gra zalogowany (rola „grasz”). */
+  druzyna?: string;
 }
 
 const KOLEJNOSC_ROL: RolaWTurnieju[] = ['organizujesz', 'wspolorganizujesz', 'prowadzisz', 'grasz', 'obserwujesz'];
@@ -323,7 +325,7 @@ export async function getMojeTurniejeZRola(userId: string): Promise<MojTurniej[]
   const [organizowane, wspol, grane, obserwowane] = await Promise.all([
     supabase.from('turnieje').select('id').eq('organizator_id', userId),
     supabase.from('turniej_osoby').select('turniej_id, moze_edytowac').eq('user_id', userId),
-    supabase.from('turniej_zawodnicy').select('turniej_id').eq('user_id', userId),
+    supabase.from('turniej_zawodnicy').select('turniej_id, druzyna:turniej_druzyny(nazwa)').eq('user_id', userId),
     supabase.from('turniej_obserwujacy').select('turniej_id').eq('user_id', userId),
   ]);
   if (organizowane.error) throw new Error(organizowane.error.message);
@@ -341,6 +343,11 @@ export async function getMojeTurniejeZRola(userId: string): Promise<MojTurniej[]
   dopisz(osoby.filter((r) => r.moze_edytowac).map((r) => r.turniej_id as string), 'wspolorganizujesz');
   dopisz(osoby.filter((r) => !r.moze_edytowac).map((r) => r.turniej_id as string), 'prowadzisz');
   dopisz((grane.data ?? []).map((r) => r.turniej_id as string), 'grasz');
+  const nazwaDruzyny = new Map<string, string>();
+  for (const r of (grane.data ?? []) as { turniej_id: string; druzyna: { nazwa: string } | { nazwa: string }[] | null }[]) {
+    const d = Array.isArray(r.druzyna) ? r.druzyna[0] : r.druzyna;
+    if (d?.nazwa) nazwaDruzyny.set(r.turniej_id, d.nazwa);
+  }
   dopisz(obserwowane.error ? [] : (obserwowane.data ?? []).map((r) => r.turniej_id as string), 'obserwujesz');
   if (rola.size === 0) return [];
 
@@ -348,7 +355,7 @@ export async function getMojeTurniejeZRola(userId: string): Promise<MojTurniej[]
   if (error) throw new Error(error.message);
   return (data ?? [])
     .map(toTurniej)
-    .map((t) => ({ turniej: t, rola: rola.get(t.id)! }))
+    .map((t) => ({ turniej: t, rola: rola.get(t.id)!, druzyna: nazwaDruzyny.get(t.id) }))
     .sort((a, b) => a.turniej.dataStartu.localeCompare(b.turniej.dataStartu));
 }
 
@@ -366,7 +373,9 @@ export function turniejeNaMojeMecze(lista: readonly MojTurniej[], dzisiaj: strin
   granica.setUTCDate(granica.getUTCDate() - 3);
   const odKiedy = granica.toISOString().slice(0, 10);
   return lista.filter(({ turniej: t, rola }) =>
-    !czyTurniejProbny(t) && t.status !== 'odwolany'
+    // Próbę widzi tylko ten, kto dołączył do jej drużyny (testowanie linku
+    // drużyny, 2026-11-25); organizatorowi zaśmiecałaby listę kopią.
+    (!czyTurniejProbny(t) || rola === 'grasz') && t.status !== 'odwolany'
     // Szkic widzi tylko ten, kto go przygotowuje.
     && (t.status !== 'szkic' || rola === 'organizujesz' || rola === 'wspolorganizujesz')
     && (t.status !== 'zakonczony' || t.dataStartu >= odKiedy));

@@ -2039,6 +2039,60 @@ SELECT _oczekuj('ponowne dodanie zmienia rolę na współorganizatora',
                 (SELECT count(*) FROM turniej_osoby WHERE turniej_id = :PM_T::uuid AND user_id = :CZLONEK::uuid AND moze_edytowac), 1);
 DELETE FROM turnieje WHERE id = :PM_T::uuid;
 
+SELECT _sekcja('Prośby gracza do drużyny (migracja 186)');
+\set PR_T '''ffffffff-0000-4000-8000-000000000201'''
+\set PR_D '''ffffffff-0000-4000-8000-000000000202'''
+\set PR_Z '''ffffffff-0000-4000-8000-000000000203'''
+\set PR_D2 '''ffffffff-0000-4000-8000-000000000204'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu, max_zawodnikow)
+VALUES (:PR_T::uuid, :ORGANIZATOR::uuid, 'Z prośbami', 'piłka nożna', 'zapisy', CURRENT_DATE + 3, 10);
+INSERT INTO turniej_druzyny (id, turniej_id, nazwa, status, kapitan_id) VALUES
+  (:PR_D::uuid, :PR_T::uuid, 'Z kapitanem', 'przyjeta', :CZLONEK::uuid),
+  (:PR_D2::uuid, :PR_T::uuid, 'Bez kapitana', 'przyjeta', NULL);
+INSERT INTO turniej_zawodnicy (id, druzyna_id, turniej_id, user_id, imie, kapitan) VALUES
+  (:PR_Z::uuid, :PR_D::uuid, :PR_T::uuid, NULL, 'Wpis bez konta', false);
+INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, user_id, imie, kapitan) VALUES
+  (:PR_D::uuid, :PR_T::uuid, :CZLONEK::uuid, 'Kapitan', true);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT zloz_prosbe_do_druzyny(:PR_D::uuid, 'to_ja', :PR_Z::uuid, NULL);
+SELECT _oczekuj_wyjatek('druga taka sama prośba daje błąd',
+  format('SELECT zloz_prosbe_do_druzyny(%L, ''to_ja'', %L, NULL)', :PR_D, :PR_Z));
+SELECT _oczekuj_wyjatek('o kapitana nie prosi się drużyny, która go ma',
+  format('SELECT zloz_prosbe_do_druzyny(%L, ''kapitan'', NULL, NULL)', :PR_D));
+SELECT zloz_prosbe_do_druzyny(:PR_D2::uuid, 'kapitan', NULL, NULL);
+SELECT _oczekuj_wyjatek('autor nie przyjmie własnej prośby',
+  format('SELECT rozpatrz_prosbe_do_druzyny((SELECT id FROM turniej_prosby WHERE druzyna_id = %L AND typ = ''to_ja''), true)', :PR_D));
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT _oczekuj('postronny nie widzi cudzych próśb',
+                (SELECT count(*) FROM turniej_prosby WHERE turniej_id = :PR_T::uuid), 0);
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT _oczekuj('kapitan widzi prośbę do swojej drużyny (i nie do cudzej)',
+                (SELECT count(*) FROM turniej_prosby WHERE turniej_id = :PR_T::uuid), 1);
+SELECT _oczekuj_wyjatek('kapitan innej drużyny nie da kapitana drużynie bez kapitana',
+  format('SELECT rozpatrz_prosbe_do_druzyny((SELECT id FROM turniej_prosby WHERE druzyna_id = %L), true)', :PR_D2));
+SELECT rozpatrz_prosbe_do_druzyny((SELECT id FROM turniej_prosby WHERE druzyna_id = :PR_D::uuid AND typ = 'to_ja'), true);
+RESET ROLE;
+SELECT _oczekuj('„to ja” po przyjęciu łączy wpis z kontem',
+                (SELECT count(*) FROM turniej_zawodnicy WHERE id = :PR_Z::uuid AND user_id = :OBCY::uuid), 1);
+SELECT _oczekuj('przyjęcie zamyka prośbę o kapitana innej drużyny (jedna drużyna na osobę)',
+                (SELECT count(*) FROM turniej_prosby WHERE druzyna_id = :PR_D2::uuid AND status = 'odrzucona'), 1);
+SELECT _oczekuj('autor dostał powiadomienie o decyzji',
+                (SELECT count(*) FROM notifications WHERE user_id = :OBCY::uuid AND type = 'turniej_prosba_rozpatrzona' AND turniej_id = :PR_T::uuid), 1);
+SELECT _oczekuj('kapitan dostał powiadomienie o prośbie',
+                (SELECT count(*) FROM notifications WHERE user_id = :CZLONEK::uuid AND type = 'turniej_prosba_do_druzyny' AND turniej_id = :PR_T::uuid), 1);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT zloz_prosbe_do_druzyny(:PR_D2::uuid, 'kapitan', NULL, NULL);
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT rozpatrz_prosbe_do_druzyny((SELECT id FROM turniej_prosby WHERE druzyna_id = :PR_D2::uuid AND status = 'czeka'), true);
+RESET ROLE;
+SELECT _oczekuj('organizator mianował kapitana z prośby: jest w składzie i kapitanem',
+                (SELECT count(*) FROM turniej_druzyny d JOIN turniej_zawodnicy z ON z.druzyna_id = d.id
+                  WHERE d.id = :PR_D2::uuid AND d.kapitan_id = :UCZESTNIK::uuid AND z.user_id = :UCZESTNIK::uuid AND z.kapitan), 1);
+DELETE FROM notifications WHERE turniej_id = :PR_T::uuid;
+DELETE FROM turnieje WHERE id = :PR_T::uuid;
+
 SELECT _sekcja('Obserwowanie turnieju (migracja 184)');
 \set OB_T '''ffffffff-0000-4000-8000-0000000001e1'''
 INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)

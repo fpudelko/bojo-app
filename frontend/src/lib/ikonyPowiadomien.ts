@@ -121,6 +121,11 @@ export const IKONY: Record<string, IkonaPowiadomienia> = {
   // Ogłoszenie organizatora (migracja 150) — różowy, bo to wiadomość, tak
   // samo jak `ogloszenie_w_grupie`. Jedyny różowy typ w tym module.
   turniej_ogloszenie:         { Ikona: MessageCircle, klasa: 'bg-pink-50 text-pink-600',       rodzaj: 'Ogłoszenie' },
+  // Prośby gracza do drużyny (186): prośba czeka na decyzję kapitana albo
+  // organizatora, więc NIEBIESKA jak każde „wymaga akceptacji uczestnictwa”.
+  // Odpowiedź dla gracza jest neutralna.
+  turniej_prosba_do_druzyny:  { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Prośba' },
+  turniej_prosba_rozpatrzona: { Ikona: CheckCircle,   klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Decyzja' },
 };
 
 export const IKONA_DOMYSLNA: IkonaPowiadomienia = { Ikona: Bell, klasa: 'bg-slate-100 text-slate-500', rodzaj: 'Powiadomienie' };

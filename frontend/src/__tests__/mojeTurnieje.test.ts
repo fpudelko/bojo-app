@@ -20,7 +20,15 @@ describe('turniejeNaMojeMecze', () => {
     expect(wynik.map((m) => m.turniej.id)).toEqual(['a', 'b']);
   });
 
-  it('chowa próbę i odwołany', () => {
+  it('próbę pokazuje tylko grającemu w jej drużynie', () => {
+    const wynik = turniejeNaMojeMecze([
+      t('proba-gram', { opis: `${MARKER_PROBY} kopia` }, 'grasz'),
+      t('proba-obs', { opis: `${MARKER_PROBY} kopia` }, 'obserwujesz'),
+    ], dzis);
+    expect(wynik.map((m) => m.turniej.id)).toEqual(['proba-gram']);
+  });
+
+  it('chowa próbę organizatora i odwołany', () => {
     const wynik = turniejeNaMojeMecze([
       t('proba', { opis: `${MARKER_PROBY} kopia` }, 'organizujesz'),
       t('odw', { status: 'odwolany' }),

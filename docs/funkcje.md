@@ -5131,7 +5131,8 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     planu już powinien grać (`zaleglyStart`), czekające zgłoszenia.
   - **„Rozpocznij” tylko na wolnej arenie** (`doRozpoczecia` w `centrumTurnieju()`): przy jednej
     hali i meczu w toku przycisku nie ma ani w Najbliższych, ani w pasku stanu.
-  - **„Wyniki na telewizor”** (do 2026-11-25 „Ekran na halę”; `/turnieje/[id]/ekran`,
+  - **„Tablica wyników”** (do 2026-11-25 „Ekran na halę”, chwilę „Wyniki na telewizor”;
+    `/turnieje/[id]/ekran`, opis: gotowa na telewizor, telebim albo projektor;
     `EkranClient.tsx`): publiczny, `noindex`,
     otwierany z paska stanu panelu w nowej karcie. Ciemny zawsze, rozmiary w `em` od
     `font-size` liczonego z szerokości okna (ten sam układ na 1366 px i 4K), odświeżanie co
@@ -5168,7 +5169,7 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     Układ **„Bieżący mecz”** (`mecz`, 2026-11-25): jeden mecz na cały ekran (wynik 11em,
     zegar, strzelcy z minutą, „Potem o …” na tym boisku); przy kilku boiskach przyciski boisk
     w przełączniku u dołu, wybór w adresie `?boisko=<id>`. Bez meczu w toku: następny na boisku.
-    Organizator wybiera układ i motyw z menu „Wyniki na telewizor” w panelu (komputer) i w
+    Organizator wybiera układ i motyw z menu „Tablica wyników” w panelu (komputer) i w
     Ustawieniach (`WyborEkranu.tsx`) albo na samym ekranie: przełącznik u dołu pokazuje się
     na 3 s po ruchu myszy lub dotknięciu. Bez ramki aplikacji:
     `jestSciezkaWidgetu()` w `lib/widget.ts` obejmuje też tę trasę (bez banera cookies,
@@ -5195,6 +5196,26 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   w bazie). „Przetestuj” widzi wyłącznie admin. Kopia „Próba: …” (marker `[TURNIEJ-TEST]`,
   widoczność `na_link`, składy bez kont) ma na liście „Wszystkie” dopisek „Kopia do ćwiczeń”
   z tym, skąd się wzięła i jak ją usunąć; panel próby wypisuje w hasłach, co w niej przećwiczyć.
+- **Prośby gracza do drużyny (2026-11-25, migracja `186`):** ekran drużyny
+  (`DruzynaClient.tsx`) dla zalogowanego, który nie gra w żadnej drużynie turnieju i nie
+  prowadzi składu: „To ja” przy wpisie bez konta, „Poproś o dołączenie” (wyłączone przy
+  pełnym składzie), a przy drużynie bez kapitana „Chcę być kapitanem” (też dla grającego
+  w tej drużynie). Czekająca prośba pokazuje się jako „czeka” / zdanie zamiast przycisku
+  (`getMojeProsby()`). Kapitan i organizator: karta `ProsbyDoRozpatrzenia` na górze każdej
+  zakładki strony turnieju i na ekranie drużyny, „Przyjmij” / „Odrzuć”
+  (`rozpatrzProsbe()`). Powiadomienie `turniej_prosba_do_druzyny` (niebieskie,
+  `WYMAGA_AKCJI`, gaśnie, gdy prośba rozpatrzona) prowadzi na `/turnieje/[id]?tab=info`;
+  `turniej_prosba_rozpatrzona` dla gracza.
+- **Link drużyny i wyróżnienie mojej drużyny (2026-11-25):** `/t/[kod]` po zalogowaniu
+  pokazuje „Jesteś zalogowany jako …”, „Kapitan już Cię wpisał? Wybierz siebie” („To ja: …”),
+  przycisk „Dołącz jako {imię}”, „Dołącz pod innym imieniem” i „Zaloguj się innym kontem”.
+  Cel powrotu po logowaniu (`lib/powrotPoLogowaniu.ts`) leży w `localStorage`, nie
+  `sessionStorage`: link z maila i Google z przeglądarki WhatsAppa otwierają nową kartę;
+  `/auth/callback` bez `?next=` bierze zapamiętany cel zamiast `/moje-gry`. Drużyna
+  zalogowanego jest wyróżniona bez napisu: wiersz meczu (`WierszMeczu`, `mojaDruzynaId`) tło
+  i obwódka w kolorze marki, karta drużyny (`wMojejDruzynie`) obwódka i tło, wiersz tabeli
+  (`TabelaGrupy`) obwódka; nazwa pogrubiona w kolorze marki. Karta w „Twoich turniejach”
+  podaje „Grasz w: {drużyna}”; próbę widzi tam zawodnik, który dołączył do jej drużyny.
 - **Prowadzący mecze (2026-11-25, migracja `185`):** Ustawienia → „Ludzie przy turnieju”:
   organizator dodaje po e-mailu współorganizatora albo prowadzącego mecze
   (`dodajOsobeTurnieju()`, przełącznik roli, domyślnie prowadzący). Prowadzący wchodzi

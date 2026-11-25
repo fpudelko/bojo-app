@@ -38,6 +38,7 @@ import Klasyfikacja from '@/components/turnieje/Klasyfikacja';
 import Ogloszenia from '@/components/turnieje/Ogloszenia';
 import Galeria from '@/components/turnieje/Galeria';
 import Sponsorzy from '@/components/turnieje/Sponsorzy';
+import ProsbyDoRozpatrzenia from '@/components/turnieje/ProsbyDoRozpatrzenia';
 import KartaDruzyny from '@/components/turnieje/KartaDruzyny';
 import { nazwaSlotu } from '@/components/turnieje/KartaMeczu';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
@@ -418,6 +419,7 @@ export default function TurniejClient() {
       arenyPoId={arenyPoId}
       grupyPoId={grupyPoId}
       pokazBoisko={areny.length > 1}
+      mojaDruzynaId={mojaDruzyna?.id}
     />
   );
   const mvpPoMeczach = mecze
@@ -561,6 +563,15 @@ export default function TurniejClient() {
           <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-sm text-amber-800 dark:text-amber-300">
             Ten turniej jest szkicem: nie ma go na liście turniejów, ale każdy, kto ma link, go zobaczy.
           </div>
+        )}
+        {/* PROŚBY GRACZY (186): kapitan i organizator widzą je na górze
+            każdej zakładki; tu prowadzi powiadomienie. */}
+        {user && (
+          <ProsbyDoRozpatrzenia
+            turniejId={id}
+            userId={user.id}
+            onZmiana={() => { getDruzynyZeSkladem(id).then(setDruzyny).catch(() => undefined); }}
+          />
         )}
         {czyTurniejProbny(turniej) && (
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3.5 text-sm text-slate-700 dark:text-slate-300">
@@ -1001,6 +1012,7 @@ export default function TurniejClient() {
                       d={d}
                       zalogowany={!!user}
                       czyMoja={d.id === mojaDruzyna?.id && d.kapitanId === user?.id}
+                      wMojejDruzynie={d.id === mojaDruzyna?.id}
                       onZamienWEkipe={zamienWEkipeAkcja}
                       mecze={mecze}
                       nazwaSlotu={(m, strona) => nazwaSlotu(m, strona, druzynyPoId, meczePoId, grupyPoId)}
@@ -1133,7 +1145,7 @@ export default function TurniejClient() {
                       Grupa {grupa.nazwa}{grupa.finalowa ? ' (finałowa)' : ''}
                     </h2>
                   )}
-                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa && !grupa.finalowa ? turniej.awansujeZGrupy : undefined} />
+                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa && !grupa.finalowa ? turniej.awansujeZGrupy : undefined} mojaDruzynaId={mojaDruzyna?.id} />
                 </div>
               ))}
               <button
@@ -1168,7 +1180,7 @@ export default function TurniejClient() {
                 {grupa?.finalowa ? (
                   <>
                     {wiersze.length > 0 ? (
-                      <TabelaGrupy wiersze={wiersze} komentarz={grupa?.komentarz} />
+                      <TabelaGrupy wiersze={wiersze} komentarz={grupa?.komentarz} mojaDruzynaId={mojaDruzyna?.id} />
                     ) : (
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         Drużyny wejdą tu po rozstrzygnięciu swoich grup.
@@ -1184,7 +1196,7 @@ export default function TurniejClient() {
                     </div>
                   </>
                 ) : (
-                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} komentarz={grupa?.komentarz} />
+                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} komentarz={grupa?.komentarz} mojaDruzynaId={mojaDruzyna?.id} />
                 )}
                 {grupa && !grupa.finalowa && (
                   <MeczeGrupy

@@ -61,6 +61,9 @@ export function celPowiadomienia(n: AppNotification): string | null {
     if (n.type === 'turniej_zaproszenie_do_druzyny') {
       return `/turnieje/${n.turniejId}?tab=druzyny`;
     }
+    // Prośba do drużyny (186): karta „Prośby do rozpatrzenia” stoi na górze
+    // strony turnieju, z „Przyjmij” i „Odrzuć” na jedno dotknięcie.
+    if (n.type === 'turniej_prosba_do_druzyny') return `/turnieje/${n.turniejId}?tab=info`;
     return `/turnieje/${n.turniejId}?tab=druzyny`;
   }
   return TYP_NA_TRASE[n.type] ?? null;
@@ -94,7 +97,7 @@ export async function getMyNotifications(limit = 20): Promise<AppNotification[]>
 }
 
 /** Typy powiadomień, które proszą użytkownika o zrobienie czegoś. */
-export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered', 'pytanie_o_udzial', 'zaproszenie_na_mecz', 'turniej_zgloszenie_druzyny']);
+export const WYMAGA_AKCJI = new Set(['prosba_o_dolaczenie', 'reserve_claim_offered', 'pytanie_o_udzial', 'zaproszenie_na_mecz', 'turniej_zgloszenie_druzyny', 'turniej_prosba_do_druzyny']);
 
 /**
  * Które z tych powiadomień mają jeszcze COŚ DO ZROBIENIA.
@@ -134,6 +137,9 @@ export async function otwarteSprawy(
   const turnieje = Array.from(new Set(
     doSprawdzenia.filter((n) => n.type === 'turniej_zgloszenie_druzyny').map((n) => n.turniejId!),
   ));
+  const turniejeProsb = Array.from(new Set(
+    doSprawdzenia.filter((n) => n.type === 'turniej_prosba_do_druzyny').map((n) => n.turniejId!),
+  ));
 
   const meczeProsb = Array.from(new Set(
     doSprawdzenia.filter((n) => n.type === 'prosba_o_dolaczenie').map((n) => n.eventId!),
@@ -152,7 +158,7 @@ export async function otwarteSprawy(
   ));
 
   try {
-    const [prosby, oferty, udzial, odmowy, zgloszeniaTurniejowe] = await Promise.all([
+    const [prosby, oferty, udzial, odmowy, zgloszeniaTurniejowe, prosbyTurniejowe] = await Promise.all([
       meczeProsb.length
         ? supabase.from('event_participants').select('event_id')
             .eq('pending_approval', true).in('event_id', meczeProsb)
@@ -173,6 +179,12 @@ export async function otwarteSprawy(
         ? supabase.from('turniej_druzyny').select('turniej_id')
             .eq('status', 'zgloszona').in('turniej_id', turnieje)
         : Promise.resolve({ data: [], error: null }),
+      // Prośby do drużyny (186): RLS oddaje tylko te, które ja mogę rozpatrzyć
+      // (albo moje własne, ale tych nie ma w moich powiadomieniach-prośbach).
+      turniejeProsb.length
+        ? supabase.from('turniej_prosby').select('turniej_id')
+            .eq('status', 'czeka').neq('user_id', userId).in('turniej_id', turniejeProsb)
+        : Promise.resolve({ data: [], error: null }),
     ]);
     if (prosby.error || oferty.error || udzial.error || odmowy.error || zgloszeniaTurniejowe.error) return null;
 
@@ -185,6 +197,10 @@ export async function otwarteSprawy(
     const zNieprzyjetymiDruzynami = new Set(
       (zgloszeniaTurniejowe.data ?? []).map((r: any) => r.turniej_id as string),
     );
+    // Bez migracji 186 tabeli nie ma: prośby traktujemy jak rozpatrzone.
+    const zCzekajacymiProsbami = new Set(
+      (prosbyTurniejowe.error ? [] : prosbyTurniejowe.data ?? []).map((r: any) => r.turniej_id as string),
+    );
 
     return new Set(
       doSprawdzenia
@@ -192,6 +208,7 @@ export async function otwarteSprawy(
           if (n.type === 'prosba_o_dolaczenie') return zProsbami.has(n.eventId!);
           if (n.type === 'reserve_claim_offered') return zOfertami.has(n.eventId!);
           if (n.type === 'turniej_zgloszenie_druzyny') return zNieprzyjetymiDruzynami.has(n.turniejId!);
+          if (n.type === 'turniej_prosba_do_druzyny') return zCzekajacymiProsbami.has(n.turniejId!);
           return !zOdpowiedzia.has(n.eventId!);
         })
         .map((n) => n.id),

@@ -14,6 +14,13 @@
 // Trzymamy więc cel także po naszej stronie i odtwarzamy go, gdy użytkownik
 // wyląduje na stronie głównej zalogowany. To nie zastępuje poprawnej listy
 // adresów w Supabase — to siatka pod nią.
+//
+// `localStorage`, NIE `sessionStorage` (2026-11-25, zgłoszenie właściciela:
+// „po zalogowaniu z linku drużyny przeszło na Mecze zamiast do dołączenia”).
+// Link potwierdzający z maila i logowanie przez Google z przeglądarki
+// wbudowanej w WhatsAppa otwierają się w NOWEJ karcie, a `sessionStorage` jest
+// osobny dla każdej karty — cel ginął dokładnie wtedy, gdy był potrzebny.
+// Ważność 15 minut i kasowanie przy odbiorze zostają.
 
 const KLUCZ = 'bojo:powrot-po-logowaniu';
 
@@ -35,10 +42,10 @@ export function bezpiecznyCel(cel: string | null | undefined): cel is string {
 
 /** Zapamiętuje, dokąd wrócić. Wywoływane tuż przed startem logowania. */
 export function zapamietajPowrot(cel?: string): void {
-  if (typeof sessionStorage === 'undefined') return;
+  if (typeof localStorage === 'undefined') return;
   if (!bezpiecznyCel(cel)) return;
   try {
-    sessionStorage.setItem(KLUCZ, JSON.stringify({ cel, o: Date.now() }));
+    localStorage.setItem(KLUCZ, JSON.stringify({ cel, o: Date.now() }));
   } catch { /* prywatny tryb przeglądarki — trudno, zostaje `?next=` */ }
 }
 
@@ -50,11 +57,11 @@ export function zapamietajPowrot(cel?: string): void {
  * w bok bez powodu.
  */
 export function odbierzPowrot(): string | null {
-  if (typeof sessionStorage === 'undefined') return null;
+  if (typeof localStorage === 'undefined') return null;
   try {
-    const surowe = sessionStorage.getItem(KLUCZ);
+    const surowe = localStorage.getItem(KLUCZ);
     if (!surowe) return null;
-    sessionStorage.removeItem(KLUCZ);
+    localStorage.removeItem(KLUCZ);
     const { cel, o } = JSON.parse(surowe) as { cel?: string; o?: number };
     if (typeof o !== 'number' || Date.now() - o > WAZNOSC_MS) return null;
     return bezpiecznyCel(cel) ? cel : null;
@@ -67,11 +74,11 @@ export function odbierzPowrot(): string | null {
  *  bez konsumowania go (np. żeby zdecydować, czy pokazać modal onboardingowy,
  *  nie zakłócając jednocześnie mechanizmu awaryjnego powrotu). */
 export function ostatniZamierzonyCel(): string | null {
-  if (typeof sessionStorage === 'undefined') {
+  if (typeof localStorage === 'undefined') {
     return null;
   }
   try {
-    const surowe = sessionStorage.getItem(KLUCZ);
+    const surowe = localStorage.getItem(KLUCZ);
     if (!surowe) {
       return null;
     }

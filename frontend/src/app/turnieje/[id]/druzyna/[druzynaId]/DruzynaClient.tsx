@@ -47,6 +47,9 @@ import { STATUS_DRUZYNY, etykietaTerminu } from '@/lib/turniejEtykiety';
 import { sportEmoji } from '@/lib/sports';
 import ZaprosZEkipyDialog from '@/components/turnieje/ZaprosZEkipyDialog';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
+import ProsbyDoRozpatrzenia from '@/components/turnieje/ProsbyDoRozpatrzenia';
+import { getMojeProsby, zlozProsbe, type ProsbaDoDruzyny, type TypProsby } from '@/lib/turniejProsby';
+import { getMojaDruzyne } from '@/lib/turniejDruzyny';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import { czyWolnyLos } from '@/lib/turniejWynik';
 import type { Turniej, TurniejArena, TurniejDruzyna, TurniejMecz } from '@/types';
@@ -80,6 +83,11 @@ export default function DruzynaClient() {
   const [noweImie, setNoweImie] = useState('');
   const [dopisuje, setDopisuje] = useState(false);
   const [pokazZaproszenia, setPokazZaproszenia] = useState(false);
+  // PROŚBY GRACZA (186): drużyna, w której zalogowany już gra w tym turnieju
+  // (null = nigdzie), i jego czekające prośby.
+  const [mojaWTurnieju, setMojaWTurnieju] = useState<TurniejDruzyna | null | undefined>(undefined);
+  const [mojeProsby, setMojeProsby] = useState<ProsbaDoDruzyny[]>([]);
+  const [wysylaProsbe, setWysylaProsbe] = useState(false);
   const [pokazUstawienia, setPokazUstawienia] = useState(false);
   const [nowaNazwa, setNowaNazwa] = useState('');
 
@@ -118,6 +126,28 @@ export default function DruzynaClient() {
       .catch(() => undefined);
     return () => { aktualne = false; };
   }, [user, id, druzynaId]);
+
+  useEffect(() => {
+    if (!user) { setMojaWTurnieju(undefined); setMojeProsby([]); return; }
+    let aktualne = true;
+    getMojaDruzyne(id, user.id).then((d) => { if (aktualne) setMojaWTurnieju(d); }, () => { if (aktualne) setMojaWTurnieju(null); });
+    getMojeProsby(id, user.id).then((p) => { if (aktualne) setMojeProsby(p); });
+    return () => { aktualne = false; };
+  }, [user, id, druzyna]);
+
+  const wyslijProsbe = async (typ: TypProsby, zawodnikId?: string) => {
+    if (!druzyna || !user) return;
+    setWysylaProsbe(true);
+    try {
+      await zlozProsbe(druzyna.id, typ, { zawodnikId });
+      setMojeProsby(await getMojeProsby(id, user.id));
+      toast(typ === 'kapitan' ? 'Prośba wysłana do organizatora' : 'Prośba wysłana. Dostaniesz powiadomienie o decyzji');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się wysłać prośby', 'error');
+    } finally {
+      setWysylaProsbe(false);
+    }
+  };
 
   const jestKapitanem = !!user && druzyna?.kapitanId === user.id;
   // Organizator prowadzi skład tak samo jak kapitan (decyzja z 2026-11-08):
@@ -278,6 +308,16 @@ export default function DruzynaClient() {
   const zawodnicy = druzyna.zawodnicy ?? [];
   const wolnoZmieniac = mozeEdytowacSklad(turniej, druzyna);
   const komplet = turniej.maxZawodnikow > 0 && zawodnicy.length >= turniej.maxZawodnikow;
+  // Prosić może zalogowany, który nie gra jeszcze w żadnej drużynie turnieju
+  // i nie prowadzi tego składu. O kapitana: drużyna bez kapitana, a proszący
+  // gra w niej albo jeszcze nigdzie.
+  const otwartyTurniej = turniej.status !== 'zakonczony' && turniej.status !== 'odwolany'
+    && druzyna.status !== 'odrzucona' && druzyna.status !== 'wycofana';
+  const mogeProsic = !!user && otwartyTurniej && !prowadziSklad && mojaWTurnieju === null;
+  const mogeChciecKapitana = !!user && otwartyTurniej && !jestOrganizatorem && !druzyna.kapitanId
+    && (mojaWTurnieju === null || mojaWTurnieju?.id === druzyna.id);
+  const czekaProsba = (typ: TypProsby, zawodnikId?: string) =>
+    mojeProsby.some((p) => p.druzynaId === druzyna.id && p.typ === typ && (!zawodnikId || p.zawodnikId === zawodnikId));
   // Licznik do MAKSIMUM: minimalny skład wypadł z modułu (2026-11-08), bo
   // niczego nie blokował, a pasek „do minimum" pokazywał pełny skład przy
   // połowie miejsc.
@@ -434,6 +474,19 @@ export default function DruzynaClient() {
                       <span className="shrink-0 text-xs text-slate-400">bez konta</span>
                     </span>
                   )}
+                  {mogeProsic && !z.userId && (
+                    czekaProsba('to_ja', z.id) ? (
+                      <span className="shrink-0 px-2 text-xs text-blue-600">czeka</span>
+                    ) : (
+                      <button
+                        onClick={() => wyslijProsbe('to_ja', z.id)}
+                        disabled={wysylaProsbe}
+                        className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-50"
+                      >
+                        To ja
+                      </button>
+                    )
+                  )}
                   {z.kapitan && <span className="shrink-0 text-xs text-slate-400">kapitan</span>}
                   {prowadziSklad && wolnoZmieniac && !z.kapitan && z.userId && (
                     <button
@@ -482,6 +535,40 @@ export default function DruzynaClient() {
             </p>
           )}
         </div>
+
+        {/* ── Prośby gracza (186) ─────────────────────────────────────── */}
+        {/* Kto nie ma linku od kapitana, prosi o miejsce; kapitan (albo
+            organizator, gdy kapitana nie ma) dostaje powiadomienie. */}
+        {user && prowadziSklad && (
+          <ProsbyDoRozpatrzenia turniejId={id} userId={user.id} druzynaId={druzyna.id} onZmiana={() => { void wczytaj(); }} />
+        )}
+        {user && (mogeProsic || mogeChciecKapitana) && (
+          <div className="space-y-2 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            {mogeProsic && (
+              czekaProsba('dolaczenie') ? (
+                <p className="text-sm text-slate-600 dark:text-slate-300">Prośba o dołączenie wysłana. Dostaniesz powiadomienie, gdy kapitan zdecyduje.</p>
+              ) : (
+                <>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    Grasz w tej drużynie? Jeśli jesteś na liście bez konta, kliknij „To ja” przy swoim imieniu. Jeśli Cię nie ma, poproś kapitana o miejsce.
+                  </p>
+                  <Button onClick={() => wyslijProsbe('dolaczenie')} disabled={wysylaProsbe || komplet} className="w-full">
+                    {komplet ? 'Skład jest pełny' : 'Poproś o dołączenie'}
+                  </Button>
+                </>
+              )
+            )}
+            {mogeChciecKapitana && (
+              czekaProsba('kapitan') ? (
+                <p className="text-sm text-slate-600 dark:text-slate-300">Prośba o kapitana wysłana do organizatora.</p>
+              ) : (
+                <Button variant="outline" onClick={() => wyslijProsbe('kapitan')} disabled={wysylaProsbe} className="w-full">
+                  Chcę być kapitanem
+                </Button>
+              )
+            )}
+          </div>
+        )}
 
         {/* ── Wpisowe ───────────────────────────────────────────────────── */}
         {turniej.wpisoweGrosze > 0 && jestKapitanem && (
