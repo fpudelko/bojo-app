@@ -12,6 +12,7 @@ import type { Turniej } from '@/types';
 export const ETYKIETA_ROLI: Record<RolaWTurnieju, string> = {
   organizujesz: 'Organizujesz',
   wspolorganizujesz: 'Współorganizujesz',
+  prowadzisz: 'Prowadzisz mecze',
   grasz: 'Grasz w drużynie',
   obserwujesz: 'Obserwujesz',
 };

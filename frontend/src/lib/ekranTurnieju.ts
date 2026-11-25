@@ -5,7 +5,7 @@
 // przychodzi z zewnątrz.
 import type { TurniejPrzerwa } from '@/types';
 
-export type UkladEkranu = 'wszystko' | 'wynik' | 'tabele' | 'mecze' | 'terminarz' | 'ogloszenie' | 'zmiana';
+export type UkladEkranu = 'wszystko' | 'mecz' | 'wynik' | 'tabele' | 'mecze' | 'terminarz' | 'ogloszenie' | 'zmiana';
 export type MotywEkranu = 'ciemny' | 'jasny';
 
 /**
@@ -14,6 +14,9 @@ export type MotywEkranu = 'ciemny' | 'jasny';
  */
 export const UKLADY_EKRANU: readonly { klucz: UkladEkranu; etykieta: string; opis: string }[] = [
   { klucz: 'wszystko', etykieta: 'Pełny widok', opis: 'mecz na żywo i kolejne mecze, obok na zmianę tabele, wyniki i strzelcy' },
+  // BIEŻĄCY MECZ (2026-11-25, prośba właściciela): jeden mecz na cały ekran,
+  // np. telewizor przy boisku. Przy kilku boiskach wybór boiska (`?boisko=`).
+  { klucz: 'mecz', etykieta: 'Bieżący mecz', opis: 'jeden mecz na cały ekran: wynik, zegar i strzelcy; przy kilku boiskach wybierasz boisko' },
   { klucz: 'wynik', etykieta: 'Tablica wyników', opis: 'wynik meczu w toku na pół ekranu, jak na stadionie' },
   { klucz: 'tabele', etykieta: 'Tabele grup', opis: 'wszystkie grupy w dużym rozmiarze, np. przed fazą pucharową' },
   { klucz: 'mecze', etykieta: 'Mecze i wyniki', opis: 'mecz na żywo, kolejne mecze i wyniki, bez tabel' },
@@ -34,9 +37,10 @@ export function czyUkladEkranu(x: string | null | undefined): x is UkladEkranu {
 }
 
 /** Adres ekranu z wybranym układem i motywem; domyślne wartości nie trafiają do adresu. */
-export function adresEkranu(adresTurnieju: string, opcje: { uklad?: UkladEkranu; motyw?: MotywEkranu } = {}): string {
+export function adresEkranu(adresTurnieju: string, opcje: { uklad?: UkladEkranu; motyw?: MotywEkranu; boisko?: string } = {}): string {
   const p = new URLSearchParams();
   if (opcje.uklad && opcje.uklad !== 'wszystko') p.set('uklad', opcje.uklad);
+  if (opcje.boisko) p.set('boisko', opcje.boisko);
   if (opcje.motyw === 'jasny') p.set('motyw', 'jasny');
   const q = p.toString();
   return `/turnieje/${adresTurnieju}/ekran${q ? `?${q}` : ''}`;

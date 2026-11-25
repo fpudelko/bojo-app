@@ -533,9 +533,9 @@ export default function TurniejClient() {
           {/* Dwie linie zamiast ucięcia: na 360 px „Gramy dla Marysi - Turniej
               Piłka…" było jedyną nazwą wydarzenia na ekranie (audyt 7). */}
           <h1 className="line-clamp-2 min-w-0 flex-1 font-display text-xl font-bold leading-tight text-ink sm:text-2xl">{turniej.nazwa}</h1>
-          {uprawnienia.mozeEdytowac && (
+          {(uprawnienia.mozeEdytowac || uprawnienia.mozeProwadzic) && (
             <Link href={`/turnieje/${id}/panel`} className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-              <Settings className="h-3.5 w-3.5" /> Panel
+              <Settings className="h-3.5 w-3.5" /> {uprawnienia.mozeEdytowac ? 'Panel' : 'Prowadź mecze'}
             </Link>
           )}
         </div>

@@ -22,7 +22,7 @@ import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { blikPhoneDigits, formatBlikPhone } from '@/lib/payments';
 import {
   getTurniej, uprawnieniaTurnieju, getOsobyTurnieju, czyTurniejProbny, utworzProbeTurnieju,
-  dodajWspolorganizatora, usunOsobeTurnieju, przekazOrganizacje,
+  dodajOsobeTurnieju, usunOsobeTurnieju, przekazOrganizacje, type RolaOsobyTurnieju,
   updateTurniej, setStatusTurnieju, deleteTurniej,
   getBlikTurnieju, ustawBlikTurnieju, setOkladkaTurnieju,
 } from '@/lib/turnieje';
@@ -113,6 +113,7 @@ export default function PanelClient() {
   const [nowaNazwa, setNowaNazwa] = useState('');
   const [nowaArenaNazwa, setNowaArenaNazwa] = useState('');
   const [emailWspolorganizatora, setEmailWspolorganizatora] = useState('');
+  const [rolaNowejOsoby, setRolaNowejOsoby] = useState<RolaOsobyTurnieju>('prowadzacy');
   // Remis w tabeli (179): kolejność i komentarz grupy w trakcie edycji.
   const [kolejnoscEdycja, setKolejnoscEdycja] = useState<Record<string, string[]>>({});
   const [komentarzEdycja, setKomentarzEdycja] = useState<Record<string, string>>({});
@@ -228,6 +229,13 @@ export default function PanelClient() {
     () => (turniej ? uprawnieniaTurnieju(turniej, osoby.find((o) => o.userId === user?.id) ?? null, user?.id, jestAdmin) : null),
     [turniej, osoby, user, jestAdmin],
   );
+  // PROWADZĄCY MECZE (2026-11-25, migracja 185): obsługuje stolik, czyli
+  // start, zegar, gole, kartki i wynik. Widzi tylko terminarz z centrum
+  // dowodzenia, bez ustawień, drużyn, godzin, przerw i końca turnieju.
+  const tylkoProwadzi = !!uprawnienia?.mozeProwadzic && !uprawnienia.mozeEdytowac;
+  const zakladkiPanelu: PanelTab[] = !tylkoProwadzi
+    ? ['terminarz', 'druzyny', 'ustawienia']
+    : uprawnienia?.mozeZarzadzacDruzynami ? ['terminarz', 'druzyny'] : ['terminarz'];
 
   if (authLoading || ladowanie) {
     return (
@@ -252,7 +260,7 @@ export default function PanelClient() {
     );
   }
 
-  if (!uprawnienia?.mozeEdytowac && !uprawnienia?.mozeZarzadzacDruzynami) {
+  if (!uprawnienia?.mozeEdytowac && !uprawnienia?.mozeZarzadzacDruzynami && !uprawnienia?.mozeProwadzic) {
     return (
       <div className="flex min-h-screen flex-col bg-canvas">
         <Header showMobileWordmark />
@@ -806,12 +814,12 @@ export default function PanelClient() {
 
   const dodajWspolorganizatoraAkcja = async () => {
     try {
-      const nazwa = await dodajWspolorganizatora(id, emailWspolorganizatora);
+      const nazwa = await dodajOsobeTurnieju(id, emailWspolorganizatora, rolaNowejOsoby);
       setEmailWspolorganizatora('');
       await wczytaj();
-      toast(`${nazwa} jest współorganizatorem`);
+      toast(rolaNowejOsoby === 'prowadzacy' ? `${nazwa} prowadzi mecze` : `${nazwa} jest współorganizatorem`);
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Nie udało się dodać współorganizatora', 'error');
+      toast(e instanceof Error ? e.message : 'Nie udało się dodać osoby', 'error');
     }
   };
 
@@ -1050,7 +1058,7 @@ export default function PanelClient() {
                   ścianie. Układ da się też zmienić na samym ekranie. */}
               <details className="relative">
                 <summary className="inline-flex min-h-[36px] cursor-pointer list-none items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800 [&::-webkit-details-marker]:hidden">
-                  Ekran na halę
+                  Wyniki na telewizor
                 </summary>
                 <div className="absolute right-0 z-20 mt-1 max-h-[75vh] w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800">
                   <WyborEkranu adresTurnieju={adresTurnieju} />
@@ -1079,7 +1087,7 @@ export default function PanelClient() {
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-canvas to-transparent md:hidden" />
           <div className="mx-auto flex max-w-2xl gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide lg:max-w-6xl lg:px-6 2xl:max-w-7xl">
-          {(['terminarz', 'druzyny', 'ustawienia'] as PanelTab[]).map((z) => (
+          {zakladkiPanelu.map((z) => (
             <button
               key={z}
               onClick={() => router.push(`/turnieje/${id}/panel?tab=${z}`)}
@@ -1110,7 +1118,7 @@ export default function PanelClient() {
             arenyPoId={arenyPoId}
             grupyPoId={grupyPoId}
             tabele={tabeleTurnieju(turniej, grupy, mecze, druzyny)}
-            liczbaZgloszen={czekajace.length}
+            liczbaZgloszen={tylkoProwadzi ? 0 : czekajace.length}
             liczbaAren={areny.length}
             teraz={teraz}
             onCofnij={cofnijAkcja}
@@ -1130,7 +1138,7 @@ export default function PanelClient() {
         {/* STAN TURNIEJU NAD TERMINARZEM (dawny „Pulpit”, 2026-11-20): próba,
             „Rozpocznij / Przetestuj”, braki przed startem, postęp w trakcie.
             Listy „Wpisz wynik” już nie ma: terminarz pod spodem jest tą listą. */}
-        {zakladka === 'terminarz' && (
+        {zakladka === 'terminarz' && !tylkoProwadzi && (
           <div className="space-y-4">
             {/* Pierwsza rzecz w terminarzu: ile już rozegrano (2026-11-20). */}
             {postep.wszystkie > 0 && (
@@ -1163,7 +1171,7 @@ export default function PanelClient() {
                 <ul className="list-disc space-y-0.5 pl-5 text-sm text-slate-600 dark:text-slate-300">
                   <li>Kopia z przycisku „Przetestuj”, ten sam terminarz i drużyny</li>
                   <li>Od razu „w trakcie”: wejdź w mecz, prowadź go na żywo, wpisz wynik</li>
-                  <li>Sprawdź tabelę, drabinkę i ekran na halę</li>
+                  <li>Sprawdź tabelę, drabinkę i wyniki na telewizor</li>
                   <li>Nic nie trafia do prawdziwego turnieju, zawodnicy nic nie dostają</li>
                   <li>Kolejne „Przetestuj” zastępuje tę kopię nową</li>
                 </ul>
@@ -1661,7 +1669,7 @@ export default function PanelClient() {
                     <Button size="sm" variant="outline" onClick={() => { setDoZamiany(null); setPodglad(null); }}>Anuluj</Button>
                   </div>
                 </div>
-              ) : (
+              ) : tylkoProwadzi ? null : (
                 <div className="space-y-1.5">
                   {/* Po pierwszym ROZEGRANYM meczu generowanie od nowa jest
                       wyłączone, a nie tylko ostrzegane. Wcześniej przycisk był
@@ -1712,7 +1720,7 @@ export default function PanelClient() {
                           Anuluj
                         </Button>
                       </div>
-                    ) : (
+                    ) : tylkoProwadzi ? null : (
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => setPrzerwaEdycja({ nazwa: '', od: '', do: '', opis: '' })}>
                           Dodaj przerwę
@@ -1740,7 +1748,7 @@ export default function PanelClient() {
                           do={w.do}
                           nazwa={w.nazwa}
                           opis={w.opis}
-                          akcja={godzinyEdycja ? undefined : nazwana
+                          akcja={godzinyEdycja || tylkoProwadzi ? undefined : nazwana
                             ? { etykieta: 'Edytuj', onClick: () => setPrzerwaEdycja({ id: nazwana.id, wiersz: klucz, nazwa: nazwana.nazwa, od: w.od, do: w.do, opis: nazwana.opis ?? '' }) }
                             : { etykieta: 'Nazwij', onClick: () => setPrzerwaEdycja({ wiersz: klucz, nazwa: '', od: w.od, do: w.do, opis: '' }) }}
                         />
@@ -1804,7 +1812,7 @@ export default function PanelClient() {
         )}
 
         {/* „Zakończ turniej” pod terminarzem, nie nad nim: to ostatni ruch dnia. */}
-        {zakladka === 'terminarz' && turniej.status === 'trwa' && !proba && (
+        {zakladka === 'terminarz' && turniej.status === 'trwa' && !proba && !tylkoProwadzi && (
           <Button variant="outline" onClick={zakonczTurniej} className="w-full">
             Zakończ turniej
           </Button>
@@ -1826,56 +1834,91 @@ export default function PanelClient() {
               elementy, które widzi każdy na zakładce Info) oraz ustawienia zapisów.
             </p>
 
-            {/* WSPÓŁORGANIZATORZY (178): konto po e-mailu, pełne prawa do
-                prowadzenia turnieju. Dodaje i usuwa tylko organizator. */}
+            {/* LUDZIE PRZY TURNIEJU (178, 185): konto po e-mailu z rolą.
+                Współorganizator może wszystko poza usunięciem turnieju;
+                prowadzący mecze tylko obsługuje stolik (start, zegar, gole,
+                wynik), więc organizator nie oddaje mu pełnych praw ani konta.
+                Dodaje i usuwa tylko organizator. */}
             {uprawnienia?.jestOrganizatorem && (
-              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
+              <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-4">
                 <div>
-                  <h2 className="text-sm font-semibold text-ink">Współorganizatorzy</h2>
+                  <h2 className="text-sm font-semibold text-ink">Ludzie przy turnieju</h2>
                   <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    Mogą wszystko co Ty, poza usunięciem turnieju: wpisywać wyniki, zmieniać terminarz, drużyny i ustawienia.
-                    „Przekaż organizację” robi z tej osoby organizatora widocznego na stronie turnieju.
+                    Każdy loguje się na swoim koncie. Nie musisz nikomu dawać swojego.
                   </p>
                 </div>
-                {osoby.filter((o) => o.mozeEdytowac).map((o) => (
-                  <div key={o.userId} className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{o.imie ?? 'Współorganizator'}</span>
-                    {/* PRZEKAZANIE (183): turniej przygotowany przez Bojo
-                        dostaje prawdziwego organizatora na stronie. */}
-                    <button
-                      onClick={() => przekazOrganizacjeAkcja(o.userId, o.imie)}
-                      className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/40"
-                    >
-                      Przekaż organizację
-                    </button>
-                    <button
-                      onClick={() => usunWspolorganizatoraAkcja(o.userId, o.imie)}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center text-slate-400 hover:text-red-500"
-                      aria-label={`Odbierz uprawnienia: ${o.imie ?? 'współorganizator'}`}
-                    >
-                      <XIcon className="h-4 w-4" />
-                    </button>
+                {([
+                  ['wspolorganizator', 'Współorganizatorzy', 'Mogą wszystko co Ty, poza usunięciem turnieju. „Przekaż organizację” robi z tej osoby organizatora widocznego na stronie turnieju.'],
+                  ['prowadzacy', 'Prowadzący mecze', 'Obsługują stolik: startują mecze, prowadzą zegar, wpisują gole, kartki i wynik. Nie zmieniają ustawień, drużyn ani terminarza.'],
+                ] as const).map(([rola, tytul, opis]) => {
+                  const lista = osoby.filter((o) => (rola === 'wspolorganizator' ? o.mozeEdytowac : !o.mozeEdytowac && o.mozeProwadzic));
+                  return (
+                    <div key={rola} className="space-y-1.5">
+                      <h3 className="text-sm font-medium text-ink">{tytul}</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{opis}</p>
+                      {lista.length === 0 && <p className="text-xs text-slate-400">Nikogo jeszcze nie ma.</p>}
+                      {lista.map((o) => (
+                        <div key={o.userId} className="flex items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{o.imie ?? 'Bez nazwy'}</span>
+                          {/* PRZEKAZANIE (183): turniej przygotowany przez Bojo
+                              dostaje prawdziwego organizatora na stronie. */}
+                          {rola === 'wspolorganizator' && (
+                            <button
+                              onClick={() => przekazOrganizacjeAkcja(o.userId, o.imie)}
+                              className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-950/40"
+                            >
+                              Przekaż organizację
+                            </button>
+                          )}
+                          <button
+                            onClick={() => usunWspolorganizatoraAkcja(o.userId, o.imie)}
+                            className="flex h-11 w-11 shrink-0 items-center justify-center text-slate-400 hover:text-red-500"
+                            aria-label={`Odbierz uprawnienia: ${o.imie ?? 'osoba'}`}
+                          >
+                            <XIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+                <div className="space-y-2 border-t border-slate-100 pt-3 dark:border-slate-700">
+                  <p className="text-sm font-medium text-ink">Dodaj osobę</p>
+                  <div className="flex gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-900" role="group" aria-label="Rola nowej osoby">
+                    {([['prowadzacy', 'Prowadzący mecze'], ['wspolorganizator', 'Współorganizator']] as const).map(([rola, etykieta]) => (
+                      <button
+                        key={rola}
+                        type="button"
+                        onClick={() => setRolaNowejOsoby(rola)}
+                        aria-pressed={rolaNowejOsoby === rola}
+                        className={`min-h-[36px] flex-1 rounded-md text-sm font-medium ${
+                          rolaNowejOsoby === rola ? 'bg-white text-ink shadow-sm dark:bg-slate-700' : 'text-slate-500'
+                        }`}
+                      >
+                        {etykieta}
+                      </button>
+                    ))}
                   </div>
-                ))}
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    inputMode="email"
-                    autoComplete="off"
-                    value={emailWspolorganizatora}
-                    onChange={(e) => setEmailWspolorganizatora(e.target.value)}
-                    placeholder="E-mail konta w Bojo"
-                    aria-label="E-mail współorganizatora"
-                    className={inputCls}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={dodajWspolorganizatoraAkcja}
-                    disabled={!emailWspolorganizatora.includes('@')}
-                    className="shrink-0 inline-flex items-center gap-1.5"
-                  >
-                    <Plus className="h-4 w-4" /> Dodaj
-                  </Button>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      inputMode="email"
+                      autoComplete="off"
+                      value={emailWspolorganizatora}
+                      onChange={(e) => setEmailWspolorganizatora(e.target.value)}
+                      placeholder="E-mail konta w Bojo"
+                      aria-label="E-mail nowej osoby"
+                      className={inputCls}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={dodajWspolorganizatoraAkcja}
+                      disabled={!emailWspolorganizatora.includes('@')}
+                      className="shrink-0 inline-flex items-center gap-1.5"
+                    >
+                      <Plus className="h-4 w-4" /> Dodaj
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1934,9 +1977,11 @@ export default function PanelClient() {
                 „Zapisz zmiany” co reszta Ustawień. */}
             <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
               <div>
-                <h2 className="text-sm font-semibold text-ink">Ekran na halę</h2>
+                {/* „Ekran na halę” nie mówił, co to jest (uwaga właściciela
+                    2026-11-25). Nazwa mówi, co i gdzie się wyświetla. */}
+                <h2 className="text-sm font-semibold text-ink">Wyniki na telewizor</h2>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  Wyniki, tabele i terminarz na rzutnik albo telewizor. Ogłoszenie i kod QR zbiórki pokażą się na ekranie.
+                  Strona do otwarcia na telewizorze albo rzutniku na hali: bieżący mecz, wyniki, tabele i terminarz. Ogłoszenie i kod QR zbiórki też się na niej pokażą.
                 </p>
               </div>
               <label htmlFor="ekran-komunikat" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Ogłoszenie na ekranie</label>

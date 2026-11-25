@@ -15,7 +15,7 @@
 //   (`jestSciezkaWidgetu()` w lib/widget.ts: bez banera cookies i paska).
 // - Kolory jak w całym Bojo: zielony mecz w toku i awans, bursztynowy zegar
 //   po czasie gry, szary przerwy.
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import { Coffee, Megaphone, Sun, Moon } from 'lucide-react';
 import {
@@ -70,6 +70,8 @@ export default function EkranClient() {
   const [przypietyWidok, setPrzypietyWidok] = useState<Widok | null>(null);
   const [krok, setKrok] = useState(0);
   const [uklad, setUklad] = useState<UkladEkranu>('wszystko');
+  /** Boisko układu „Bieżący mecz” (`?boisko=<id>`); puste = pierwszy mecz w toku. */
+  const [boisko, setBoisko] = useState<string | null>(null);
   const [motyw, setMotyw] = useState<MotywEkranu>('ciemny');
   const [krokUkladu, setKrokUkladu] = useState(0);
   // Sterowanie widać tylko chwilę po ruchu myszy albo dotknięciu: na ścianie
@@ -114,6 +116,7 @@ export default function EkranClient() {
     const u = parametry.get('uklad');
     if (czyUkladEkranu(u)) setUklad(u);
     if (parametry.get('motyw') === 'jasny') setMotyw('jasny');
+    setBoisko(parametry.get('boisko'));
     const t = window.setInterval(() => setKrok((k) => k + 1), CZAS_WIDOKU_MS);
     const tu = window.setInterval(() => setKrokUkladu((k) => k + 1), CZAS_UKLADU_NA_ZMIANE_MS);
     return () => { window.clearInterval(t); window.clearInterval(tu); };
@@ -156,6 +159,10 @@ export default function EkranClient() {
     setUklad(u);
     setKrokUkladu(0);
     ustawWAdresie('uklad', u === 'wszystko' ? null : u);
+  };
+  const zmienBoisko = (b: string | null) => {
+    setBoisko(b);
+    ustawWAdresie('boisko', b);
   };
   const zmienMotyw = (m: MotywEkranu) => {
     setMotyw(m);
@@ -528,7 +535,7 @@ export default function EkranClient() {
             </div>
           ) : (
             <p className="m-auto max-w-[40em] text-center text-[2em] text-[color:var(--e-tekst3)]">
-              Brak ogłoszenia. Organizator dodaje je w panelu turnieju: Ustawienia → Ekran na halę.
+              Brak ogłoszenia. Organizator dodaje je w panelu turnieju: Ustawienia → Wyniki na telewizor.
             </p>
           )}
           <div className="flex items-end gap-[1.6em]">
@@ -543,6 +550,77 @@ export default function EkranClient() {
             </div>
           </div>
         </main>
+      ) : ukl === 'mecz' ? (
+        // BIEŻĄCY MECZ (2026-11-25): jeden mecz na cały ekran. Bez meczu
+        // w toku: następny mecz na tym boisku z godziną.
+        (() => {
+          const naBoisku = (m: TurniejMecz) => !boisko || m.arenaId === boisko;
+          const mecz = c.naZywo.find(naBoisku)
+            ?? doRozegrania.find((m) => naBoisku(m) && m.druzynaAId && m.druzynaBId)
+            ?? doRozegrania.find(naBoisku);
+          const imiona = new Map(zawodnicy.map((z) => [z.id, z.imie]));
+          const nazwaBoiska = boisko ? arenyPoId.get(boisko) : mecz?.arenaId && kilkaAren ? arenyPoId.get(mecz.arenaId) : undefined;
+          const potem = mecz ? doRozegrania.find((m) => m.id !== mecz.id && m.status === 'zaplanowany' && naBoisku(m)) : undefined;
+          if (!mecz) {
+            return (
+              <main className="flex flex-1 flex-col items-center justify-center gap-[1em] text-center">
+                <p className="font-display text-[3em] font-bold">{nazwaBoiska ? `${nazwaBoiska}: ` : ''}na dziś koniec meczów</p>
+                <div>{kartaGlowna}</div>
+              </main>
+            );
+          }
+          const naZywo = mecz.status === 'trwa';
+          const zegar = naZywo && !jestSportemSetowym(turniej.sport) ? opisZegara(mecz, teraz) : null;
+          const poCzasieGry = naZywo && poCzasiePolowy(mecz, teraz, turniej.czasMeczuMin);
+          const gole = (strona: string | undefined) => zdarzenia
+            .filter((z) => z.meczId === mecz.id && (z.typ === 'gol' || z.typ === 'samobojczy'))
+            .filter((z) => (z.typ === 'gol' ? z.druzynaId === strona : z.druzynaId !== strona))
+            .map((z) => `${z.zawodnikId ? imiona.get(z.zawodnikId) ?? '' : ''}${z.typ === 'samobojczy' ? ' (sam.)' : ''}${z.minuta ? ` ${z.minuta}'` : ''}`.trim())
+            .filter(Boolean);
+          return (
+            <main className="flex min-h-0 flex-1 flex-col px-[1.6em] py-[1.2em]">
+              <p className={`text-center text-[1.6em] font-semibold uppercase tracking-[0.15em] ${naZywo ? 'text-[color:var(--e-akcent)]' : 'text-[color:var(--e-tekst2)]'}`}>
+                {naZywo ? 'Na żywo' : `Następny mecz${mecz.zaplanowanyAt ? ` · ${godzina(mecz)}` : ''}`}
+                {nazwaBoiska ? ` · ${nazwaBoiska}` : ''} · M{mecz.numer}
+              </p>
+              <div className="grid flex-1 grid-cols-[1fr_auto_1fr] items-center gap-[1.5em]">
+                {(['a', 'b'] as const).map((s, i) => {
+                  const lista = gole(s === 'a' ? mecz.druzynaAId : mecz.druzynaBId);
+                  const kolumna = (
+                    <div key={s} className={`min-w-0 ${i === 0 ? 'text-left' : 'text-right'}`}>
+                      <p className="break-words font-display text-[4em] font-bold leading-tight">{nazwa(mecz, s)}</p>
+                      {lista.length > 0 && (
+                        <p className="mt-[0.5em] line-clamp-3 text-[1.5em] text-[color:var(--e-tekst2)]">⚽ {lista.join(', ')}</p>
+                      )}
+                    </div>
+                  );
+                  return i === 0 ? kolumna : (
+                    <Fragment key="srodek">
+                      <div className="text-center">
+                        <p className="font-display text-[11em] font-bold leading-none tabular-nums">
+                          {naZywo || mecz.status !== 'zaplanowany' ? `${mecz.wynikA}:${mecz.wynikB}` : '–'}
+                        </p>
+                        {zegar && (
+                          <p className={`mt-[0.2em] font-display text-[3.4em] font-bold tabular-nums ${poCzasieGry ? 'text-[color:var(--e-uwaga)]' : ''}`}>{zegar}</p>
+                        )}
+                      </div>
+                      {kolumna}
+                    </Fragment>
+                  );
+                })}
+              </div>
+              <div className="flex items-end justify-between gap-[1.6em]">
+                <div className="shrink-0">{kartaBoczna ?? kartaBojo('mala')}</div>
+                {potem && (
+                  <p className="min-w-0 truncate text-[1.6em] text-[color:var(--e-tekst2)]">
+                    Potem{potem.zaplanowanyAt ? ` o ${godzina(potem)}` : ''}: <span className="font-semibold text-[color:var(--e-tekst)]">{nazwa(potem, 'a')} – {nazwa(potem, 'b')}</span>
+                  </p>
+                )}
+                {linkZbiorki && <div className="shrink-0" style={{ fontSize: '0.75em' }}>{kartaZbiorki('duza')}</div>}
+              </div>
+            </main>
+          );
+        })()
       ) : ukl === 'wynik' ? (
         // TABLICA WYNIKÓW: mecz w toku (albo następny) na pół ekranu.
         <main className="flex min-h-0 flex-1 flex-col gap-[1.2em] px-[1.6em] py-[1.2em]">
@@ -710,6 +788,23 @@ export default function EkranClient() {
             {u.etykieta}
           </button>
         ))}
+        {ukl === 'mecz' && kilkaAren && (
+          <span className="ml-[0.4em] flex gap-[0.2em] border-l border-[color:var(--e-linia)] pl-[0.4em]">
+            {[{ id: null as string | null, nazwa: 'Na żywo' }, ...areny.map((x) => ({ id: x.id as string | null, nazwa: x.nazwa }))].map((x) => (
+              <button
+                key={x.id ?? 'auto'}
+                type="button"
+                onClick={() => zmienBoisko(x.id)}
+                aria-pressed={boisko === x.id}
+                className={`whitespace-nowrap rounded-full px-[0.8em] py-[0.45em] text-[1em] font-semibold ${
+                  boisko === x.id ? 'bg-[color:var(--e-aktywny)] text-[color:var(--e-aktywny-tekst)]' : 'text-[color:var(--e-tekst2)] hover:bg-[color:var(--e-karta)]'
+                }`}
+              >
+                {x.nazwa}
+              </button>
+            ))}
+          </span>
+        )}
         <button
           type="button"
           onClick={() => zmienMotyw(motyw === 'ciemny' ? 'jasny' : 'ciemny')}

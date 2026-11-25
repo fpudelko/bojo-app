@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-22 · migracja `184` · 63 tabel
+**Stan na:** 2026-11-25 · migracja `185` · 63 tabel
 
 ---
 
@@ -481,6 +481,31 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-25 — Prowadzący mecze, ekran „Bieżący mecz”, „Wyniki na telewizor”
+
+PROBLEM: organizator turnieju w Bojo musiał sam startować mecze i wpisywać wyniki albo
+oddawać komuś swoje konto lub pełne prawa współorganizatora; ekran „na halę” nie mówił, czym
+jest; brakowało ekranu z jednym meczem na telewizor przy boisku.
+
+ROZWIĄZANIE BOJO: organizator dodaje w Ustawieniach → „Ludzie przy turnieju” osobę po e-mailu
+z rolą „Prowadzący mecze” albo „Współorganizator”. Prowadzący mecze loguje się na swoim koncie,
+wchodzi przyciskiem „Prowadź mecze” na stronie turnieju i widzi tylko terminarz z centrum
+dowodzenia: start meczu, zegar, gole, kartki, wynik i poprawkę wyniku. Nie zmienia ustawień,
+drużyn, terminarza ani statusu turnieju. Strona na rzutnik lub telewizor nazywa się
+„Wyniki na telewizor” i ma nowy układ „Bieżący mecz”: jeden mecz na cały ekran z wynikiem,
+zegarem i strzelcami, przy kilku boiskach z wyborem boiska. Przełącznik „Organizator /
+Uczestnik” został usunięty.
+
+MECHANIKA: migracja `185` (`dodaj_osobe_turnieju()`, `cofnij_wynik_meczu()` dla
+prowadzącego), `tylkoProwadzi` w panelu turnieju, układ `mecz` w `lib/ekranTurnieju.ts`
+(`?boisko=`). Szczegóły → [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Jak w Bojo dać komuś wpisywanie wyników bez dawania mu swojego konta?
+- Co może prowadzący mecze w turnieju Bojo, a czego nie?
+- Jak pokazać wynik jednego meczu na telewizorze przy boisku?
+- Gdzie w Bojo jest ekran z wynikami na rzutnik?
+
 ### 2026-11-22 (3) — Turnieje na koncie gracza, obserwowanie turnieju, przekazanie organizacji
 
 PROBLEM: zawodnik, który dołączył do drużyny turniejowej w Bojo, nie widział turnieju na swoim
@@ -724,24 +749,3 @@ MECHANIKA: migracja `175` (format `grupy_finalowa`, `turniej_grupy.finalowa`, ź
 `porownajTermin()` i `przerwaPrzedMeczem()` w `lib/turniejEtykiety.ts`,
 `cofnijWynikMeczu()` w `lib/turniejMecze.ts`, `PanelClient.tsx`, `TurniejClient.tsx`,
 `MeczClient.tsx`, `KartaMeczu.tsx`. Szczegóły → [funkcje.md](./funkcje.md).
-
-### 2026-11-11 — Godziny meczów turnieju w czasie polskim, spójne zapisy, widok zawodnika
-
-PROBLEM: w turnieju w Bojo karty meczów pokazywały godzinę o jedną (zimą) albo dwie
-(latem) wcześniejszą niż prawdziwa, więc strona mówiła „start 10:00”, a pierwszy mecz
-„09:00”. Po terminie zapisów strona naraz pisała „Trwają zapisy”, „Zostało 1 miejsce”
-i „Zapisy zamknięte”. Na telefonie „Utwórz turniej” leżał pod banerem cookies, a zawodnik
-po ponownym otwarciu linku drużyny znowu widział listę imion do wyboru.
-
-ROZWIĄZANIE BOJO: godziny meczów turnieju i powiadomienie „Wasz mecz jest następny” są
-w czasie polskim. Po terminie zapisów Bojo pokazuje wyłącznie „Zapisy zamknięte” i liczbę
-drużyn. Pulpit organizatora ostrzega, gdy godzina startu nie zgadza się z pierwszym meczem.
-Ekran drużyny zaczyna się od następnego meczu, a link drużyny otwarty przez kogoś ze składu
-prowadzi prosto do jego drużyny. Okładka i pełne ogłoszenia są tylko na zakładce Info,
-nazwa turnieju nie jest ucinana.
-
-MECHANIKA: migracja `174` (`powiadom_o_nastepnym_meczu()` w `Europe/Warsaw`),
-`chwilaWPolsce()` i `instantZCzasuPolskiego()` w `lib/czasPolski.ts`,
-`etykietaTerminuMeczu()` i `stanTurnieju()` w `lib/turniejEtykiety.ts`, `CookieBanner.tsx`
-(`--cookie-h`), `app/t/[kod]/page.tsx`, `DruzynaClient.tsx`, `TurniejClient.tsx`,
-`PanelClient.tsx`, `lib/toast.tsx`. Szczegóły → [funkcje.md](./funkcje.md).

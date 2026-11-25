@@ -5131,7 +5131,8 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     planu już powinien grać (`zaleglyStart`), czekające zgłoszenia.
   - **„Rozpocznij” tylko na wolnej arenie** (`doRozpoczecia` w `centrumTurnieju()`): przy jednej
     hali i meczu w toku przycisku nie ma ani w Najbliższych, ani w pasku stanu.
-  - **Ekran na halę** (`/turnieje/[id]/ekran`, `EkranClient.tsx`): publiczny, `noindex`,
+  - **„Wyniki na telewizor”** (do 2026-11-25 „Ekran na halę”; `/turnieje/[id]/ekran`,
+    `EkranClient.tsx`): publiczny, `noindex`,
     otwierany z paska stanu panelu w nowej karcie. Ciemny zawsze, rozmiary w `em` od
     `font-size` liczonego z szerokości okna (ten sam układ na 1366 px i 4K), odświeżanie co
     15 s. Lewa kolumna: Na żywo (wynik, zegar) albo Następny mecz, Kolejne mecze z przerwami;
@@ -5164,7 +5165,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
     dostaje `https://` (`normalizujLinkEkranu()`), inny schemat niż http(s) odrzuca panel
     i CHECK w bazie. **Przerwa w toku** (176, `przerwaTeraz()`): gdy nic nie trwa, ekran
     pokazuje nazwę i opis przerwy z godziną końca zamiast „Następny mecz”.
-    Organizator wybiera układ i motyw z menu „Ekran na halę” w panelu (komputer) i w
+    Układ **„Bieżący mecz”** (`mecz`, 2026-11-25): jeden mecz na cały ekran (wynik 11em,
+    zegar, strzelcy z minutą, „Potem o …” na tym boisku); przy kilku boiskach przyciski boisk
+    w przełączniku u dołu, wybór w adresie `?boisko=<id>`. Bez meczu w toku: następny na boisku.
+    Organizator wybiera układ i motyw z menu „Wyniki na telewizor” w panelu (komputer) i w
     Ustawieniach (`WyborEkranu.tsx`) albo na samym ekranie: przełącznik u dołu pokazuje się
     na 3 s po ruchu myszy lub dotknięciu. Bez ramki aplikacji:
     `jestSciezkaWidgetu()` w `lib/widget.ts` obejmuje też tę trasę (bez banera cookies,
@@ -5191,6 +5195,13 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   w bazie). „Przetestuj” widzi wyłącznie admin. Kopia „Próba: …” (marker `[TURNIEJ-TEST]`,
   widoczność `na_link`, składy bez kont) ma na liście „Wszystkie” dopisek „Kopia do ćwiczeń”
   z tym, skąd się wzięła i jak ją usunąć; panel próby wypisuje w hasłach, co w niej przećwiczyć.
+- **Prowadzący mecze (2026-11-25, migracja `185`):** Ustawienia → „Ludzie przy turnieju”:
+  organizator dodaje po e-mailu współorganizatora albo prowadzącego mecze
+  (`dodajOsobeTurnieju()`, przełącznik roli, domyślnie prowadzący). Prowadzący wchodzi
+  przyciskiem „Prowadź mecze” na stronie turnieju i widzi w panelu tylko Terminarz
+  (`tylkoProwadzi` w `PanelClient.tsx`): centrum dowodzenia, listę meczów, start, zegar,
+  gole, kartki, wynik i poprawkę wyniku. Bez stanu turnieju (start/próba/koniec),
+  generowania, zmiany godzin, przerw, Drużyn i Ustawień. Na „Moje mecze” rola „Prowadzisz mecze”.
 - **Turnieje na koncie i obserwowanie (2026-11-22, migracja `184`):** `/moje-gry` ma sekcję
   „Twoje turnieje” (`MojeTurniejeSekcja.tsx`): karty turniejów, w których użytkownik gra,
   organizuje, współorganizuje albo obserwuje (`getMojeTurniejeZRola()`), z podpisem roli; bez
