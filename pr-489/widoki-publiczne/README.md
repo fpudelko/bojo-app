@@ -1,9 +1,9 @@
 # Zrzuty — PR #489 · widoki-publiczne
 
-Przebieg [`45566582417`](https://github.com/fpudelko/bojo-app/actions/runs/45566582417)
+Przebieg [`45567508044`](https://github.com/fpudelko/bojo-app/actions/runs/45567508044)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/489)
 
-Zmienione widoki: **0** · nowe widoki: **2**
+Zmienione widoki: **0** · nowe widoki: **4**
 
 Raport kasuje się sam po 7 dniach.
 
@@ -11,6 +11,14 @@ Raport kasuje się sam po 7 dniach.
 
 Nie było ich wcześniej, więc nie ma z czym porównywać —
 to jest po prostu to, co widzi użytkownik.
+
+### zrzuty-komputer · trasa-link-kapitana
+
+![zrzuty-komputer · trasa-link-kapitana](nowy__zrzuty-komputer__trasa-link-kapitana.png)
+
+### zrzuty-komputer · trasa-turniej-ekran
+
+![zrzuty-komputer · trasa-turniej-ekran](nowy__zrzuty-komputer__trasa-turniej-ekran.png)
 
 ### zrzuty-telefon · trasa-link-kapitana
 
