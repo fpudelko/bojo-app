@@ -7,6 +7,8 @@ import { miejscaWTabeli } from '@/lib/turniejTabela';
 
 export interface TabelaGrupyProps {
   wiersze: readonly WierszTabeli[];
+  /** Drużyna zalogowanego: obwódka wiersza i nazwa w kolorze marki, bez napisu (2026-11-25). */
+  mojaDruzynaId?: string;
   /**
    * Ile pierwszych miejsc awansuje — podświetla wiersz i dokłada pionowy pasek
    * przy pozycji.
@@ -27,7 +29,7 @@ export interface TabelaGrupyProps {
   komentarz?: string;
 }
 
-export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt, komentarz }: TabelaGrupyProps) {
+export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt, komentarz, mojaDruzynaId }: TabelaGrupyProps) {
   if (wiersze.length === 0) {
     return <p className="py-6 text-center text-sm text-slate-400">Jeszcze żaden mecz nie został rozegrany.</p>;
   }
@@ -63,6 +65,7 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt, komentar
               className={[
                 'border-b border-slate-50 dark:border-slate-700/60 last:border-0',
                 awansuje(i) ? 'bg-primary-50/50 dark:bg-primary-950/20' : '',
+                w.druzynaId === mojaDruzynaId ? 'outline outline-2 -outline-offset-2 outline-primary-500' : '',
               ].join(' ')}
             >
               <td
@@ -76,7 +79,7 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt, komentar
               >
                 {miejsca[i]}
               </td>
-              <td className={`min-w-0 ${kompakt ? '' : 'max-w-[9rem]'} break-words px-2 py-2.5 font-medium leading-5 text-ink`}>
+              <td className={`min-w-0 ${kompakt ? '' : 'max-w-[9rem]'} break-words px-2 py-2.5 leading-5 ${w.druzynaId === mojaDruzynaId ? 'font-bold text-primary-800 dark:text-primary-300' : 'font-medium text-ink'}`}>
                 {w.nazwa}
                 {w.rozstrzygnietyRecznie && <span className="ml-1 text-xs text-slate-400" title="Pozycja ustawiona ręcznie">*</span>}
               </td>

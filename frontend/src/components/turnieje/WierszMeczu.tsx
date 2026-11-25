@@ -16,7 +16,7 @@ import { nazwaSlotu } from './KartaMeczu';
 import type { TurniejGrupa, TurniejMecz } from '@/types';
 
 export default function WierszMeczu({
-  mecz, href, druzynyPoId, meczePoId, arenyPoId, grupyPoId, pokazBoisko,
+  mecz, href, druzynyPoId, meczePoId, arenyPoId, grupyPoId, pokazBoisko, mojaDruzynaId,
 }: {
   mecz: TurniejMecz;
   href: string;
@@ -26,6 +26,10 @@ export default function WierszMeczu({
   grupyPoId?: ReadonlyMap<string, TurniejGrupa>;
   /** Boisko tylko przy kilku boiskach: przy jednym powtarzałoby się przy każdym meczu. */
   pokazBoisko: boolean;
+  /** Drużyna zalogowanego (2026-11-25): mecz z nią ma tło i obwódkę w kolorze
+   *  marki, a jej nazwa jest pogrubiona. Bez napisu „Twój mecz”: kolor i waga
+   *  pisma wystarczą, a napis zjadłby miejsce na nazwy drużyn. */
+  mojaDruzynaId?: string;
 }) {
   const wolnyLos = czyWolnyLos(mecz);
   const nazwaA = wolnyLos && !mecz.druzynaAId ? 'awans bez gry' : nazwaSlotu(mecz, 'a', druzynyPoId, meczePoId, grupyPoId);
@@ -33,8 +37,11 @@ export default function WierszMeczu({
   const naZywo = mecz.status === 'trwa';
   const rozegrany = !wolnyLos && (mecz.status === 'zakonczony' || mecz.status === 'walkower');
   const zwyciezca = rozegrany ? stronaZwyciezcy(mecz) : null;
+  const moja = (strona: 'a' | 'b') => !!mojaDruzynaId && (strona === 'a' ? mecz.druzynaAId : mecz.druzynaBId) === mojaDruzynaId;
+  const naszMecz = moja('a') || moja('b');
   const ton = (strona: 'a' | 'b') =>
-    zwyciezca === strona ? 'font-semibold text-ink' : zwyciezca ? 'text-slate-500 dark:text-slate-400' : 'text-ink';
+    moja(strona) ? 'font-bold text-primary-800 dark:text-primary-300'
+      : zwyciezca === strona ? 'font-semibold text-ink' : zwyciezca ? 'text-slate-500 dark:text-slate-400' : 'text-ink';
   const termin = mecz.zaplanowanyAt ? terminMeczuNaKarcie(mecz.zaplanowanyAt) : null;
   // Mała data w jednej linijce nad godziną: „28.11” albo „Dziś”, „Jutro”.
   const krotkaData = mecz.zaplanowanyAt && termin
@@ -49,7 +56,10 @@ export default function WierszMeczu({
     <Link
       href={href}
       className={[
-        'flex min-h-[52px] items-center gap-2 rounded-xl bg-white px-2.5 py-1.5 ring-1 ring-slate-100 dark:bg-slate-800 dark:ring-slate-700',
+        'flex min-h-[52px] items-center gap-2 rounded-xl px-2.5 py-1.5',
+        naszMecz
+          ? 'bg-primary-50 ring-2 ring-primary-300 dark:bg-primary-950/40 dark:ring-primary-700'
+          : 'bg-white ring-1 ring-slate-100 dark:bg-slate-800 dark:ring-slate-700',
         // Lewa krawędź jak na karcie meczu: zielona przed meczem i na żywo,
         // szara po meczu. Oko trafia na to, co jeszcze przed nami.
         rozegrany || wolnyLos ? 'border-l-4 border-l-slate-300 dark:border-l-slate-600' : 'border-l-4 border-l-primary-600',

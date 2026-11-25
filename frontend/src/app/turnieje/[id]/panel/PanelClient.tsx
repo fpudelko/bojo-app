@@ -1058,7 +1058,7 @@ export default function PanelClient() {
                   ścianie. Układ da się też zmienić na samym ekranie. */}
               <details className="relative">
                 <summary className="inline-flex min-h-[36px] cursor-pointer list-none items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800 [&::-webkit-details-marker]:hidden">
-                  Wyniki na telewizor
+                  Tablica wyników
                 </summary>
                 <div className="absolute right-0 z-20 mt-1 max-h-[75vh] w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-700 dark:bg-slate-800">
                   <WyborEkranu adresTurnieju={adresTurnieju} />
@@ -1171,7 +1171,7 @@ export default function PanelClient() {
                 <ul className="list-disc space-y-0.5 pl-5 text-sm text-slate-600 dark:text-slate-300">
                   <li>Kopia z przycisku „Przetestuj”, ten sam terminarz i drużyny</li>
                   <li>Od razu „w trakcie”: wejdź w mecz, prowadź go na żywo, wpisz wynik</li>
-                  <li>Sprawdź tabelę, drabinkę i wyniki na telewizor</li>
+                  <li>Sprawdź tabelę, drabinkę i tablicę wyników</li>
                   <li>Nic nie trafia do prawdziwego turnieju, zawodnicy nic nie dostają</li>
                   <li>Kolejne „Przetestuj” zastępuje tę kopię nową</li>
                 </ul>
@@ -1977,11 +1977,11 @@ export default function PanelClient() {
                 „Zapisz zmiany” co reszta Ustawień. */}
             <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
               <div>
-                {/* „Ekran na halę” nie mówił, co to jest (uwaga właściciela
-                    2026-11-25). Nazwa mówi, co i gdzie się wyświetla. */}
-                <h2 className="text-sm font-semibold text-ink">Wyniki na telewizor</h2>
+                {/* „Ekran na halę” i „Wyniki na telewizor” nie mówiły, co to
+                    jest (uwagi właściciela 2026-11-25). „Tablica wyników” z opisem, gdzie się wyświetla. */}
+                <h2 className="text-sm font-semibold text-ink">Tablica wyników</h2>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  Strona do otwarcia na telewizorze albo rzutniku na hali: bieżący mecz, wyniki, tabele i terminarz. Ogłoszenie i kod QR zbiórki też się na niej pokażą.
+                  Gotowa do wyświetlenia na telewizorze, telebimie albo projektorze: bieżący mecz, wyniki, tabele i terminarz. Ogłoszenie i kod QR zbiórki też się na niej pokażą.
                 </p>
               </div>
               <label htmlFor="ekran-komunikat" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Ogłoszenie na ekranie</label>

@@ -17,7 +17,7 @@ export const UKLADY_EKRANU: readonly { klucz: UkladEkranu; etykieta: string; opi
   // BIEŻĄCY MECZ (2026-11-25, prośba właściciela): jeden mecz na cały ekran,
   // np. telewizor przy boisku. Przy kilku boiskach wybór boiska (`?boisko=`).
   { klucz: 'mecz', etykieta: 'Bieżący mecz', opis: 'jeden mecz na cały ekran: wynik, zegar i strzelcy; przy kilku boiskach wybierasz boisko' },
-  { klucz: 'wynik', etykieta: 'Tablica wyników', opis: 'wynik meczu w toku na pół ekranu, jak na stadionie' },
+  { klucz: 'wynik', etykieta: 'Duży wynik', opis: 'wynik meczu w toku na pół ekranu, jak na stadionie' },
   { klucz: 'tabele', etykieta: 'Tabele grup', opis: 'wszystkie grupy w dużym rozmiarze, np. przed fazą pucharową' },
   { klucz: 'mecze', etykieta: 'Mecze i wyniki', opis: 'mecz na żywo, kolejne mecze i wyniki, bez tabel' },
   { klucz: 'terminarz', etykieta: 'Terminarz dnia', opis: 'wszystkie mecze do końca dnia: odpowiedź na „kiedy gramy?”' },

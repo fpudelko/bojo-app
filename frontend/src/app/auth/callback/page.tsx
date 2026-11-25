@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { odbierzPowrot } from '@/lib/powrotPoLogowaniu';
 
 function CallbackInner() {
   const router = useRouter();
@@ -15,7 +16,10 @@ function CallbackInner() {
   // dołączanie do meczu) ma pierwszeństwo. Ten sam domyślny cel deklaruje
   // AuthForm — oba muszą się zgadzać, bo inaczej logowanie przez Google
   // (idące przez ten callback) ląduje gdzie indziej niż mailem.
-  const next = params.get('next') || '/moje-gry';
+  // Bez `?next=` (Supabase odrzucił adres z parametrem albo link przyszedł
+  // z maila w nowej karcie) bierzemy zapamiętany cel, np. link drużyny `/t/…`.
+  // Odczyt w efekcie, nie w renderze: `localStorage` nie istnieje na serwerze.
+  const nextZAdresu = params.get('next');
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -26,7 +30,8 @@ function CallbackInner() {
     const finish = () => {
       if (done) return;
       done = true;
-      router.replace(next);
+      const zapamietany = odbierzPowrot();
+      router.replace(nextZAdresu || zapamietany || '/moje-gry');
     };
 
     supabase.auth.getSession().then(({ data }) => {
@@ -46,7 +51,7 @@ function CallbackInner() {
       sub.subscription.unsubscribe();
       clearTimeout(timer);
     };
-  }, [router, next]);
+  }, [router, nextZAdresu]);
 
   if (failed) {
     return (

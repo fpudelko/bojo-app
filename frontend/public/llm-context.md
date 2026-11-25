@@ -481,7 +481,7 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
-### 2026-11-25 — Prowadzący mecze, ekran „Bieżący mecz”, „Wyniki na telewizor”
+### 2026-11-25 — Prowadzący mecze, ekran „Bieżący mecz”, „Tablica wyników”
 
 PROBLEM: organizator turnieju w Bojo musiał sam startować mecze i wpisywać wyniki albo
 oddawać komuś swoje konto lub pełne prawa współorganizatora; ekran „na halę” nie mówił, czym
@@ -491,10 +491,12 @@ ROZWIĄZANIE BOJO: organizator dodaje w Ustawieniach → „Ludzie przy turnieju
 z rolą „Prowadzący mecze” albo „Współorganizator”. Prowadzący mecze loguje się na swoim koncie,
 wchodzi przyciskiem „Prowadź mecze” na stronie turnieju i widzi tylko terminarz z centrum
 dowodzenia: start meczu, zegar, gole, kartki, wynik i poprawkę wyniku. Nie zmienia ustawień,
-drużyn, terminarza ani statusu turnieju. Strona na rzutnik lub telewizor nazywa się
-„Wyniki na telewizor” i ma nowy układ „Bieżący mecz”: jeden mecz na cały ekran z wynikiem,
+drużyn, terminarza ani statusu turnieju. Strona na telewizor, telebim albo projektor
+nazywa się „Tablica wyników” i ma nowy układ „Bieżący mecz”: jeden mecz na cały ekran z wynikiem,
 zegarem i strzelcami, przy kilku boiskach z wyborem boiska. Przełącznik „Organizator /
-Uczestnik” został usunięty.
+Uczestnik” został usunięty. Link drużyny po zalogowaniu wraca na ekran dołączenia
+z przyciskiem „Dołącz jako {imię}”, a drużyna zalogowanego jest wyróżniona kolorem
+w meczach, tabelach i na liście drużyn.
 
 MECHANIKA: migracja `185` (`dodaj_osobe_turnieju()`, `cofnij_wynik_meczu()` dla
 prowadzącego), `tylkoProwadzi` w panelu turnieju, układ `mecz` w `lib/ekranTurnieju.ts`

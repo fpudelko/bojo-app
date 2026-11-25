@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { validateName } from '@/lib/validation';
+import { displayName } from '@/lib/profileName';
 import { getDruzynaPoKodzie, dolaczDoDruzyny } from '@/lib/turniejDruzyny';
 import { getTurniej } from '@/lib/turnieje';
 import { etykietaTerminu } from '@/lib/turniejEtykiety';
@@ -21,7 +22,7 @@ const inputCls =
 export default function DolaczDoDruzynyPage() {
   const { kod } = useParams<{ kod: string }>();
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const { toast } = useToast();
 
   const [druzyna, setDruzyna] = useState<TurniejDruzyna | null>(null);
@@ -83,6 +84,15 @@ export default function DolaczDoDruzynyPage() {
   }
 
   const wolneWpisy = (druzyna.zawodnicy ?? []).filter((z) => !z.userId);
+  const mojeImie = user ? displayName(user) : '';
+  const dopisz = (doZapisu: string) => {
+    try { void wykonaj({ imie: validateName(doZapisu, 'Imię', 60) }); }
+    catch (e) { setBlad(e instanceof Error ? e.message : 'Podaj imię'); }
+  };
+  const zalogujInnym = async () => {
+    await signOut();
+    window.location.href = `/logowanie?next=${encodeURIComponent(`/t/${kod}`)}`;
+  };
   const wSkladzie = (druzyna.zawodnicy ?? []).filter((z) => z.userId);
 
   /**
@@ -189,9 +199,18 @@ export default function DolaczDoDruzynyPage() {
               czyli kapitanem drużyny wpisanej przez organizatora zostawał
               ktokolwiek, komu link przesłano dalej. Kapitana wskazuje dziś
               organizator na ekranie drużyny. */}
-          {wolneWpisy.length > 0 ? (
+          {/* ZALOGOWANY WIDZI, KIM JEST (2026-11-25, jak na linku kapitana).
+              Ekran pokazywał samo „Wybierz swoje imię” z cudzymi imionami:
+              nie było wiadomo, na jakim koncie się dołącza ani że wystarczy
+              jeden przycisk. Lista wolnych wpisów zostaje dla tych, których
+              kapitan już wpisał bez konta. */}
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Jesteś zalogowany jako <span className="font-semibold text-ink">{mojeImie}</span>
+            {user.email ? <span className="text-slate-500"> ({user.email})</span> : null}.
+          </p>
+          {wolneWpisy.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-ink">Jesteś na tej liście? Wybierz swoje imię</p>
+              <p className="text-sm font-medium text-ink">Kapitan już Cię wpisał? Wybierz siebie</p>
               {wolneWpisy.map((z) => (
                 <button
                   key={z.id}
@@ -199,36 +218,29 @@ export default function DolaczDoDruzynyPage() {
                   disabled={wTrakcie}
                   className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-3.5 py-2.5 text-left text-sm text-ink hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
-                  {z.imie}
+                  To ja: {z.imie}
                 </button>
               ))}
-              <details className="pt-2">
-                <summary className="cursor-pointer text-sm text-primary-600">Nie ma mnie na liście</summary>
-                <div className="mt-2 flex gap-2">
-                  <input value={imie} onChange={(e) => setImie(e.target.value)} placeholder="Imię i nazwisko" className={inputCls} />
-                  <Button
-                    size="sm"
-                    onClick={() => { try { wykonaj({ imie: validateName(imie, 'Imię', 60) }); } catch (e) { setBlad(e instanceof Error ? e.message : 'Podaj imię'); } }}
-                    disabled={wTrakcie || imie.trim().length < 1}
-                    className="shrink-0"
-                  >
-                    Dołącz
-                  </Button>
-                </div>
-              </details>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <input value={imie} onChange={(e) => setImie(e.target.value)} placeholder="Imię i nazwisko" className={inputCls} />
-              <Button
-                onClick={() => { try { wykonaj({ imie: validateName(imie, 'Imię', 60) }); } catch (e) { setBlad(e instanceof Error ? e.message : 'Podaj imię'); } }}
-                disabled={wTrakcie || imie.trim().length < 1}
-                className="w-full inline-flex items-center justify-center gap-2"
-              >
-                {wTrakcie ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Dołącz do drużyny'}
-              </Button>
             </div>
           )}
+          <Button
+            onClick={() => dopisz(mojeImie)}
+            disabled={wTrakcie}
+            variant={wolneWpisy.length > 0 ? 'outline' : 'primary'}
+            className="w-full inline-flex items-center justify-center gap-2"
+          >
+            {wTrakcie ? <Loader2 className="w-4 h-4 animate-spin" /> : wolneWpisy.length > 0 ? `Nie ma mnie na liście, dołącz jako ${mojeImie}` : `Dołącz jako ${mojeImie}`}
+          </Button>
+          <details className="text-sm">
+            <summary className="cursor-pointer text-slate-500 dark:text-slate-400">Dołącz pod innym imieniem</summary>
+            <div className="mt-2 flex gap-2">
+              <input value={imie} onChange={(e) => setImie(e.target.value)} placeholder="Imię i nazwisko" aria-label="Imię i nazwisko" className={inputCls} />
+              <Button size="sm" onClick={() => dopisz(imie)} disabled={wTrakcie || imie.trim().length < 1} className="shrink-0">Dołącz</Button>
+            </div>
+          </details>
+          <button type="button" onClick={zalogujInnym} className="text-sm font-medium text-primary-600">
+            To nie Ty? Zaloguj się innym kontem
+          </button>
         </div>
       </main>
     </div>

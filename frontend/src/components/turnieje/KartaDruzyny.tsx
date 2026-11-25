@@ -21,11 +21,14 @@ const BILANS: Record<'Z' | 'R' | 'P', { tytul: string; ton: string }> = {
 };
 
 export default function KartaDruzyny({
-  d, zalogowany, czyMoja, onZamienWEkipe, mecze = [], nazwaSlotu,
+  d, zalogowany, czyMoja, onZamienWEkipe, mecze = [], nazwaSlotu, wMojejDruzynie = false,
 }: {
   d: TurniejDruzyna;
   zalogowany: boolean;
+  /** Zalogowany jest KAPITANEM tej drużyny („Zarządzaj drużyną”). */
   czyMoja: boolean;
+  /** Zalogowany gra w tej drużynie: obwódka i tło w kolorze marki, bez napisu. */
+  wMojejDruzynie?: boolean;
   onZamienWEkipe: (d: TurniejDruzyna) => void;
   /** Wszystkie mecze turnieju; karta sama wybiera mecze tej drużyny. */
   mecze?: readonly TurniejMecz[];
@@ -41,7 +44,9 @@ export default function KartaDruzyny({
     return nazwaSlotu?.(m, strona) ?? '?';
   };
   return (
-    <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
+    <div className={`overflow-hidden rounded-xl ${wMojejDruzynie
+      ? 'border-2 border-primary-400 bg-primary-50 dark:border-primary-700 dark:bg-primary-950/40'
+      : 'border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800'}`}>
       {/* DWA CELE: nazwa prowadzi na ekran drużyny, strzałka rozwija mecze.
           Oba mają pełną wysokość wiersza, żeby trafić kciukiem. */}
       <div className="flex items-stretch">
@@ -55,7 +60,7 @@ export default function KartaDruzyny({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <span className="block line-clamp-2 break-words font-medium leading-snug text-ink">{d.nazwa}</span>
+            <span className={`block line-clamp-2 break-words leading-snug ${wMojejDruzynie ? 'font-bold text-primary-800 dark:text-primary-300' : 'font-medium text-ink'}`}>{d.nazwa}</span>
             {zalogowany && d.liczbaZawodnikow !== undefined && (
               <span className="text-xs text-slate-400">{odmienZawodnikow(d.liczbaZawodnikow)}</span>
             )}

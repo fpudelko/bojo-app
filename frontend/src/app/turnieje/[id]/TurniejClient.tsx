@@ -418,6 +418,7 @@ export default function TurniejClient() {
       arenyPoId={arenyPoId}
       grupyPoId={grupyPoId}
       pokazBoisko={areny.length > 1}
+      mojaDruzynaId={mojaDruzyna?.id}
     />
   );
   const mvpPoMeczach = mecze
@@ -1001,6 +1002,7 @@ export default function TurniejClient() {
                       d={d}
                       zalogowany={!!user}
                       czyMoja={d.id === mojaDruzyna?.id && d.kapitanId === user?.id}
+                      wMojejDruzynie={d.id === mojaDruzyna?.id}
                       onZamienWEkipe={zamienWEkipeAkcja}
                       mecze={mecze}
                       nazwaSlotu={(m, strona) => nazwaSlotu(m, strona, druzynyPoId, meczePoId, grupyPoId)}
@@ -1133,7 +1135,7 @@ export default function TurniejClient() {
                       Grupa {grupa.nazwa}{grupa.finalowa ? ' (finałowa)' : ''}
                     </h2>
                   )}
-                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa && !grupa.finalowa ? turniej.awansujeZGrupy : undefined} />
+                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa && !grupa.finalowa ? turniej.awansujeZGrupy : undefined} mojaDruzynaId={mojaDruzyna?.id} />
                 </div>
               ))}
               <button
@@ -1168,7 +1170,7 @@ export default function TurniejClient() {
                 {grupa?.finalowa ? (
                   <>
                     {wiersze.length > 0 ? (
-                      <TabelaGrupy wiersze={wiersze} komentarz={grupa?.komentarz} />
+                      <TabelaGrupy wiersze={wiersze} komentarz={grupa?.komentarz} mojaDruzynaId={mojaDruzyna?.id} />
                     ) : (
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         Drużyny wejdą tu po rozstrzygnięciu swoich grup.
@@ -1184,7 +1186,7 @@ export default function TurniejClient() {
                     </div>
                   </>
                 ) : (
-                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} komentarz={grupa?.komentarz} />
+                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} komentarz={grupa?.komentarz} mojaDruzynaId={mojaDruzyna?.id} />
                 )}
                 {grupa && !grupa.finalowa && (
                   <MeczeGrupy

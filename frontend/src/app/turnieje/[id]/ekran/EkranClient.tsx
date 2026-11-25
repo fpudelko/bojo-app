@@ -535,7 +535,7 @@ export default function EkranClient() {
             </div>
           ) : (
             <p className="m-auto max-w-[40em] text-center text-[2em] text-[color:var(--e-tekst3)]">
-              Brak ogłoszenia. Organizator dodaje je w panelu turnieju: Ustawienia → Wyniki na telewizor.
+              Brak ogłoszenia. Organizator dodaje je w panelu turnieju: Ustawienia → Tablica wyników.
             </p>
           )}
           <div className="flex items-end gap-[1.6em]">
