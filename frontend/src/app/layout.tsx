@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Bricolage_Grotesque } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth';
@@ -18,29 +17,14 @@ import {
   TYTUL_DOMYSLNY, OPIS_DOMYSLNY, HASLO_PODGLADU,
 } from '@/content/metaWyszukiwarki';
 
-const inter = Inter({
-  subsets: ['latin', 'latin-ext'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-// Distinctive editorial display face for headings — characterful but clean,
-// full Polish diacritic support (latin-ext).
-const bricolage = Bricolage_Grotesque({
-  subsets: ['latin', 'latin-ext'],
-  variable: '--font-display',
-  display: 'swap',
-  // Wagi: w repo `font-display` stoi wyłącznie obok `font-bold` (700, 67 użyć)
-  // i `font-extrabold` (800, 14) — 600 nie jest używana ani razu. NIE zdejmujemy
-  // jej mimo to, i to jest wynik pomiaru, nie przeoczenie: Bricolage Grotesque
-  // jest krojem ZMIENNYM, więc Google serwuje jeden plik na podzbiór niezależnie
-  // od żądanych wag. Czysty build z wagami ['700','800'] dał dokładnie te same
-  // 10 plików .woff2 i te same 300 KB co z ['600','700','800'] (sprawdzone
-  // 2026-09-01). Lista wag nie jest tu dźwignią transferu — kto szuka
-  // oszczędności w ~173 KiB czcionek z pomiaru 7a.1, musi zdjąć RODZINĘ albo
-  // PODZBIÓR (latin-ext niesie polskie znaki, więc nie ten), nie wagę.
-  weight: ['600', '700', '800'],
-});
+// FONTY Z REPO, NIE Z GOOGLE (2026-11-25). `next/font/google` pobiera je przy
+// KAŻDYM buildzie, a ten pobór wywracał build w CI („An error occurred in
+// `next/font`: Cannot read properties of null (reading '1')”) cztery razy
+// w jednym tygodniu, za każdym razem na zupełnie innej zmianie. Pliki woff2
+// (Inter 100..900, Bricolage Grotesque 600..800, oba krojami zmiennymi) leżą
+// w `public/fonts/`, a `@font-face` z `unicode-range` w `globals.css`: polskie
+// znaki w osobnym pliku latin-ext, jak serwował Google. Wagi Bricolage: patrz
+// historia tego pliku, 600 zostaje, bo krój jest zmienny i nic nie kosztuje.
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -151,8 +135,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl" suppressHydrationWarning className={`${inter.variable} ${bricolage.variable}`}>
+    <html lang="pl" suppressHydrationWarning>
       <head>
+        {/* Podzbiór latin od razu: bez niego tekst renderował się systemowym
+            krojem i przeskakiwał, gdy font dojechał. latin-ext (ą, ę, ł…)
+            dociąga przeglądarka sama, gdy trafi na polski znak. */}
+        <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/bricolage-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSON_LD) }}

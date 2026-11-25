@@ -29,7 +29,7 @@ import {
 } from '@/lib/turnieje';
 import {
   getDruzynyZeSkladem, setStatusDruzyny, dodajDruzyneRecznie, getKontakty, usunDruzyne,
-  ustawGrupeDruzyny, setWpisowe, przygotujLinkiKapitanow, tekstLinkowKapitanow, type LinkKapitana,
+  ustawGrupeDruzyny, setWpisowe, przygotujLinkiKapitanow, tekstLinkowKapitanow, tekstLinkuKapitana, type LinkKapitana,
 } from '@/lib/turniejDruzyny';
 import {
   getGrupy, dodajGrupe, usunGrupe, getAreny, dodajArene, zmienNazweAreny, usunArene,
@@ -59,7 +59,7 @@ import { czyWolnyLos } from '@/lib/turniejWynik';
 import { instantZCzasuPolskiego, chwilaWPolsce } from '@/lib/czasPolski';
 import ZasadyGry, { type WartosciZasad } from '@/components/turnieje/ZasadyGry';
 import SegmentedToggle from '@/components/ui/SegmentedToggle';
-import type { TurniejCreate } from '@/types';
+import type { TurniejCreate, KapitanZmieniaNazwe } from '@/types';
 
 // Bez zakładki „Ludzie” (decyzja właściciela z 2026-11-08): na start jedna
 // rola, organizator. Uprawnienia współorganizatorów zostają w bazie
@@ -1475,7 +1475,7 @@ export default function PanelClient() {
                           {l.kod ? (
                             <button
                               type="button"
-                              onClick={() => kopiuj(`${window.location.origin}/k/${l.kod}`, `Link kapitana: ${l.nazwa}`)}
+                              onClick={() => kopiuj(tekstLinkuKapitana(turniej.nazwa, l, window.location.origin), `Link kapitana: ${l.nazwa}`)}
                               className="shrink-0 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-ink dark:border-slate-600"
                             >
                               Kopiuj link
@@ -2065,6 +2065,22 @@ export default function PanelClient() {
                   />
                 </div>
               </div>
+              {/* 187: zmiana nazwy przez kapitana. Pilnuje jej wyzwalacz w bazie;
+                  wycofanie drużyny kapitan może już tylko poprosić organizatora. */}
+              <label htmlFor="nazwa-kapitana" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Kapitan może zmienić nazwę drużyny</label>
+              <select
+                id="nazwa-kapitana"
+                defaultValue={szkic.kapitanZmieniaNazwe ?? turniej.kapitanZmieniaNazwe}
+                onChange={(e) => ustawWSzkicu('kapitanZmieniaNazwe', e.target.value as KapitanZmieniaNazwe, turniej.kapitanZmieniaNazwe)}
+                className={inputCls}
+              >
+                <option value="do_zamkniecia_zapisow">Do zamknięcia zapisów</option>
+                <option value="zawsze">Zawsze</option>
+                <option value="nigdy">Nigdy (zmienia tylko organizator)</option>
+              </select>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Wycofać drużynę może tylko organizator. Kapitan wysyła prośbę o wycofanie.
+              </p>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Wpisowe za drużynę (zł)</label>
               <input
                 type="text" inputMode="decimal"

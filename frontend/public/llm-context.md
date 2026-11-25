@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-25 · migracja `186` · 64 tabel
+**Stan na:** 2026-11-25 · migracja `187` · 64 tabel
 
 ---
 
@@ -513,9 +513,13 @@ w żadnej drużynie turnieju, ma „Poproś o dołączenie”, przy zawodniku be
 drużynie bez kapitana „Chcę być kapitanem”. Kapitan (a gdy go nie ma, organizator) dostaje
 niebieskie powiadomienie i kartę „Prośby do rozpatrzenia” na stronie turnieju z przyciskami
 „Przyjmij” i „Odrzuć”. O kapitanie decyduje organizator. Gracz dostaje powiadomienie
-o decyzji. Link drużyny `/t/…` dalej dołącza od razu, bez prośby.
+o decyzji. Link drużyny `/t/…` dalej dołącza od razu, bez prośby. Kapitan nie wycofuje
+drużyny sam: wysyła organizatorowi prośbę o wycofanie, a organizator wycofuje po wpisaniu
+nazwy drużyny. Nazwę drużyny kapitan zmienia tylko do momentu ustawionego przez organizatora
+(domyślnie do zamknięcia zapisów). Organizator wysyła link dla kapitana prosto z ekranu
+drużyny bez kapitana.
 
-MECHANIKA: migracja `186` (`turniej_prosby`, `zloz_prosbe_do_druzyny()`,
+MECHANIKA: migracje `186` i `187` (`turniej_prosby`, `zloz_prosbe_do_druzyny()`,
 `rozpatrz_prosbe_do_druzyny()`), `lib/turniejProsby.ts`,
 `components/turnieje/ProsbyDoRozpatrzenia.tsx`. Szczegóły → [funkcje.md](./funkcje.md),
 [baza-danych.md](./baza-danych.md).

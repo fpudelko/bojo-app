@@ -661,6 +661,8 @@ export interface Turniej {
   ekranKomunikat?: string;
   ekranLink?: string;
   ekranLinkOpis?: string;
+  /** Do kiedy kapitan zmienia nazwę drużyny (187). */
+  kapitanZmieniaNazwe: KapitanZmieniaNazwe;
   /** Liczone przy pobieraniu listy, nie kolumna. */
   liczbaDruzyn?: number;
 }
@@ -703,7 +705,11 @@ export interface TurniejCreate {
   ekranKomunikat?: string;
   ekranLink?: string;
   ekranLinkOpis?: string;
+  kapitanZmieniaNazwe?: KapitanZmieniaNazwe;
 }
+
+/** 187: do kiedy kapitan (nie organizator) może zmienić nazwę drużyny. */
+export type KapitanZmieniaNazwe = 'do_zamkniecia_zapisow' | 'zawsze' | 'nigdy';
 
 export interface TurniejOsoba {
   turniejId: string;

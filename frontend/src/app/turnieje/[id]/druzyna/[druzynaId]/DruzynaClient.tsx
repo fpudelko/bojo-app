@@ -27,7 +27,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Copy, Loader2, Share2, UserPlus, Users, Wallet,
+  Copy, Loader2, UserCog, Share2, UserPlus, Users, Wallet,
   ChevronRight, Repeat, Settings2, CalendarDays, MapPin,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
@@ -40,6 +40,7 @@ import { getTurniej, getBlikTurnieju } from '@/lib/turnieje';
 import {
   getDruzyna, getDruzyny, dodajZawodnika, usunZawodnika, updateDruzyne,
   usunDruzyne, zamienDruzyneWEkipe, mozeEdytowacSklad, ustawKapitana,
+  przygotujLinkiKapitanow, tekstLinkuKapitana,
 } from '@/lib/turniejDruzyny';
 import { getMecze, getAreny } from '@/lib/turniejMecze';
 import { getZaproszeniaDruzyny } from '@/lib/turniejZaproszenia';
@@ -50,6 +51,7 @@ import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
 import ProsbyDoRozpatrzenia from '@/components/turnieje/ProsbyDoRozpatrzenia';
 import { getMojeProsby, zlozProsbe, type ProsbaDoDruzyny, type TypProsby } from '@/lib/turniejProsby';
 import { getMojaDruzyne } from '@/lib/turniejDruzyny';
+import { kanonicznyOrigin } from '@/lib/powrotPoLogowaniu';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import { czyWolnyLos } from '@/lib/turniejWynik';
 import type { Turniej, TurniejArena, TurniejDruzyna, TurniejMecz } from '@/types';
@@ -155,7 +157,7 @@ export default function DruzynaClient() {
   const jestOrganizatorem = !!user && (turniej?.organizatorId === user.id || jestAdmin);
   const prowadziSklad = jestKapitanem || jestOrganizatorem;
   const link = typeof window !== 'undefined' && druzyna
-    ? `${window.location.origin}/t/${druzyna.kodDolaczenia}`
+    ? `${kanonicznyOrigin(window.location.origin)}/t/${druzyna.kodDolaczenia}`
     : '';
 
   const kopiuj = async (tekst: string, etykieta = 'Link') => {
@@ -238,6 +240,28 @@ export default function DruzynaClient() {
     }
   };
 
+  // LINK DLA KAPITANA Z EKRANU DRUŻYNY (2026-11-25): organizator nie musi
+  // szukać go w Edytuj → Drużyny. Ta sama treść co przy komplecie linków.
+  const wyslijLinkKapitana = async () => {
+    if (!druzyna || !turniej) return;
+    try {
+      const linki = await przygotujLinkiKapitanow(id);
+      const ten = linki.find((l) => l.druzynaId === druzyna.id && l.kod);
+      if (!ten) { toast('Ta drużyna ma już kapitana', 'error'); return; }
+      const tekst = tekstLinkuKapitana(turniej.nazwa, ten, window.location.origin);
+      if (navigator.share) {
+        try { await navigator.share({ text: tekst }); } catch { /* anulowanie arkusza */ }
+        return;
+      }
+      await kopiuj(tekst, 'Link dla kapitana');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się przygotować linku', 'error');
+    }
+  };
+
+  // WYCOFANIE (187): kapitan już nie wycofuje sam (i tak nie mógł: kasowanie
+  // przepuszcza tylko organizatora, a przycisk udawał sukces). Organizator
+  // wycofuje po wpisaniu nazwy drużyny.
   const wycofaj = async () => {
     if (!druzyna) return;
     const wynik = await potwierdz({
@@ -249,6 +273,7 @@ export default function DruzynaClient() {
       ],
       potwierdzLabel: 'Wycofaj drużynę',
       wariant: 'destrukcyjny',
+      wpiszAby: druzyna.nazwa,
     });
     if (wynik !== 'tak') return;
     try {
@@ -314,6 +339,9 @@ export default function DruzynaClient() {
   const mogeProsic = !!user && otwartyTurniej && !prowadziSklad && mojaWTurnieju === null;
   const mogeChciecKapitana = !!user && otwartyTurniej && !jestOrganizatorem && !druzyna.kapitanId
     && (mojaWTurnieju === null || mojaWTurnieju?.id === druzyna.id);
+  // 187: nazwę zmienia organizator zawsze, kapitan według ustawienia turnieju.
+  const mozeZmienicNazwe = jestOrganizatorem || turniej.kapitanZmieniaNazwe === 'zawsze'
+    || (turniej.kapitanZmieniaNazwe === 'do_zamkniecia_zapisow' && (turniej.status === 'zapisy' || turniej.status === 'szkic'));
   const czekaProsba = (typ: TypProsby, zawodnikId?: string) =>
     mojeProsby.some((p) => p.druzynaId === druzyna.id && p.typ === typ && (!zawodnikId || p.zawodnikId === zawodnikId));
   // Licznik do MAKSIMUM: minimalny skład wypadł z modułu (2026-11-08), bo
@@ -430,6 +458,16 @@ export default function DruzynaClient() {
                 </Button>
               )}
             </div>
+            {jestOrganizatorem && !druzyna.kapitanId && (
+              <div className="space-y-1.5 rounded-xl border border-primary-200 bg-white p-3 dark:border-primary-900 dark:bg-slate-800">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Drużyna nie ma kapitana. Wyślij mu jednorazowy link: po zalogowaniu przejmie drużynę.
+                </p>
+                <Button variant="outline" onClick={wyslijLinkKapitana} className="w-full inline-flex items-center justify-center gap-1.5">
+                  <UserCog className="h-4 w-4" /> Wyślij link dla kapitana
+                </Button>
+              </div>
+            )}
 
             <button
               onClick={() => kopiuj(link, 'Link drużyny')}
@@ -635,7 +673,7 @@ export default function DruzynaClient() {
         )}
 
         {/* ── Ustawienia drużyny ────────────────────────────────────────── */}
-        {jestKapitanem && wolnoZmieniac && (
+        {(jestKapitanem || jestOrganizatorem) && wolnoZmieniac && (
           <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
             <button
               onClick={() => setPokazUstawienia((v) => !v)}
@@ -650,14 +688,28 @@ export default function DruzynaClient() {
                   <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Nazwa drużyny
                   </label>
-                  <div className="flex gap-2">
-                    <input value={nowaNazwa} onChange={(e) => setNowaNazwa(e.target.value)} className={inputCls} />
-                    <Button onClick={zapiszNazwe} disabled={nowaNazwa.trim().length < 2} className="shrink-0">Zapisz</Button>
-                  </div>
+                  {mozeZmienicNazwe ? (
+                    <div className="flex gap-2">
+                      <input value={nowaNazwa} onChange={(e) => setNowaNazwa(e.target.value)} className={inputCls} />
+                      <Button onClick={zapiszNazwe} disabled={nowaNazwa.trim().length < 2} className="shrink-0">Zapisz</Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {druzyna.nazwa}. Nazwy nie da się już zmienić, napisz do organizatora turnieju.
+                    </p>
+                  )}
                 </div>
-                <button onClick={wycofaj} className="text-sm font-medium text-red-600 hover:text-red-700">
-                  Wycofaj drużynę z turnieju
-                </button>
+                {jestOrganizatorem ? (
+                  <button onClick={wycofaj} className="text-sm font-medium text-red-600 hover:text-red-700">
+                    Wycofaj drużynę z turnieju
+                  </button>
+                ) : czekaProsba('wycofanie') ? (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Prośba o wycofanie wysłana. Organizator zdecyduje.</p>
+                ) : (
+                  <button onClick={() => wyslijProsbe('wycofanie')} disabled={wysylaProsbe} className="text-sm font-medium text-red-600 hover:text-red-700">
+                    Poproś organizatora o wycofanie drużyny
+                  </button>
+                )}
               </div>
             )}
           </div>

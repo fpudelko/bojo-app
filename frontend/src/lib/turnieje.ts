@@ -57,6 +57,7 @@ export function toTurniej(row: any): Turniej {
     ekranKomunikat: row.ekran_komunikat ?? undefined,
     ekranLink: row.ekran_link ?? undefined,
     ekranLinkOpis: row.ekran_link_opis ?? undefined,
+    kapitanZmieniaNazwe: row.kapitan_zmienia_nazwe ?? 'do_zamkniecia_zapisow',
     wymagaAkceptacji: row.wymaga_akceptacji,
     mvpZawodnikId: row.mvp_zawodnik_id ?? undefined,
     createdAt: row.created_at,
@@ -213,6 +214,7 @@ function toRow(dane: Partial<TurniejCreate>): Record<string, any> {
   if (dane.ekranKomunikat !== undefined) row.ekran_komunikat = dane.ekranKomunikat?.trim() || null;
   if (dane.ekranLink !== undefined) row.ekran_link = normalizujLinkEkranu(dane.ekranLink);
   if (dane.ekranLinkOpis !== undefined) row.ekran_link_opis = dane.ekranLinkOpis?.trim() || null;
+  if (dane.kapitanZmieniaNazwe !== undefined) row.kapitan_zmienia_nazwe = dane.kapitanZmieniaNazwe;
   return row;
 }
 
