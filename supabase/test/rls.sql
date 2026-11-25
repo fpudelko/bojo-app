@@ -2093,6 +2093,47 @@ SELECT _oczekuj('organizator mianował kapitana z prośby: jest w składzie i ka
 DELETE FROM notifications WHERE turniej_id = :PR_T::uuid;
 DELETE FROM turnieje WHERE id = :PR_T::uuid;
 
+SELECT _sekcja('Wycofanie i nazwa drużyny (migracja 187)');
+\set WN_T '''ffffffff-0000-4000-8000-000000000301'''
+\set WN_D '''ffffffff-0000-4000-8000-000000000302'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:WN_T::uuid, :ORGANIZATOR::uuid, 'Nazwy i wycofanie', 'piłka nożna', 'zapisy', CURRENT_DATE + 3);
+INSERT INTO turniej_druzyny (id, turniej_id, nazwa, status, kapitan_id)
+VALUES (:WN_D::uuid, :WN_T::uuid, 'Stara nazwa', 'przyjeta', :CZLONEK::uuid);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+UPDATE turniej_druzyny SET nazwa = 'Nazwa w trakcie zapisów' WHERE id = :WN_D::uuid;
+RESET ROLE;
+SELECT _oczekuj('kapitan zmienia nazwę w trakcie zapisów',
+                (SELECT count(*) FROM turniej_druzyny WHERE id = :WN_D::uuid AND nazwa = 'Nazwa w trakcie zapisów'), 1);
+UPDATE turnieje SET status = 'zamkniete_zapisy' WHERE id = :WN_T::uuid;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT _oczekuj_wyjatek('kapitan nie zmieni nazwy po zamknięciu zapisów',
+  format('UPDATE turniej_druzyny SET nazwa = ''Po czasie'' WHERE id = %L', :WN_D));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+UPDATE turniej_druzyny SET nazwa = 'Nazwa od organizatora' WHERE id = :WN_D::uuid;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+DELETE FROM turniej_druzyny WHERE id = :WN_D::uuid;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('nie-kapitan nie prosi o wycofanie',
+  format('SELECT zloz_prosbe_do_druzyny(%L, ''wycofanie'', NULL, NULL)', :WN_D));
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT zloz_prosbe_do_druzyny(:WN_D::uuid, 'wycofanie', NULL, NULL);
+SELECT _oczekuj_wyjatek('kapitan nie przyjmie własnej prośby o wycofanie',
+  format('SELECT rozpatrz_prosbe_do_druzyny((SELECT id FROM turniej_prosby WHERE druzyna_id = %L AND typ = ''wycofanie''), true)', :WN_D));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT rozpatrz_prosbe_do_druzyny((SELECT id FROM turniej_prosby WHERE druzyna_id = :WN_D::uuid AND typ = 'wycofanie'), true);
+RESET ROLE;
+SELECT _oczekuj('organizator zmienia nazwę zawsze',
+                (SELECT count(*) FROM turniej_druzyny WHERE id = :WN_D::uuid AND nazwa = 'Nazwa od organizatora'), 1);
+SELECT _oczekuj('kapitan nie skasował drużyny (DELETE tylko organizator)',
+                (SELECT count(*) FROM turniej_druzyny WHERE id = :WN_D::uuid), 1);
+SELECT _oczekuj('po przyjęciu prośby drużyna jest wycofana, nie skasowana',
+                (SELECT count(*) FROM turniej_druzyny WHERE id = :WN_D::uuid AND status = 'wycofana'), 1);
+DELETE FROM notifications WHERE turniej_id = :WN_T::uuid;
+DELETE FROM turnieje WHERE id = :WN_T::uuid;
+
 SELECT _sekcja('Obserwowanie turnieju (migracja 184)');
 \set OB_T '''ffffffff-0000-4000-8000-0000000001e1'''
 INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)

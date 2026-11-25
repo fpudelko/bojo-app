@@ -4,7 +4,7 @@
 // prośbę jej autorowi, kapitanowi drużyny i zarządzającym turniejem.
 import { supabase } from './supabase';
 
-export type TypProsby = 'dolaczenie' | 'to_ja' | 'kapitan';
+export type TypProsby = 'dolaczenie' | 'to_ja' | 'kapitan' | 'wycofanie';
 
 export interface ProsbaDoDruzyny {
   id: string;
@@ -100,5 +100,6 @@ export function opisProsby(p: Pick<ProsbaDoDruzyny, 'typ' | 'kto' | 'zawodnikImi
   const kto = p.kto || 'Gracz';
   if (p.typ === 'to_ja') return `${kto} mówi „to ja” przy zawodniku ${p.zawodnikImie ?? 'bez konta'}`;
   if (p.typ === 'kapitan') return `${kto} chce być kapitanem`;
+  if (p.typ === 'wycofanie') return `Kapitan (${kto}) prosi o wycofanie drużyny${p.druzynaNazwa ? ` ${p.druzynaNazwa}` : ''} z turnieju`;
   return `${kto} chce dołączyć do składu`;
 }

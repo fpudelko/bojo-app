@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tekstLinkowKapitanow } from '@/lib/turniejDruzyny';
+import { tekstLinkowKapitanow, tekstLinkuKapitana } from '@/lib/turniejDruzyny';
 
 // Linki kapitanów (181): tekst, który organizator wkleja na WhatsApp.
 // Druga wersja (2026-11-22): bloki z pustą linią między drużynami zamiast
@@ -29,5 +29,19 @@ describe('tekstLinkowKapitanow', () => {
   it('pomija drużyny z kapitanem i nie ma długiego myślnika', () => {
     expect(tekst).not.toContain('KS Pyry');
     expect(tekst).not.toContain('—');
+  });
+});
+
+// Pojedynczy link (2026-11-25): sam adres w WhatsAppie nie mówił, co to za link.
+describe('tekstLinkuKapitana', () => {
+  it('nagłówek z nazwą drużyny, instrukcja i adres kanoniczny', () => {
+    expect(tekstLinkuKapitana('Gramy dla Marysi!', { nazwa: 'KS Pyry', kod: 'ABC123' }, 'https://www.bojo.pl')).toBe([
+      '*Gramy dla Marysi!: link dla kapitana drużyny KS Pyry*',
+      '',
+      'Otwórz link, zaloguj się i przejmij drużynę jako kapitan.',
+      'Link działa tylko raz, nie przesyłaj go dalej.',
+      '',
+      'https://bojo.pl/k/ABC123',
+    ].join('\n'));
   });
 });

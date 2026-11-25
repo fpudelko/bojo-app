@@ -371,6 +371,19 @@ export async function przygotujLinkiKapitanow(turniejId: string): Promise<LinkKa
  * nazwa pogrubiona, link w następnej linii, pusta linia między drużynami.
  * Adres zawsze kanoniczny (bojo.pl, nie www.bojo.pl).
  */
+/**
+ * Wiadomość z linkiem kapitana JEDNEJ drużyny (2026-11-25): ta sama treść co
+ * przy komplecie, bo sam goły adres w WhatsAppie nie mówił, co to za link.
+ */
+export function tekstLinkuKapitana(nazwaTurnieju: string, link: Pick<LinkKapitana, 'nazwa' | 'kod'>, origin: string): string {
+  return [
+    `*${nazwaTurnieju}: link dla kapitana drużyny ${link.nazwa}*`, '',
+    'Otwórz link, zaloguj się i przejmij drużynę jako kapitan.',
+    'Link działa tylko raz, nie przesyłaj go dalej.', '',
+    `${kanonicznyOrigin(origin)}/k/${link.kod}`,
+  ].join('\n');
+}
+
 export function tekstLinkowKapitanow(nazwaTurnieju: string, linki: readonly LinkKapitana[], origin: string): string {
   const baza = kanonicznyOrigin(origin);
   const doWyslania = linki.filter((l) => l.kod);

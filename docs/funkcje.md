@@ -5196,6 +5196,16 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   w bazie). „Przetestuj” widzi wyłącznie admin. Kopia „Próba: …” (marker `[TURNIEJ-TEST]`,
   widoczność `na_link`, składy bez kont) ma na liście „Wszystkie” dopisek „Kopia do ćwiczeń”
   z tym, skąd się wzięła i jak ją usunąć; panel próby wypisuje w hasłach, co w niej przećwiczyć.
+- **Wycofanie, nazwa drużyny i link kapitana z ekranu drużyny (2026-11-25, migracja `187`):**
+  „Ustawienia drużyny” na ekranie drużyny widzi kapitan i organizator. Nazwa: organizator
+  zawsze, kapitan według Ustawienia turnieju „Kapitan może zmienić nazwę drużyny” (do
+  zamknięcia zapisów / zawsze / nigdy; `turnieje.kapitan_zmienia_nazwe`, wyzwalacz w bazie).
+  Wycofanie: organizator po wpisaniu nazwy drużyny (`wpiszAby`), kapitan tylko „Poproś
+  organizatora o wycofanie drużyny” (prośba `wycofanie`, karta `ProsbyDoRozpatrzenia`,
+  przyjęcie = status `wycofana`). Organizator na drużynie bez kapitana: „Wyślij link dla
+  kapitana” (`przygotujLinkiKapitanow()` + `tekstLinkuKapitana()`, ta sama treść co przy
+  komplecie; pojedynczy „Kopiuj link” w Edytuj → Drużyny też ją kopiuje). Link drużyny
+  `/t/…` z adresem kanonicznym (`kanonicznyOrigin()`, bez `www.`).
 - **Stała ramka turnieju i panel „Prowadź” / „Edytuj” (2026-11-25):**
   `components/turnieje/RamkaTurnieju.tsx` to jeden nagłówek na stronie turnieju, w panelu,
   na meczu i na drużynie: nazwa turnieju (link do Info; `<h1>` tylko na stronie turnieju
