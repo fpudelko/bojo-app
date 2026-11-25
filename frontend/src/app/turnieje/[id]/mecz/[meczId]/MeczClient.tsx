@@ -2,14 +2,14 @@
 
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Undo2, Timer, ChevronRight, MoreHorizontal, Minus, Plus } from 'lucide-react';
+import { MapPin, Undo2, Timer, ChevronRight, MoreHorizontal, Minus, Plus } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/lib/toast';
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
-import ZakladkiTurnieju from '@/components/turnieje/ZakladkiTurnieju';
+import RamkaTurnieju, { SZEROKOSC_TURNIEJU } from '@/components/turnieje/RamkaTurnieju';
 import { withCount } from '@/lib/plural';
 import { getTurniej } from '@/lib/turnieje';
 import { getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
@@ -47,12 +47,9 @@ export default function MeczClient() {
   const { id, meczId } = useParams<{ id: string; meczId: string }>();
   const { toast } = useToast();
   const { potwierdz, oknoPotwierdzenia } = usePotwierdzenie();
-  // Wstecz ZAWSZE na turniej (decyzja właściciela z 2026-11-21), nie na
-  // poprzedni ekran: z panelu, powiadomienia i terminarza czytający ma wracać
-  // w to samo miejsce, a do pozostałych zakładek prowadzi pasek pod nagłówkiem.
-  const router = useRouter();
+  // Powrót ZAWSZE na turniej (decyzja właściciela z 2026-11-21): „‹ Mecze”
+  // w ramce turnieju (2026-11-25), a do pozostałych zakładek prowadzi ramka.
   const adresTurnieju = useAdres('turniej', id) ?? id;
-  const wstecz = () => router.push(`/turnieje/${adresTurnieju}?tab=mecze`);
 
   const [turniej, setTurniej] = useState<Turniej | null>(null);
   const [mecz, setMecz] = useState<TurniejMecz | null>(null);
@@ -491,14 +488,15 @@ export default function MeczClient() {
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header showMobileWordmark />
-      <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-          <button onClick={wstecz} aria-label="Wróć" className="shrink-0 text-slate-500 hover:text-ink">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h1 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-ink">
-            M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}
-          </h1>
+      {/* STAŁA RAMKA (2026-11-25): ten sam nagłówek i zakładki co na stronie
+          turnieju; zaznaczone „Mecze”, a „‹ Mecze” wraca do listy. */}
+      {turniej && (
+        <RamkaTurnieju
+          turniej={turniej}
+          adres={adresTurnieju}
+          aktywna="mecze"
+          powrot={{ etykieta: 'Mecze', href: `/turnieje/${adresTurnieju}?tab=mecze` }}
+          akcje={<>
           {/* WALKOWER. Status istniał od migracji `146` i wpisywał go wyłącznie
               generator terminarza przy wolnych losach — prowadzący, któremu
               drużyna nie dojechała, nie miał jak go zapisać. Pod „⋯", bo to
@@ -529,11 +527,15 @@ export default function MeczClient() {
               )}
             </div>
           )}
-        </div>
-        {turniej && <ZakladkiTurnieju adres={adresTurnieju} format={turniej.format} />}
-      </div>
+          </>}
+        />
+      )}
 
-      <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 py-5">
+      <main className={`mx-auto w-full ${SZEROKOSC_TURNIEJU} flex-1 px-4 py-5`}>
+        <div className="space-y-4 lg:mx-auto lg:max-w-2xl">
+        <h1 className="font-display text-lg font-bold text-ink">
+          M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}
+        </h1>
         <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
           <div className="flex items-center justify-between">
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
@@ -967,6 +969,7 @@ export default function MeczClient() {
             <ChevronRight className="h-5 w-5 shrink-0 text-primary-600" />
           </Link>
         )}
+        </div>
       </main>
 
       {arkusz && (

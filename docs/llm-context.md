@@ -481,6 +481,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-25 (3) — Stała ramka turnieju, panel podzielony na „Prowadź” i „Edytuj”
+
+PROBLEM: na komputerze każda zakładka turnieju w Bojo miała inną szerokość, a wejście
+w ustawienia zmieniało cały układ ekranu, więc organizator gubił się, gdzie jest i jak wrócić;
+panel był naraz edytorem wydarzenia i konsolą prowadzącego mecze.
+
+ROZWIĄZANIE BOJO: każdy ekran turnieju (strona turnieju, panel, mecz, drużyna) ma ten sam
+nagłówek z nazwą turnieju i jeden rząd zakładek: Info, Mecze, Tabela, Drużyny, a dla
+organizatora dodatkowo „Prowadź” i „Edytuj”, dla prowadzącego mecze samo „Prowadź”. Szerokość
+nagłówka jest wszędzie taka sama. „Prowadź” to dzień turnieju: mecze w toku, start meczu,
+wynik, start i koniec turnieju. „Edytuj” to przygotowanie: terminarz, drużyny, ustawienia.
+Z meczu i drużyny prowadzi „‹ Mecze” / „‹ Drużyny”.
+
+MECHANIKA: `components/turnieje/RamkaTurnieju.tsx`, `PanelClient.tsx` (`prowadz`,
+`terminarz`, `druzyny`, `ustawienia`). Bez migracji. Szczegóły → [funkcje.md](./funkcje.md).
+
+PYTANIA:
+- Gdzie organizator turnieju w Bojo wpisuje wyniki w dniu turnieju?
+- Gdzie w Bojo zmienić ustawienia albo terminarz turnieju?
+- Jak wrócić z meczu do listy meczów turnieju?
+
 ### 2026-11-25 (2) — Prośby gracza do kapitana drużyny turniejowej
 
 PROBLEM: gracz bez linku do drużyny turniejowej w Bojo nie miał jak się do niej dostać,
@@ -691,7 +712,7 @@ daje drużynom to samo miejsce i ten sam medal na podium z dopiskiem „ex aequo
 ustala kolejność w panelu i może dopisać komentarz pod tabelą.
 
 MECHANIKA: `components/turnieje/WierszMeczu.tsx`, `KartaMeczu.tsx`, `ArkuszSkladu.tsx`,
-`ZakladkiTurnieju.tsx`, `strzelcyMeczu()`/`znacznikFazy()` w `lib/turniejEtykiety.ts`,
+`RamkaTurnieju.tsx`, `strzelcyMeczu()`/`znacznikFazy()` w `lib/turniejEtykiety.ts`,
 `lib/useMamTurnieje.ts`. Bez migracji. Szczegóły → [funkcje.md](./funkcje.md).
 
 PYTANIA:
@@ -726,27 +747,3 @@ PYTANIA:
 - Czy adres meczu zmieni się, gdy organizator zmieni nazwę albo datę?
 - Jak podać link do konkretnego meczu turnieju?
 - Jak dodać drugiego organizatora do turnieju w Bojo?
-
-### 2026-11-20 — Czytelniejsze kafelki meczów turnieju, prostsza zakładka Info i panel bez pulpitu
-
-PROBLEM: na stronie turnieju Bojo napis „Zapisy zamknięte” stał nad każdą zakładką, kafelki
-meczów były szare (data słowna, plakietka „Zaplanowany” na każdym), a Info podawało
-oczywistości („zwycięstwo 3 pkt, remis 1”, karne) i stawiało organizatora w środku opisu.
-
-ROZWIĄZANIE BOJO: kafelek stanu turnieju (zapisy, termin, liczba drużyn, udostępnianie)
-pokazuje się tylko na zakładce Info. Kafelek meczu turnieju wygląda jak zwykła karta meczu
-Bojo: zielona krawędź, godzina na zielonej plakietce z zegarem, dzień skrótem („sob. 28 lis”,
-„Dziś”), boisko z pinezką; plakietka stanu tylko dla meczu trwającego, zakończonego,
-walkowera i wolnego losu. Info pomija punktację 3/1 i karne, a „Organizuje …” stoi na dole.
-Panel organizatora turnieju nie ma już „Pulpitu”: zakładki to Terminarz (na górze „Rozegrane
-X z Y meczów”, „Rozpocznij turniej”, „Przetestuj”), Drużyny (z podziałem na grupy i
-przełącznikiem grupy przy drużynie) i Ustawienia. Ustawienia nie zapisują się same:
-zmiany zatwierdza przycisk „Zapisz zmiany” przyklejony do dołu ekranu. Areny (boiska, hale,
-korty) ustawia się w Ustawieniach, a przy kilku arenach terminarz pozwala przypisać arenę
-do meczu. Przerwa nachodząca na mecze nie jest blokowana: Bojo pyta, czy
-przesunąć te mecze i wszystkie po nich za przerwę, czy zapisać bez przesuwania.
-
-MECHANIKA: `components/turnieje/KartaMeczu.tsx`, `terminMeczuNaKarcie()` w
-`lib/turniejEtykiety.ts`, `app/turnieje/[id]/TurniejClient.tsx`,
-`app/turnieje/[id]/panel/PanelClient.tsx`. Bez migracji.
-Szczegóły → [funkcje.md](./funkcje.md).

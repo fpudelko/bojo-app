@@ -1,14 +1,13 @@
 'use client';
 
 import WierszMeczu from '@/components/turnieje/WierszMeczu';
-import { etykietaZakladkiTurnieju } from '@/lib/turniejEtykiety';
 import { SHOW_TURNIEJ_OGLOSZENIA } from '@/lib/features';
 import { useAdmin } from '@/lib/admin';
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CalendarDays, MapPin, Users, Navigation, Settings, Share2, ChevronDown, ChevronRight, Trophy, Wallet, UserRound, Bell, BellRing } from 'lucide-react';
+import { CalendarDays, MapPin, Users, Navigation, Share2, ChevronDown, ChevronRight, Trophy, Wallet, UserRound, Bell, BellRing } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
@@ -39,6 +38,7 @@ import Ogloszenia from '@/components/turnieje/Ogloszenia';
 import Galeria from '@/components/turnieje/Galeria';
 import Sponsorzy from '@/components/turnieje/Sponsorzy';
 import ProsbyDoRozpatrzenia from '@/components/turnieje/ProsbyDoRozpatrzenia';
+import RamkaTurnieju, { SZEROKOSC_TURNIEJU } from '@/components/turnieje/RamkaTurnieju';
 import KartaDruzyny from '@/components/turnieje/KartaDruzyny';
 import { nazwaSlotu } from '@/components/turnieje/KartaMeczu';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
@@ -378,7 +378,6 @@ export default function TurniejClient() {
     turniej.format === 'grupy_finalowa' ? 'grupa_finalowa' : 'puchar',
   );
 
-  const widoczneZakladki: Zakladka[] = ['info', 'mecze', 'tabela', 'druzyny'];
   const zakladka: Zakladka = zakladkaZAdresu
     ?? domyslnaZakladka(turniej.status, { maMecze: mecze.length > 0, maTabele: tabelaMaTresc });
   const aktywna: Zakladka = tabelaMaTresc || zakladka !== 'tabela' ? zakladka : 'mecze';
@@ -511,54 +510,24 @@ export default function TurniejClient() {
   // zmian: jedna kolumna i osobna zakładka Tabele (z drabinką, która zostaje
   // tam też na komputerze). Pozostałe zakładki trzymają wąską kolumnę, bo
   // tekst i formularze na 1100 px czyta się gorzej.
+  // Ramka i <main> mają TĘ SAMĄ szerokość na każdej zakładce (2026-11-25):
+  // wcześniej Mecze rozszerzały całą stronę, a reszta była wąska, więc
+  // nagłówek i zakładki skakały. Wąskie zakładki trzymają treść w kolumnie
+  // na środku tej samej ramki.
   const dwieKolumny = aktywna === 'mecze' && tabeleGrup.length > 0;
-  const szerokosc = dwieKolumny ? 'max-w-2xl lg:max-w-6xl lg:px-6' : 'max-w-2xl';
+  const szerokosc = SZEROKOSC_TURNIEJU;
+  const kolumna = dwieKolumny ? '' : 'lg:mx-auto lg:max-w-2xl';
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <Header showMobileWordmark />
-      <div className="sticky top-0 z-10 border-b border-slate-100 dark:border-slate-700 bg-canvas/95 backdrop-blur">
-        <div className={`mx-auto flex ${szerokosc} items-center gap-3 px-4 py-3`}>
-          {/* STRZAŁKA TYLKO POZA INFO (uwaga właściciela 2026-11-22). Info to
-              strona główna turnieju: zawodnik wchodzi tu z linku i „wstecz”
-              donikąd go nie prowadzi. Na Mecze/Tabela/Drużyny strzałka wraca
-              do Info (`replace`, żeby systemowe „wstecz” nie odbijało). */}
-          {aktywna !== 'info' && (
-            <button
-              onClick={() => router.replace(`/turnieje/${id}?tab=info`)}
-              aria-label="Wróć do informacji o turnieju"
-              className="-ml-3 flex h-11 w-11 shrink-0 items-center justify-center text-slate-500 hover:text-ink"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-          )}
-          {/* Dwie linie zamiast ucięcia: na 360 px „Gramy dla Marysi - Turniej
-              Piłka…" było jedyną nazwą wydarzenia na ekranie (audyt 7). */}
-          <h1 className="line-clamp-2 min-w-0 flex-1 font-display text-xl font-bold leading-tight text-ink sm:text-2xl">{turniej.nazwa}</h1>
-          {(uprawnienia.mozeEdytowac || uprawnienia.mozeProwadzic) && (
-            <Link href={`/turnieje/${id}/panel`} className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-              <Settings className="h-3.5 w-3.5" /> {uprawnienia.mozeEdytowac ? 'Panel' : 'Prowadź mecze'}
-            </Link>
-          )}
-        </div>
-        <div className={`mx-auto flex ${szerokosc} gap-1 overflow-x-auto px-4 pb-2 scrollbar-hide`}>
-          {widoczneZakladki.map((z) => (
-            <button
-              key={z}
-              onClick={() => router.push(`/turnieje/${id}?tab=${z}`)}
-              className={[
-                // 44 px wysokości: cel dotyku, nie link z wersji roboczej.
-                'inline-flex min-h-[44px] shrink-0 items-center rounded-lg px-3 text-sm font-medium transition-colors',
-                aktywna === z ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
-              ].join(' ')}
-            >
-              {etykietaZakladkiTurnieju(z, turniej.format, liczbaWTurnieju)}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* STAŁA RAMKA (2026-11-25): ten sam nagłówek i zakładki na stronie
+          turnieju, w panelu, na meczu i na drużynie. Dawny przycisk „Panel”
+          to dziś zakładki „Prowadź” i „Edytuj” w tym samym rzędzie. */}
+      <RamkaTurnieju naglowek turniej={turniej} adres={adresTurnieju ?? id} aktywna={aktywna} liczbaDruzyn={liczbaWTurnieju} />
 
       <main className={`mx-auto w-full ${szerokosc} flex-1 space-y-4 px-4 py-5`}>
+        <div className={`space-y-4 ${kolumna}`}>
         {turniej.status === 'szkic' && uprawnienia.mozeEdytowac && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-sm text-amber-800 dark:text-amber-300">
             Ten turniej jest szkicem: nie ma go na liście turniejów, ale każdy, kto ma link, go zobaczy.
@@ -1235,6 +1204,7 @@ export default function TurniejClient() {
             )}
           </div>
         )}
+        </div>
       </main>
       {oknoPotwierdzenia}
     </div>
