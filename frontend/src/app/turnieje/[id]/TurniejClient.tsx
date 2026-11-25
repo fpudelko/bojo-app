@@ -38,6 +38,7 @@ import Klasyfikacja from '@/components/turnieje/Klasyfikacja';
 import Ogloszenia from '@/components/turnieje/Ogloszenia';
 import Galeria from '@/components/turnieje/Galeria';
 import Sponsorzy from '@/components/turnieje/Sponsorzy';
+import ProsbyDoRozpatrzenia from '@/components/turnieje/ProsbyDoRozpatrzenia';
 import KartaDruzyny from '@/components/turnieje/KartaDruzyny';
 import { nazwaSlotu } from '@/components/turnieje/KartaMeczu';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
@@ -562,6 +563,15 @@ export default function TurniejClient() {
           <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-sm text-amber-800 dark:text-amber-300">
             Ten turniej jest szkicem: nie ma go na liście turniejów, ale każdy, kto ma link, go zobaczy.
           </div>
+        )}
+        {/* PROŚBY GRACZY (186): kapitan i organizator widzą je na górze
+            każdej zakładki; tu prowadzi powiadomienie. */}
+        {user && (
+          <ProsbyDoRozpatrzenia
+            turniejId={id}
+            userId={user.id}
+            onZmiana={() => { getDruzynyZeSkladem(id).then(setDruzyny).catch(() => undefined); }}
+          />
         )}
         {czyTurniejProbny(turniej) && (
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3.5 text-sm text-slate-700 dark:text-slate-300">

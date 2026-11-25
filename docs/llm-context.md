@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-25 · migracja `185` · 63 tabel
+**Stan na:** 2026-11-25 · migracja `186` · 64 tabel
 
 ---
 
@@ -481,6 +481,30 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-25 (2) — Prośby gracza do kapitana drużyny turniejowej
+
+PROBLEM: gracz bez linku do drużyny turniejowej w Bojo nie miał jak się do niej dostać,
+zawodnik dopisany przez kapitana bez konta nie mógł połączyć wpisu ze swoim kontem, a drużyna
+bez kapitana czekała, aż organizator kogoś wskaże.
+
+ROZWIĄZANIE BOJO: na ekranie drużyny turniejowej zalogowany gracz, który nie gra jeszcze
+w żadnej drużynie turnieju, ma „Poproś o dołączenie”, przy zawodniku bez konta „To ja”, a przy
+drużynie bez kapitana „Chcę być kapitanem”. Kapitan (a gdy go nie ma, organizator) dostaje
+niebieskie powiadomienie i kartę „Prośby do rozpatrzenia” na stronie turnieju z przyciskami
+„Przyjmij” i „Odrzuć”. O kapitanie decyduje organizator. Gracz dostaje powiadomienie
+o decyzji. Link drużyny `/t/…` dalej dołącza od razu, bez prośby.
+
+MECHANIKA: migracja `186` (`turniej_prosby`, `zloz_prosbe_do_druzyny()`,
+`rozpatrz_prosbe_do_druzyny()`), `lib/turniejProsby.ts`,
+`components/turnieje/ProsbyDoRozpatrzenia.tsx`. Szczegóły → [funkcje.md](./funkcje.md),
+[baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Jak dołączyć do drużyny turniejowej w Bojo bez linku od kapitana?
+- Kapitan wpisał mnie bez konta, jak połączyć ten wpis z moim kontem?
+- Kto decyduje, kto zostaje kapitanem drużyny w turnieju Bojo?
+- Gdzie kapitan przyjmuje prośby o dołączenie do drużyny?
+
 ### 2026-11-25 — Prowadzący mecze, ekran „Bieżący mecz”, „Tablica wyników”
 
 PROBLEM: organizator turnieju w Bojo musiał sam startować mecze i wpisywać wyniki albo
@@ -726,28 +750,3 @@ MECHANIKA: `components/turnieje/KartaMeczu.tsx`, `terminMeczuNaKarcie()` w
 `lib/turniejEtykiety.ts`, `app/turnieje/[id]/TurniejClient.tsx`,
 `app/turnieje/[id]/panel/PanelClient.tsx`. Bez migracji.
 Szczegóły → [funkcje.md](./funkcje.md).
-
-### 2026-11-18 — Turniej z grupą finałową, ręczne godziny meczów i „Popraw wynik”
-
-PROBLEM: turniej charytatywny w Luboniu (15 drużyn, trzy grupy, jedno boisko, 33 mecze)
-ma harmonogram, którego Bojo nie umiało odwzorować: zwycięzcy grup grają o podium każdy
-z każdym w grupie finałowej, a godziny mają przerwę na konkurs i dekorację. Fazę po grupach
-trzeba było dopisywać ręcznie, a pomyłki w wpisanym wyniku nie dało się poprawić.
-
-ROZWIĄZANIE BOJO: nowy format „Grupy → grupa finałowa”. Terminarz formatów z grupami od
-razu zawiera kolejną fazę z podpisami „Zwycięzca A”, „2. miejsce B”; Bojo wpisuje drużyny,
-gdy grupa skończy grać, a podium grupy finałowej daje jej tabela. Organizator ustawia
-godzinę każdego meczu („Zmień godziny”), listy meczów idą po godzinie z widoczną przerwą.
-„Popraw wynik” na stronie rozegranego meczu otwiera go do ponownego wpisania, a gdy mecz
-zależny już się zaczął, Bojo mówi to od razu. Mecze grupy finałowej są podpisane „Grupa
-finałowa F”, pulpit po ostatnim wyniku mówi „Wszystkie mecze rozegrane”, a karta
-„Następny na tym boisku” wskazuje mecz po bieżącym w terminarzu. Organizator nadaje
-przerwom nazwę i opis („Konkurs obijania poprzeczki, 12:40–13:00, grupa C do 12:25”):
-przerwa stoi w terminarzu i na zakładce Info (migracja `176`, tabela `turniej_przerwy`).
-
-MECHANIKA: migracja `175` (format `grupy_finalowa`, `turniej_grupy.finalowa`, źródła
-`zrodlo_*_grupa_id`/`zrodlo_*_miejsce`, `kolejnosc_w_grupie()`, `wypelnij_z_grupy()`,
-`cofnij_wynik_meczu()`), `drabinkaZGrup()` i `grupaFinalowaZGrup()` w `lib/turniejFormat.ts`,
-`porownajTermin()` i `przerwaPrzedMeczem()` w `lib/turniejEtykiety.ts`,
-`cofnijWynikMeczu()` w `lib/turniejMecze.ts`, `PanelClient.tsx`, `TurniejClient.tsx`,
-`MeczClient.tsx`, `KartaMeczu.tsx`. Szczegóły → [funkcje.md](./funkcje.md).

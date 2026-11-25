@@ -5196,6 +5196,16 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   w bazie). „Przetestuj” widzi wyłącznie admin. Kopia „Próba: …” (marker `[TURNIEJ-TEST]`,
   widoczność `na_link`, składy bez kont) ma na liście „Wszystkie” dopisek „Kopia do ćwiczeń”
   z tym, skąd się wzięła i jak ją usunąć; panel próby wypisuje w hasłach, co w niej przećwiczyć.
+- **Prośby gracza do drużyny (2026-11-25, migracja `186`):** ekran drużyny
+  (`DruzynaClient.tsx`) dla zalogowanego, który nie gra w żadnej drużynie turnieju i nie
+  prowadzi składu: „To ja” przy wpisie bez konta, „Poproś o dołączenie” (wyłączone przy
+  pełnym składzie), a przy drużynie bez kapitana „Chcę być kapitanem” (też dla grającego
+  w tej drużynie). Czekająca prośba pokazuje się jako „czeka” / zdanie zamiast przycisku
+  (`getMojeProsby()`). Kapitan i organizator: karta `ProsbyDoRozpatrzenia` na górze każdej
+  zakładki strony turnieju i na ekranie drużyny, „Przyjmij” / „Odrzuć”
+  (`rozpatrzProsbe()`). Powiadomienie `turniej_prosba_do_druzyny` (niebieskie,
+  `WYMAGA_AKCJI`, gaśnie, gdy prośba rozpatrzona) prowadzi na `/turnieje/[id]?tab=info`;
+  `turniej_prosba_rozpatrzona` dla gracza.
 - **Link drużyny i wyróżnienie mojej drużyny (2026-11-25):** `/t/[kod]` po zalogowaniu
   pokazuje „Jesteś zalogowany jako …”, „Kapitan już Cię wpisał? Wybierz siebie” („To ja: …”),
   przycisk „Dołącz jako {imię}”, „Dołącz pod innym imieniem” i „Zaloguj się innym kontem”.

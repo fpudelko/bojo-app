@@ -250,6 +250,19 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
   },
   // Zaproszenie do drużyny (migracja 154). `wazne` jak `zaproszenie_na_mecz`:
   // kapitan czeka na skład, a turniej ma jedną datę i nie przesunie się.
+  // Prośby gracza do drużyny (migracja 186). Prośba czeka na decyzję
+  // kapitana, więc `wazne` jak zgłoszenie drużyny.
+  {
+    typ: 'turniej_prosba_do_druzyny',
+    nazwa: 'Prośba o dołączenie do drużyny',
+    opis: 'Gracz chce dołączyć, mówi „to ja” przy zawodniku albo chce być kapitanem',
+    wazne: true,
+  },
+  {
+    typ: 'turniej_prosba_rozpatrzona',
+    nazwa: 'Decyzja o Twojej prośbie do drużyny',
+    opis: 'Kapitan albo organizator przyjął lub odrzucił Twoją prośbę',
+  },
   {
     typ: 'turniej_zaproszenie_do_druzyny',
     nazwa: 'Zaproszenie do drużyny turniejowej',
