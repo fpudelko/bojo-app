@@ -5238,6 +5238,22 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   `?tab=terminarz` (stare powiadomienia) otwiera „Edytuj → Terminarz”. Prowadzący mecze
   widzi samo „Prowadź”. „Tablica wyników” i „Wpisz wynik / Rozpocznij M…” stoją w ramce
   panelu od `lg`.
+- **„Wygląd strony” osobno od „Ustawień” i zaproszenie linkiem (2026-11-27, migracja `189`):**
+  „Edytuj” w panelu ma podzakładki Terminarz, Drużyny, Wygląd strony (`?tab=wyglad`: okładka,
+  nazwa, opis, regulamin, galeria, sponsorzy, prośba o wygląd) i Ustawienia (`?tab=ustawienia`:
+  ludzie przy turnieju, tablica wyników, termin, areny, zasady, zapisy); pasek zapisu wspólny.
+  Link „Zarządzaj galerią” na stronie turnieju prowadzi do Wyglądu. W „Ludzie przy turnieju”
+  obok dodawania po e-mailu jest „Zaproś linkiem (prowadzący mecze | współorganizator)”:
+  `utworzZaproszenieOsoby()` daje kod, `tekstZaproszeniaOsoby()` składa wiadomość z linkiem
+  `/o/<kod>`, która ląduje w schowku i w polu do skopiowania. Bojo nie wysyła maila.
+  `/o/[kod]` pokazuje, kto i do czego zaprasza; niezalogowany idzie przez
+  `/logowanie?next=/o/<kod>`, zalogowany „Przyjmij zaproszenie” → panel turnieju. Link działa
+  raz, organizator nie przyjmie własnego, zaproszenie nie odbiera praw. `/o/` jest w
+  `robots.ts` wykluczone.
+- **Terminarz z PDF wgrany skryptem (2026-11-27):** `supabase/zadania/turniej-marysi-terminarz-28-11.sql`
+  (SQL Editor: część A podgląd, B zapis, C kontrola) ustawia turniej „Gramy dla Marysi!” na
+  2 grupy, 36 meczów grupowych, mecz o 3. miejsce, finał i dwie przerwy; podstawia tożsamość
+  organizatora, bo `trg_pilnuj_wlasnej_druzyny` po cichu cofa zmiany grup i statusów.
 - **Prośby gracza do drużyny (2026-11-25, migracja `186`):** ekran drużyny
   (`DruzynaClient.tsx`) dla zalogowanego, który nie gra w żadnej drużynie turnieju i nie
   prowadzi składu: „To ja” przy wpisie bez konta, „Poproś o dołączenie” (wyłączone przy

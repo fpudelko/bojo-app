@@ -955,7 +955,7 @@ export default function TurniejClient() {
               // Zarządzanie zdjęciami tylko w Edytuj → Ustawienia (2026-11-27):
               // na Info zostaje sama galeria, taka jak widzą ją kibice.
               mozeZarzadzac={false}
-              linkDoPanelu={`/turnieje/${id}/panel?tab=ustawienia`}
+              linkDoPanelu={`/turnieje/${id}/panel?tab=wyglad`}
             />
             <Sponsorzy sponsorzy={sponsorzy} />
           </>

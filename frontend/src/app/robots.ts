@@ -49,6 +49,9 @@ const DISALLOW = [
   '/d/',
   '/g/',
   '/t/',
+  // Jednorazowe linki: kapitana (181) i zaproszenia do prowadzenia (189).
+  '/k/',
+  '/o/',
   '/auth/',
   '/logowanie',
   '/zglos-blad',

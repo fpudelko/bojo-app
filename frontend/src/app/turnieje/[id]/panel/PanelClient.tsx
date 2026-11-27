@@ -17,6 +17,8 @@ import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import CentrumTurnieju from '@/components/turnieje/CentrumTurnieju';
 import WyborEkranu from '@/components/turnieje/WyborEkranu';
 import ArkuszSkladu from '@/components/turnieje/ArkuszSkladu';
+import { displayName } from '@/lib/profileName';
+import { kanonicznyOrigin } from '@/lib/powrotPoLogowaniu';
 import RamkaTurnieju, { SZEROKOSC_TURNIEJU } from '@/components/turnieje/RamkaTurnieju';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
@@ -25,6 +27,7 @@ import { blikPhoneDigits, formatBlikPhone } from '@/lib/payments';
 import {
   getTurniej, uprawnieniaTurnieju, getOsobyTurnieju, czyTurniejProbny, utworzProbeTurnieju,
   dodajOsobeTurnieju, usunOsobeTurnieju, przekazOrganizacje, type RolaOsobyTurnieju,
+  utworzZaproszenieOsoby, tekstZaproszeniaOsoby,
   updateTurniej, setStatusTurnieju, deleteTurniej,
   getBlikTurnieju, ustawBlikTurnieju, setOkladkaTurnieju,
 } from '@/lib/turnieje';
@@ -76,7 +79,7 @@ import type { TurniejCreate, KapitanZmieniaNazwe } from '@/types';
 // kliknięcia. „Edytuj” to przygotowanie, z podzakładkami: Terminarz
 // (generowanie, godziny, przerwy), Drużyny, Ustawienia. Obie są zakładkami
 // w stałej ramce turnieju (`RamkaTurnieju`).
-type PanelTab = 'prowadz' | 'terminarz' | 'druzyny' | 'ustawienia';
+type PanelTab = 'prowadz' | 'terminarz' | 'druzyny' | 'wyglad' | 'ustawienia';
 
 // Etykiety, nie surowe klucze z CSS-owym `capitalize`. Tamto wypisywało
 // `Druzyny` bez ogonka, bo klucz jest bez polskich znaków (i musi być, bo
@@ -85,6 +88,7 @@ const ETYKIETY_PANELU: Record<PanelTab, string> = {
   prowadz: 'Prowadź',
   terminarz: 'Terminarz',
   druzyny: 'Drużyny',
+  wyglad: 'Wygląd strony',
   ustawienia: 'Ustawienia',
 };
 
@@ -123,6 +127,8 @@ export default function PanelClient() {
   const [nowaArenaNazwa, setNowaArenaNazwa] = useState('');
   const [emailWspolorganizatora, setEmailWspolorganizatora] = useState('');
   const [rolaNowejOsoby, setRolaNowejOsoby] = useState<RolaOsobyTurnieju>('prowadzacy');
+  /** Gotowa wiadomość z linkiem zaproszenia (189) do skopiowania. */
+  const [wiadomoscZaproszenia, setWiadomoscZaproszenia] = useState<string | null>(null);
   // Remis w tabeli (179): kolejność i komentarz grupy w trakcie edycji.
   const [kolejnoscEdycja, setKolejnoscEdycja] = useState<Record<string, string[]>>({});
   const [komentarzEdycja, setKomentarzEdycja] = useState<Record<string, string>>({});
@@ -212,6 +218,7 @@ export default function PanelClient() {
   const zakladkaZAdresu: PanelTab =
     tabParam === 'druzyny' || tabParam === 'grupy' ? 'druzyny'
       : tabParam === 'ustawienia' ? 'ustawienia'
+      : tabParam === 'wyglad' ? 'wyglad'
       : tabParam === 'terminarz' ? 'terminarz'
       : 'prowadz';
 
@@ -253,7 +260,7 @@ export default function PanelClient() {
   // Podzakładki „Edytuj”. Prowadzący mecze ich nie ma: widzi samo „Prowadź”
   // (a z prawem do składów także „Drużyny”).
   const zakladkiEdycji: PanelTab[] = !tylkoProwadzi
-    ? ['terminarz', 'druzyny', 'ustawienia']
+    ? ['terminarz', 'druzyny', 'wyglad', 'ustawienia']
     : uprawnienia?.mozeZarzadzacDruzynami ? ['druzyny'] : [];
   const zakladka: PanelTab = zakladkaZAdresu === 'prowadz' || zakladkiEdycji.includes(zakladkaZAdresu)
     ? zakladkaZAdresu : 'prowadz';
@@ -854,6 +861,26 @@ export default function PanelClient() {
     if (wynik !== 'tak') return;
     try { await usunOsobeTurnieju(id, userId); await wczytaj(); toast('Uprawnienia odebrane'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się odebrać uprawnień', 'error'); }
+  };
+
+  // ZAPROSZENIE LINKIEM (189, 2026-11-27): dla kogoś bez konta albo gdy nie
+  // znamy jego e-maila. Bojo nie wysyła maila: organizator dostaje gotową
+  // wiadomość i wysyła ją sam (WhatsApp, SMS, własna poczta).
+  const zaprosLinkiem = async () => {
+    try {
+      const kod = await utworzZaproszenieOsoby(id, rolaNowejOsoby);
+      const tekst = tekstZaproszeniaOsoby({
+        nazwaTurnieju: turniej?.nazwa ?? 'Turniej',
+        zapraszajacy: user ? displayName(user) : 'Organizator',
+        rola: rolaNowejOsoby,
+        link: `${kanonicznyOrigin(window.location.origin)}/o/${kod}`,
+      });
+      setWiadomoscZaproszenia(tekst);
+      try { await navigator.clipboard.writeText(tekst); toast('Wiadomość z linkiem skopiowana'); }
+      catch { toast('Skopiuj wiadomość z pola poniżej'); }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się przygotować zaproszenia', 'error');
+    }
   };
 
   const przekazOrganizacjeAkcja = async (userId: string, imie?: string) => {
@@ -1831,7 +1858,7 @@ export default function PanelClient() {
         {/* Ustawienia dla organizatora, admina i współorganizatora (178,
             2026-11-21). Współorganizatorowi brakuje tylko kasowania turnieju
             i nadawania praw dalej: tego RLS z 145 i tak by nie przepuścił. */}
-        {zakladka === 'ustawienia' && uprawnienia?.mozeEdytowac && (
+        {(zakladka === 'ustawienia' || zakladka === 'wyglad') && uprawnienia?.mozeEdytowac && (
           <div key={wersjaUstawien} className={`space-y-5 ${maSzkic ? 'pb-24' : ''}`}>
             {/* Ta zakładka edytuje publiczną stronę turnieju (zakładka Info)
                 razem z ustawieniami operacyjnymi (BLIK, zapisy) w jednym
@@ -1839,11 +1866,16 @@ export default function PanelClient() {
                 niżej. Zdanie tutaj orientuje, dokąd się trafiło: kliknięcie
                 „+ Dodaj zdjęcia" na Info otwiera WSZYSTKO poniżej, nie samą
                 galerię, i bez tego zdania to zaskakuje. */}
+            {/* WYGLĄD OSOBNO OD USTAWIEŃ (2026-11-27, test przed turniejem:
+                „osobno strona wizualna, czyli Info, a osobno ustawienia
+                działania”). Jedna wspólna kopia robocza i pasek „Zapisz zmiany”. */}
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Tu edytujesz publiczną stronę turnieju (nazwę, zdjęcia, sponsorów i inne
-              elementy, które widzi każdy na zakładce Info) oraz ustawienia zapisów.
+              {zakladka === 'wyglad'
+                ? 'To widzi każdy na zakładce Info: okładka, nazwa, opis, regulamin, zdjęcia i sponsorzy.'
+                : 'Jak działa turniej: ludzie, tablica wyników, termin i miejsce, zasady gry, zapisy.'}
             </p>
 
+            {zakladka === 'ustawienia' && (<>
             {/* LUDZIE PRZY TURNIEJU (178, 185): konto po e-mailu z rolą.
                 Współorganizator może wszystko poza usunięciem turnieju;
                 prowadzący mecze tylko obsługuje stolik (start, zegar, gole,
@@ -1929,10 +1961,37 @@ export default function PanelClient() {
                       <Plus className="h-4 w-4" /> Dodaj
                     </Button>
                   </div>
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Ta osoba nie ma konta w Bojo albo nie znasz jej e-maila? Wyślij jej link. Po kliknięciu zaloguje się
+                      albo założy konto i dostanie wybraną rolę. Link działa raz.
+                    </p>
+                    <Button size="sm" variant="outline" onClick={zaprosLinkiem} className="w-full">
+                      Zaproś linkiem ({rolaNowejOsoby === 'prowadzacy' ? 'prowadzący mecze' : 'współorganizator'})
+                    </Button>
+                    {wiadomoscZaproszenia && (
+                      <div className="space-y-1.5">
+                        <textarea
+                          readOnly
+                          value={wiadomoscZaproszenia}
+                          rows={7}
+                          onFocus={(e) => e.target.select()}
+                          aria-label="Wiadomość z zaproszeniem"
+                          className={inputCls}
+                        />
+                        <Button size="sm" variant="outline" onClick={() => kopiuj(wiadomoscZaproszenia, 'Wiadomość')} className="w-full">
+                          Kopiuj wiadomość
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
 
+            </>)}
+
+            {zakladka === 'wyglad' && (<>
             {/* Okładka: miniatura na liście `/turnieje` i (od 2026-11-08)
                 szeroki baner na górze strony turnieju. */}
             <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
@@ -1980,6 +2039,10 @@ export default function PanelClient() {
               />
             </div>
 
+            {sekcjeMediow}
+            </>)}
+
+            {zakladka === 'ustawienia' && (<>
             {/* EKRAN NA HALĘ (180, 2026-11-21): ogłoszenie i link ze zbiórką
                 wpisuje się tu, w bazie, nie w adresie ekranu. Organizator
                 zmienia je z telefonu, a ekran na rzutniku podchwytuje zmianę
@@ -2231,8 +2294,6 @@ export default function PanelClient() {
               </div>
             )}
 
-            {sekcjeMediow}
-
             <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3">
               {/* Termin graniczny obok ręcznego zamknięcia, nie zamiast niego:
                   data pilnuje zapisów, gdy organizator o nich zapomni, a
@@ -2268,13 +2329,14 @@ export default function PanelClient() {
                 )}
               </div>
             </div>
+            </>)}
           </div>
         )}
         </div>
       </main>
       {/* Przyklejony do dołu, nad dolną nawigacją: widać go niezależnie od
           tego, które pole się zmieniło. */}
-      {zakladka === 'ustawienia' && maSzkic && (
+      {(zakladka === 'ustawienia' || zakladka === 'wyglad') && maSzkic && (
         <div
           className="fixed inset-x-0 z-[1210] border-t border-slate-200 bg-white/95 backdrop-blur shadow-[0_-2px_16px_rgba(0,0,0,0.08)] dark:border-slate-700 dark:bg-slate-800/95"
           style={{ bottom: 'var(--bottom-nav-h)' }}
