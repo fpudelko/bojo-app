@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-27 · migracja `188` · 64 tabel
+**Stan na:** 2026-11-27 · migracja `189` · 65 tabel
 
 ---
 
@@ -481,6 +481,32 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-27 (2) — Turniej: „Wygląd strony” osobno od „Ustawień”, zaproszenie linkiem do prowadzenia
+
+PROBLEM: w panelu turnieju Bojo okładka, opis, galeria i sponsorzy mieszały się z terminem,
+zasadami i zapisami w jednej długiej zakładce „Ustawienia”. Współorganizatora albo
+prowadzącego mecze dało się dodać tylko po e-mailu istniejącego konta w Bojo.
+
+ROZWIĄZANIE BOJO: „Edytuj” w panelu turnieju ma podzakładki Terminarz, Drużyny, Wygląd strony
+(okładka, nazwa, opis, regulamin, galeria, sponsorzy) i Ustawienia (ludzie przy turnieju,
+tablica wyników, termin, areny, zasady, zapisy). W „Ludzie przy turnieju” przycisk „Zaproś
+linkiem” tworzy gotową wiadomość z linkiem `bojo.pl/o/<kod>` do skopiowania i wysłania
+WhatsAppem, SMS-em albo mailem z własnej skrzynki; Bojo niczego samo nie wysyła. Zaproszony
+otwiera link, loguje się albo zakłada konto i przyjmuje rolę współorganizatora albo
+prowadzącego mecze. Link działa raz.
+
+MECHANIKA: `app/turnieje/[id]/panel/PanelClient.tsx` (zakładki `wyglad` / `ustawienia`,
+`zaprosLinkiem()`), `app/o/[kod]/page.tsx`, `lib/turnieje.ts` (`utworzZaproszenieOsoby()`,
+`przyjmijZaproszenieOsoby()`, `tekstZaproszeniaOsoby()`), migracja `189`
+(`turniej_zaproszenia_osob`). Szczegóły → [funkcje.md](./funkcje.md),
+[baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Jak zaprosić do prowadzenia meczów turnieju kogoś bez konta w Bojo?
+- Gdzie w panelu turnieju zmienić okładkę, galerię i sponsorów?
+- Czy Bojo wysyła maila z zaproszeniem do współorganizowania turnieju?
+- Czy link zaproszenia do turnieju można użyć kilka razy?
+
 ### 2026-11-27 — Prowadzenie turnieju: mecz w trakcie na górze, poprawa wyniku, wynik na żywo
 
 PROBLEM: w zakładce „Prowadź” turnieju Bojo mecz w trakcie ginął pod rozegranymi meczami,
@@ -725,29 +751,3 @@ PYTANIA:
 - Jak pokazać wyniki turnieju na rzutniku albo telewizorze na hali?
 - Jak cofnąć gola wpisanego przez pomyłkę?
 - Czy organizator może wybrać, co pokazuje ekran turnieju na hali?
-
-### 2026-11-21 (2) — Turniej w Bojo: wyniki jednym wierszem, samobój pod golem, wejście dla uczestników
-
-PROBLEM: lista wyników turnieju w Bojo powtarzała przy każdym meczu datę, godzinę i boisko,
-a wpisanie gola samobójczego nie mówiło, czyj to gol. Napisy „bez goli” i „Jeszcze nikt nie
-strzelił” kłamały, gdy wynik wpisano bez strzelców.
-
-ROZWIĄZANIE BOJO: każdy mecz turnieju, przyszły i rozegrany, to jeden wiersz: grupa albo faza,
-data i godzina, drużyny, wynik albo „vs”, boisko tylko przy kilku boiskach. Strzelcy i przebieg
-są na stronie meczu, do której prowadzi wiersz. W konsoli meczu „GOL” ma na dole opcję „Samobój”, która pyta o zawodnika
-drużyny przeciwnej; strzelca można pominąć („Zapisz bez strzelca”). Statystyki graczy
-pokazują się tylko, gdy ktoś wpisał strzelców. Ze strony meczu i drużyny strzałka wraca do
-turnieju, a pod nagłówkiem są zakładki turnieju. Wejście „🏆 Turnieje” obok Moich meczów
-widzi ten, kto organizuje albo gra w turnieju. Remis w tabeli (te same punkty, bilans i bramki)
-daje drużynom to samo miejsce i ten sam medal na podium z dopiskiem „ex aequo”; organizator
-ustala kolejność w panelu i może dopisać komentarz pod tabelą.
-
-MECHANIKA: `components/turnieje/WierszMeczu.tsx`, `KartaMeczu.tsx`, `ArkuszSkladu.tsx`,
-`RamkaTurnieju.tsx`, `strzelcyMeczu()`/`znacznikFazy()` w `lib/turniejEtykiety.ts`,
-`lib/useMamTurnieje.ts`. Bez migracji. Szczegóły → [funkcje.md](./funkcje.md).
-
-PYTANIA:
-- Jak wpisać gola samobójczego w turnieju w Bojo?
-- Czy można zapisać gola bez strzelca?
-- Gdzie znajdę turnieje, w których gram?
-- Co pokazuje Bojo, gdy drużyny w grupie mają identyczny bilans?

@@ -2149,6 +2149,39 @@ SELECT _oczekuj('autor cofnął czekającą prośbę',
 DELETE FROM notifications WHERE turniej_id = :WN_T::uuid;
 DELETE FROM turnieje WHERE id = :WN_T::uuid;
 
+SELECT _sekcja('Zaproszenie linkiem do prowadzenia turnieju (migracja 189)');
+\set ZO_T '''ffffffff-0000-4000-8000-000000000401'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:ZO_T::uuid, :ORGANIZATOR::uuid, 'Z zaproszeniem', 'piłka nożna', 'zapisy', CURRENT_DATE + 3);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie utworzy zaproszenia',
+  format('SELECT utworz_zaproszenie_osoby(%L, ''prowadzacy'')', :ZO_T));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+CREATE TEMP TABLE _zo AS SELECT utworz_zaproszenie_osoby(:ZO_T::uuid, 'prowadzacy') AS kod;
+GRANT SELECT ON _zo TO authenticated, anon;
+SELECT _oczekuj_wyjatek('organizator nie przyjmie własnego zaproszenia',
+  'SELECT przyjmij_zaproszenie_osoby((SELECT kod FROM _zo))');
+RESET ROLE;
+SET ROLE anon;
+SELECT _oczekuj('niezalogowany widzi, do czego zaprasza link',
+                (SELECT count(*) FROM zaproszenie_osoby_info((SELECT kod FROM _zo)) WHERE rola = 'prowadzacy'), 1);
+SELECT _oczekuj('niezalogowany nie widzi listy kodów',
+                (SELECT count(*) FROM turniej_zaproszenia_osob), 0);
+RESET ROLE;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT przyjmij_zaproszenie_osoby((SELECT kod FROM _zo));
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('link działa tylko raz',
+  'SELECT przyjmij_zaproszenie_osoby((SELECT kod FROM _zo))');
+RESET ROLE;
+SELECT _oczekuj('przyjęte zaproszenie daje rolę prowadzącego',
+                (SELECT count(*) FROM turniej_osoby WHERE turniej_id = :ZO_T::uuid AND user_id = :CZLONEK::uuid
+                   AND moze_prowadzic AND NOT moze_edytowac), 1);
+DROP TABLE _zo;
+DELETE FROM turnieje WHERE id = :ZO_T::uuid;
+
 SELECT _sekcja('Obserwowanie turnieju (migracja 184)');
 \set OB_T '''ffffffff-0000-4000-8000-0000000001e1'''
 INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)

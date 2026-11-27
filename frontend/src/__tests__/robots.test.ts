@@ -6,7 +6,7 @@ import robots from '@/app/robots';
 // tam /auth/, /turnieje, /cykliczne, /obiekt i profile graczy.
 
 const WYKLUCZONE = [
-  '/admin', '/api', '/profil', '/moje-gry', '/d/', '/g/', '/t/',
+  '/admin', '/api', '/profil', '/moje-gry', '/d/', '/g/', '/t/', '/k/', '/o/',
   '/auth/', '/logowanie', '/zglos-blad',
   '/wydarzenia/nowe', '/wydarzenia/*/edytuj', '/grupy/nowe', '/grupy/*/edytuj',
   // `/turnieje` wraca tu 2026-09-17 razem z ponownym wyłączeniem

@@ -462,6 +462,59 @@ export async function dodajOsobeTurnieju(turniejId: string, email: string, rola:
   return (wiersz?.nazwa as string | undefined) ?? 'Bez nazwy';
 }
 
+// ---------------------------------------------------------------------------
+// Zaproszenie linkiem (189): dla kogoś bez konta w Bojo, bez wysyłania maili
+// ---------------------------------------------------------------------------
+
+export interface ZaproszenieOsoby {
+  turniejId: string;
+  turniejNazwa: string;
+  rola: RolaOsobyTurnieju;
+  zapraszajacy: string;
+}
+
+const BRAK_189 = 'Zaproszenia linkiem jeszcze nie działają na tej bazie (brak migracji 189).';
+
+/** Jednorazowy kod zaproszenia z rolą; link to `/o/<kod>`. */
+export async function utworzZaproszenieOsoby(turniejId: string, rola: RolaOsobyTurnieju): Promise<string> {
+  const { data, error } = await supabase.rpc('utworz_zaproszenie_osoby', { p_turniej: turniejId, p_rola: rola });
+  if (error) throw new Error(error.code === 'PGRST202' ? BRAK_189 : error.message);
+  return data as string;
+}
+
+/** Co jest za linkiem; null, gdy kod nie działa (użyty albo nieznany). */
+export async function getZaproszenieOsoby(kod: string): Promise<ZaproszenieOsoby | null> {
+  const { data, error } = await supabase.rpc('zaproszenie_osoby_info', { p_kod: kod });
+  if (error) throw new Error(error.code === 'PGRST202' ? BRAK_189 : error.message);
+  const w = (Array.isArray(data) ? data[0] : data) as
+    { turniej_id: string; turniej_nazwa: string; rola: RolaOsobyTurnieju; zapraszajacy: string } | undefined;
+  return w ? { turniejId: w.turniej_id, turniejNazwa: w.turniej_nazwa, rola: w.rola, zapraszajacy: w.zapraszajacy } : null;
+}
+
+/** Przyjęcie zaproszenia; zwraca id turnieju. */
+export async function przyjmijZaproszenieOsoby(kod: string): Promise<string> {
+  const { data, error } = await supabase.rpc('przyjmij_zaproszenie_osoby', { p_kod: kod });
+  if (error) throw new Error(error.code === 'PGRST202' ? BRAK_189 : error.message);
+  return data as string;
+}
+
+/** Wiadomość do skopiowania (WhatsApp, SMS, mail z własnej skrzynki). Bez długiego myślnika. */
+export function tekstZaproszeniaOsoby(opcje: {
+  nazwaTurnieju: string; zapraszajacy: string; rola: RolaOsobyTurnieju; link: string;
+}): string {
+  const coRobi = opcje.rola === 'prowadzacy'
+    ? 'prowadzenia meczów (start meczu, gole, kartki i wynik)'
+    : 'współorganizowania turnieju';
+  return [
+    `Cześć! ${opcje.zapraszajacy} zaprasza Cię do ${coRobi}: *${opcje.nazwaTurnieju}* w Bojo.`,
+    '',
+    'Otwórz link, zaloguj się albo załóż konto i przyjmij zaproszenie:',
+    opcje.link,
+    '',
+    'Link działa raz, nie przesyłaj go dalej.',
+  ].join('\n');
+}
+
 /** Odebranie praw współorganizatorowi (polityka z 145: tylko organizator). */
 export async function usunOsobeTurnieju(turniejId: string, userId: string): Promise<void> {
   const { error } = await supabase.from('turniej_osoby').delete().eq('turniej_id', turniejId).eq('user_id', userId);
