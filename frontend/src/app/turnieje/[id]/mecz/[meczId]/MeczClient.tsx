@@ -967,22 +967,38 @@ export default function MeczClient() {
         {zdarzenia.length > 0 && !setowy && (
           <div className="space-y-1.5">
             <h2 className="text-sm font-semibold text-slate-500">Przebieg meczu</h2>
+            {/* PRZEBIEG PO STRONIE DRUŻYNY (2026-11-27, prośba właściciela):
+                zdarzenie stoi po stronie drużyny, której dotyczy, jak nazwy
+                w karcie wyniku. Gol (i samobój) po stronie drużyny, która
+                dostała bramkę; kartka po stronie ukaranej. Minuta na środku,
+                ikona przy zewnętrznej krawędzi: po prawej napis, a ikona na
+                końcu. Nazwy drużyny w wierszu już nie ma, mówi o niej strona. */}
             {zdarzenia.map((z) => {
-              const nazwaDruzyny = z.druzynaId === mecz.druzynaAId ? druzynaA?.nazwa : druzynaB?.nazwa;
+              const zDruzynyA = z.druzynaId === mecz.druzynaAId;
+              const poLewej = z.typ === 'samobojczy' ? !zDruzynyA : zDruzynyA;
               const zawodnik = wszyscyZawodnicy.find((zw) => zw.id === z.zawodnikId);
+              const [ikona, ...nazwaTypu] = ETYKIETA_ZDARZENIA[z.typ].split(' ');
+              const tekst = zawodnik
+                ? `${zawodnik.imie}${z.typ === 'samobojczy' ? ' (sam.)' : ''}${z.typ === 'punkty' && z.wartosc > 1 ? ` +${z.wartosc}` : ''}`
+                : nazwaTypu.join(' ');
+              const opis = (
+                <span className={`flex min-w-0 items-center gap-2 ${poLewej ? '' : 'justify-end text-right'}`}>
+                  {poLewej && <span className="shrink-0" aria-hidden>{ikona}</span>}
+                  <span className="min-w-0 truncate">{tekst}</span>
+                  {!poLewej && <span className="shrink-0" aria-hidden>{ikona}</span>}
+                </span>
+              );
               return (
-                /* Dwukropek stał tu ZAWSZE, także gdy po nim nie było nazwiska
-                   (drużyna bez wpisanego składu), więc wiersz czytał się
-                   „⚽ Gol : Ekipa z Osiedla". Separator pojawia się teraz
-                   tylko wtedy, gdy faktycznie coś rozdziela. */
-                <div key={z.id} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                  {z.minuta !== undefined && (
-                    <span className="shrink-0 font-mono text-xs text-slate-400">{z.minuta}&apos;</span>
-                  )}
-                  <span className="shrink-0">{ETYKIETA_ZDARZENIA[z.typ]}</span>
-                  <span className="min-w-0 truncate">
-                    {zawodnik ? `${zawodnik.imie} (${nazwaDruzyny})` : nazwaDruzyny}
+                <div
+                  key={z.id}
+                  aria-label={`${nazwaTypu.join(' ')}, ${zDruzynyA ? druzynaA?.nazwa : druzynaB?.nazwa}${zawodnik ? `, ${zawodnik.imie}` : ''}`}
+                  className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
+                >
+                  {poLewej ? opis : <span />}
+                  <span className="w-8 text-center font-mono text-xs text-slate-400">
+                    {z.minuta !== undefined ? `${z.minuta}'` : ''}
                   </span>
+                  {poLewej ? <span /> : opis}
                 </div>
               );
             })}

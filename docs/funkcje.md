@@ -5262,6 +5262,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   `190`. „Prowadź” → Rozegrane: mecz w dwóch liniach (`WierszRozegranego` w
   `CentrumTurnieju.tsx`), drużyny jedna pod drugą z własnym wynikiem, zwycięzca pogrubiony,
   „M3 · zakończony” jako podpis zamiast plakietki, która zjadała nazwę drugiej drużyny.
+- **Przebieg meczu po stronie drużyny (2026-11-27):** w `MeczClient.tsx` każde zdarzenie stoi
+  w siatce lewo / minuta / prawo: gol i samobój po stronie drużyny, która dostała bramkę,
+  kartka po stronie ukaranej. Po lewej ikona, potem strzelec; po prawej strzelec, a ikona na
+  końcu. Bez strzelca: sama nazwa zdarzenia („Gol”). Nazwy drużyny w wierszu nie ma.
 - **Podgląd linków drużyny, kapitana i zaproszenia (2026-11-27):** `/t/[kod]`, `/k/[kod]`
   i `/o/[kod]` mają serwerowe `page.tsx` z `generateMetadata` (`metadataLinkuTurnieju()`
   w `turnieje/[id]/turniejMeta.ts`): tytuł „Dołącz do drużyny X · turniej”, opis i obrazek
