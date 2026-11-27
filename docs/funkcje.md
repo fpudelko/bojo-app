@@ -5266,6 +5266,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   w siatce lewo / minuta / prawo: gol i samobój po stronie drużyny, która dostała bramkę,
   kartka po stronie ukaranej. Po lewej ikona, potem strzelec; po prawej strzelec, a ikona na
   końcu. Bez strzelca: sama nazwa zdarzenia („Gol”). Nazwy drużyny w wierszu nie ma.
+- **Wiersz meczu do rozegrania w „Prowadź” (2026-11-27):** `WierszMeczu` w
+  `CentrumTurnieju.tsx`: „M15 · Gr. A” małym drukiem nad godziną, nazwy drużyn mniejszą
+  czcionką w dwóch równych połówkach (siatka `1fr auto 1fr`), każda ucinana osobno, więc
+  zawsze widać początek obu drużyn (wcześniej druga ginęła jako „Mł…”).
 - **Podgląd linków drużyny, kapitana i zaproszenia (2026-11-27):** `/t/[kod]`, `/k/[kod]`
   i `/o/[kod]` mają serwerowe `page.tsx` z `generateMetadata` (`metadataLinkuTurnieju()`
   w `turnieje/[id]/turniejMeta.ts`): tytuł „Dołącz do drużyny X · turniej”, opis i obrazek

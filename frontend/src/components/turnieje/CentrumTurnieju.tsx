@@ -22,7 +22,7 @@ import { Coffee, Undo2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { nazwaSlotu } from '@/components/turnieje/KartaMeczu';
 import { centrumTurnieju } from '@/lib/turniejPulpit';
-import { terminarzZPrzerwami, meczPrzed } from '@/lib/turniejEtykiety';
+import { terminarzZPrzerwami, meczPrzed, etykietaFazyMeczu } from '@/lib/turniejEtykiety';
 import { jestKoszykowka, jestSportemSetowym, wymaganeKarne } from '@/lib/turniejWynik';
 import {
   fazaZegara, opisZegara, poCzasiePolowy, startZegara, pauzaZegara, koniecPolowy, type ZmianaZegara,
@@ -67,6 +67,8 @@ export default function CentrumTurnieju({
     najblizsze: 4, ostatnie: 6, liczbaAren, czasMeczuMin: turniej.czasMeczuMin,
   });
   const nazwa = (m: TurniejMecz, s: 'a' | 'b') => nazwaSlotu(m, s, druzynyPoId, meczePoId, grupyPoId);
+  // „Gr. A” nad godziną w wierszu meczu (2026-11-27).
+  const fazaKrotko = (m: TurniejMecz) => etykietaFazyMeczu(m, grupyPoId).replace(/^Grupa /, 'Gr. ');
   const para = (m: TurniejMecz) => `${nazwa(m, 'a')} – ${nazwa(m, 'b')}`;
   const adresMeczu = (m: TurniejMecz) => `/turnieje/${turniej.id}/mecz/${m.id}`;
   // Gole jednym kliknięciem tylko tam, gdzie wynik to gole. Sety i punkty
@@ -240,7 +242,8 @@ export default function CentrumTurnieju({
                 key={w.mecz.id}
                 godzina={godzina(w.mecz)}
                 numer={w.mecz.numer}
-                para={para(w.mecz)}
+                faza={fazaKrotko(w.mecz)}
+                druzyny={[nazwa(w.mecz, 'a'), nazwa(w.mecz, 'b')]}
                 href={adresMeczu(w.mecz)}
                 // „Start” na każdym meczu, który ma obie drużyny (2026-11-27):
                 // prowadzący klika mecz, który faktycznie wychodzi na boisko.
@@ -348,7 +351,7 @@ export default function CentrumTurnieju({
       </p>
       <div className="divide-y divide-slate-100 dark:divide-slate-700">
         {meczeFazyKoncowej.map((m) => (
-          <WierszMeczu key={m.id} godzina={godzina(m)} numer={m.numer} para={para(m)} href={adresMeczu(m)} />
+          <WierszMeczu key={m.id} godzina={godzina(m)} numer={m.numer} faza={fazaKrotko(m)} druzyny={[nazwa(m, 'a'), nazwa(m, 'b')]} href={adresMeczu(m)} />
         ))}
       </div>
     </section>
@@ -407,22 +410,33 @@ function WierszRozegranego({ numer, walkower, druzyny, href }: {
   );
 }
 
-/** Gęsty wiersz meczu: godzina | numer | para | wynik | akcja, w jednej linii. */
-function WierszMeczu({ godzina, numer, para, wynik, href, akcja }: {
+/**
+ * Wiersz meczu do rozegrania (2026-11-27, uwaga z testu: „nie widać drugiej
+ * drużyny M15”). Numer i grupa małym drukiem NAD godziną, a nazwy drużyn
+ * mniejszą czcionką w dwóch równych połówkach: każda ucina się sama, więc
+ * zawsze widać początek obu, zamiast pierwszej w całości i „Mł…”.
+ */
+function WierszMeczu({ godzina, numer, faza, druzyny, href, akcja }: {
   godzina?: string;
   numer: number;
-  para: string;
-  wynik?: string;
+  faza?: string;
+  druzyny: [string, string];
   href: string;
   akcja?: { etykieta: string; onClick?: () => void; href?: string };
 }) {
   const przycisk = 'inline-flex min-h-[40px] shrink-0 items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700';
+  const [a, b] = druzyny;
   return (
-    <div className="flex min-h-[48px] items-center gap-3 py-1.5 text-sm">
-      {godzina && <span className="w-11 shrink-0 font-bold tabular-nums text-ink">{godzina}</span>}
-      <span className="w-9 shrink-0 text-xs text-slate-500 dark:text-slate-400">M{numer}</span>
-      <Link href={href} title={para} className="min-w-0 flex-1 truncate text-ink hover:underline">{para}</Link>
-      {wynik && <span className="shrink-0 font-semibold tabular-nums text-ink">{wynik}</span>}
+    <div className="flex min-h-[48px] items-center gap-3 py-1.5">
+      <span className="w-14 shrink-0 leading-tight">
+        <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">M{numer}{faza ? ` · ${faza}` : ''}</span>
+        {godzina && <span className="block text-sm font-bold tabular-nums text-ink">{godzina}</span>}
+      </span>
+      <Link href={href} title={`${a} – ${b}`} className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 text-[13px] text-ink hover:underline">
+        <span className="truncate">{a}</span>
+        <span className="text-slate-400" aria-hidden>–</span>
+        <span className="truncate">{b}</span>
+      </Link>
       {akcja && (akcja.href
         ? <Link href={akcja.href} className={przycisk}>{akcja.etykieta}</Link>
         : <button type="button" onClick={akcja.onClick} className={przycisk}>{akcja.etykieta}</button>)}
