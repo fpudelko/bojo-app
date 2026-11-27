@@ -482,6 +482,15 @@ export async function utworzZaproszenieOsoby(turniejId: string, rola: RolaOsobyT
   return data as string;
 }
 
+/** Zaproszenie wysłane MAILEM przez Bojo (192): kod jak w 189 + mail z przyciskiem „Dołącz”. */
+export async function zaprosOsobeMailem(turniejId: string, rola: RolaOsobyTurnieju, email: string): Promise<string> {
+  const { data, error } = await supabase.rpc('zapros_osobe_mailem', { p_turniej: turniejId, p_rola: rola, p_email: email });
+  if (error) {
+    throw new Error(error.code === 'PGRST202' ? 'Zaproszenia mailem jeszcze nie działają na tej bazie (brak migracji 192).' : error.message);
+  }
+  return data as string;
+}
+
 /** Co jest za linkiem; null, gdy kod nie działa (użyty albo nieznany). */
 export async function getZaproszenieOsoby(kod: string): Promise<ZaproszenieOsoby | null> {
   const { data, error } = await supabase.rpc('zaproszenie_osoby_info', { p_kod: kod });

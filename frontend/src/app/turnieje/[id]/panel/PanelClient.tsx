@@ -6,7 +6,7 @@ import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Download, Plus, Check, X as XIcon, Trash2, Ban, ChevronRight, QrCode } from 'lucide-react';
+import { Download, Plus, Check, X as XIcon, Trash2, Ban, ChevronRight, QrCode, Loader2, Mail } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import CoverUpload from '@/components/ui/CoverUpload';
@@ -28,7 +28,7 @@ import { blikPhoneDigits, formatBlikPhone } from '@/lib/payments';
 import {
   getTurniej, uprawnieniaTurnieju, getOsobyTurnieju, czyTurniejProbny, utworzProbeTurnieju,
   dodajOsobeTurnieju, usunOsobeTurnieju, przekazOrganizacje, type RolaOsobyTurnieju,
-  utworzZaproszenieOsoby, tekstZaproszeniaOsoby,
+  utworzZaproszenieOsoby, zaprosOsobeMailem, tekstZaproszeniaOsoby,
   updateTurniej, setStatusTurnieju, deleteTurniej,
   getBlikTurnieju, ustawBlikTurnieju, setOkladkaTurnieju,
 } from '@/lib/turnieje';
@@ -130,6 +130,7 @@ export default function PanelClient() {
   const [rolaNowejOsoby, setRolaNowejOsoby] = useState<RolaOsobyTurnieju>('prowadzacy');
   /** Gotowa wiadomość z linkiem zaproszenia (189) do skopiowania. */
   const [wiadomoscZaproszenia, setWiadomoscZaproszenia] = useState<string | null>(null);
+  const [wysylaMail, setWysylaMail] = useState(false);
   // Remis w tabeli (179): kolejność i komentarz grupy w trakcie edycji.
   const [kolejnoscEdycja, setKolejnoscEdycja] = useState<Record<string, string[]>>({});
   const [komentarzEdycja, setKomentarzEdycja] = useState<Record<string, string>>({});
@@ -864,6 +865,21 @@ export default function PanelClient() {
     if (wynik !== 'tak') return;
     try { await usunOsobeTurnieju(id, userId); await wczytaj(); toast('Uprawnienia odebrane'); }
     catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się odebrać uprawnień', 'error'); }
+  };
+
+  // ZAPROSZENIE MAILEM (192, 2026-11-27): Bojo wysyła maila z przyciskiem
+  // „Dołącz jako …” na podany adres; działa też dla kogoś bez konta.
+  const zaprosMailemAkcja = async () => {
+    setWysylaMail(true);
+    try {
+      await zaprosOsobeMailem(id, rolaNowejOsoby, emailWspolorganizatora);
+      toast(`Zaproszenie wysłane na ${emailWspolorganizatora.trim()}`);
+      setEmailWspolorganizatora('');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się wysłać zaproszenia', 'error');
+    } finally {
+      setWysylaMail(false);
+    }
   };
 
   // ZAPROSZENIE LINKIEM (189, 2026-11-27): dla kogoś bez konta albo gdy nie
@@ -1965,22 +1981,38 @@ export default function PanelClient() {
                       autoComplete="off"
                       value={emailWspolorganizatora}
                       onChange={(e) => setEmailWspolorganizatora(e.target.value)}
-                      placeholder="E-mail konta w Bojo"
+                      placeholder="E-mail"
                       aria-label="E-mail nowej osoby"
                       className={inputCls}
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       size="sm"
+                      onClick={zaprosMailemAkcja}
+                      disabled={!emailWspolorganizatora.includes('@') || wysylaMail}
+                      className="inline-flex items-center justify-center gap-1.5"
+                    >
+                      {wysylaMail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Wyślij zaproszenie
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={dodajWspolorganizatoraAkcja}
                       disabled={!emailWspolorganizatora.includes('@')}
-                      className="shrink-0 inline-flex items-center gap-1.5"
+                      className="inline-flex items-center justify-center gap-1.5"
                     >
-                      <Plus className="h-4 w-4" /> Dodaj
+                      <Plus className="h-4 w-4" /> Dodaj od razu
                     </Button>
                   </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    „Wyślij zaproszenie”: Bojo wyśle maila z przyciskiem „Dołącz jako
+                    {rolaNowejOsoby === 'prowadzacy' ? ' prowadzący mecze' : ' współorganizator'}”, także do kogoś bez konta.
+                    „Dodaj od razu”: gdy ta osoba ma już konto w Bojo na ten adres.
+                  </p>
                   <div className="space-y-2 pt-1">
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Ta osoba nie ma konta w Bojo albo nie znasz jej e-maila? Wyślij jej link. Po kliknięciu zaloguje się
+                      Nie znasz e-maila? Wyślij link WhatsAppem albo SMS-em. Po kliknięciu ta osoba zaloguje się
                       albo założy konto i dostanie wybraną rolę. Link działa raz.
                     </p>
                     <Button size="sm" variant="outline" onClick={zaprosLinkiem} className="w-full">

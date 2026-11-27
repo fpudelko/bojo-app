@@ -2230,6 +2230,51 @@ SELECT _oczekuj('przyjęte zaproszenie daje rolę prowadzącego',
 DROP TABLE _zo;
 DELETE FROM turnieje WHERE id = :ZO_T::uuid;
 
+SELECT _sekcja('Zaproszenie do prowadzenia turnieju mailem (migracja 192)');
+CREATE SCHEMA IF NOT EXISTS net;
+CREATE TABLE IF NOT EXISTS net._wyslane (id BIGSERIAL PRIMARY KEY, url TEXT, body JSONB);
+CREATE OR REPLACE FUNCTION net.http_post(url TEXT, body JSONB DEFAULT '{}'::jsonb,
+                                         params JSONB DEFAULT '{}'::jsonb,
+                                         headers JSONB DEFAULT '{}'::jsonb,
+                                         timeout_milliseconds INT DEFAULT 5000)
+RETURNS BIGINT LANGUAGE plpgsql AS $net$
+BEGIN
+  INSERT INTO net._wyslane (url, body) VALUES (url, body);
+  RETURN 1;
+END $net$;
+INSERT INTO konfiguracja_poczty (klucz, wartosc)
+VALUES ('url', 'http://atrapa.test/powiadom-goscia'), ('sekret', 'atrapa')
+ON CONFLICT (klucz) DO NOTHING;
+DELETE FROM net._wyslane;
+\set ZM_T '''ffffffff-0000-4000-8000-000000000701'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:ZM_T::uuid, :ORGANIZATOR::uuid, 'Z zaproszeniem mailem', 'piłka nożna', 'zapisy', CURRENT_DATE + 3);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie wyśle zaproszenia mailem',
+  format('SELECT zapros_osobe_mailem(%L, ''prowadzacy'', ''ktos@example.com'')', :ZM_T));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('zły adres e-mail daje błąd',
+  format('SELECT zapros_osobe_mailem(%L, ''prowadzacy'', ''to-nie-mail'')', :ZM_T));
+SELECT zapros_osobe_mailem(:ZM_T::uuid, 'wspolorganizator', ' Ktos@Example.com ');
+SELECT zapros_osobe_mailem(:ZM_T::uuid, 'prowadzacy', 'ktos@example.com');
+SELECT zapros_osobe_mailem(:ZM_T::uuid, 'prowadzacy', 'ktos@example.com');
+SELECT _oczekuj_wyjatek('czwarte zaproszenie na ten sam adres w ciągu doby daje błąd',
+  format('SELECT zapros_osobe_mailem(%L, ''prowadzacy'', ''ktos@example.com'')', :ZM_T));
+RESET ROLE;
+SELECT _oczekuj('mail poszedł z powodem, rolą i kodem zaproszenia',
+                (SELECT count(*) FROM net._wyslane w
+                  WHERE w.body ->> 'powod' = 'zaproszenie_do_turnieju'
+                    AND w.body ->> 'email' = 'ktos@example.com'
+                    AND EXISTS (SELECT 1 FROM turniej_zaproszenia_osob z
+                                 WHERE z.kod = w.body ->> 'kod' AND z.email = 'ktos@example.com'
+                                   AND z.rola = w.body ->> 'rola')), 3);
+DELETE FROM net._wyslane;
+DELETE FROM turnieje WHERE id = :ZM_T::uuid;
+-- Atrapa poczty tylko na czas tej sekcji: włączona zostawiłaby wysyłkę
+-- reszcie pliku, a `poczta-goscia.sql` liczy maile od zera.
+DELETE FROM konfiguracja_poczty WHERE klucz IN ('url', 'sekret') AND wartosc IN ('http://atrapa.test/powiadom-goscia', 'atrapa');
+
 SELECT _sekcja('Obserwowanie turnieju (migracja 184)');
 \set OB_T '''ffffffff-0000-4000-8000-0000000001e1'''
 INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
