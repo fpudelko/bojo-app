@@ -167,7 +167,10 @@ export type Powod = 'zapis' | 'zaakceptowano' | 'odrzucono' | 'odwolanie' | 'zmi
   // Cztery nowe od migracji 169 (Z-1) — poczta jako ZAPAS dla kont bez pusha,
   // te same typy co `notifications.type` (129/062/067/160).
   | 'przypomnienie_o_meczu' | 'reserve_claim_offered' | 'zaproszenie_na_mecz'
-  | 'po_meczu_do_domkniecia';
+  | 'po_meczu_do_domkniecia'
+  // Migracja 192: zaproszenie do współorganizowania albo prowadzenia meczów
+  // turnieju, wysłane przez organizatora na podany adres.
+  | 'zaproszenie_do_turnieju';
 
 export interface Dane {
   powod: Powod;
@@ -195,6 +198,13 @@ export interface Dane {
    *  drugiej wersji tego samego zdania w mailu (migracja 169). `null`/nieobecne
    *  = akapit się nie pojawia. */
   tresc?: string | null;
+  /** `zaproszenie_do_turnieju` (192): nazwa turnieju, kto zaprasza, rola
+   *  ('wspolorganizator' | 'prowadzacy') i kod jednorazowego linku `/o/<kod>`
+   *  (adres strony dokłada `cfg.strona`, jak w pozostałych mailach). */
+  turniej_nazwa?: string;
+  zapraszajacy?: string;
+  rola?: string;
+  kod?: string;
 }
 
 function przywitaj(imie: string | null): string {
@@ -454,6 +464,28 @@ export function tresc(d: Dane, cfg: Konfiguracja): Mail | null {
         // była powtórzeniem — widać to dopiero na złożonej wiadomości, nie w kodzie.
         { typ: 'drobne', tekst: 'Bojo dopiero się rozkręca, więc otwartych meczów bywa mało — najszybciej zagrasz, tworząc mecz i wysyłając link znajomym.' },
       ] };
+
+    case 'zaproszenie_do_turnieju': {
+      // Odbiorca może nie mieć konta w Bojo i nie zna nadawcy, więc mail mówi
+      // wprost: kto zaprasza, do czego, co ta rola może, i ma JEDEN przycisk.
+      if (!d.kod || !d.turniej_nazwa) return null;
+      const link = `${cfg.strona}/o/${encodeURIComponent(d.kod)}`;
+      const wspol = d.rola === 'wspolorganizator';
+      const kto = d.zapraszajacy || 'Organizator';
+      return {
+        temat: `${kto} zaprasza Cię do ${wspol ? 'współorganizowania' : 'prowadzenia meczów'}: ${d.turniej_nazwa}`,
+        naglowek,
+        bloki: [
+          { typ: 'akapit', tekst: `${kto} zaprasza Cię do turnieju „${d.turniej_nazwa}” w Bojo jako ${wspol ? 'współorganizatora' : 'prowadzącego mecze'}.` },
+          { typ: 'akapit', tekst: wspol
+            ? 'Współorganizator może wszystko co organizator: drużyny, terminarz, wyniki i ustawienia turnieju, poza jego usunięciem.'
+            : 'Prowadzący mecze startuje mecze, prowadzi zegar i wpisuje gole, kartki i wynik.' },
+          { typ: 'przycisk', etykieta: wspol ? 'Dołącz jako współorganizator' : 'Dołącz jako prowadzący mecze',
+            opis: 'Otwórz zaproszenie, zaloguj się albo załóż konto i przyjmij rolę:', url: link },
+          { typ: 'drobne', tekst: 'Link działa raz. Jeśli nie spodziewasz się tego zaproszenia, po prostu zignoruj tę wiadomość.' },
+        ],
+      };
+    }
 
     default:
       return null;
