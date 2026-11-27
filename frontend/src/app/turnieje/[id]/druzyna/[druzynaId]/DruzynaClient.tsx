@@ -38,7 +38,7 @@ import RamkaTurnieju, { SZEROKOSC_TURNIEJU } from '@/components/turnieje/RamkaTu
 import { usePotwierdzenie } from '@/lib/usePotwierdzenie';
 import { getTurniej, getBlikTurnieju } from '@/lib/turnieje';
 import {
-  getDruzyna, getDruzyny, dodajZawodnika, usunZawodnika, updateDruzyne,
+  getDruzyna, getDruzyny, dodajZawodnika, usunZawodnika, opuscDruzyne, updateDruzyne,
   usunDruzyne, zamienDruzyneWEkipe, mozeEdytowacSklad, ustawKapitana,
   przygotujLinkiKapitanow, tekstLinkuKapitana,
 } from '@/lib/turniejDruzyny';
@@ -257,6 +257,31 @@ export default function DruzynaClient() {
       await wczytaj();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się usunąć', 'error');
+    }
+  };
+
+  // OPUSZCZENIE DRUŻYNY (191, prośba właściciela 2026-11-27): zawodnik sam
+  // wypisuje się ze składu. Kapitan też, wtedy drużyna zostaje bez kapitana.
+  const opusc = async () => {
+    if (!druzyna) return;
+    const wynik = await potwierdz({
+      tytul: `Opuścić drużynę ${druzyna.nazwa}?`,
+      konsekwencje: [
+        'Znikniesz ze składu tej drużyny',
+        ...(jestKapitanem ? ['Drużyna zostanie bez kapitana: ktoś ze składu może poprosić o kapitanat, a skład prowadzi organizator'] : []),
+        'Wrócisz tylko linkiem drużyny albo prośbą o dołączenie',
+      ],
+      potwierdzLabel: 'Opuść drużynę',
+      wariant: 'destrukcyjny',
+    });
+    if (wynik !== 'tak') return;
+    try {
+      await opuscDruzyne(druzyna.id);
+      toast('Nie jesteś już w składzie tej drużyny');
+      setMojaWTurnieju(null);
+      await wczytaj();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się opuścić drużyny', 'error');
     }
   };
 
@@ -582,6 +607,15 @@ export default function DruzynaClient() {
                 </li>
               ))}
             </ul>
+          )}
+
+          {user && wolnoZmieniac && zawodnicy.some((z) => z.userId === user.id) && (
+            <button
+              onClick={opusc}
+              className="mt-2 inline-flex min-h-[40px] items-center text-sm font-medium text-slate-500 hover:text-red-600"
+            >
+              Opuść drużynę
+            </button>
           )}
 
           {prowadziSklad && wolnoZmieniac && !komplet && (

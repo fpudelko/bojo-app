@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-27 · migracja `190` · 65 tabel
+**Stan na:** 2026-11-27 · migracja `191` · 65 tabel
 
 ---
 
@@ -481,6 +481,27 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-27 (4) — Turniej: opuszczenie drużyny, przebieg meczu po stronach, czytelny „Prowadź”
+
+PROBLEM: zawodnik turnieju w Bojo nie mógł sam wypisać się z drużyny, przebieg meczu był
+jedną listą bez podziału na drużyny, w „Prowadź” nie było widać nazwy drugiej drużyny,
+a na telefonie nie dało się trafić w przełącznik układu ekranu turnieju.
+
+ROZWIĄZANIE BOJO: na ekranie drużyny zawodnik ze składu ma „Opuść drużynę” z oknem
+potwierdzenia (kapitan też; drużyna zostaje wtedy bez kapitana). Przebieg meczu pokazuje
+gole i kartki po stronie drużyny, której dotyczą, z minutą na środku. W „Prowadź” nad
+godziną meczu stoi numer i grupa, a nazwy obu drużyn ucinają się po równo. Pasek układu
+ekranu turnieju jest na telefonie większy.
+
+MECHANIKA: migracja `191` (`opusc_druzyne()`), `DruzynaClient.tsx`, `MeczClient.tsx`,
+`CentrumTurnieju.tsx` (`WierszMeczu`), `ekran/EkranClient.tsx`. Szczegóły →
+[funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Jak wypisać się z drużyny turniejowej w Bojo?
+- Co się dzieje z drużyną, gdy kapitan opuści ją w Bojo?
+- Jak czytać przebieg meczu turnieju w Bojo?
+
 ### 2026-11-27 (3) — Prowadzenie meczu turnieju na jednym ekranie, turniej startuje sam
 
 PROBLEM: ekran prowadzenia meczu turnieju w Bojo nie mieścił się na telefonie, wyniki dało
@@ -633,26 +654,6 @@ PYTANIA:
 - Co może prowadzący mecze w turnieju Bojo, a czego nie?
 - Jak pokazać wynik jednego meczu na telewizorze przy boisku?
 - Gdzie w Bojo jest ekran z wynikami na rzutnik?
-
-### 2026-11-22 (2) — Zegar meczu turnieju z pauzą i połowami
-
-PROBLEM: zegar meczu turnieju w Bojo ruszał w chwili wejścia w tryb na żywo i nie dawał się
-zatrzymać; organizator nie wiedział, co się stanie po kliknięciu „Prowadź mecz na żywo”, i nie
-wiedział, kiedy kończy się połowa.
-
-ROZWIĄZANIE BOJO: na stronie meczu karta „Prowadź mecz na żywo” stoi na górze z opisem
-w jednej linii. Po „Zacznij mecz teraz” zegar czeka na „Start”; prowadzący ma „Pauza”,
-„Koniec połowy”, „Start 2. połowy” i „Koniec meczu”, a „Przejdź do końca meczu” jest zawsze.
-Ekran na halę i panel organizatora pokazują ten sam stan zegara („1. poł. 03:12”, „Przerwa”).
-Na ekranie na halę kod QR zbiórki jest duży, a kod Bojo mały po drugiej stronie.
-
-MECHANIKA: migracja `182` (`turniej_mecze.zegar_od`, `zegar_sekundy`, `polowa`),
-`lib/zegarMeczu.ts`.
-Szczegóły → [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
-
-PYTANIA:
-- Czy zegar meczu turnieju w Bojo da się zatrzymać?
-- Jak zakończyć pierwszą połowę meczu w Bojo?
 
 ### 2026-11-22 — Turniej w Bojo: link kapitana, wyniki na karcie drużyny, przerwy, ekran 16:9
 

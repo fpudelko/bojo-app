@@ -264,6 +264,15 @@ export async function updateZawodnika(id: string, dane: { imie?: string; numer?:
   await zaktualizujJedenWiersz('turniej_zawodnicy', id, zmiany, 'Nie udało się zapisać zawodnika');
 }
 
+/** Zalogowany sam opuszcza drużynę (191). Kapitan też: drużyna zostaje bez kapitana. */
+export async function opuscDruzyne(druzynaId: string): Promise<void> {
+  const { error } = await supabase.rpc('opusc_druzyne', { p_druzyna: druzynaId });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Opuszczanie drużyny jeszcze nie działa na tej bazie (brak migracji 191).');
+    throw new Error(error.message);
+  }
+}
+
 export async function usunZawodnika(id: string): Promise<void> {
   const { error } = await supabase.from('turniej_zawodnicy').delete().eq('id', id);
   if (error) throw new Error(error.message);

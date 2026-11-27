@@ -5262,6 +5262,23 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   `190`. „Prowadź” → Rozegrane: mecz w dwóch liniach (`WierszRozegranego` w
   `CentrumTurnieju.tsx`), drużyny jedna pod drugą z własnym wynikiem, zwycięzca pogrubiony,
   „M3 · zakończony” jako podpis zamiast plakietki, która zjadała nazwę drugiej drużyny.
+- **Przebieg meczu po stronie drużyny (2026-11-27):** w `MeczClient.tsx` każde zdarzenie stoi
+  w siatce lewo / minuta / prawo: gol i samobój po stronie drużyny, która dostała bramkę,
+  kartka po stronie ukaranej. Po lewej ikona, potem strzelec; po prawej strzelec, a ikona na
+  końcu. Bez strzelca: sama nazwa zdarzenia („Gol”). Nazwy drużyny w wierszu nie ma.
+- **Wiersz meczu do rozegrania w „Prowadź” (2026-11-27):** `WierszMeczu` w
+  `CentrumTurnieju.tsx`: „M15 · Gr. A” małym drukiem nad godziną, nazwy drużyn mniejszą
+  czcionką w dwóch równych połówkach (siatka `1fr auto 1fr`), każda ucinana osobno, więc
+  zawsze widać początek obu drużyn (wcześniej druga ginęła jako „Mł…”).
+- **Opuszczenie drużyny turniejowej (2026-11-27, migracja `191`):** ekran drużyny
+  (`DruzynaClient.tsx`) pod listą zawodników ma „Opuść drużynę” dla zalogowanego, który jest
+  w składzie (do zakończenia turnieju). Okno potwierdzenia mówi, że wróci się tylko linkiem
+  albo prośbą, a kapitanowi dodatkowo, że drużyna zostanie bez kapitana. `opuscDruzyne()`
+  w `lib/turniejDruzyny.ts` woła `opusc_druzyne()`.
+- **Pasek układu na ekranie turnieju na telefonie (2026-11-27):** sterowanie układem
+  w `EkranClient.tsx` ma pismo co najmniej 12 px i łamie się w kilka rzędów; wcześniej
+  dziedziczyło skalę sceny 16:9 i na telefonie przyciski miały ok. 45×11 px, więc wybór
+  „Pokaz na zmianę” trafiał obok.
 - **Podgląd linków drużyny, kapitana i zaproszenia (2026-11-27):** `/t/[kod]`, `/k/[kod]`
   i `/o/[kod]` mają serwerowe `page.tsx` z `generateMetadata` (`metadataLinkuTurnieju()`
   w `turnieje/[id]/turniejMeta.ts`): tytuł „Dołącz do drużyny X · turniej”, opis i obrazek
