@@ -68,7 +68,10 @@ export default function CentrumTurnieju({
   });
   const nazwa = (m: TurniejMecz, s: 'a' | 'b') => nazwaSlotu(m, s, druzynyPoId, meczePoId, grupyPoId);
   // „Gr. A” nad godziną w wierszu meczu (2026-11-27).
-  const fazaKrotko = (m: TurniejMecz) => etykietaFazyMeczu(m, grupyPoId).replace(/^Grupa /, 'Gr. ');
+  // Mecze końcowe po krótkiej nazwie: „Mecz o 3. miejsce” nie mieści się nad godziną.
+  const fazaKrotko = (m: TurniejMecz) => m.faza === 'o_3_miejsce' ? 'o 3. m.'
+    : m.faza === 'final' ? 'Finał'
+    : etykietaFazyMeczu(m, grupyPoId).replace(/^Grupa finałowa /, 'Gr. ').replace(/^Grupa /, 'Gr. ');
   const para = (m: TurniejMecz) => `${nazwa(m, 'a')} – ${nazwa(m, 'b')}`;
   const adresMeczu = (m: TurniejMecz) => `/turnieje/${turniej.id}/mecz/${m.id}`;
   // Gole jednym kliknięciem tylko tam, gdzie wynik to gole. Sety i punkty
@@ -424,11 +427,11 @@ function WierszMeczu({ godzina, numer, faza, druzyny, href, akcja }: {
   href: string;
   akcja?: { etykieta: string; onClick?: () => void; href?: string };
 }) {
-  const przycisk = 'inline-flex min-h-[40px] shrink-0 items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700';
+  const przycisk = 'inline-flex min-h-[36px] shrink-0 items-center rounded-xl border border-slate-300 px-2.5 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700';
   const [a, b] = druzyny;
   return (
     <div className="flex min-h-[48px] items-center gap-3 py-1.5">
-      <span className="w-14 shrink-0 leading-tight">
+      <span className="w-[4.5rem] shrink-0 leading-tight">
         <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">M{numer}{faza ? ` · ${faza}` : ''}</span>
         {godzina && <span className="block text-sm font-bold tabular-nums text-ink">{godzina}</span>}
       </span>

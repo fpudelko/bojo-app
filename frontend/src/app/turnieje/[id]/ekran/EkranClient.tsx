@@ -768,10 +768,15 @@ export default function EkranClient() {
         </main>
       )}
 
-      {/* STEROWANIE UKŁADEM: chwilę po ruchu myszy albo dotknięciu. */}
+      {/* STEROWANIE UKŁADEM: chwilę po ruchu myszy albo dotknięciu.
+          Pismo co najmniej 12 px (2026-11-27, „nie są na zmianę, mimo że taki
+          wybrałem”): pasek dziedziczył skalę sceny 16:9, więc na telefonie
+          przyciski miały ok. 45×11 px i dotknięcie trafiało obok. Na wąskim
+          ekranie pasek łamie się w kilka rzędów zamiast wychodzić za krawędź. */}
       <nav
         aria-label="Układ ekranu"
-        className={`fixed bottom-[1em] left-1/2 flex -translate-x-1/2 gap-[0.3em] rounded-full bg-[color:var(--e-panel)] p-[0.35em] shadow-2xl ring-1 ring-[color:var(--e-linia)] transition-opacity duration-300 ${
+        style={{ fontSize: 'max(1em, 12px)', maxWidth: 'calc(100vw - 16px)' }}
+        className={`fixed bottom-[1em] left-1/2 flex w-max -translate-x-1/2 flex-wrap justify-center gap-[0.3em] rounded-[1.4em] bg-[color:var(--e-panel)] p-[0.35em] shadow-2xl ring-1 ring-[color:var(--e-linia)] transition-opacity duration-300 ${
           sterowanie ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
       >

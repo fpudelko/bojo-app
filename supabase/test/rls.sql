@@ -2042,6 +2042,29 @@ SELECT _oczekuj('ponowne dodanie zmienia rolę na współorganizatora',
                 (SELECT count(*) FROM turniej_osoby WHERE turniej_id = :PM_T::uuid AND user_id = :CZLONEK::uuid AND moze_edytowac), 1);
 DELETE FROM turnieje WHERE id = :PM_T::uuid;
 
+SELECT _sekcja('Zawodnik sam opuszcza drużynę (migracja 191)');
+\set OD_T '''ffffffff-0000-4000-8000-000000000601'''
+\set OD_D '''ffffffff-0000-4000-8000-000000000602'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:OD_T::uuid, :ORGANIZATOR::uuid, 'Opuszczanie', 'piłka nożna', 'zapisy', CURRENT_DATE + 3);
+INSERT INTO turniej_druzyny (id, turniej_id, nazwa, status, kapitan_id)
+VALUES (:OD_D::uuid, :OD_T::uuid, 'Do opuszczenia', 'przyjeta', :CZLONEK::uuid);
+INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, user_id, imie, kapitan) VALUES
+  (:OD_D::uuid, :OD_T::uuid, :CZLONEK::uuid, 'Kapitan', true),
+  (:OD_D::uuid, :OD_T::uuid, NULL, 'Kolega bez konta', false);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie opuści drużyny, w której nie gra',
+  format('SELECT opusc_druzyne(%L)', :OD_D));
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT opusc_druzyne(:OD_D::uuid);
+RESET ROLE;
+SELECT _oczekuj('zawodnik zniknął ze składu, kolega został',
+                (SELECT count(*) FROM turniej_zawodnicy WHERE druzyna_id = :OD_D::uuid), 1);
+SELECT _oczekuj('drużyna kapitana, który odszedł, jest bez kapitana',
+                (SELECT count(*) FROM turniej_druzyny WHERE id = :OD_D::uuid AND kapitan_id IS NULL), 1);
+DELETE FROM turnieje WHERE id = :OD_T::uuid;
+
 SELECT _sekcja('Turniej zaczyna się sam przy pierwszym meczu (migracja 190)');
 \set TS_T '''ffffffff-0000-4000-8000-000000000501'''
 \set TS_M '''ffffffff-0000-4000-8000-000000000502'''
