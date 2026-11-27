@@ -1300,6 +1300,9 @@ VALUES
    (date_trunc('day', now() AT TIME ZONE 'Europe/Warsaw') + interval '11 hours') AT TIME ZONE 'Europe/Warsaw');
 
 -- Turniej w tej sekcji ma status 'zapisy' — wyzwalacz ma wtedy MILCZEĆ.
+-- Wcześniejsze sekcje grały mecze, więc od migracji 190 turniej sam przeszedł
+-- w 'trwa'. Tu sprawdzamy turniej, który NIE trwa: cofamy go na zapisy.
+UPDATE turnieje SET status = 'zapisy' WHERE id = :TURNIEJ::uuid;
 DELETE FROM notifications WHERE type = 'turniej_nastepny_mecz';
 UPDATE turniej_mecze SET status = 'zakonczony' WHERE id = :T_MECZ_A::uuid;
 SELECT _oczekuj('turniej, który nie trwa, nie budzi nikogo „następnym meczem"',
@@ -2038,6 +2041,28 @@ SELECT _oczekuj('prowadzący poprawia wynik (cofnij_wynik_meczu)',
 SELECT _oczekuj('ponowne dodanie zmienia rolę na współorganizatora',
                 (SELECT count(*) FROM turniej_osoby WHERE turniej_id = :PM_T::uuid AND user_id = :CZLONEK::uuid AND moze_edytowac), 1);
 DELETE FROM turnieje WHERE id = :PM_T::uuid;
+
+SELECT _sekcja('Turniej zaczyna się sam przy pierwszym meczu (migracja 190)');
+\set TS_T '''ffffffff-0000-4000-8000-000000000501'''
+\set TS_M '''ffffffff-0000-4000-8000-000000000502'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:TS_T::uuid, :ORGANIZATOR::uuid, 'Start z meczem', 'piłka nożna', 'zamkniete_zapisy', CURRENT_DATE);
+INSERT INTO turniej_mecze (id, turniej_id, numer, faza, status)
+VALUES (:TS_M::uuid, :TS_T::uuid, 1, 'grupa', 'zaplanowany');
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT dodaj_osobe_turnieju(:TS_T::uuid, 'rls-czlonek@example.com', 'prowadzacy');
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+UPDATE turniej_mecze SET status = 'trwa' WHERE id = :TS_M::uuid;
+RESET ROLE;
+SELECT _oczekuj('prowadzący startuje mecz, turniej przechodzi w „trwa”',
+                (SELECT count(*) FROM turnieje WHERE id = :TS_T::uuid AND status = 'trwa'), 1);
+UPDATE turnieje SET status = 'zakonczony' WHERE id = :TS_T::uuid;
+UPDATE turniej_mecze SET status = 'zaplanowany' WHERE id = :TS_M::uuid;
+UPDATE turniej_mecze SET status = 'zakonczony' WHERE id = :TS_M::uuid;
+SELECT _oczekuj('zakończony turniej nie wraca do „trwa”',
+                (SELECT count(*) FROM turnieje WHERE id = :TS_T::uuid AND status = 'zakonczony'), 1);
+DELETE FROM turnieje WHERE id = :TS_T::uuid;
 
 SELECT _sekcja('Prośby gracza do drużyny (migracja 186)');
 \set PR_T '''ffffffff-0000-4000-8000-000000000201'''

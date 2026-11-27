@@ -93,6 +93,13 @@ export default function OknoPotwierdzenia({
   useBlokadaPrzewijania(open);
   const [wpisane, setWpisane] = useState('');
   useEffect(() => { if (open) setWpisane(''); }, [open, tytul]);
+  // Esc zamyka okno jak „Anuluj”.
+  useEffect(() => {
+    if (!open) return;
+    const naKlawisz = (e: KeyboardEvent) => { if (e.key === 'Escape') onAnuluj(); };
+    window.addEventListener('keydown', naKlawisz);
+    return () => window.removeEventListener('keydown', naKlawisz);
+  }, [open, onAnuluj]);
   const zgodne = !wpiszAby || wpisane.trim().toLowerCase() === wpiszAby.trim().toLowerCase();
 
   if (!open) return null;
@@ -165,9 +172,18 @@ export default function OknoPotwierdzenia({
               id="okno-potwierdzenia-wpisz"
               value={wpisane}
               onChange={(e) => setWpisane(e.target.value)}
+              // iOS Safari (2026-11-27, „nie da się wyjść z tego ekranu”):
+              // pod oknem <body> stoi na `position: fixed`, a klawiatura
+              // przesuwa widok, żeby pokazać pole, i po schowaniu go nie
+              // oddaje. Okno wygląda dobrze, ale dotknięcia trafiają obok
+              // przycisków. Po zejściu z pola wracamy widokiem na miejsce
+              // (strona i tak jest zablokowana, więc nic się nie przewinie).
+              onBlur={() => { if (document.body.style.position === 'fixed') window.scrollTo(0, 0); }}
               autoComplete="off"
+              autoCapitalize="off"
               disabled={busy}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-ink focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+              // 16 px: przy mniejszej czcionce iOS przybliża stronę po dotknięciu pola.
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-base text-ink focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
             />
           </div>
         )}

@@ -199,15 +199,17 @@ export default function MeczClient() {
   const koszykowka = jestKoszykowka(sport);
   const obieDruzynyZnane = !!mecz.druzynaAId && !!mecz.druzynaBId;
   const trwajacy = mecz.status === 'trwa';
-  // Wyniki wpisuje się dopiero po kliknięciu „Rozpocznij turniej" w panelu.
-  // Godzina meczu w terminarzu NIE jest sprawdzana: kolejność i tempo gry
+  // Turniej na zapisach zaczyna się sam przy pierwszym meczu (190,
+  // 2026-11-27): prowadzący może zacząć mecz od razu, a okno pyta, czy
+  // rozpocząć turniej. Godzina meczu w terminarzu NIE jest sprawdzana: kolejność i tempo gry
   // ustala organizator na boisku (decyzja właściciela z 2026-11-08).
   const turniejTrwa = turniej?.status === 'trwa';
   // Po „Popraw wynik" mecz wraca do planu także w turnieju już zakończonym,
   // więc formularz wyniku musi się wtedy pokazać, inaczej poprawka utknęłaby
   // w połowie.
+  const turniejPrzedStartem = turniej?.status === 'zapisy' || turniej?.status === 'zamkniete_zapisy';
   const mozeZaczac = mecz.status === 'zaplanowany' && obieDruzynyZnane
-    && (turniejTrwa || turniej?.status === 'zakonczony');
+    && (turniejTrwa || turniej?.status === 'zakonczony' || turniejPrzedStartem);
   const mozePoprawic = prowadzi && (mecz.status === 'zakonczony' || mecz.status === 'walkower')
     && !czyWolnyLos(mecz);
   const wszyscyZawodnicy = [...(druzynaA?.zawodnicy ?? []), ...(druzynaB?.zawodnicy ?? [])];
@@ -350,7 +352,23 @@ export default function MeczClient() {
     }
   };
 
+  /** Pierwszy mecz rusza turniej (190): pytamy, zanim to się stanie. */
+  const zgodaNaStartTurnieju = async (): Promise<boolean> => {
+    if (!turniejPrzedStartem) return true;
+    const wynik = await potwierdz({
+      tytul: 'Rozpocząć turniej?',
+      konsekwencje: [
+        'To pierwszy mecz, więc turniej przejdzie w „w trakcie”',
+        'Zapisy zostaną zamknięte',
+        'Zawodnicy z kontami dostaną powiadomienie przed swoim kolejnym meczem',
+      ],
+      potwierdzLabel: 'Rozpocznij turniej',
+    });
+    return wynik === 'tak';
+  };
+
   const rozpocznijAkcja = async () => {
+    if (!(await zgodaNaStartTurnieju())) return;
     try { await rozpocznijMecz(meczId); await wczytaj(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Nie udało się rozpocząć meczu', 'error'); }
   };
@@ -411,6 +429,7 @@ export default function MeczClient() {
       });
       if (wynik !== 'tak') return;
     }
+    if (!poprawia && !(await zgodaNaStartTurnieju())) return;
     setZapisujeWynik(true);
     try {
       const wynik = {
@@ -500,9 +519,10 @@ export default function MeczClient() {
           // Prowadzący przychodzi z „Prowadź” i tam ma wrócić (2026-11-27,
           // test: „klikam mecz, żeby go prowadzić, a przenosi mnie do Mecze”).
           aktywna={prowadzi ? 'prowadz' : 'mecze'}
-          powrot={prowadzi
-            ? { etykieta: 'Prowadź', href: `/turnieje/${id}/panel?tab=prowadz` }
-            : { etykieta: 'Mecze', href: `/turnieje/${adresTurnieju}?tab=mecze` }}
+          // Prowadzący nie dostaje „‹ Prowadź” (2026-11-27): zakładka
+          // „Prowadź” jest zaznaczona w ramce tuż nad, a linia zabierała
+          // miejsce na ekranie prowadzenia.
+          powrot={prowadzi ? undefined : { etykieta: 'Mecze', href: `/turnieje/${adresTurnieju}?tab=mecze` }}
           // Na meczu nagłówek nie jedzie za ekranem: na telefonie zabierał
           // miejsce, w którym prowadzący ma mieć gole, kartki i zegar.
           przyklejona={false}
@@ -541,16 +561,21 @@ export default function MeczClient() {
         />
       )}
 
-      <main className={`mx-auto w-full ${SZEROKOSC_TURNIEJU} flex-1 px-4 py-5`}>
-        <div className="space-y-4 lg:mx-auto lg:max-w-2xl">
-        <h1 className="font-display text-lg font-bold text-ink">
-          M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}
-        </h1>
-        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
+      {/* ZBITY EKRAN PROWADZENIA (2026-11-27, uwaga właściciela: „żeby było
+          na jednym ekranie”): numer i faza meczu w karcie wyniku zamiast
+          osobnego nagłówka, zegar w dwóch liniach, mniejsze odstępy. */}
+      <main className={`mx-auto w-full ${SZEROKOSC_TURNIEJU} flex-1 px-4 py-3`}>
+        <div className="space-y-3 lg:mx-auto lg:max-w-2xl">
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 space-y-2 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${status.ton}`}>{status.label}</span>
+              <h1 className="truncate text-sm font-semibold text-ink">
+                M{mecz.numer} · {etykietaFazyMeczu(mecz, grupyPoId)}
+              </h1>
+            </div>
             {(mecz.zaplanowanyAt || arena) && (
-              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <div className="flex shrink-0 items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
                 {/* Termin obok boiska: przed startem było widać samo „Boisko 1"
                     (audyt 5, N9). */}
                 {mecz.zaplanowanyAt && mecz.status === 'zaplanowany' && (
@@ -561,18 +586,28 @@ export default function MeczClient() {
             )}
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="min-w-0 flex-1 line-clamp-2 break-words text-xl font-semibold leading-7 text-ink sm:text-2xl">
-              {druzynaA?.nazwa ?? slotZGrupy('a')}
-            </span>
+            {/* Nazwy drużyn prowadzą do ich kart (skład, wyniki), także
+                w trakcie prowadzenia meczu (prośba właściciela 2026-11-27). */}
+            {druzynaA ? (
+              <Link href={`/turnieje/${id}/druzyna/${druzynaA.id}`} className="min-w-0 flex-1 line-clamp-2 break-words text-lg font-semibold leading-6 text-ink underline-offset-2 hover:underline sm:text-2xl">
+                {druzynaA.nazwa}
+              </Link>
+            ) : (
+              <span className="min-w-0 flex-1 line-clamp-2 break-words text-lg font-semibold leading-6 text-ink sm:text-2xl">{slotZGrupy('a')}</span>
+            )}
             {/* Przed pierwszym gwizdkiem „0:0" wyglądało jak wynik (audyt 6). */}
             {mecz.status === 'zaplanowany' ? (
               <span className="shrink-0 text-sm font-medium text-slate-400">vs</span>
             ) : (
-              <span className="shrink-0 font-mono text-2xl font-bold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
+              <span className="shrink-0 font-mono text-3xl font-bold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
             )}
-            <span className="min-w-0 flex-1 line-clamp-2 break-words text-right text-xl font-semibold leading-7 text-ink sm:text-2xl">
-              {druzynaB?.nazwa ?? slotZGrupy('b')}
-            </span>
+            {druzynaB ? (
+              <Link href={`/turnieje/${id}/druzyna/${druzynaB.id}`} className="min-w-0 flex-1 line-clamp-2 break-words text-right text-lg font-semibold leading-6 text-ink underline-offset-2 hover:underline sm:text-2xl">
+                {druzynaB.nazwa}
+              </Link>
+            ) : (
+              <span className="min-w-0 flex-1 line-clamp-2 break-words text-right text-lg font-semibold leading-6 text-ink sm:text-2xl">{slotZGrupy('b')}</span>
+            )}
           </div>
           {/* ZEGAR MECZU (182): rusza dopiero po „Start” prowadzącego, ma pauzę
               i dwie połowy. Stan w bazie, więc odświeżenie strony i inne
@@ -581,19 +616,19 @@ export default function MeczClient() {
             <div className="text-center">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {faza === 'przerwa' ? 'Przerwa po 1. połowie' : faza === 'czeka' ? 'Przed pierwszym gwizdkiem' : `${mecz.polowa ?? 1}. połowa${faza === 'pauza' ? ' · pauza' : ''}`}
+                {polowaMin > 0 && faza !== 'przerwa' && (
+                  <span className={`font-normal normal-case tracking-normal ${minalCzas ? 'text-amber-600' : 'text-slate-400'}`}>
+                    {' · '}{minalCzas ? `minęło ${polowaMin} min` : `${polowaMin} min`}
+                  </span>
+                )}
               </p>
               {faza !== 'przerwa' && (
-                <p className={`inline-flex items-center gap-1.5 font-mono text-3xl font-bold ${minalCzas ? 'text-amber-600' : faza === 'gra' ? 'text-ink' : 'text-slate-400'}`}>
+                <p className={`inline-flex items-center gap-1.5 font-mono text-3xl font-bold leading-tight ${minalCzas ? 'text-amber-600' : faza === 'gra' ? 'text-ink' : 'text-slate-400'}`}>
                   <Timer className="h-5 w-5" /> {czas}
                 </p>
               )}
-              {polowaMin > 0 && faza !== 'przerwa' && (
-                <p className="text-xs text-slate-400">
-                  {minalCzas ? `Minęło ${polowaMin} min połowy` : `połowa: ${polowaMin} min`}
-                </p>
-              )}
               {prowadzi && (
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   {faza === 'czeka' && (
                     <Button onClick={() => zmienZegar(startZegara(mecz, new Date()))} className="col-span-2 min-h-[48px]">Start</Button>
                   )}
@@ -613,11 +648,6 @@ export default function MeczClient() {
                   )}
                 </div>
               )}
-              {prowadzi && !pokazZakoncz && (
-                <button type="button" onClick={doKoncaMeczu} className="mt-2 text-xs font-medium text-slate-500 underline-offset-2 hover:underline">
-                  Przejdź do końca meczu
-                </button>
-              )}
             </div>
           )}
           {mecz.karneA !== undefined && mecz.karneB !== undefined && (
@@ -636,12 +666,6 @@ export default function MeczClient() {
           )}
         </div>
 
-        {prowadzi && mecz.status === 'zaplanowany' && obieDruzynyZnane && !turniejTrwa && (
-          <div className="rounded-xl bg-slate-50 dark:bg-slate-700/40 px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
-            Turniej jeszcze się nie zaczął. Wyniki wpiszesz po kliknięciu „Rozpocznij turniej”{' '}
-            <Link href={`/turnieje/${id}/panel`} className="font-medium text-primary-600">w panelu</Link>.
-          </div>
-        )}
 
         {/* PROWADZENIE NA ŻYWO NA GÓRZE, Z OPISEM (sugestia Jana, 2026-11-22).
             Przycisk stał pod formularzem wyniku i nie mówił, co się stanie po
@@ -818,7 +842,7 @@ export default function MeczClient() {
                       onClick={() => zapytajOZawodnika(druzynaId, 'gol')}
                       // Niższy przycisk (2026-11-27): kartki i „Cofnij” mają
                       // się zmieścić na jednym ekranie telefonu z zegarem.
-                      className="flex min-h-[64px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl bg-primary-50 dark:bg-primary-950 px-2 py-2 active:bg-primary-100 dark:active:bg-primary-900"
+                      className="flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl bg-primary-50 dark:bg-primary-950 px-2 py-2 active:bg-primary-100 dark:active:bg-primary-900"
                     >
                       {/* Plus mówi „dodaj” (prośba właściciela 2026-11-22):
                           samo „GOL” czytało się jak etykieta, nie przycisk. */}

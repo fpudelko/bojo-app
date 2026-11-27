@@ -4716,13 +4716,15 @@ i sponsorów → [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy
 **Galeria zdjęć i sponsorzy (2026-09-22, migracja `159`).** Zakładka **Info** na
 `/turnieje/[id]` ma pod kartą szczegółów dwie sekcje: **Galeria** (`components/turnieje/Galeria.tsx`,
 siatka 3 kolumn, dotknięcie otwiera pełnoekranowy podgląd `Lightbox.tsx` ze strzałkami,
-Escape i dotknięciem tła) oraz **Sponsorzy** (`Sponsorzy.tsx`, logo 64×64 albo plakietka
-z samą nazwą, link z `rel="sponsored"`). Obie znikają, gdy są puste — poza galerią dla
+Escape i dotknięciem tła) oraz **Sponsorzy** (`Sponsorzy.tsx`, logo 64×64 z nazwą pod spodem (od 2026-11-27,
+wcześniej samo logo) albo plakietka z samą nazwą, link z `rel="sponsored"`). Obie znikają, gdy są puste — poza galerią dla
 zarządzającego, który widzi „+ Ustaw wygląd strony" prowadzące do panelu (etykieta mówi
 wprost, że otwiera się cała zakładka Ustawienia, nie tylko dodawanie zdjęć — zmiana
 2026-09-24 po zgłoszeniu, że „+ Dodaj zdjęcia" mylnie zapowiadało węższy ekran). Zarządzanie mieszka
-w panelu, zakładka **Ustawienia** (`PanelGaleria.tsx` — kolejność strzałkami, usuwanie;
-`PanelSponsorzy.tsx` — nazwa i link zapisywane przy wyjściu z pola, logo opcjonalne),
+w panelu, zakładka **Wygląd strony** (od 2026-11-27; `PanelGaleria.tsx` — kolejność strzałkami, usuwanie;
+`PanelSponsorzy.tsx` — nazwa i link zapisywane przy wyjściu z pola, logo opcjonalne
+i od 2026-11-27 do wybrania już w formularzu nowego sponsora, z podglądem; wgrywa się zaraz po
+dodaniu, a błąd wgrania nie cofa dodania),
 **nie** jako szósta zakładka panelu. Widzi je także współorganizator z `moze_edytowac`
 (reszty Ustawień nie), bo tyle wpuszcza RLS. Link sponsora przechodzi przez
 `normalizujLinkSponsora()` przy zapisie i `bezpiecznyLinkSponsora()` przy wyświetlaniu —
@@ -5250,6 +5252,27 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   `/logowanie?next=/o/<kod>`, zalogowany „Przyjmij zaproszenie” → panel turnieju. Link działa
   raz, organizator nie przyjmie własnego, zaproszenie nie odbiera praw. `/o/` jest w
   `robots.ts` wykluczone.
+- **Prowadzenie meczu na jednym ekranie i start turnieju z meczem (2026-11-27, migracja `190`):**
+  ekran meczu dla prowadzącego (`MeczClient.tsx`) nie ma już linii „‹ Prowadź” (zakładka
+  „Prowadź” jest zaznaczona w ramce) ani „Przejdź do końca meczu” (dublowało „Zakończ mecz”);
+  numer i faza meczu stoją w karcie wyniku, zegar w dwóch liniach, mniejsze odstępy, więc
+  wynik, zegar, gole, kartki i „Zakończ mecz” mieszczą się na 360×740. Nazwy drużyn prowadzą
+  do kart drużyn. W turnieju na zapisach prowadzący może od razu zacząć mecz albo wpisać
+  wynik: okno „Rozpocząć turniej?” (`zgodaNaStartTurnieju()`), a turniej przestawia wyzwalacz
+  `190`. „Prowadź” → Rozegrane: mecz w dwóch liniach (`WierszRozegranego` w
+  `CentrumTurnieju.tsx`), drużyny jedna pod drugą z własnym wynikiem, zwycięzca pogrubiony,
+  „M3 · zakończony” jako podpis zamiast plakietki, która zjadała nazwę drugiej drużyny.
+- **Podgląd linków drużyny, kapitana i zaproszenia (2026-11-27):** `/t/[kod]`, `/k/[kod]`
+  i `/o/[kod]` mają serwerowe `page.tsx` z `generateMetadata` (`metadataLinkuTurnieju()`
+  w `turnieje/[id]/turniejMeta.ts`): tytuł „Dołącz do drużyny X · turniej”, opis i obrazek
+  turnieju (`/turnieje/[id]/opengraph-image`), `noindex`. Wcześniej WhatsApp i poczta
+  pokazywały ogólną kartę Bojo. Strona to `LinkClient.tsx` obok.
+- **Okno potwierdzenia na iOS (2026-11-27):** pole „Wpisz …, żeby potwierdzić” w
+  `OknoPotwierdzenia.tsx` ma 16 px (bez przybliżania strony przez Safari) i po zejściu z pola
+  wraca widokiem na miejsce, bo przy `<body>` na `position: fixed` klawiatura zostawiała
+  przesunięty widok i dotknięcia trafiały obok przycisków („nie da się wyjść”). Esc zamyka okno.
+  Prośba kapitana o wycofanie drużyny (`DruzynaClient.tsx`) też wymaga wpisania nazwy drużyny,
+  jak wycofanie przez organizatora.
 - **Terminarz z PDF wgrany skryptem (2026-11-27):** `supabase/zadania/turniej-marysi-terminarz-28-11.sql`
   (SQL Editor: część A podgląd, B zapis, C kontrola) ustawia turniej „Gramy dla Marysi!” na
   2 grupy, 36 meczów grupowych, mecz o 3. miejsce, finał i dwie przerwy; podstawia tożsamość

@@ -1,4 +1,5 @@
-// Sponsorzy turnieju na zakładce Info — publiczni (migracja `159`). Sponsor
+// Sponsorzy turnieju na zakładce Info — publiczni (migracja `159`). Logo
+// zawsze z nazwą pod spodem (2026-11-27). Sponsor
 // bez logo to plakietka z samą nazwą: mały sponsor bez przygotowanej grafiki
 // nie ma być gorzej widoczny, niż musi.
 'use client';
@@ -12,13 +13,18 @@ export default function Sponsorzy({ sponsorzy }: { sponsorzy: readonly TurniejSp
   return (
     <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-sm">
       <h2 className="text-sm font-semibold text-ink">Sponsorzy</h2>
-      <ul className="flex flex-wrap items-center gap-3">
+      <ul className="flex flex-wrap items-start gap-3">
         {sponsorzy.map((s) => {
           const link = bezpiecznyLinkSponsora(s.link);
+          // Logo zawsze z nazwą pod spodem: samo logo nie mówi, kto pomógł,
+          // a logotypy małych firm bywają nie do odczytania.
           const tresc = s.logoUrl ? (
-            <span className="flex h-16 w-16 items-center justify-center rounded-xl border border-slate-100 dark:border-slate-700 bg-white p-1.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={s.logoUrl} alt={s.nazwa} className="max-h-full max-w-full object-contain" />
+            <span className="flex w-24 flex-col items-center gap-1.5 text-center">
+              <span className="flex h-16 w-16 items-center justify-center rounded-xl border border-slate-100 dark:border-slate-700 bg-white p-1.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={s.logoUrl} alt="" className="max-h-full max-w-full object-contain" />
+              </span>
+              <span className="line-clamp-2 text-xs font-medium leading-tight text-slate-700 dark:text-slate-200">{s.nazwa}</span>
             </span>
           ) : (
             <span className="inline-flex h-16 items-center rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 px-3 text-sm font-medium text-slate-700 dark:text-slate-200">

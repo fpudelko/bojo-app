@@ -9,7 +9,7 @@
 //
 // OD 2026-11-27 TAKŻE NA TELEFONIE i w kolejności prowadzenia (test przed
 // turniejem 28.11): na górze mecz w trakcie, wyróżniony; pod nim następne do
-// rozegrania, każdy z „Start”; rozegrane niżej, z plakietką „Zakończony”.
+// rozegrania, każdy z „Start”; rozegrane niżej, w dwóch liniach z podpisem „zakończony”.
 // Tabele grup stąd wypadły: są w zakładce Tabela, a tu tylko zasłaniały to,
 // co prowadzący ma kliknąć za chwilę.
 //
@@ -318,14 +318,15 @@ export default function CentrumTurnieju({
       ) : (
         <div className="divide-y divide-slate-100 dark:divide-slate-700">
           {c.ostatnie.map((m) => (
-            <WierszMeczu
+            <WierszRozegranego
               key={m.id}
-              zakonczony
               numer={m.numer}
-              para={para(m)}
-              wynik={m.status === 'walkower' ? 'wo.' : `${m.wynikA}:${m.wynikB}${m.karneA !== undefined && m.karneB !== undefined ? ` (k. ${m.karneA}:${m.karneB})` : ''}`}
+              walkower={m.status === 'walkower'}
+              druzyny={[
+                { nazwa: nazwa(m, 'a'), wynik: m.wynikA, karne: m.karneA },
+                { nazwa: nazwa(m, 'b'), wynik: m.wynikB, karne: m.karneB },
+              ]}
               href={adresMeczu(m)}
-              akcja={{ etykieta: 'Popraw', href: adresMeczu(m) }}
             />
           ))}
         </div>
@@ -368,11 +369,47 @@ export default function CentrumTurnieju({
   );
 }
 
+/**
+ * Rozegrany mecz w DWÓCH liniach (2026-11-27, uwaga właściciela: „przez
+ * badge Zakończony nie widać nazwy drugiej drużyny”). Plakietka, numer,
+ * wynik i „Popraw” w jednej linii zostawiały na 360 px kilka liter na obie
+ * nazwy. Teraz drużyny stoją jedna pod drugą, każda z własnym wynikiem
+ * (zwycięzca pogrubiony), a „Zakończony” to podpis przy numerze.
+ */
+function WierszRozegranego({ numer, walkower, druzyny, href }: {
+  numer: number;
+  walkower: boolean;
+  druzyny: [{ nazwa: string; wynik: number; karne?: number }, { nazwa: string; wynik: number; karne?: number }];
+  href: string;
+}) {
+  const [a, b] = druzyny;
+  const karne = a.karne !== undefined && b.karne !== undefined;
+  const wygrywa = (x: typeof a, y: typeof a) => x.wynik > y.wynik || (karne && x.wynik === y.wynik && (x.karne ?? 0) > (y.karne ?? 0));
+  return (
+    <div className="flex items-center gap-3 py-2 text-sm">
+      <Link href={href} className="min-w-0 flex-1">
+        <span className="block text-xs text-slate-500 dark:text-slate-400">M{numer} · {walkower ? 'walkower' : 'zakończony'}</span>
+        {[[a, b], [b, a]].map(([x, y], i) => (
+          <span key={i} className={`flex items-baseline gap-2 ${wygrywa(x, y) ? 'font-semibold text-ink' : 'text-slate-600 dark:text-slate-300'}`}>
+            <span className="min-w-0 flex-1 truncate">{x.nazwa}</span>
+            {!walkower && (
+              <span className="shrink-0 tabular-nums">
+                {x.wynik}{karne && <span className="text-xs font-normal text-slate-400"> ({x.karne})</span>}
+              </span>
+            )}
+          </span>
+        ))}
+      </Link>
+      <Link href={href} className="inline-flex min-h-[40px] shrink-0 items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700">
+        Popraw
+      </Link>
+    </div>
+  );
+}
+
 /** Gęsty wiersz meczu: godzina | numer | para | wynik | akcja, w jednej linii. */
-function WierszMeczu({ godzina, numer, para, wynik, href, akcja, zakonczony }: {
+function WierszMeczu({ godzina, numer, para, wynik, href, akcja }: {
   godzina?: string;
-  /** Plakietka „Zakończony” zamiast godziny (2026-11-27). */
-  zakonczony?: boolean;
   numer: number;
   para: string;
   wynik?: string;
@@ -382,7 +419,6 @@ function WierszMeczu({ godzina, numer, para, wynik, href, akcja, zakonczony }: {
   const przycisk = 'inline-flex min-h-[40px] shrink-0 items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700';
   return (
     <div className="flex min-h-[48px] items-center gap-3 py-1.5 text-sm">
-      {zakonczony && <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">Zakończony</span>}
       {godzina && <span className="w-11 shrink-0 font-bold tabular-nums text-ink">{godzina}</span>}
       <span className="w-9 shrink-0 text-xs text-slate-500 dark:text-slate-400">M{numer}</span>
       <Link href={href} title={para} className="min-w-0 flex-1 truncate text-ink hover:underline">{para}</Link>
