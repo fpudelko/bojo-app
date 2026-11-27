@@ -5306,6 +5306,12 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   przesunięty widok i dotknięcia trafiały obok przycisków („nie da się wyjść”). Esc zamyka okno.
   Prośba kapitana o wycofanie drużyny (`DruzynaClient.tsx`) też wymaga wpisania nazwy drużyny,
   jak wycofanie przez organizatora.
+- **Zaproszenie mailem do prowadzenia turnieju (2026-11-27, migracja `192`):** w Ustawienia →
+  „Ludzie przy turnieju” jedno pole e-mail i dwa przyciski: „Wyślij zaproszenie” (`zaprosOsobeMailem()`
+  w `lib/turnieje.ts`, Bojo wysyła przez Resend maila z przyciskiem „Dołącz jako współorganizator /
+  prowadzący mecze” prowadzącym na `/o/<kod>`, także do kogoś bez konta) i „Dodaj od razu” (gdy
+  adres ma już konto, jak wcześniej). „Zaproś linkiem” zostaje dla kogoś, czyjego e-maila nie
+  znamy. Treść maila: powód `zaproszenie_do_turnieju` w `supabase/functions/powiadom-goscia/tresc.ts`.
 - **Terminarz z PDF wgrany skryptem (2026-11-27):** `supabase/zadania/turniej-marysi-terminarz-28-11.sql`
   (SQL Editor: część A podgląd, B zapis, C kontrola) ustawia turniej „Gramy dla Marysi!” na
   2 grupy, 36 meczów grupowych, mecz o 3. miejsce, finał i dwie przerwy; podstawia tożsamość

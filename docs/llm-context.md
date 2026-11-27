@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-27 · migracja `191` · 65 tabel
+**Stan na:** 2026-11-27 · migracja `192` · 65 tabel
 
 ---
 
@@ -492,7 +492,9 @@ potwierdzenia (kapitan też; drużyna zostaje wtedy bez kapitana). Przebieg mecz
 gole i kartki po stronie drużyny, której dotyczą, z minutą na środku. W „Prowadź” nad
 godziną meczu stoi numer i grupa, a nazwy obu drużyn ucinają się po równo. Pasek układu
 ekranu turnieju jest na telefonie większy. Organizator może pokazać kapitanowi kod QR zamiast wysyłać
-link, a kapitan zawodnikom kod QR do dołączenia do składu.
+link, a kapitan zawodnikom kod QR do dołączenia do składu. Współorganizatora i prowadzącego mecze można
+zaprosić mailem: Bojo wysyła wiadomość z przyciskiem „Dołącz”, także do kogoś bez konta
+(migracja `192`).
 
 MECHANIKA: migracja `191` (`opusc_druzyne()`), `DruzynaClient.tsx`, `MeczClient.tsx`,
 `CentrumTurnieju.tsx` (`WierszMeczu`), `ekran/EkranClient.tsx`. Szczegóły →

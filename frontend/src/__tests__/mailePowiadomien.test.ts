@@ -17,6 +17,8 @@ const POWODY: Powod[] = [
   // Migracja 169 (Z-1): poczta jako zapas dla kont bez pusha.
   'przypomnienie_o_meczu', 'reserve_claim_offered', 'zaproszenie_na_mecz',
   'po_meczu_do_domkniecia',
+  // Migracja 192: zaproszenie do turnieju (pola turnieju dokłada `dane()`).
+  'zaproszenie_do_turnieju',
 ];
 
 function dane(powod: Powod, nadpisz: Partial<Dane> = {}): Dane {
@@ -32,6 +34,9 @@ function dane(powod: Powod, nadpisz: Partial<Dane> = {}): Dane {
     koszt_grosz: 1500,
     na_rezerwie: false,
     token: '00000000-0000-4000-8000-0000000000ff',
+    ...(powod === 'zaproszenie_do_turnieju'
+      ? { turniej_nazwa: 'Gramy dla Marysi!', zapraszajacy: 'Franek', rola: 'prowadzacy', kod: 'ABCD1234' }
+      : {}),
     ...nadpisz,
   };
 }
@@ -213,5 +218,23 @@ describe('maile — poczta jako zapas bez pusha (Z-1)', () => {
     }), cfg)!;
     expect(doTekstu(mail)).toContain('Mecz rozegrany. Odhacz wpłaty w rozliczeniu.');
     expect(doHtml(mail, cfg)).toContain('Otwórz mecz');
+  });
+});
+
+describe('zaproszenie do turnieju (192)', () => {
+  it('prowadzący: przycisk „Dołącz jako prowadzący mecze” z linkiem zaproszenia', () => {
+    const m = tresc(dane('zaproszenie_do_turnieju'), cfg)!;
+    expect(m.temat).toBe('Franek zaprasza Cię do prowadzenia meczów: Gramy dla Marysi!');
+    expect(doHtml(m, cfg)).toContain('Dołącz jako prowadzący mecze');
+    expect(doTekstu(m)).toContain('https://bojo.pl/o/ABCD1234');
+    expect(doHtml(m, cfg)).toContain('https://bojo.pl/o/ABCD1234');
+  });
+  it('współorganizator: inna rola w temacie i na przycisku', () => {
+    const m = tresc(dane('zaproszenie_do_turnieju', { rola: 'wspolorganizator' }), cfg)!;
+    expect(m.temat).toContain('współorganizowania');
+    expect(doHtml(m, cfg)).toContain('Dołącz jako współorganizator');
+  });
+  it('bez linku nie ma maila', () => {
+    expect(tresc(dane('zaproszenie_do_turnieju', { kod: undefined }), cfg)).toBeNull();
   });
 });
