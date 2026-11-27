@@ -27,7 +27,18 @@ export default function PanelSponsorzy({ turniejId, potwierdz }: PanelSponsorzyP
   const [wczytane, setWczytane] = useState(false);
   const [nazwa, setNazwa] = useState('');
   const [link, setLink] = useState('');
+  const [nowyPlik, setNowyPlik] = useState<File | null>(null);
+  const [podglad, setPodglad] = useState<string | null>(null);
   const [dodaje, setDodaje] = useState(false);
+  const nowyPlikRef = useRef<HTMLInputElement>(null);
+
+  // Podgląd wybranego logo przed dodaniem; adres zwalniany przy zmianie.
+  useEffect(() => {
+    if (!nowyPlik) { setPodglad(null); return; }
+    const url = URL.createObjectURL(nowyPlik);
+    setPodglad(url);
+    return () => URL.revokeObjectURL(url);
+  }, [nowyPlik]);
 
   const odswiez = async () => {
     try {
@@ -47,9 +58,19 @@ export default function PanelSponsorzy({ turniejId, potwierdz }: PanelSponsorzyP
   const dodaj = async () => {
     setDodaje(true);
     try {
-      await dodajSponsora(turniejId, { nazwa, link });
+      const id = await dodajSponsora(turniejId, { nazwa, link });
+      // Logo wybrane od razu w formularzu: sponsor już jest, więc błąd wgrania
+      // nie cofa dodania, tylko mówi, żeby dodać logo przy sponsorze.
+      if (nowyPlik) {
+        try {
+          await ustawLogoSponsora(id, nowyPlik);
+        } catch (e) {
+          toast(e instanceof Error ? `Sponsor dodany, ale logo nie: ${e.message}` : 'Sponsor dodany, ale logo nie wgrało się', 'error');
+        }
+      }
       setNazwa('');
       setLink('');
+      setNowyPlik(null);
       await odswiez();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się dodać sponsora', 'error');
@@ -92,10 +113,39 @@ export default function PanelSponsorzy({ turniejId, potwierdz }: PanelSponsorzyP
       )}
 
       <div className="space-y-2 border-t border-slate-100 dark:border-slate-700 pt-3">
-        <input value={nazwa} onChange={(e) => setNazwa(e.target.value)} maxLength={60} placeholder="Nazwa sponsora" className={inputCls} />
-        <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Strona sponsora (opcjonalnie)" inputMode="url" className={inputCls} />
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 space-y-1 text-center">
+            <input
+              ref={nowyPlikRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0] ?? null; e.target.value = ''; if (f) setNowyPlik(f); }}
+            />
+            <button
+              type="button"
+              onClick={() => nowyPlikRef.current?.click()}
+              aria-label={nowyPlik ? 'Zmień logo nowego sponsora' : 'Dodaj logo nowego sponsora'}
+              className="flex h-14 w-14 flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white p-1 text-slate-400"
+            >
+              {podglad
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={podglad} alt="" className="max-h-full max-w-full object-contain" />
+                : <><ImagePlus className="h-5 w-5" /><span className="mt-0.5 text-[10px] leading-none">logo</span></>}
+            </button>
+            {nowyPlik && (
+              <button type="button" onClick={() => setNowyPlik(null)} className="text-[11px] text-slate-400 hover:text-red-600">
+                usuń logo
+              </button>
+            )}
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <input value={nazwa} onChange={(e) => setNazwa(e.target.value)} maxLength={60} placeholder="Nazwa sponsora" aria-label="Nazwa nowego sponsora" className={inputCls} />
+            <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Strona sponsora (opcjonalnie)" inputMode="url" aria-label="Strona nowego sponsora" className={inputCls} />
+          </div>
+        </div>
         <Button size="sm" onClick={dodaj} disabled={nazwa.trim().length === 0 || dodaje} className="inline-flex items-center gap-1.5">
-          <Plus className="h-4 w-4" /> Dodaj sponsora
+          {dodaje ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Dodaj sponsora
         </Button>
       </div>
     </div>

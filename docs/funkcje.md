@@ -4716,13 +4716,15 @@ i sponsorów → [turniej-galeria-sponsorzy-plan.md](./turniej-galeria-sponsorzy
 **Galeria zdjęć i sponsorzy (2026-09-22, migracja `159`).** Zakładka **Info** na
 `/turnieje/[id]` ma pod kartą szczegółów dwie sekcje: **Galeria** (`components/turnieje/Galeria.tsx`,
 siatka 3 kolumn, dotknięcie otwiera pełnoekranowy podgląd `Lightbox.tsx` ze strzałkami,
-Escape i dotknięciem tła) oraz **Sponsorzy** (`Sponsorzy.tsx`, logo 64×64 albo plakietka
-z samą nazwą, link z `rel="sponsored"`). Obie znikają, gdy są puste — poza galerią dla
+Escape i dotknięciem tła) oraz **Sponsorzy** (`Sponsorzy.tsx`, logo 64×64 z nazwą pod spodem (od 2026-11-27,
+wcześniej samo logo) albo plakietka z samą nazwą, link z `rel="sponsored"`). Obie znikają, gdy są puste — poza galerią dla
 zarządzającego, który widzi „+ Ustaw wygląd strony" prowadzące do panelu (etykieta mówi
 wprost, że otwiera się cała zakładka Ustawienia, nie tylko dodawanie zdjęć — zmiana
 2026-09-24 po zgłoszeniu, że „+ Dodaj zdjęcia" mylnie zapowiadało węższy ekran). Zarządzanie mieszka
-w panelu, zakładka **Ustawienia** (`PanelGaleria.tsx` — kolejność strzałkami, usuwanie;
-`PanelSponsorzy.tsx` — nazwa i link zapisywane przy wyjściu z pola, logo opcjonalne),
+w panelu, zakładka **Wygląd strony** (od 2026-11-27; `PanelGaleria.tsx` — kolejność strzałkami, usuwanie;
+`PanelSponsorzy.tsx` — nazwa i link zapisywane przy wyjściu z pola, logo opcjonalne
+i od 2026-11-27 do wybrania już w formularzu nowego sponsora, z podglądem; wgrywa się zaraz po
+dodaniu, a błąd wgrania nie cofa dodania),
 **nie** jako szósta zakładka panelu. Widzi je także współorganizator z `moze_edytowac`
 (reszty Ustawień nie), bo tyle wpuszcza RLS. Link sponsora przechodzi przez
 `normalizujLinkSponsora()` przy zapisie i `bezpiecznyLinkSponsora()` przy wyświetlaniu —

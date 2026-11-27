@@ -493,7 +493,8 @@ tablica wyników, termin, areny, zasady, zapisy). W „Ludzie przy turnieju” p
 linkiem” tworzy gotową wiadomość z linkiem `bojo.pl/o/<kod>` do skopiowania i wysłania
 WhatsAppem, SMS-em albo mailem z własnej skrzynki; Bojo niczego samo nie wysyła. Zaproszony
 otwiera link, loguje się albo zakłada konto i przyjmuje rolę współorganizatora albo
-prowadzącego mecze. Link działa raz.
+prowadzącego mecze. Link działa raz. Logo sponsora wybiera się od razu przy dodawaniu sponsora,
+a strona turnieju pokazuje logo z nazwą sponsora pod spodem.
 
 MECHANIKA: `app/turnieje/[id]/panel/PanelClient.tsx` (zakładki `wyglad` / `ustawienia`,
 `zaprosLinkiem()`), `app/o/[kod]/page.tsx`, `lib/turnieje.ts` (`utworzZaproszenieOsoby()`,
