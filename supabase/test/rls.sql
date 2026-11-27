@@ -2131,6 +2131,21 @@ SELECT _oczekuj('kapitan nie skasował drużyny (DELETE tylko organizator)',
                 (SELECT count(*) FROM turniej_druzyny WHERE id = :WN_D::uuid), 1);
 SELECT _oczekuj('po przyjęciu prośby drużyna jest wycofana, nie skasowana',
                 (SELECT count(*) FROM turniej_druzyny WHERE id = :WN_D::uuid AND status = 'wycofana'), 1);
+-- 188: autor cofa własną czekającą prośbę, cudzej ani rozpatrzonej nie.
+UPDATE turniej_druzyny SET status = 'przyjeta' WHERE id = :WN_D::uuid;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT zloz_prosbe_do_druzyny(:WN_D::uuid, 'wycofanie', NULL, NULL);
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie cofnie cudzej prośby',
+  format('SELECT anuluj_prosbe_do_druzyny((SELECT id FROM turniej_prosby WHERE druzyna_id = %L AND status = ''czeka'' LIMIT 1))', :WN_D));
+SELECT set_config('request.jwt.claim.sub', :CZLONEK, false);
+SELECT anuluj_prosbe_do_druzyny((SELECT id FROM turniej_prosby WHERE druzyna_id = :WN_D::uuid AND status = 'czeka'));
+SELECT _oczekuj_wyjatek('rozpatrzonej prośby nie da się cofnąć',
+  format('SELECT anuluj_prosbe_do_druzyny((SELECT id FROM turniej_prosby WHERE druzyna_id = %L AND status = ''przyjeta''))', :WN_D));
+RESET ROLE;
+SELECT _oczekuj('autor cofnął czekającą prośbę',
+                (SELECT count(*) FROM turniej_prosby WHERE druzyna_id = :WN_D::uuid AND status = 'czeka'), 0);
 DELETE FROM notifications WHERE turniej_id = :WN_T::uuid;
 DELETE FROM turnieje WHERE id = :WN_T::uuid;
 

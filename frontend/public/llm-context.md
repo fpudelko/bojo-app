@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-25 · migracja `187` · 64 tabel
+**Stan na:** 2026-11-27 · migracja `188` · 64 tabel
 
 ---
 
@@ -481,6 +481,33 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-27 — Prowadzenie turnieju: mecz w trakcie na górze, poprawa wyniku, wynik na żywo
+
+PROBLEM: w zakładce „Prowadź” turnieju Bojo mecz w trakcie ginął pod rozegranymi meczami,
+„Popraw wynik” zerowało mecz zamiast dać wpisać poprawny wynik, kibic na stronie meczu
+widział stary wynik, a zdjęcia i logotypy sponsorów nie wgrywały się („Failed to fetch”).
+
+ROZWIĄZANIE BOJO: „Prowadź” pokazuje na górze mecz w trakcie (wyróżniony), pod nim następne
+mecze z przyciskiem „Start”, niżej rozegrane z plakietką „Zakończony”; tabele grup są tylko
+w zakładce Tabela. „+ GOL” od razu pyta o strzelca. Mecz kliknięty w „Prowadź” otwiera się
+z powrotem „‹ Prowadź”, a ekran prowadzonego meczu mieści gole, kartki i zegar na jednym
+ekranie telefonu. „Popraw wynik” otwiera formularz z obecnym wynikiem i strzelcami; stary
+wynik znika dopiero przy zapisie nowego. Strona meczu i strona turnieju odświeżają wynik co
+10–15 sekund i po powrocie do karty. Zdjęcia i logotypy wgrywają się także wtedy, gdy
+przeglądarka zablokuje wysyłkę wprost do magazynu. Prośbę o wycofanie drużyny trzeba
+potwierdzić, a każdą czekającą prośbę do drużyny można cofnąć.
+
+MECHANIKA: `components/turnieje/CentrumTurnieju.tsx`, `PanelClient.tsx` (`ArkuszSkladu`
+przy golu), `MeczClient.tsx` (`poprawia`, odświeżanie), `/api/turniej-media/upload`,
+`lib/storageUpload.ts`, migracja `188` (`anuluj_prosbe_do_druzyny()`). Szczegóły →
+[funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Jak poprawić wynik zakończonego meczu turnieju w Bojo?
+- Gdzie organizator widzi mecz w trakcie i następny do rozegrania?
+- Dlaczego wynik meczu turnieju w Bojo odświeża się sam?
+- Jak cofnąć prośbę o dołączenie albo wycofanie drużyny?
+
 ### 2026-11-25 (3) — Stała ramka turnieju, panel podzielony na „Prowadź” i „Edytuj”
 
 PROBLEM: na komputerze każda zakładka turnieju w Bojo miała inną szerokość, a wejście
@@ -724,30 +751,3 @@ PYTANIA:
 - Czy można zapisać gola bez strzelca?
 - Gdzie znajdę turnieje, w których gram?
 - Co pokazuje Bojo, gdy drużyny w grupie mają identyczny bilans?
-
-### 2026-11-21 — Adresy turniejów i meczów z nazwą i datą zamiast uuid
-
-PROBLEM: link do turnieju i meczu w Bojo wyglądał jak `bojo.pl/turnieje/e9a3763f-7bd9-…`
-i na czacie nie mówił, dokąd prowadzi, dopóki ktoś nie kliknął.
-
-ROZWIĄZANIE BOJO: turniej ma adres z nazwą i datą (`bojo.pl/turnieje/gramy-dla-marysi-28-11-2026`),
-mecz turnieju numer (`…/mecz/5`), zwykły mecz tak samo jak turniej
-(`bojo.pl/wydarzenia/czwartkowa-gierka-27-11-2026`). Adres nadaje się raz, przy utworzeniu,
-i nie zmienia się po zmianie nazwy ani daty, więc rozesłane linki działają dalej. Powtórzona
-nazwa i data dostaje dopisek „-2”. Stare linki z uuid działają; pasek przeglądarki od razu
-pokazuje adres z nazwą. Udostępnienie turnieju wysyła sam link, bez dopisku „Zgłoś drużynę”.
-Organizator turnieju dodaje współorganizatora po adresie e-mail jego konta w Bojo
-(Panel → Ustawienia → Współorganizatorzy); współorganizator może wszystko poza usunięciem
-turnieju i nadawaniem praw dalej. Admin Bojo zarządza każdym turniejem, a „Przetestuj”
-(próba dnia turnieju na kopii) jest dostępne tylko dla admina.
-
-MECHANIKA: migracja `177` (tabela `adresy_z_nazwa`, `nadaj_adres()`, wyzwalacze na `turnieje`
-i `events`), `src/middleware.ts` (adres z nazwą → trasa z uuid), `lib/adresy.ts`,
-`lib/useAdres.ts`. Szczegóły → [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
-
-PYTANIA:
-- Jak wygląda link do turnieju w Bojo?
-- Czy stary link do meczu z długim identyfikatorem dalej działa?
-- Czy adres meczu zmieni się, gdy organizator zmieni nazwę albo datę?
-- Jak podać link do konkretnego meczu turnieju?
-- Jak dodać drugiego organizatora do turnieju w Bojo?

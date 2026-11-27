@@ -49,7 +49,7 @@ import { sportEmoji } from '@/lib/sports';
 import ZaprosZEkipyDialog from '@/components/turnieje/ZaprosZEkipyDialog';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
 import ProsbyDoRozpatrzenia from '@/components/turnieje/ProsbyDoRozpatrzenia';
-import { getMojeProsby, zlozProsbe, type ProsbaDoDruzyny, type TypProsby } from '@/lib/turniejProsby';
+import { getMojeProsby, zlozProsbe, anulujProsbe, type ProsbaDoDruzyny, type TypProsby } from '@/lib/turniejProsby';
 import { getMojaDruzyne } from '@/lib/turniejDruzyny';
 import { kanonicznyOrigin } from '@/lib/powrotPoLogowaniu';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
@@ -137,6 +137,23 @@ export default function DruzynaClient() {
 
   const wyslijProsbe = async (typ: TypProsby, zawodnikId?: string) => {
     if (!druzyna || !user) return;
+    // Potwierdzenie przy prośbach z poważnym skutkiem (2026-11-27, test:
+    // „prośba o wycofanie wysłała się od razu, bez potwierdzenia”).
+    if (typ === 'wycofanie' || typ === 'kapitan') {
+      const wynik = await potwierdz(typ === 'wycofanie'
+        ? {
+          tytul: `Poprosić o wycofanie drużyny ${druzyna.nazwa}?`,
+          konsekwencje: ['Organizator dostanie prośbę i zdecyduje', 'Po przyjęciu drużyna nie zagra w turnieju', 'Dopóki organizator nie zdecyduje, prośbę możesz cofnąć'],
+          potwierdzLabel: 'Wyślij prośbę',
+          wariant: 'destrukcyjny',
+        }
+        : {
+          tytul: `Zostać kapitanem drużyny ${druzyna.nazwa}?`,
+          konsekwencje: ['Organizator dostanie prośbę i zdecyduje', 'Kapitan prowadzi skład i dostaje powiadomienia drużyny'],
+          potwierdzLabel: 'Wyślij prośbę',
+        });
+      if (wynik !== 'tak') return;
+    }
     setWysylaProsbe(true);
     try {
       await zlozProsbe(druzyna.id, typ, { zawodnikId });
@@ -146,6 +163,19 @@ export default function DruzynaClient() {
       toast(e instanceof Error ? e.message : 'Nie udało się wysłać prośby', 'error');
     } finally {
       setWysylaProsbe(false);
+    }
+  };
+
+  const cofnijProsbe = async (typ: TypProsby, zawodnikId?: string) => {
+    if (!druzyna || !user) return;
+    const prosba = mojeProsby.find((p) => p.druzynaId === druzyna.id && p.typ === typ && (!zawodnikId || p.zawodnikId === zawodnikId));
+    if (!prosba) return;
+    try {
+      await anulujProsbe(prosba.id);
+      setMojeProsby(await getMojeProsby(id, user.id));
+      toast('Prośba cofnięta');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się cofnąć prośby', 'error');
     }
   };
 
@@ -517,7 +547,9 @@ export default function DruzynaClient() {
                   )}
                   {mogeProsic && !z.userId && (
                     czekaProsba('to_ja', z.id) ? (
-                      <span className="shrink-0 px-2 text-xs text-blue-600">czeka</span>
+                      <button onClick={() => cofnijProsbe('to_ja', z.id)} className="shrink-0 px-2 text-xs text-blue-600" title="Cofnij prośbę">
+                        czeka · cofnij
+                      </button>
                     ) : (
                       <button
                         onClick={() => wyslijProsbe('to_ja', z.id)}
@@ -587,7 +619,10 @@ export default function DruzynaClient() {
           <div className="space-y-2 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             {mogeProsic && (
               czekaProsba('dolaczenie') ? (
-                <p className="text-sm text-slate-600 dark:text-slate-300">Prośba o dołączenie wysłana. Dostaniesz powiadomienie, gdy kapitan zdecyduje.</p>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Prośba o dołączenie wysłana. Dostaniesz powiadomienie, gdy kapitan zdecyduje.{' '}
+                  <button onClick={() => cofnijProsbe('dolaczenie')} className="font-medium text-primary-600">Cofnij prośbę</button>
+                </p>
               ) : (
                 <>
                   <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -601,7 +636,10 @@ export default function DruzynaClient() {
             )}
             {mogeChciecKapitana && (
               czekaProsba('kapitan') ? (
-                <p className="text-sm text-slate-600 dark:text-slate-300">Prośba o kapitana wysłana do organizatora.</p>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Prośba o kapitana wysłana do organizatora.{' '}
+                  <button onClick={() => cofnijProsbe('kapitan')} className="font-medium text-primary-600">Cofnij prośbę</button>
+                </p>
               ) : (
                 <Button variant="outline" onClick={() => wyslijProsbe('kapitan')} disabled={wysylaProsbe} className="w-full">
                   Chcę być kapitanem
@@ -704,7 +742,10 @@ export default function DruzynaClient() {
                     Wycofaj drużynę z turnieju
                   </button>
                 ) : czekaProsba('wycofanie') ? (
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Prośba o wycofanie wysłana. Organizator zdecyduje.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Prośba o wycofanie wysłana. Organizator zdecyduje.{' '}
+                    <button onClick={() => cofnijProsbe('wycofanie')} className="font-medium text-primary-600">Cofnij prośbę</button>
+                  </p>
                 ) : (
                   <button onClick={() => wyslijProsbe('wycofanie')} disabled={wysylaProsbe} className="text-sm font-medium text-red-600 hover:text-red-700">
                     Poproś organizatora o wycofanie drużyny

@@ -176,12 +176,17 @@ export default function TurniejClient() {
   const turniejTrwa = !!turniej && turniej.status === 'trwa';
   useEffect(() => {
     if (!turniejTrwa) return;
-    const czasomierz = setInterval(() => {
+    // 15 s i od razu po powrocie do karty (2026-11-27): telefon wyjęty
+    // z kieszeni pokazywał wynik sprzed kilku minut.
+    const odswiez = () => {
+      if (document.visibilityState !== 'visible') return;
       Promise.all([getMecze(id), getZdarzeniaTurnieju(id)])
         .then(([m, z]) => { setMecze(m); setZdarzenia(z); })
         .catch(() => undefined);
-    }, 20_000);
-    return () => clearInterval(czasomierz);
+    };
+    const czasomierz = setInterval(odswiez, 15_000);
+    document.addEventListener('visibilitychange', odswiez);
+    return () => { clearInterval(czasomierz); document.removeEventListener('visibilitychange', odswiez); };
   }, [turniejTrwa, id]);
 
   const tabParam = searchParams.get('tab');
@@ -514,7 +519,9 @@ export default function TurniejClient() {
   // wcześniej Mecze rozszerzały całą stronę, a reszta była wąska, więc
   // nagłówek i zakładki skakały. Wąskie zakładki trzymają treść w kolumnie
   // na środku tej samej ramki.
-  const dwieKolumny = aktywna === 'mecze' && tabeleGrup.length > 0;
+  // Tabela obok listy meczów wypadła 2026-11-27 (test przed turniejem:
+  // „dublowanie zmniejsza czytelność”, tabela jest w zakładce Tabela).
+  const dwieKolumny = false;
   const szerokosc = SZEROKOSC_TURNIEJU;
   const kolumna = dwieKolumny ? '' : 'lg:mx-auto lg:max-w-2xl';
 
@@ -945,7 +952,9 @@ export default function TurniejClient() {
           <>
             <Galeria
               zdjecia={zdjecia}
-              mozeZarzadzac={uprawnienia.mozeEdytowac}
+              // Zarządzanie zdjęciami tylko w Edytuj → Ustawienia (2026-11-27):
+              // na Info zostaje sama galeria, taka jak widzą ją kibice.
+              mozeZarzadzac={false}
               linkDoPanelu={`/turnieje/${id}/panel?tab=ustawienia`}
             />
             <Sponsorzy sponsorzy={sponsorzy} />
