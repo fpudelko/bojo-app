@@ -201,10 +201,10 @@ export default function NowyTurniejPage() {
               Gdy zgłoszą się drużyny, ustawisz boiska i wygenerujesz terminarz jednym przyciskiem.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link href={`/turnieje/${utworzony}/panel`}>
+              <Link prefetch={false} href={`/turnieje/${utworzony}/panel`}>
                 <Button size="sm" variant="outline">Panel turnieju</Button>
               </Link>
-              <Link href={`/turnieje/${utworzony}`}>
+              <Link prefetch={false} href={`/turnieje/${utworzony}`}>
                 <Button size="sm" variant="outline">Zobacz stronę turnieju</Button>
               </Link>
             </div>

@@ -139,7 +139,7 @@ export default function CentrumTurnieju({
                 </span>
               )}
             </div>
-            <Link href={adresMeczu(m)} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-2">
+            <Link prefetch={false} href={adresMeczu(m)} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-2">
               <span className="min-w-0 break-words font-semibold text-ink">{nazwa(m, 'a')}</span>
               <span className="font-display text-4xl font-bold tabular-nums text-ink">
                 {m.wynikA} : {m.wynikB}
@@ -163,7 +163,7 @@ export default function CentrumTurnieju({
                   </Button>
                 </>
               ) : (
-                <Link
+                <Link prefetch={false}
                   href={adresMeczu(m)}
                   className="col-span-2 inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
                 >
@@ -172,7 +172,7 @@ export default function CentrumTurnieju({
               )}
               {/* Remis w fazie pucharowej: karne wpisuje się na stronie meczu. */}
               {karne ? (
-                <Link
+                <Link prefetch={false}
                   href={adresMeczu(m)}
                   className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-primary-600 px-3 text-sm font-medium text-white hover:bg-primary-700"
                 >
@@ -184,7 +184,7 @@ export default function CentrumTurnieju({
             </div>
             {szybkieGole && (
               <div className="mt-2 flex items-center justify-between gap-3">
-                <Link href={adresMeczu(m)} className="text-xs font-medium text-slate-500 hover:text-ink dark:text-slate-400">
+                <Link prefetch={false} href={adresMeczu(m)} className="text-xs font-medium text-slate-500 hover:text-ink dark:text-slate-400">
                   Strzelcy i kartki na stronie meczu
                 </Link>
                 {m.wynikA + m.wynikB > 0 && (
@@ -209,7 +209,7 @@ export default function CentrumTurnieju({
               Rozpocznij M{nastepny.numer}
             </Button>
           </div>
-          <Link href={adresMeczu(nastepny)} className="text-xs font-medium text-slate-500 hover:text-ink dark:text-slate-400">
+          <Link prefetch={false} href={adresMeczu(nastepny)} className="text-xs font-medium text-slate-500 hover:text-ink dark:text-slate-400">
             Albo wpisz od razu wynik końcowy
           </Link>
         </>
@@ -250,7 +250,8 @@ export default function CentrumTurnieju({
                 href={adresMeczu(w.mecz)}
                 // „Start” na każdym meczu, który ma obie drużyny (2026-11-27):
                 // prowadzący klika mecz, który faktycznie wychodzi na boisko.
-                akcja={w.mecz.druzynaAId && w.mecz.druzynaBId && w.mecz.id !== (c.naZywo.length === 0 ? nastepny?.id : undefined)
+                // Także pierwszy z listy, choć karta wyżej ma „Rozpocznij” (2026-11-27).
+                akcja={w.mecz.druzynaAId && w.mecz.druzynaBId
                   ? { etykieta: 'Start', onClick: () => onRozpocznij(w.mecz) }
                   : undefined}
               />
@@ -294,7 +295,7 @@ export default function CentrumTurnieju({
     decyzje.push({
       klucz: 'zgloszenia',
       tresc: (
-        <Link href={`/turnieje/${turniej.id}/panel?tab=druzyny`} className="block">
+        <Link prefetch={false} href={`/turnieje/${turniej.id}/panel?tab=druzyny`} className="block">
           {withCount(liczbaZgloszen, 'zgłoszenie', 'zgłoszenia', 'zgłoszeń')} {plural(liczbaZgloszen, 'czeka', 'czekają', 'czeka')} na decyzję
         </Link>
       ),
@@ -338,7 +339,7 @@ export default function CentrumTurnieju({
         </div>
       )}
       {c.liczbaRozegranych > c.ostatnie.length && (
-        <Link href={`/turnieje/${turniej.id}?tab=wyniki`} className="mt-2 inline-block text-sm font-medium text-primary-600">
+        <Link prefetch={false} href={`/turnieje/${turniej.id}?tab=wyniki`} className="mt-2 inline-block text-sm font-medium text-primary-600">
           Wszystkie rozegrane ({c.liczbaRozegranych})
         </Link>
       )}
@@ -393,7 +394,7 @@ function WierszRozegranego({ numer, walkower, druzyny, href }: {
   const wygrywa = (x: typeof a, y: typeof a) => x.wynik > y.wynik || (karne && x.wynik === y.wynik && (x.karne ?? 0) > (y.karne ?? 0));
   return (
     <div className="flex items-center gap-3 py-2 text-sm">
-      <Link href={href} className="min-w-0 flex-1">
+      <Link prefetch={false} href={href} className="min-w-0 flex-1">
         <span className="block text-xs text-slate-500 dark:text-slate-400">M{numer} · {walkower ? 'walkower' : 'zakończony'}</span>
         {[[a, b], [b, a]].map(([x, y], i) => (
           <span key={i} className={`flex items-baseline gap-2 ${wygrywa(x, y) ? 'font-semibold text-ink' : 'text-slate-600 dark:text-slate-300'}`}>
@@ -406,7 +407,7 @@ function WierszRozegranego({ numer, walkower, druzyny, href }: {
           </span>
         ))}
       </Link>
-      <Link href={href} className="inline-flex min-h-[40px] shrink-0 items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700">
+      <Link prefetch={false} href={href} className="inline-flex min-h-[40px] shrink-0 items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700">
         Popraw
       </Link>
     </div>
@@ -435,13 +436,13 @@ function WierszMeczu({ godzina, numer, faza, druzyny, href, akcja }: {
         <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">M{numer}{faza ? ` · ${faza}` : ''}</span>
         {godzina && <span className="block text-sm font-bold tabular-nums text-ink">{godzina}</span>}
       </span>
-      <Link href={href} title={`${a} – ${b}`} className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 text-[13px] text-ink hover:underline">
-        <span className="truncate">{a}</span>
-        <span className="text-slate-400" aria-hidden>–</span>
+      <Link prefetch={false} href={href} title={`${a} – ${b}`} className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 text-[13px] text-ink hover:underline">
+        <span className="truncate text-right">{a}</span>
+        <span className="text-slate-400" aria-hidden>:</span>
         <span className="truncate">{b}</span>
       </Link>
       {akcja && (akcja.href
-        ? <Link href={akcja.href} className={przycisk}>{akcja.etykieta}</Link>
+        ? <Link prefetch={false} href={akcja.href} className={przycisk}>{akcja.etykieta}</Link>
         : <button type="button" onClick={akcja.onClick} className={przycisk}>{akcja.etykieta}</button>)}
     </div>
   );

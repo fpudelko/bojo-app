@@ -57,7 +57,7 @@ export default function ZaproszenieOsobyPage() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Zaproszenie zostało już przyjęte albo link jest niepełny. Poproś organizatora o nowy.
         </p>
-        <Link href="/turnieje" className="mt-4 inline-block text-sm font-medium text-primary-600">Turnieje w Bojo</Link>
+        <Link prefetch={false} href="/turnieje" className="mt-4 inline-block text-sm font-medium text-primary-600">Turnieje w Bojo</Link>
       </div>,
     );
   }
@@ -112,7 +112,7 @@ export default function ZaproszenieOsobyPage() {
             <p className="text-sm text-slate-600 dark:text-slate-300">
               Zaloguj się albo załóż konto w Bojo. Po zalogowaniu wrócisz tutaj i przyjmiesz zaproszenie.
             </p>
-            <Link href={powrot} className="block">
+            <Link prefetch={false} href={powrot} className="block">
               <Button className="w-full">Zaloguj się albo załóż konto</Button>
             </Link>
           </>

@@ -138,7 +138,7 @@ export default function ZaprosZEkipyDialog({
                 Nie należysz jeszcze do żadnej ekipy. Kolegów spoza Bojo zapraszasz linkiem,
                 a ekipa sprawi, że następnym razem zrobisz to jednym dotknięciem.
               </p>
-              <Link
+              <Link prefetch={false}
                 href="/grupy/nowe"
                 className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-800"
               >

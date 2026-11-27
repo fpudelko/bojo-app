@@ -310,7 +310,7 @@ export default function TurniejClient() {
         <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center">
           <p className="font-medium text-ink">Nie znaleziono turnieju</p>
-          <Link href="/turnieje" className="mt-2 inline-block text-sm text-primary-600">Wróć do listy turniejów</Link>
+          <Link prefetch={false} href="/turnieje" className="mt-2 inline-block text-sm text-primary-600">Wróć do listy turniejów</Link>
         </div>
       </div>
     );
@@ -644,7 +644,7 @@ export default function TurniejClient() {
                 turniej. Do 2026-09-20 „Zamień w ekipę" siedziało trzy
                 kliknięcia głębiej, w rozwiniętej karcie drużyny. */}
             {mojaDruzyna && mojaDruzyna.kapitanId === user?.id && (
-              <Link
+              <Link prefetch={false}
                 href={`/turnieje/${id}/druzyna/${mojaDruzyna.id}`}
                 className="mt-3 block rounded-xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-3 text-left"
               >
@@ -654,7 +654,7 @@ export default function TurniejClient() {
                 </span>
               </Link>
             )}
-            <Link
+            <Link prefetch={false}
               href={user ? '/turnieje/nowe' : '/logowanie?next=%2Fturnieje%2Fnowe'}
               className="mt-2 inline-block text-sm font-medium text-primary-600"
             >
@@ -746,7 +746,7 @@ export default function TurniejClient() {
                 2026-09-20 ten pasek był ślepy: pokazywał nazwę i nie prowadził
                 donikąd, a link do drużyny kapitan widział jeden raz w życiu,
                 na ekranie potwierdzenia zgłoszenia. */}
-            <Link
+            <Link prefetch={false}
               href={`/turnieje/${id}/druzyna/${mojaDruzyna.id}`}
               className="flex items-center gap-1 text-sm font-semibold text-ink"
             >
@@ -805,7 +805,7 @@ export default function TurniejClient() {
             bo „Zgłoś drużynę" wisiało wyłącznie na zakładce Info, a „Utwórz
             turniej" tylko dla zalogowanych. */}
         {przyjmujeZgloszenia(turniej, liczbaWTurnieju) && !mojaDruzyna && (
-          <Link href={`/turnieje/${id}/zglos`}>
+          <Link prefetch={false} href={`/turnieje/${id}/zglos`}>
             <Button className="w-full">Zgłoś drużynę</Button>
           </Link>
         )}
@@ -825,7 +825,7 @@ export default function TurniejClient() {
               {obserwuje ? <><BellRing className="h-4 w-4" /> Obserwujesz turniej</> : <><Bell className="h-4 w-4" /> Obserwuj turniej</>}
             </Button>
           ) : (
-            <Link
+            <Link prefetch={false}
               href={`/logowanie?next=${encodeURIComponent(`/turnieje/${id}`)}`}
               className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-semibold text-ink dark:border-slate-700"
             >
@@ -938,7 +938,7 @@ export default function TurniejClient() {
             {organizator && (
               <div className="flex items-start gap-2 border-t border-slate-100 pt-3 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">
                 <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                <span>Organizuje <Link href={`/gracz/${turniej.organizatorId}`} className="font-medium text-primary-600">{organizator}</Link></span>
+                <span>Organizuje <Link prefetch={false} href={`/gracz/${turniej.organizatorId}`} className="font-medium text-primary-600">{organizator}</Link></span>
               </div>
             )}
 
@@ -967,7 +967,7 @@ export default function TurniejClient() {
                 wejście do zgłoszenia, gdy jest otwarte. */}
             {przyjmujeZgloszenia(turniej, liczbaWTurnieju) && (
             <div className="flex items-center justify-end">
-                <Link href={`/turnieje/${id}/zglos`} className="inline-flex min-h-[44px] items-center text-sm font-medium text-primary-600">+ Zgłoś drużynę</Link>
+                <Link prefetch={false} href={`/turnieje/${id}/zglos`} className="inline-flex min-h-[44px] items-center text-sm font-medium text-primary-600">+ Zgłoś drużynę</Link>
             </div>
             )}
             {druzyny.length === 0 ? (

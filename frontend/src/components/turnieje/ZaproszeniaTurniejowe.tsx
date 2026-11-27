@@ -89,7 +89,7 @@ export default function ZaproszeniaTurniejowe({ userId }: { userId: string }) {
             </div>
 
             <div className="mt-3 flex gap-2">
-              <Link
+              <Link prefetch={false}
                 href={`/t/${kodDolaczenia}`}
                 className="flex min-h-[44px] flex-1 items-center justify-center rounded-xl bg-primary-700 px-4 text-sm font-semibold text-white transition hover:bg-primary-800"
               >

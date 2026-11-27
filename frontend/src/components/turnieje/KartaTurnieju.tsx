@@ -25,7 +25,7 @@ export default function KartaTurnieju({ t, rola, druzyna }: { t: Turniej; rola?:
   const stan = stanTurnieju(t, []);
 
   return (
-    <Link
+    <Link prefetch={false}
       href={`/turnieje/${t.id}`}
       className="block rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm hover:shadow-md transition-shadow"
     >

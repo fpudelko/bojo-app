@@ -122,7 +122,7 @@ export default function ZglosDruzynePage() {
               drużyny: kto zamknął kartę, nie odzyskiwał go nigdzie — a to
               jest w tym module cała pętla wzrostu. Kopiowanie zostaje jako
               druga droga, dla kogoś, kto chce wkleić link od razu. */}
-          <Link href={`/turnieje/${id}/druzyna/${zgloszona}`}>
+          <Link prefetch={false} href={`/turnieje/${id}/druzyna/${zgloszona}`}>
             <Button className="w-full">Uzupełnij skład</Button>
           </Link>
           <button
@@ -132,7 +132,7 @@ export default function ZglosDruzynePage() {
             <Copy className="h-4 w-4" /> Kopiuj link drużyny
           </button>
           <div className="mt-6">
-            <Link href={`/turnieje/${id}`} className="text-sm text-primary-600">Wróć do turnieju</Link>
+            <Link prefetch={false} href={`/turnieje/${id}`} className="text-sm text-primary-600">Wróć do turnieju</Link>
           </div>
         </main>
       </div>
@@ -155,10 +155,10 @@ export default function ZglosDruzynePage() {
               {status.label}
             </span>
           </div>
-          <Link href={`/turnieje/${id}/druzyna/${mojaDruzyna.id}`} className="mt-4 block">
+          <Link prefetch={false} href={`/turnieje/${id}/druzyna/${mojaDruzyna.id}`} className="mt-4 block">
             <Button className="w-full">Uzupełnij skład</Button>
           </Link>
-          <Link href={`/turnieje/${id}`} className="mt-4 inline-block text-sm text-primary-600">
+          <Link prefetch={false} href={`/turnieje/${id}`} className="mt-4 inline-block text-sm text-primary-600">
             Wróć do turnieju
           </Link>
         </main>
@@ -172,7 +172,7 @@ export default function ZglosDruzynePage() {
         <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 text-center">
           <p className="font-medium text-ink">Zapisy do tego turnieju są zamknięte.</p>
-          <Link href={`/turnieje/${id}`} className="mt-2 inline-block text-sm text-primary-600">Wróć do turnieju</Link>
+          <Link prefetch={false} href={`/turnieje/${id}`} className="mt-2 inline-block text-sm text-primary-600">Wróć do turnieju</Link>
         </main>
       </div>
     );

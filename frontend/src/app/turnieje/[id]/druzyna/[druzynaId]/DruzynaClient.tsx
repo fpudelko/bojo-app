@@ -21,6 +21,7 @@
  * a przyciski kapitana pokazują się wyłącznie kapitanowi.
  */
 
+import OknoKoduQr from '@/components/turnieje/OknoKoduQr';
 import { useAdmin } from '@/lib/admin';
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useCallback, useEffect, useState } from 'react';
@@ -28,7 +29,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Copy, Loader2, UserCog, Share2, UserPlus, Users, Wallet,
-  ChevronRight, Repeat, Settings2, CalendarDays, MapPin,
+  ChevronRight, Repeat, Settings2, CalendarDays, MapPin, QrCode,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -299,6 +300,24 @@ export default function DruzynaClient() {
 
   // LINK DLA KAPITANA Z EKRANU DRUŻYNY (2026-11-25): organizator nie musi
   // szukać go w Edytuj → Drużyny. Ta sama treść co przy komplecie linków.
+  // Kod QR zamiast linku (2026-11-27): ten sam adres, do zeskanowania na hali.
+  const [kodQr, setKodQr] = useState<{ tytul: string; opis: string; link: string } | null>(null);
+  const pokazQrKapitana = async () => {
+    if (!druzyna) return;
+    try {
+      const linki = await przygotujLinkiKapitanow(id);
+      const ten = linki.find((l) => l.druzynaId === druzyna.id && l.kod);
+      if (!ten) { toast('Ta drużyna ma już kapitana', 'error'); return; }
+      setKodQr({
+        tytul: `Kapitan drużyny ${druzyna.nazwa}`,
+        opis: 'Kapitan skanuje kod aparatem telefonu, loguje się i przejmuje drużynę. Kod działa raz.',
+        link: `${kanonicznyOrigin(window.location.origin)}/k/${ten.kod}`,
+      });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się przygotować kodu', 'error');
+    }
+  };
+
   const wyslijLinkKapitana = async () => {
     if (!druzyna || !turniej) return;
     try {
@@ -377,7 +396,7 @@ export default function DruzynaClient() {
         <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-16 text-center">
           <p className="font-medium text-ink">Nie ma takiej drużyny</p>
-          <Link href={`/turnieje/${id}`} className="mt-3 inline-block text-sm font-medium text-primary-600">
+          <Link prefetch={false} href={`/turnieje/${id}`} className="mt-3 inline-block text-sm font-medium text-primary-600">
             Wróć do turnieju
           </Link>
         </main>
@@ -443,7 +462,7 @@ export default function DruzynaClient() {
               {status.label}
             </span>
           </div>
-          <Link
+          <Link prefetch={false}
             href={`/turnieje/${id}`}
             className="mt-1 inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-slate-500 dark:text-slate-400 hover:text-ink"
           >
@@ -520,11 +539,28 @@ export default function DruzynaClient() {
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   Drużyna nie ma kapitana. Wyślij mu jednorazowy link: po zalogowaniu przejmie drużynę.
                 </p>
-                <Button variant="outline" onClick={wyslijLinkKapitana} className="w-full inline-flex items-center justify-center gap-1.5">
-                  <UserCog className="h-4 w-4" /> Wyślij link dla kapitana
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={wyslijLinkKapitana} className="flex-1 inline-flex items-center justify-center gap-1.5">
+                    <UserCog className="h-4 w-4" /> Wyślij link dla kapitana
+                  </Button>
+                  <Button variant="outline" onClick={pokazQrKapitana} className="shrink-0 inline-flex items-center justify-center gap-1.5">
+                    <QrCode className="h-4 w-4" /> Kod QR
+                  </Button>
+                </div>
               </div>
             )}
+
+            <Button
+              variant="outline"
+              onClick={() => setKodQr({
+                tytul: `Dołącz do drużyny ${druzyna.nazwa}`,
+                opis: 'Zawodnik skanuje kod aparatem telefonu, loguje się i dołącza do składu.',
+                link,
+              })}
+              className="w-full inline-flex items-center justify-center gap-1.5"
+            >
+              <QrCode className="h-4 w-4" /> Pokaż kod QR dla zawodników
+            </Button>
 
             <button
               onClick={() => kopiuj(link, 'Link drużyny')}
@@ -562,7 +598,7 @@ export default function DruzynaClient() {
                   {/* Zawodnik z kontem prowadzi do profilu, dopisany z ręki
                       zostaje tekstem — ta sama reguła co w `KartaDruzyny`. */}
                   {z.userId ? (
-                    <Link href={`/gracz/${z.userId}`} className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-sm text-slate-700 dark:text-slate-200">
+                    <Link prefetch={false} href={`/gracz/${z.userId}`} className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-sm text-slate-700 dark:text-slate-200">
                       <span className="min-w-0 truncate">{z.imie}</span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
                     </Link>
@@ -796,7 +832,7 @@ export default function DruzynaClient() {
             ekran jest podglądem, nie panelem. Jedna droga wyjścia zamiast
             ślepego zaułka. */}
         {!jestKapitanem && (
-          <Link
+          <Link prefetch={false}
             href={`/turnieje/${id}`}
             className="flex items-center gap-2 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-300 shadow-sm"
           >
@@ -825,6 +861,7 @@ export default function DruzynaClient() {
         />
       )}
       {oknoPotwierdzenia}
+      {kodQr && <OknoKoduQr {...kodQr} onZamknij={() => setKodQr(null)} />}
     </div>
   );
 }

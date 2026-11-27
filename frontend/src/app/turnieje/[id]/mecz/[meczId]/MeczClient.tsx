@@ -184,7 +184,7 @@ export default function MeczClient() {
         <Header showMobileWordmark />
         <div className="flex-1 py-24 text-center">
           <p className="font-medium text-ink">Nie znaleziono meczu</p>
-          <Link href={`/turnieje/${id}`} className="mt-2 inline-block text-sm text-primary-600">Wróć do turnieju</Link>
+          <Link prefetch={false} href={`/turnieje/${id}`} className="mt-2 inline-block text-sm text-primary-600">Wróć do turnieju</Link>
         </div>
       </div>
     );
@@ -589,7 +589,7 @@ export default function MeczClient() {
             {/* Nazwy drużyn prowadzą do ich kart (skład, wyniki), także
                 w trakcie prowadzenia meczu (prośba właściciela 2026-11-27). */}
             {druzynaA ? (
-              <Link href={`/turnieje/${id}/druzyna/${druzynaA.id}`} className="min-w-0 flex-1 line-clamp-2 break-words text-lg font-semibold leading-6 text-ink underline-offset-2 hover:underline sm:text-2xl">
+              <Link prefetch={false} href={`/turnieje/${id}/druzyna/${druzynaA.id}`} className="min-w-0 flex-1 line-clamp-2 break-words text-lg font-semibold leading-6 text-ink underline-offset-2 hover:underline sm:text-2xl">
                 {druzynaA.nazwa}
               </Link>
             ) : (
@@ -602,7 +602,7 @@ export default function MeczClient() {
               <span className="shrink-0 font-mono text-3xl font-bold text-ink">{mecz.wynikA}:{mecz.wynikB}</span>
             )}
             {druzynaB ? (
-              <Link href={`/turnieje/${id}/druzyna/${druzynaB.id}`} className="min-w-0 flex-1 line-clamp-2 break-words text-right text-lg font-semibold leading-6 text-ink underline-offset-2 hover:underline sm:text-2xl">
+              <Link prefetch={false} href={`/turnieje/${id}/druzyna/${druzynaB.id}`} className="min-w-0 flex-1 line-clamp-2 break-words text-right text-lg font-semibold leading-6 text-ink underline-offset-2 hover:underline sm:text-2xl">
                 {druzynaB.nazwa}
               </Link>
             ) : (
@@ -1008,7 +1008,7 @@ export default function MeczClient() {
             wracał na listę meczów i szukał kolejnego wzrokiem. Jedno zdanie
             zamienia sześć godzin klikania po terminarzu w kolejkę. */}
         {prowadzi && nastepnyNaArenie && (
-          <Link
+          <Link prefetch={false}
             href={`/turnieje/${id}/mecz/${nastepnyNaArenie.id}`}
             className="flex items-center gap-3 rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4"
           >

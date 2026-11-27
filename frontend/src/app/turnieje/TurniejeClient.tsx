@@ -112,7 +112,7 @@ export default function TurniejeClient() {
           {/* Widoczny TAKŻE bez konta — kliknięcie prowadzi przez logowanie.
               Przegląd złapał listę bez ani jednego przycisku, bo cały kreator
               wisiał za `user`: funkcja nie miała wejścia dla nikogo z ulicy. */}
-          <Link href={user ? '/turnieje/nowe' : '/logowanie?next=%2Fturnieje%2Fnowe'}>
+          <Link prefetch={false} href={user ? '/turnieje/nowe' : '/logowanie?next=%2Fturnieje%2Fnowe'}>
             <Button size="sm" className="inline-flex items-center gap-1.5"><Plus className="h-4 w-4" /> Utwórz turniej</Button>
           </Link>
         </div>
@@ -128,7 +128,7 @@ export default function TurniejeClient() {
                 <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
                   Organizujesz turniej? Bojo poprowadzi zapisy drużyn, terminarz i wyniki na żywo.
                 </p>
-                <Link href="/turnieje/nowe" className="mt-1"><Button size="sm">Utwórz turniej</Button></Link>
+                <Link prefetch={false} href="/turnieje/nowe" className="mt-1"><Button size="sm">Utwórz turniej</Button></Link>
               </>
             ) : (
               <p className="max-w-xs text-sm text-slate-500 dark:text-slate-400">
@@ -162,7 +162,7 @@ export default function TurniejeClient() {
               <div className="flex flex-col items-center gap-3 py-12 text-center">
                 <p className="text-sm text-slate-400">{PUSTE[aktywna]}</p>
                 {AKCJA_PUSTEGO[aktywna] && (
-                  <Link href={AKCJA_PUSTEGO[aktywna]!.href}>
+                  <Link prefetch={false} href={AKCJA_PUSTEGO[aktywna]!.href}>
                     <Button size="sm" variant="outline">{AKCJA_PUSTEGO[aktywna]!.tekst}</Button>
                   </Link>
                 )}
