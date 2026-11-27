@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-27 · migracja `189` · 65 tabel
+**Stan na:** 2026-11-27 · migracja `190` · 65 tabel
 
 ---
 
@@ -481,6 +481,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-27 (3) — Prowadzenie meczu turnieju na jednym ekranie, turniej startuje sam
+
+PROBLEM: ekran prowadzenia meczu turnieju w Bojo nie mieścił się na telefonie, wyniki dało
+się wpisywać dopiero po „Rozpocznij turniej” w panelu, a w zakładce „Prowadź” plakietka
+„Zakończony” zasłaniała nazwę drugiej drużyny. Link do drużyny wysłany WhatsAppem pokazywał
+ogólną kartę Bojo zamiast turnieju.
+
+ROZWIĄZANIE BOJO: ekran meczu dla prowadzącego mieści wynik, zegar, gole, kartki i „Zakończ
+mecz” na jednym ekranie telefonu; nazwy drużyn prowadzą do ich kart. Start pierwszego meczu
+(albo wpisanie wyniku) w turnieju, który jeszcze się nie zaczął, pyta „Rozpocząć turniej?”
+i zaczyna turniej. Rozegrane mecze w „Prowadź” mają drużyny jedna pod drugą. Linki drużyny,
+kapitana i zaproszenia pokazują w podglądzie nazwę, opis i obrazek turnieju.
+
+MECHANIKA: `MeczClient.tsx`, `CentrumTurnieju.tsx` (`WierszRozegranego`), migracja `190`
+(`trg_turniej_startuje_z_meczem`), `turnieje/[id]/turniejMeta.ts`
+(`metadataLinkuTurnieju()`), `OknoPotwierdzenia.tsx`. Szczegóły → [funkcje.md](./funkcje.md),
+[baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Czy w Bojo trzeba ręcznie rozpocząć turniej przed pierwszym meczem?
+- Jak prowadzić mecz turnieju na telefonie w Bojo?
+- Dlaczego link do drużyny turniejowej pokazuje obrazek turnieju?
+
 ### 2026-11-27 (2) — Turniej: „Wygląd strony” osobno od „Ustawień”, zaproszenie linkiem do prowadzenia
 
 PROBLEM: w panelu turnieju Bojo okładka, opis, galeria i sponsorzy mieszały się z terminem,
@@ -610,32 +633,6 @@ PYTANIA:
 - Co może prowadzący mecze w turnieju Bojo, a czego nie?
 - Jak pokazać wynik jednego meczu na telewizorze przy boisku?
 - Gdzie w Bojo jest ekran z wynikami na rzutnik?
-
-### 2026-11-22 (3) — Turnieje na koncie gracza, obserwowanie turnieju, przekazanie organizacji
-
-PROBLEM: zawodnik, który dołączył do drużyny turniejowej w Bojo, nie widział turnieju na swoim
-koncie i musiał szukać linku na WhatsAppie; kibic albo rodzic nie miał jak zapisać turnieju;
-turniej przygotowany przez Bojo pokazywał na stronie złego organizatora.
-
-ROZWIĄZANIE BOJO: na ekranie „Moje mecze” sekcja „Twoje turnieje” pokazuje karty turniejów,
-w których użytkownik gra, które organizuje, współorganizuje albo obserwuje, z podpisem roli
-(„Grasz w drużynie”, „Obserwujesz”). Na stronie turnieju (zakładka Info) przycisk „Obserwuj
-turniej” dodaje turniej do konta; niezalogowany przechodzi przez logowanie. Na liście
-turniejów karta „Moje” (dawniej „Biorę udział”) obejmuje też obserwowane. Organizator
-przekazuje organizację współorganizatorowi przyciskiem „Przekaż organizację” (Ustawienia →
-Współorganizatorzy) i sam zostaje współorganizatorem. Kapitan z linku `/k/…` widzi, na jakim
-koncie przejmuje drużynę.
-
-MECHANIKA: migracje `183` (`przekaz_organizacje_turnieju()`) i `184` (`turniej_obserwujacy`,
-widoczny tylko dla właściciela wpisu), `getMojeTurniejeZRola()` i `turniejeNaMojeMecze()`
-w `lib/turnieje.ts`, `components/turnieje/MojeTurniejeSekcja.tsx`. Szczegóły →
-[funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
-
-PYTANIA:
-- Gdzie w Bojo zobaczę turniej, w którym gra moja drużyna?
-- Jak obserwować turniej w Bojo, jeśli nie gram?
-- Czy organizator widzi, kto obserwuje turniej?
-- Jak zmienić organizatora turnieju w Bojo?
 
 ### 2026-11-22 (2) — Zegar meczu turnieju z pauzą i połowami
 

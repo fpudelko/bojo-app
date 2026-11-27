@@ -5252,6 +5252,27 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   `/logowanie?next=/o/<kod>`, zalogowany „Przyjmij zaproszenie” → panel turnieju. Link działa
   raz, organizator nie przyjmie własnego, zaproszenie nie odbiera praw. `/o/` jest w
   `robots.ts` wykluczone.
+- **Prowadzenie meczu na jednym ekranie i start turnieju z meczem (2026-11-27, migracja `190`):**
+  ekran meczu dla prowadzącego (`MeczClient.tsx`) nie ma już linii „‹ Prowadź” (zakładka
+  „Prowadź” jest zaznaczona w ramce) ani „Przejdź do końca meczu” (dublowało „Zakończ mecz”);
+  numer i faza meczu stoją w karcie wyniku, zegar w dwóch liniach, mniejsze odstępy, więc
+  wynik, zegar, gole, kartki i „Zakończ mecz” mieszczą się na 360×740. Nazwy drużyn prowadzą
+  do kart drużyn. W turnieju na zapisach prowadzący może od razu zacząć mecz albo wpisać
+  wynik: okno „Rozpocząć turniej?” (`zgodaNaStartTurnieju()`), a turniej przestawia wyzwalacz
+  `190`. „Prowadź” → Rozegrane: mecz w dwóch liniach (`WierszRozegranego` w
+  `CentrumTurnieju.tsx`), drużyny jedna pod drugą z własnym wynikiem, zwycięzca pogrubiony,
+  „M3 · zakończony” jako podpis zamiast plakietki, która zjadała nazwę drugiej drużyny.
+- **Podgląd linków drużyny, kapitana i zaproszenia (2026-11-27):** `/t/[kod]`, `/k/[kod]`
+  i `/o/[kod]` mają serwerowe `page.tsx` z `generateMetadata` (`metadataLinkuTurnieju()`
+  w `turnieje/[id]/turniejMeta.ts`): tytuł „Dołącz do drużyny X · turniej”, opis i obrazek
+  turnieju (`/turnieje/[id]/opengraph-image`), `noindex`. Wcześniej WhatsApp i poczta
+  pokazywały ogólną kartę Bojo. Strona to `LinkClient.tsx` obok.
+- **Okno potwierdzenia na iOS (2026-11-27):** pole „Wpisz …, żeby potwierdzić” w
+  `OknoPotwierdzenia.tsx` ma 16 px (bez przybliżania strony przez Safari) i po zejściu z pola
+  wraca widokiem na miejsce, bo przy `<body>` na `position: fixed` klawiatura zostawiała
+  przesunięty widok i dotknięcia trafiały obok przycisków („nie da się wyjść”). Esc zamyka okno.
+  Prośba kapitana o wycofanie drużyny (`DruzynaClient.tsx`) też wymaga wpisania nazwy drużyny,
+  jak wycofanie przez organizatora.
 - **Terminarz z PDF wgrany skryptem (2026-11-27):** `supabase/zadania/turniej-marysi-terminarz-28-11.sql`
   (SQL Editor: część A podgląd, B zapis, C kontrola) ustawia turniej „Gramy dla Marysi!” na
   2 grupy, 36 meczów grupowych, mecz o 3. miejsce, finał i dwie przerwy; podstawia tożsamość

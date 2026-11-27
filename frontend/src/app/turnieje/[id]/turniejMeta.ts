@@ -52,3 +52,67 @@ export async function generateTurniejMetadata(id: string): Promise<Metadata> {
     return { title: 'Turniej: Bojo' };
   }
 }
+
+/**
+ * Podgląd linków prowadzących DO turnieju: `/t/<kod>` (dołączenie do
+ * drużyny), `/k/<kod>` (link kapitana), `/o/<kod>` (zaproszenie do
+ * prowadzenia). Do 2026-11-27 te trasy nie miały własnych metadanych, więc
+ * WhatsApp i poczta pokazywały ogólną kartę „Bojo, zbierz ekipę, zagraj
+ * dziś” (zgłoszenie właściciela). Teraz: tytuł mówi, do czego zaprasza link,
+ * opis i obrazek są turnieju. Link z kodem nie trafia do wyszukiwarki.
+ */
+export async function metadataLinkuTurnieju(
+  turniejId: string | null | undefined,
+  tytul: (nazwaTurnieju: string) => string,
+  adres: string,
+): Promise<Metadata> {
+  const ogolne: Metadata = { title: 'Zaproszenie do turnieju · Bojo', robots: { index: false, follow: false } };
+  if (!turniejId) return ogolne;
+  try {
+    const { data } = await supabasePublic
+      .from('turnieje')
+      .select('nazwa, opis, sport, miasto, miejsce_nazwa, max_druzyn, wpisowe_grosz, data_startu, godzina_startu')
+      .eq('id', turniejId)
+      .maybeSingle();
+    if (!data) return ogolne;
+    const title = tytul(data.nazwa);
+    const description = opisTurnieju(data);
+    const obrazek = `/turnieje/${turniejId}/opengraph-image`;
+    return {
+      title,
+      description,
+      robots: { index: false, follow: false },
+      openGraph: {
+        title, description, url: adres, type: 'website', locale: 'pl_PL', siteName: 'Bojo',
+        images: [{ url: obrazek, width: 1200, height: 630, alt: data.nazwa }],
+      },
+      twitter: { card: 'summary_large_image', title, description, images: [obrazek] },
+    };
+  } catch {
+    return ogolne;
+  }
+}
+
+/** Turniej i drużyna po kodzie dołączenia (`/t/<kod>`), do podglądu linku. */
+export async function druzynaPoKodzieDoPodgladu(kod: string): Promise<{ turniejId: string; nazwa: string } | null> {
+  const { data } = await supabasePublic
+    .from('turniej_druzyny')
+    .select('turniej_id, nazwa')
+    .ilike('kod_dolaczenia', kod.trim())
+    .maybeSingle();
+  return data ? { turniejId: data.turniej_id, nazwa: data.nazwa } : null;
+}
+
+/** Turniej i drużyna po kodzie kapitana (`/k/<kod>`), do podglądu linku. */
+export async function druzynaPoKodzieKapitanaDoPodgladu(kod: string): Promise<{ turniejId: string; nazwa: string } | null> {
+  const { data } = await supabasePublic.rpc('druzyna_po_kodzie_kapitana', { p_kod: kod });
+  const r = Array.isArray(data) ? data[0] : data;
+  return r ? { turniejId: r.turniej_id, nazwa: r.nazwa } : null;
+}
+
+/** Turniej po kodzie zaproszenia osoby (`/o/<kod>`, 189), do podglądu linku. */
+export async function zaproszenieOsobyDoPodgladu(kod: string): Promise<{ turniejId: string; rola: string } | null> {
+  const { data } = await supabasePublic.rpc('zaproszenie_osoby_info', { p_kod: kod });
+  const r = Array.isArray(data) ? data[0] : data;
+  return r ? { turniejId: r.turniej_id, rola: r.rola } : null;
+}

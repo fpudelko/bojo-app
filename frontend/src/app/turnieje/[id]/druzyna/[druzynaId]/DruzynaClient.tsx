@@ -146,6 +146,8 @@ export default function DruzynaClient() {
           konsekwencje: ['Organizator dostanie prośbę i zdecyduje', 'Po przyjęciu drużyna nie zagra w turnieju', 'Dopóki organizator nie zdecyduje, prośbę możesz cofnąć'],
           potwierdzLabel: 'Wyślij prośbę',
           wariant: 'destrukcyjny',
+          // Ta sama bramka co przy wycofaniu przez organizatora (2026-11-27).
+          wpiszAby: druzyna.nazwa,
         }
         : {
           tytul: `Zostać kapitanem drużyny ${druzyna.nazwa}?`,
