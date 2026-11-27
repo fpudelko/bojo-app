@@ -25,7 +25,7 @@ export type ZakladkaRamki = ZakladkaTurnieju | 'prowadz' | 'edytuj';
 export const SZEROKOSC_TURNIEJU = 'max-w-2xl lg:max-w-6xl lg:px-6';
 
 export default function RamkaTurnieju({
-  turniej, adres, aktywna, liczbaDruzyn, akcje, powrot, children, naglowek = false,
+  turniej, adres, aktywna, liczbaDruzyn, akcje, powrot, children, naglowek = false, przyklejona = true,
 }: {
   turniej: Turniej;
   /** Adres turnieju z nazwą albo uuid (linki publiczne). */
@@ -39,6 +39,8 @@ export default function RamkaTurnieju({
   powrot?: { etykieta: string; href: string };
   /** Nazwa turnieju jako <h1>: strona turnieju i panel. Mecz i drużyna mają własny nagłówek. */
   naglowek?: boolean;
+  /** Czy nagłówek jedzie za ekranem (sticky). Na meczu nie: miejsce na przyciski. */
+  przyklejona?: boolean;
   /** Pasek pod zakładkami (np. podzakładki „Edytuj”). */
   children?: ReactNode;
 }) {
@@ -75,7 +77,7 @@ export default function RamkaTurnieju({
   ];
 
   return (
-    <div className="sticky top-0 z-20 border-b border-slate-100 bg-canvas/95 backdrop-blur dark:border-slate-700">
+    <div className={`${przyklejona ? 'sticky top-0' : 'relative'} z-20 border-b border-slate-100 bg-canvas/95 backdrop-blur dark:border-slate-700`}>
       <div className={`mx-auto flex items-start gap-3 px-4 pb-1 pt-3 ${SZEROKOSC_TURNIEJU}`}>
         {/* Dwie linie zamiast ucięcia: na 360 px nazwa turnieju bywa jedyną
             nazwą wydarzenia na ekranie (audyt 7). */}

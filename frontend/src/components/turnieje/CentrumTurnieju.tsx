@@ -7,10 +7,11 @@
 // Mecze i Tabele na stronie turnieju), a przy meczu co 14 minut oznaczało to
 // przełączanie zakładek przy każdym gwizdku.
 //
-// Na telefonie się NIE pokazuje (`hidden lg:grid` u wywołującego): tam
-// terminarz jest tą listą (decyzja właściciela z 2026-11-20, „bez Pulpitu”).
-// Dane i zapisy są te same co w terminarzu i na stronie meczu, tu tylko
-// stoją obok siebie.
+// OD 2026-11-27 TAKŻE NA TELEFONIE i w kolejności prowadzenia (test przed
+// turniejem 28.11): na górze mecz w trakcie, wyróżniony; pod nim następne do
+// rozegrania, każdy z „Start”; rozegrane niżej, z plakietką „Zakończony”.
+// Tabele grup stąd wypadły: są w zakładce Tabela, a tu tylko zasłaniały to,
+// co prowadzący ma kliknąć za chwilę.
 //
 // Kolory wg AGENTS.md: zielony to mecz w toku i awans, niebieski „wymaga
 // decyzji”, szary przerwy. Bez „opóźnienia” (decyzja właściciela
@@ -19,7 +20,6 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Coffee, Undo2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import TabelaGrupy from '@/components/turnieje/TabelaGrupy';
 import { nazwaSlotu } from '@/components/turnieje/KartaMeczu';
 import { centrumTurnieju } from '@/lib/turniejPulpit';
 import { terminarzZPrzerwami, meczPrzed } from '@/lib/turniejEtykiety';
@@ -60,7 +60,7 @@ const godzina = (m: Pick<TurniejMecz, 'zaplanowanyAt'>) =>
   m.zaplanowanyAt ? chwilaWPolsce(m.zaplanowanyAt).godzina.slice(0, 5) : '--:--';
 
 export default function CentrumTurnieju({
-  turniej, mecze, przerwy, druzynyPoId, meczePoId, arenyPoId, grupyPoId, tabele,
+  turniej, mecze, przerwy, druzynyPoId, meczePoId, arenyPoId, grupyPoId,
   liczbaZgloszen, liczbaAren, teraz, onRozpocznij, onGol, onZakoncz, onCofnij, onZegar,
 }: CentrumTurniejuProps) {
   const c = centrumTurnieju(mecze, teraz, {
@@ -82,11 +82,10 @@ export default function CentrumTurnieju({
     .sort((a, b) => (a.zaplanowanyAt ?? '').localeCompare(b.zaplanowanyAt ?? '') || a.numer - b.numer)
     .slice(0, 4);
   const startFazyKoncowej = meczeFazyKoncowej[0];
-  const tabeleGrup = tabele.filter((t) => !t.grupa?.finalowa);
 
   // ── Teraz ────────────────────────────────────────────────────────────────
   const kartaTeraz = (
-    <section className={`${karta} border-2 border-primary-600 dark:border-primary-500`} aria-label="Teraz">
+    <section className={`${karta} border-2 border-primary-600 bg-primary-50/70 dark:border-primary-500 dark:bg-primary-950/30`} aria-label="Teraz">
       {c.naZywo.length > 0 ? c.naZywo.map((m, i) => {
         const arena = m.arenaId ? arenyPoId.get(m.arenaId) : undefined;
         // Zegar sterowany ręcznie (182). Po czasie połowy bursztynowy, nie
@@ -96,10 +95,13 @@ export default function CentrumTurnieju({
         const karne = wymaganeKarne(m.faza, m.wynikA, m.wynikB);
         return (
           <div key={m.id} className={i > 0 ? 'mt-4 border-t border-slate-100 pt-4 dark:border-slate-700' : ''}>
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className={`${naglowek} mb-0`}>Teraz{arena ? ` · ${arena}` : ''}</p>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className={`${naglowek} mb-0 inline-flex items-center gap-1.5 text-primary-700 dark:text-primary-300`}>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-primary-600" aria-hidden />
+                W trakcie · M{m.numer}{arena ? ` · ${arena}` : ''}
+              </p>
               {!jestSportemSetowym(turniej.sport) && (
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex flex-wrap items-center gap-1.5">
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-sm font-semibold tabular-nums ${
                       poCzasieGry
@@ -143,10 +145,16 @@ export default function CentrumTurnieju({
               {szybkieGole && m.druzynaAId && m.druzynaBId ? (
                 <>
                   <Button variant="outline" className="min-h-[44px] min-w-0 px-2" title={`Gol: ${nazwa(m, 'a')}`} onClick={() => onGol(m, m.druzynaAId!)}>
-                    <span className="min-w-0 truncate">+ Gol {nazwa(m, 'a')}</span>
+                    <span className="flex min-w-0 flex-col leading-tight">
+                      <span className="font-bold">+ GOL</span>
+                      <span className="truncate text-xs font-normal text-slate-500 dark:text-slate-400">{nazwa(m, 'a')}</span>
+                    </span>
                   </Button>
                   <Button variant="outline" className="min-h-[44px] min-w-0 px-2" title={`Gol: ${nazwa(m, 'b')}`} onClick={() => onGol(m, m.druzynaBId!)}>
-                    <span className="min-w-0 truncate">+ Gol {nazwa(m, 'b')}</span>
+                    <span className="flex min-w-0 flex-col leading-tight">
+                      <span className="font-bold">+ GOL</span>
+                      <span className="truncate text-xs font-normal text-slate-500 dark:text-slate-400">{nazwa(m, 'b')}</span>
+                    </span>
                   </Button>
                 </>
               ) : (
@@ -216,7 +224,7 @@ export default function CentrumTurnieju({
   // ── Najbliższe ───────────────────────────────────────────────────────────
   const kartaNajblizsze = (
     <section className={karta} aria-label="Najbliższe mecze">
-      <p className={naglowek}>Najbliższe</p>
+      <p className={naglowek}>Następne do rozegrania</p>
       {c.najblizsze.length === 0 ? (
         <p className="text-sm text-slate-500">Nic więcej w terminarzu.</p>
       ) : (
@@ -234,10 +242,10 @@ export default function CentrumTurnieju({
                 numer={w.mecz.numer}
                 para={para(w.mecz)}
                 href={adresMeczu(w.mecz)}
-                // Bez meczu w toku „Rozpocznij” stoi w karcie Teraz; przy
-                // meczu w toku (druga arena, następny gwizdek) tutaj.
-                akcja={c.naZywo.length > 0 && w.mecz.id === nastepny?.id
-                  ? { etykieta: 'Rozpocznij', onClick: () => onRozpocznij(w.mecz) }
+                // „Start” na każdym meczu, który ma obie drużyny (2026-11-27):
+                // prowadzący klika mecz, który faktycznie wychodzi na boisko.
+                akcja={w.mecz.druzynaAId && w.mecz.druzynaBId && w.mecz.id !== (c.naZywo.length === 0 ? nastepny?.id : undefined)
+                  ? { etykieta: 'Start', onClick: () => onRozpocznij(w.mecz) }
                   : undefined}
               />
             )
@@ -304,7 +312,7 @@ export default function CentrumTurnieju({
   // ── Ostatnie wyniki ──────────────────────────────────────────────────────
   const kartaWyniki = (
     <section className={karta} aria-label="Ostatnie wyniki">
-      <p className={naglowek}>Ostatnie wyniki</p>
+      <p className={naglowek}>Rozegrane</p>
       {c.ostatnie.length === 0 ? (
         <p className="text-sm text-slate-500">Jeszcze żaden mecz się nie skończył.</p>
       ) : (
@@ -312,6 +320,7 @@ export default function CentrumTurnieju({
           {c.ostatnie.map((m) => (
             <WierszMeczu
               key={m.id}
+              zakonczony
               numer={m.numer}
               para={para(m)}
               wynik={m.status === 'walkower' ? 'wo.' : `${m.wynikA}:${m.wynikB}${m.karneA !== undefined && m.karneB !== undefined ? ` (k. ${m.karneA}:${m.karneB})` : ''}`}
@@ -326,26 +335,6 @@ export default function CentrumTurnieju({
           Wszystkie rozegrane ({c.liczbaRozegranych})
         </Link>
       )}
-    </section>
-  );
-
-  // ── Grupy ────────────────────────────────────────────────────────────────
-  const kartaGrupy = tabeleGrup.length > 0 && (
-    <section className={karta} aria-label="Tabele grup">
-      <p className={naglowek}>
-        {tabeleGrup.some((t) => t.grupa) ? 'Grupy' : 'Tabela'}
-        {tabeleGrup.some((t) => t.grupa) && turniej.awansujeZGrupy > 0
-          ? ` · ${turniej.awansujeZGrupy} ${plural(turniej.awansujeZGrupy, 'drużyna awansuje', 'drużyny awansują', 'drużyn awansuje')}`
-          : ''}
-      </p>
-      <div className="space-y-3">
-        {tabeleGrup.map(({ grupa, wiersze }) => (
-          <div key={grupa?.id ?? 'liga'}>
-            {grupa && <p className="mb-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Grupa {grupa.nazwa}</p>}
-            <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} kompakt />
-          </div>
-        ))}
-      </div>
     </section>
   );
 
@@ -364,28 +353,26 @@ export default function CentrumTurnieju({
     </section>
   );
 
+  // Kolejność to kolejność pytań prowadzącego: co wymaga decyzji, co gra
+  // teraz, co wychodzi następne, a na końcu co już było.
   return (
-    <div className="hidden gap-4 lg:mb-6 lg:grid lg:grid-cols-2 2xl:grid-cols-[1.15fr_1.9fr]">
+    <div className="mb-6 grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
       {pasekAlertow}
+      <div className="lg:col-span-2">{kartaTeraz}</div>
+      {kartaNajblizsze}
       <div className="flex min-w-0 flex-col gap-4">
-        {kartaTeraz}
-        {kartaNajblizsze}
-      </div>
-      {/* Od 2xl prawa część dzieli się na dwie kolumny: wyniki | grupy i finał. */}
-      <div className="flex min-w-0 flex-col gap-4 2xl:grid 2xl:grid-cols-[1fr_0.9fr] 2xl:items-start">
+        {kartaFinal}
         {kartaWyniki}
-        <div className="flex min-w-0 flex-col gap-4">
-          {kartaGrupy}
-          {kartaFinal}
-        </div>
       </div>
     </div>
   );
 }
 
 /** Gęsty wiersz meczu: godzina | numer | para | wynik | akcja, w jednej linii. */
-function WierszMeczu({ godzina, numer, para, wynik, href, akcja }: {
+function WierszMeczu({ godzina, numer, para, wynik, href, akcja, zakonczony }: {
   godzina?: string;
+  /** Plakietka „Zakończony” zamiast godziny (2026-11-27). */
+  zakonczony?: boolean;
   numer: number;
   para: string;
   wynik?: string;
@@ -395,6 +382,7 @@ function WierszMeczu({ godzina, numer, para, wynik, href, akcja }: {
   const przycisk = 'inline-flex min-h-[40px] shrink-0 items-center rounded-xl border border-slate-300 px-3 text-sm font-medium text-ink hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700';
   return (
     <div className="flex min-h-[48px] items-center gap-3 py-1.5 text-sm">
+      {zakonczony && <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">Zakończony</span>}
       {godzina && <span className="w-11 shrink-0 font-bold tabular-nums text-ink">{godzina}</span>}
       <span className="w-9 shrink-0 text-xs text-slate-500 dark:text-slate-400">M{numer}</span>
       <Link href={href} title={para} className="min-w-0 flex-1 truncate text-ink hover:underline">{para}</Link>

@@ -16,6 +16,7 @@ import PanelProsbaOWyglad from '@/components/turnieje/PanelProsbaOWyglad';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import CentrumTurnieju from '@/components/turnieje/CentrumTurnieju';
 import WyborEkranu from '@/components/turnieje/WyborEkranu';
+import ArkuszSkladu from '@/components/turnieje/ArkuszSkladu';
 import RamkaTurnieju, { SZEROKOSC_TURNIEJU } from '@/components/turnieje/RamkaTurnieju';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
@@ -127,6 +128,12 @@ export default function PanelClient() {
   const [komentarzEdycja, setKomentarzEdycja] = useState<Record<string, string>>({});
   const [liczbaGrupWybor, setLiczbaGrupWybor] = useState<number | null>(null);
   const [podglad, setPodglad] = useState<NowyMecz[] | null>(null);
+  // „+ GOL” z karty „Prowadź” od razu pyta o strzelca (2026-11-27): wpisanie
+  // go później na stronie meczu było trudne, więc nikt tego nie robił.
+  const [arkuszGola, setArkuszGola] = useState<{ mecz: TurniejMecz; druzynaId: string; typ: 'gol' | 'samobojczy' } | null>(null);
+  // W „Prowadź” w trakcie turnieju cały terminarz jest zwinięty: na górze
+  // stoi to, co prowadzący klika za chwilę.
+  const [pokazCalyTerminarz, setPokazCalyTerminarz] = useState(false);
   // Pierwsza dotknięta drużyna przy ręcznej zamianie par w drabince.
   const [doZamiany, setDoZamiany] = useState<MiejsceWDrabince | null>(null);
   const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
@@ -1000,11 +1007,17 @@ export default function PanelClient() {
   // Gol bez strzelca, jednym kliknięciem. Wynik liczy wyzwalacz (147) ze
   // zdarzeń, więc to ten sam zapis co „GOL” na stronie meczu; strzelca można
   // dopisać tam. Wynik na ekranie rośnie od razu, baza go potwierdza.
-  const golAkcja = async (m: TurniejMecz, druzynaId: string) => {
-    const strona = druzynaId === m.druzynaAId ? 'wynikA' : 'wynikB';
+  const golAkcja = (m: TurniejMecz, druzynaId: string) => setArkuszGola({ mecz: m, druzynaId, typ: 'gol' });
+  const zapiszGol = async (zawodnikId: string | undefined) => {
+    if (!arkuszGola) return;
+    const { mecz: m, druzynaId, typ } = arkuszGola;
+    setArkuszGola(null);
+    // Samobój: zdarzenie ma drużynę strzelającego, punkt idzie rywalowi (147).
+    const dlaDruzyny = typ === 'samobojczy' ? (druzynaId === m.druzynaAId ? m.druzynaBId : m.druzynaAId) : druzynaId;
+    const strona = dlaDruzyny === m.druzynaAId ? 'wynikA' : 'wynikB';
     setMecze((lista) => lista.map((x) => (x.id === m.id ? { ...x, [strona]: x[strona] + 1 } : x)));
     try {
-      await dodajZdarzenie(m.id, { druzynaId, typ: 'gol', minuta: minutaMeczu(m, new Date(), turniej.czasMeczuMin) });
+      await dodajZdarzenie(m.id, { druzynaId, typ, zawodnikId, minuta: minutaMeczu(m, new Date(), turniej.czasMeczuMin) });
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się zapisać gola', 'error');
     }
@@ -1056,7 +1069,7 @@ export default function PanelClient() {
                 href={`/turnieje/${id}/mecz/${meczNaZywo.id}`}
                 className="inline-flex min-h-[36px] items-center rounded-xl bg-primary-600 px-3 text-sm font-semibold text-white hover:bg-primary-700"
               >
-                Wpisz wynik M{meczNaZywo.numer}
+                Prowadź M{meczNaZywo.numer} (w trakcie)
               </Link>
             ) : nastepnyGotowy ? (
               <Button size="sm" onClick={() => rozpocznijMeczAkcja(nastepnyGotowy)}>
@@ -1562,11 +1575,17 @@ export default function PanelClient() {
 
         {(zakladka === 'prowadz' || zakladka === 'terminarz') && (
           <div id="terminarz" className="scroll-mt-32 space-y-6">
-            {trwa && mecze.length > 0 && (
-              <h2 className="hidden font-display text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 lg:block">
-                Cały terminarz
-              </h2>
+            {trwa && mecze.length > 0 && zakladka === 'prowadz' && (
+              <button
+                type="button"
+                onClick={() => setPokazCalyTerminarz((v) => !v)}
+                aria-expanded={pokazCalyTerminarz}
+                className="font-display text-sm font-semibold uppercase tracking-wide text-slate-500 hover:text-ink dark:text-slate-400"
+              >
+                {pokazCalyTerminarz ? '▾' : '▸'} Cały terminarz ({mecze.length})
+              </button>
             )}
+            {(zakladka !== 'prowadz' || !trwa || pokazCalyTerminarz) && (
             <div className="space-y-3">
 
               {podglad ? (
@@ -1798,6 +1817,7 @@ export default function PanelClient() {
                 </div>
               )}
             </div>
+            )}
           </div>
         )}
 
@@ -2268,6 +2288,25 @@ export default function PanelClient() {
         </div>
       )}
       {oknoPotwierdzenia}
+      {arkuszGola && (() => {
+        const { mecz: m, druzynaId, typ } = arkuszGola;
+        const druzyna = druzyny.find((d) => d.id === druzynaId);
+        const rywal = druzynaId === m.druzynaAId ? m.druzynaBId : m.druzynaAId;
+        return (
+          <ArkuszSkladu
+            tytul={typ === 'gol' ? 'Kto strzelił?' : 'Kto strzelił samobója?'}
+            podtytul={druzyna?.nazwa}
+            zawodnicy={druzyna?.zawodnicy ?? []}
+            etykietaPominiecia="Zapisz bez strzelca"
+            akcjaDodatkowa={typ === 'gol' && rywal ? {
+              etykieta: 'Samobój',
+              onClick: () => setArkuszGola({ mecz: m, druzynaId: rywal, typ: 'samobojczy' }),
+            } : undefined}
+            onWybor={(zawodnikId) => { void zapiszGol(zawodnikId); }}
+            onZamknij={() => setArkuszGola(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

@@ -90,6 +90,12 @@ export async function zlozProsbe(
   if (error) throw blad(error);
 }
 
+/** Autor cofa własną, jeszcze czekającą prośbę (188). */
+export async function anulujProsbe(prosbaId: string): Promise<void> {
+  const { error } = await supabase.rpc('anuluj_prosbe_do_druzyny', { p_prosba: prosbaId });
+  if (error) throw blad(error);
+}
+
 export async function rozpatrzProsbe(prosbaId: string, przyjmij: boolean): Promise<void> {
   const { error } = await supabase.rpc('rozpatrz_prosbe_do_druzyny', { p_prosba: prosbaId, p_przyjmij: przyjmij });
   if (error) throw blad(error);

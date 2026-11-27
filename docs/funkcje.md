@@ -5196,6 +5196,22 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   w bazie). „Przetestuj” widzi wyłącznie admin. Kopia „Próba: …” (marker `[TURNIEJ-TEST]`,
   widoczność `na_link`, składy bez kont) ma na liście „Wszystkie” dopisek „Kopia do ćwiczeń”
   z tym, skąd się wzięła i jak ją usunąć; panel próby wypisuje w hasłach, co w niej przećwiczyć.
+- **Poprawki przed turniejem 28.11 (2026-11-27, migracja `188`):** „Prowadź”
+  (`CentrumTurnieju.tsx`) także na telefonie, w kolejności: alerty, mecz w trakcie (tło
+  i obwódka marki, „W trakcie · M…”), „Następne do rozegrania” z „Start” przy każdym meczu
+  z obiema drużynami, „Rozegrane” z plakietką „Zakończony”; bez tabel grup. Cały terminarz
+  w „Prowadź” zwinięty (`pokazCalyTerminarz`). „+ GOL” w „Prowadź” otwiera `ArkuszSkladu`
+  (strzelec, „Samobój”, „Zapisz bez strzelca”). Mecz otwarty przez prowadzącego ma w ramce
+  aktywne „Prowadź” i „‹ Prowadź”, ramka na meczu nie jest przyklejona
+  (`przyklejona={false}`), „+ GOL” niższy; menu „⋯” (walkower) nad zakładkami (`z-30`).
+  „Popraw wynik” (`poprawia` w `MeczClient.tsx`): formularz z obecnym wynikiem i strzelcami,
+  `cofnij_wynik_meczu()` dopiero przy zapisie, „Anuluj, zostaw X:Y”. Odświeżanie wyniku:
+  strona meczu co 10 s (mecz i zdarzenia), strona turnieju co 15 s, obie po powrocie do
+  karty. Upload zdjęć i logotypów: najpierw podpisany PUT do R2, przy zablokowanym (CORS)
+  zapasowo `/api/turniej-media/upload` po zmniejszeniu zdjęcia > 3,5 MB do 2000 px.
+  Zakładka Mecze bez tabeli obok na komputerze; Info bez linku do zarządzania galerią.
+  Prośba o wycofanie i o kapitana z potwierdzeniem; „Cofnij prośbę” przy każdej czekającej
+  (`anulujProsbe()`, 188). W ramce panelu „Prowadź M… (w trakcie)” zamiast „Wpisz wynik M…”.
 - **Wycofanie, nazwa drużyny i link kapitana z ekranu drużyny (2026-11-25, migracja `187`):**
   „Ustawienia drużyny” na ekranie drużyny widzi kapitan i organizator. Nazwa: organizator
   zawsze, kapitan według Ustawienia turnieju „Kapitan może zmienić nazwę drużyny” (do

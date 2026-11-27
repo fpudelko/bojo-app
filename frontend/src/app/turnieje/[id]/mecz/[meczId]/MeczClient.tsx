@@ -90,6 +90,8 @@ export default function MeczClient() {
   const [wpisB, setWpisB] = useState(0);
   // Strzelcy wskazani przy szybkim wyniku: opcjonalni (2026-11-08).
   const [strzelcyWpis, setStrzelcyWpis] = useState<{ a: string[]; b: string[] }>({ a: [], b: [] });
+  /** Poprawa wyniku rozstrzygniętego meczu: formularz z obecnym wynikiem, bez zerowania (2026-11-27). */
+  const [poprawia, setPoprawia] = useState(false);
   const [zapisujeWynik, setZapisujeWynik] = useState(false);
   const [grupyPoId, setGrupyPoId] = useState<Map<string, TurniejGrupa>>(new Map());
 
@@ -124,6 +126,25 @@ export default function MeczClient() {
     const id = setInterval(() => setTik((n) => n + 1), 1000);
     return () => clearInterval(id);
   }, [trwa]);
+
+  // ODŚWIEŻANIE WYNIKU NA ŻYWO (2026-11-27, zgłoszenie z testu: organizator
+  // widział inny wynik niż gracz). Strona meczu wczytywała wynik RAZ, przy
+  // otwarciu, więc kibic i drugi prowadzący patrzyli na stary stan do
+  // przeładowania. Co 10 s, gdy mecz trwa albo zaraz się zacznie, i od razu
+  // po powrocie do karty. Tylko mecz i zdarzenia, nie cały komplet.
+  const zywy = mecz?.status === 'trwa' || mecz?.status === 'zaplanowany';
+  useEffect(() => {
+    if (!zywy) return;
+    const odswiez = () => {
+      if (document.visibilityState !== 'visible') return;
+      void Promise.all([getMecz(meczId), getZdarzenia(meczId)])
+        .then(([m, z]) => { if (m) setMecz(m); setZdarzenia(z); })
+        .catch(() => { /* następna próba za chwilę */ });
+    };
+    const t = window.setInterval(odswiez, 10_000);
+    document.addEventListener('visibilitychange', odswiez);
+    return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', odswiez); };
+  }, [zywy, meczId]);
 
   // Co dalej na tej arenie — pytanie, które prowadzący zadaje sobie w sekundzie
   // po ostatnim gwizdku. Dotąd wracał na listę meczów i szukał wzrokiem.
@@ -398,14 +419,17 @@ export default function MeczClient() {
         karneA: wpisWymagaKarnych ? karneA : undefined,
         karneB: wpisWymagaKarnych ? karneB : undefined,
       };
+      // Poprawa: stary wynik znika dopiero tutaj, tuż przed zapisem nowego.
+      if (poprawia) await cofnijWynikMeczu(meczId);
       const saStrzelcy = strzelcyWpis.a.length + strzelcyWpis.b.length > 0;
       if (saStrzelcy && mecz?.druzynaAId && mecz.druzynaBId) {
         await wpiszWynikZeStrzelcami(meczId, { a: mecz.druzynaAId, b: mecz.druzynaBId }, wynik, strzelcyWpis);
       } else {
         await wpiszWynikMeczu(meczId, wynik);
       }
+      setPoprawia(false);
       await wczytaj();
-      toast('Wynik zapisany');
+      toast(poprawia ? 'Wynik poprawiony' : 'Wynik zapisany');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Nie udało się zapisać wyniku', 'error');
     } finally {
@@ -419,45 +443,24 @@ export default function MeczClient() {
   // otwiera mecz od nowa i cofa drużynę z kolejnej rundy albo grupy
   // finałowej; odmawia, gdy tamten mecz już się zaczął. Nowy wynik idzie
   // tą samą drogą co pierwszy, więc tabela i drabinka liczą się same.
-  const poprawWynikAkcja = async () => {
-    // Najpierw sprawdzamy to, czego baza i tak by odmówiła: mecz zależny już
-    // ruszył. Wcześniej okno obiecywało cofnięcie, a odmowa przychodziła
-    // dopiero po potwierdzeniu (audyt 2026-11-18, F8).
-    try {
-      const lista = await getMecze(id);
-      const zalezny = lista.find((m) => m.status !== 'zaplanowany' && m.id !== mecz.id && (
-        m.zrodloAMeczId === mecz.id || m.zrodloBMeczId === mecz.id
-        || (!!mecz.grupaId && (m.zrodloAGrupaId === mecz.grupaId || m.zrodloBGrupaId === mecz.grupaId))));
-      if (zalezny) {
-        toast(`Tego wyniku nie poprawisz teraz: mecz M${zalezny.numer} zależy od niego i już się zaczął. Najpierw popraw M${zalezny.numer}.`, 'error');
-        return;
-      }
-    } catch { /* baza i tak sprawdzi to przy cofnięciu */ }
-    const zalezne = meczPucharowy || !!turniej?.format?.startsWith('grupy');
-    const wynik = await potwierdz({
-      tytul: 'Poprawić wynik tego meczu?',
-      konsekwencje: [
-        `Wynik ${mecz.wynikA}:${mecz.wynikB} zniknie, a mecz wróci do wpisania`,
-        'Strzelcy i zawodnik meczu z tego meczu też znikną',
-        ...(zalezne ? ['Kolejny mecz zależny od tego wyniku poczeka na nowy wynik'] : []),
-      ],
-      potwierdzLabel: 'Popraw wynik',
-    });
-    if (wynik !== 'tak') return;
-    const stary = { a: mecz.wynikA, b: mecz.wynikB, karneA: mecz.karneA, karneB: mecz.karneB };
-    try {
-      await cofnijWynikMeczu(meczId);
-      setWpisA(stary.a);
-      setWpisB(stary.b);
-      setKarneA(stary.karneA ?? 0);
-      setKarneB(stary.karneB ?? 0);
-      setStrzelcyWpis({ a: [], b: [] });
-      await wczytaj();
-      toast('Wpisz poprawny wynik');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Nie udało się otworzyć wyniku do poprawy', 'error');
-    }
+  // POPRAWA WYNIKU BEZ ZEROWANIA (2026-11-27, test przed turniejem: „resetuje
+  // wynik od razu po kliknięciu zamiast poprawić”). Formularz startuje z
+  // obecnym wynikiem i strzelcami; mecz zostaje nietknięty, dopóki prowadzący
+  // nie zapisze nowego wyniku (`zapiszWynikAkcja` cofa stary tuż przed zapisem).
+  const poprawWynikAkcja = () => {
+    if (!mecz) return;
+    const strzelcy = (druzynaId?: string) => zdarzenia
+      .filter((z) => z.typ === 'gol' && z.druzynaId === druzynaId && z.zawodnikId)
+      .map((z) => z.zawodnikId!);
+    setWpisA(mecz.wynikA);
+    setWpisB(mecz.wynikB);
+    setKarneA(mecz.karneA ?? 0);
+    setKarneB(mecz.karneB ?? 0);
+    setStrzelcyWpis({ a: strzelcy(mecz.druzynaAId), b: strzelcy(mecz.druzynaBId) });
+    setPoprawia(true);
+    window.setTimeout(() => document.getElementById('wynik-koncowy')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
   };
+
 
   const zakonczMeczAkcja = async () => {
     if (wymagaKarnych && karneA === karneB) {
@@ -494,8 +497,15 @@ export default function MeczClient() {
         <RamkaTurnieju
           turniej={turniej}
           adres={adresTurnieju}
-          aktywna="mecze"
-          powrot={{ etykieta: 'Mecze', href: `/turnieje/${adresTurnieju}?tab=mecze` }}
+          // Prowadzący przychodzi z „Prowadź” i tam ma wrócić (2026-11-27,
+          // test: „klikam mecz, żeby go prowadzić, a przenosi mnie do Mecze”).
+          aktywna={prowadzi ? 'prowadz' : 'mecze'}
+          powrot={prowadzi
+            ? { etykieta: 'Prowadź', href: `/turnieje/${id}/panel?tab=prowadz` }
+            : { etykieta: 'Mecze', href: `/turnieje/${adresTurnieju}?tab=mecze` }}
+          // Na meczu nagłówek nie jedzie za ekranem: na telefonie zabierał
+          // miejsce, w którym prowadzący ma mieć gole, kartki i zegar.
+          przyklejona={false}
           akcje={<>
           {/* WALKOWER. Status istniał od migracji `146` i wpisywał go wyłącznie
               generator terminarza przy wolnych losach — prowadzący, któremu
@@ -512,7 +522,7 @@ export default function MeczClient() {
                 <MoreHorizontal className="h-5 w-5" />
               </button>
               {menuOtwarte && (
-                <div className="absolute right-0 top-11 w-60 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg">
+                <div className="absolute right-0 top-11 z-30 w-60 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg">
                   <p className="px-3 pt-2.5 text-xs font-medium text-slate-400">Drużyna się nie zgłosiła</p>
                   {([mecz.druzynaAId!, mecz.druzynaBId!] as const).map((zwyciezcaId) => (
                     <button
@@ -659,9 +669,11 @@ export default function MeczClient() {
             wpisuje „3:1" i gotowe. Gole ze strzelcami to opcja dla chętnych,
             pod przyciskiem niżej, bo przy kilku boiskach naraz nikt nie stoi
             z telefonem przy każdej bramce. */}
-        {prowadzi && mozeZaczac && (
-          <div className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-4">
-            <p className="text-sm font-semibold text-ink">Wpisz wynik końcowy</p>
+        {prowadzi && (mozeZaczac || poprawia) && (
+          <div id="wynik-koncowy" className={`scroll-mt-40 rounded-xl border p-4 space-y-4 ${poprawia
+            ? 'border-primary-300 bg-white dark:border-primary-700 dark:bg-slate-800'
+            : 'border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800'}`}>
+            <p className="text-sm font-semibold text-ink">{poprawia ? 'Popraw wynik' : 'Wpisz wynik końcowy'}</p>
             <div className="grid grid-cols-2 gap-3">
               {([
                 ['a', druzynaA?.nazwa, wpisA],
@@ -762,11 +774,17 @@ export default function MeczClient() {
               </div>
             )}
             <Button onClick={zapiszWynikAkcja} disabled={zapisujeWynik} className="w-full">
-              Zapisz wynik {wpisA}:{wpisB}
+              {poprawia ? `Zapisz poprawiony wynik ${wpisA}:${wpisB}` : `Zapisz wynik ${wpisA}:${wpisB}`}
             </Button>
-            <p className="text-xs text-slate-400">
-              {meczPucharowy ? 'Zwycięzca przejdzie do kolejnej rundy. ' : ''}Pomyłkę poprawisz później przyciskiem „Popraw wynik”.
-            </p>
+            {poprawia ? (
+              <Button variant="outline" onClick={() => setPoprawia(false)} disabled={zapisujeWynik} className="w-full">
+                Anuluj, zostaw {mecz.wynikA}:{mecz.wynikB}
+              </Button>
+            ) : (
+              <p className="text-xs text-slate-400">
+                {meczPucharowy ? 'Zwycięzca przejdzie do kolejnej rundy. ' : ''}Pomyłkę poprawisz później przyciskiem „Popraw wynik”.
+              </p>
+            )}
           </div>
         )}
 
@@ -798,12 +816,13 @@ export default function MeczClient() {
                   ) : (
                     <button
                       onClick={() => zapytajOZawodnika(druzynaId, 'gol')}
-                      className="flex min-h-[96px] w-full flex-col items-center justify-center gap-1 rounded-2xl bg-primary-50 dark:bg-primary-950 px-2 py-3 active:bg-primary-100 dark:active:bg-primary-900"
+                      // Niższy przycisk (2026-11-27): kartki i „Cofnij” mają
+                      // się zmieścić na jednym ekranie telefonu z zegarem.
+                      className="flex min-h-[64px] w-full flex-col items-center justify-center gap-0.5 rounded-2xl bg-primary-50 dark:bg-primary-950 px-2 py-2 active:bg-primary-100 dark:active:bg-primary-900"
                     >
-                      <span className="text-2xl">⚽</span>
                       {/* Plus mówi „dodaj” (prośba właściciela 2026-11-22):
                           samo „GOL” czytało się jak etykieta, nie przycisk. */}
-                      <span className="text-sm font-bold text-primary-700 dark:text-primary-300">+ GOL</span>
+                      <span className="text-base font-bold text-primary-700 dark:text-primary-300">⚽ + GOL</span>
                       <span className="line-clamp-2 text-center text-xs text-slate-500 dark:text-slate-400">
                         {nazwaDruzyny(druzynaId)}
                       </span>
@@ -915,7 +934,7 @@ export default function MeczClient() {
           </div>
         )}
 
-        {mozePoprawic && (
+        {mozePoprawic && !poprawia && (
           <Button variant="outline" onClick={poprawWynikAkcja} className="w-full">
             Popraw wynik
           </Button>
