@@ -21,14 +21,15 @@
  * a przyciski kapitana pokazują się wyłącznie kapitanowi.
  */
 
+import OknoKoduQr from '@/components/turnieje/OknoKoduQr';
 import { useAdmin } from '@/lib/admin';
 import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Copy, Loader2, UserCog, Share2, UserPlus, Users, Wallet,
-  ChevronRight, Repeat, Settings2, CalendarDays, MapPin,
+  Copy, Loader2, UserCog, Share2, UserPlus, Wallet,
+  ChevronRight, Repeat, Settings2, CalendarDays, MapPin, QrCode,
 } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -299,6 +300,24 @@ export default function DruzynaClient() {
 
   // LINK DLA KAPITANA Z EKRANU DRUŻYNY (2026-11-25): organizator nie musi
   // szukać go w Edytuj → Drużyny. Ta sama treść co przy komplecie linków.
+  // Kod QR zamiast linku (2026-11-27): ten sam adres, do zeskanowania na hali.
+  const [kodQr, setKodQr] = useState<{ tytul: string; opis: string; link: string } | null>(null);
+  const pokazQrKapitana = async () => {
+    if (!druzyna) return;
+    try {
+      const linki = await przygotujLinkiKapitanow(id);
+      const ten = linki.find((l) => l.druzynaId === druzyna.id && l.kod);
+      if (!ten) { toast('Ta drużyna ma już kapitana', 'error'); return; }
+      setKodQr({
+        tytul: `Kapitan drużyny ${druzyna.nazwa}`,
+        opis: 'Kapitan skanuje kod aparatem telefonu, loguje się i przejmuje drużynę. Kod działa raz.',
+        link: `${kanonicznyOrigin(window.location.origin)}/k/${ten.kod}`,
+      });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się przygotować kodu', 'error');
+    }
+  };
+
   const wyslijLinkKapitana = async () => {
     if (!druzyna || !turniej) return;
     try {
@@ -377,7 +396,7 @@ export default function DruzynaClient() {
         <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-16 text-center">
           <p className="font-medium text-ink">Nie ma takiej drużyny</p>
-          <Link href={`/turnieje/${id}`} className="mt-3 inline-block text-sm font-medium text-primary-600">
+          <Link prefetch={false} href={`/turnieje/${id}`} className="mt-3 inline-block text-sm font-medium text-primary-600">
             Wróć do turnieju
           </Link>
         </main>
@@ -443,7 +462,7 @@ export default function DruzynaClient() {
               {status.label}
             </span>
           </div>
-          <Link
+          <Link prefetch={false}
             href={`/turnieje/${id}`}
             className="mt-1 inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-slate-500 dark:text-slate-400 hover:text-ink"
           >
@@ -477,65 +496,7 @@ export default function DruzynaClient() {
           </p>
         )}
 
-        {/* ── Kompletowanie składu — serce tego ekranu ──────────────────────
-            Licznik zamienia bierne czekanie w czynność: widać, ilu brakuje,
-            i stoi obok jeden przycisk, żeby to zmienić. */}
-        {prowadziSklad && wolnoZmieniac && (
-          <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4 space-y-3">
-            <div>
-              <p className="text-sm font-semibold text-ink">
-                {/* „7 osób (od 5 do 12)", nie „7 z 5". Poprzedni zapis pokazywał
-                    liczbę wobec MINIMUM, więc skład kompletny wyglądał na
-                    przepełniony albo na zepsuty licznik: „Skład: 7 z 5"
-                    czyta się jak przekroczenie limitu, a nie jak spełniony
-                    warunek (audyt 4). */}
-                Skład: {zawodnicy.length} z {turniej.maxZawodnikow}
-              </p>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800">
-                <div className="h-full rounded-full bg-primary-600 transition-all" style={{ width: `${procent}%` }} />
-              </div>
-              <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
-                {wolneMiejsca > 0
-                  ? `Wolne miejsca: ${wolneMiejsca}.`
-                  : 'Skład pełny.'}
-              </p>
-            </div>
-
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Wyślij link zawodnikom. Kto go otworzy i się zaloguje, wybierze swoje imię
-              z listy (przejmie wpis) albo dopisze się sam.
-            </p>
-            <div className="flex gap-2">
-              <Button onClick={wyslij} className="flex-1 inline-flex items-center justify-center gap-1.5">
-                <Share2 className="h-4 w-4" /> Wyślij link do drużyny
-              </Button>
-              {jestKapitanem && (
-                <Button variant="outline" onClick={() => setPokazZaproszenia(true)} className="flex-1 inline-flex items-center justify-center gap-1.5">
-                  <Users className="h-4 w-4" /> Zaproś z ekipy
-                </Button>
-              )}
-            </div>
-            {jestOrganizatorem && !druzyna.kapitanId && (
-              <div className="space-y-1.5 rounded-xl border border-primary-200 bg-white p-3 dark:border-primary-900 dark:bg-slate-800">
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  Drużyna nie ma kapitana. Wyślij mu jednorazowy link: po zalogowaniu przejmie drużynę.
-                </p>
-                <Button variant="outline" onClick={wyslijLinkKapitana} className="w-full inline-flex items-center justify-center gap-1.5">
-                  <UserCog className="h-4 w-4" /> Wyślij link dla kapitana
-                </Button>
-              </div>
-            )}
-
-            <button
-              onClick={() => kopiuj(link, 'Link drużyny')}
-              className="flex w-full items-center gap-2 rounded-xl border border-primary-200 dark:border-primary-900 bg-white dark:bg-slate-800 px-3 py-2 text-left"
-            >
-              <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-500 dark:text-slate-400">{link}</span>
-              <Copy className="h-4 w-4 shrink-0 text-primary-600" />
-            </button>
-          </div>
-        )}
-
+        {/* Lista zawodników NAD zapraszaniem (2026-11-27): najpierw kto już jest. */}
         {/* ── Skład ─────────────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
           <h2 className="mb-2 text-sm font-semibold text-slate-500">
@@ -562,7 +523,7 @@ export default function DruzynaClient() {
                   {/* Zawodnik z kontem prowadzi do profilu, dopisany z ręki
                       zostaje tekstem — ta sama reguła co w `KartaDruzyny`. */}
                   {z.userId ? (
-                    <Link href={`/gracz/${z.userId}`} className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-sm text-slate-700 dark:text-slate-200">
+                    <Link prefetch={false} href={`/gracz/${z.userId}`} className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-sm text-slate-700 dark:text-slate-200">
                       <span className="min-w-0 truncate">{z.imie}</span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
                     </Link>
@@ -644,6 +605,79 @@ export default function DruzynaClient() {
             </p>
           )}
         </div>
+
+        {/* ── Kompletowanie składu — serce tego ekranu ──────────────────────
+            Licznik zamienia bierne czekanie w czynność: widać, ilu brakuje,
+            i stoi obok jeden przycisk, żeby to zmienić. */}
+        {prowadziSklad && wolnoZmieniac && (
+          <div className="rounded-2xl border border-primary-100 dark:border-primary-900 bg-primary-50/60 dark:bg-primary-950/30 p-4 space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-ink">
+                {/* „7 osób (od 5 do 12)", nie „7 z 5". Poprzedni zapis pokazywał
+                    liczbę wobec MINIMUM, więc skład kompletny wyglądał na
+                    przepełniony albo na zepsuty licznik: „Skład: 7 z 5"
+                    czyta się jak przekroczenie limitu, a nie jak spełniony
+                    warunek (audyt 4). */}
+                Skład: {zawodnicy.length} z {turniej.maxZawodnikow}
+              </p>
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800">
+                <div className="h-full rounded-full bg-primary-600 transition-all" style={{ width: `${procent}%` }} />
+              </div>
+              <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
+                {wolneMiejsca > 0
+                  ? `Wolne miejsca: ${wolneMiejsca}.`
+                  : 'Skład pełny.'}
+              </p>
+            </div>
+
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Wyślij link zawodnikom. Kto go otworzy i się zaloguje, wybierze swoje imię
+              z listy (przejmie wpis) albo dopisze się sam.
+            </p>
+            {/* ZAPROSZENIE BEZ GOŁEGO LINKU (2026-11-27, uwaga właściciela):
+                adres na ekranie nic nie mówi zawodnikowi, liczą się trzy
+                drogi: udostępnij, skopiuj, pokaż kod QR na hali. „Zaproś
+                z ekipy” na razie schowane. */}
+            <div className="grid grid-cols-3 gap-2">
+              <Button onClick={wyslij} className="inline-flex items-center justify-center gap-1 whitespace-nowrap px-1.5">
+                <Share2 className="h-4 w-4 shrink-0" /> Udostępnij
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => kopiuj(`Dołącz do drużyny ${druzyna.nazwa} w turnieju ${turniej.nazwa}, ${etykietaTerminu(turniej.dataStartu, turniej.godzinaStartu)}\n${link}`, 'Zaproszenie')}
+                className="inline-flex items-center justify-center gap-1 whitespace-nowrap px-1.5"
+              >
+                <Copy className="h-4 w-4 shrink-0" /> Kopiuj
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setKodQr({
+                  tytul: `Dołącz do drużyny ${druzyna.nazwa}`,
+                  opis: 'Zawodnik skanuje kod aparatem telefonu, loguje się i dołącza do składu.',
+                  link,
+                })}
+                className="inline-flex items-center justify-center gap-1 whitespace-nowrap px-1.5"
+              >
+                <QrCode className="h-4 w-4 shrink-0" /> Kod QR
+              </Button>
+            </div>
+            {jestOrganizatorem && !druzyna.kapitanId && (
+              <div className="space-y-1.5 rounded-xl border border-primary-200 bg-white p-3 dark:border-primary-900 dark:bg-slate-800">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Drużyna nie ma kapitana. Wyślij mu jednorazowy link: po zalogowaniu przejmie drużynę.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={wyslijLinkKapitana} className="flex-1 inline-flex items-center justify-center gap-1.5">
+                    <UserCog className="h-4 w-4" /> Wyślij link dla kapitana
+                  </Button>
+                  <Button variant="outline" onClick={pokazQrKapitana} className="shrink-0 inline-flex items-center justify-center gap-1.5">
+                    <QrCode className="h-4 w-4" /> Kod QR
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Prośby gracza (186) ─────────────────────────────────────── */}
         {/* Kto nie ma linku od kapitana, prosi o miejsce; kapitan (albo
@@ -796,7 +830,7 @@ export default function DruzynaClient() {
             ekran jest podglądem, nie panelem. Jedna droga wyjścia zamiast
             ślepego zaułka. */}
         {!jestKapitanem && (
-          <Link
+          <Link prefetch={false}
             href={`/turnieje/${id}`}
             className="flex items-center gap-2 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 text-sm text-slate-600 dark:text-slate-300 shadow-sm"
           >
@@ -825,6 +859,7 @@ export default function DruzynaClient() {
         />
       )}
       {oknoPotwierdzenia}
+      {kodQr && <OknoKoduQr {...kodQr} onZamknij={() => setKodQr(null)} />}
     </div>
   );
 }

@@ -77,7 +77,7 @@ export default function DolaczDoDruzynyPage() {
         <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-16 text-center">
           <p className="font-medium text-ink">Nie znaleziono drużyny o tym kodzie.</p>
-          <Link href="/turnieje" className="mt-2 inline-block text-sm text-primary-600">Wróć do turniejów</Link>
+          <Link prefetch={false} href="/turnieje" className="mt-2 inline-block text-sm text-primary-600">Wróć do turniejów</Link>
         </main>
       </div>
     );
@@ -146,7 +146,7 @@ export default function DolaczDoDruzynyPage() {
           <h1 className="mb-5 font-display text-2xl font-bold text-ink">{druzyna.nazwa}</h1>
           {wizytowka}
           <div className="mt-5">
-            <Link href={`/logowanie?next=${encodeURIComponent(`/t/${kod}`)}`}>
+            <Link prefetch={false} href={`/logowanie?next=${encodeURIComponent(`/t/${kod}`)}`}>
               <Button className="w-full">Dołącz do drużyny</Button>
             </Link>
             <p className="mt-2 text-xs text-slate-400">
@@ -171,7 +171,7 @@ export default function DolaczDoDruzynyPage() {
           <p className="text-sm text-slate-500 dark:text-slate-400">{turniej ? turniej.nazwa : 'Turniej Bojo'}</p>
           <h1 className="mb-5 font-display text-2xl font-bold text-ink">Jesteś w drużynie {druzyna.nazwa}</h1>
           {wizytowka}
-          <Link href={`/turnieje/${druzyna.turniejId}/druzyna/${druzyna.id}`} className="mt-5 block">
+          <Link prefetch={false} href={`/turnieje/${druzyna.turniejId}/druzyna/${druzyna.id}`} className="mt-5 block">
             <Button className="w-full">Przejdź do swojej drużyny</Button>
           </Link>
         </main>

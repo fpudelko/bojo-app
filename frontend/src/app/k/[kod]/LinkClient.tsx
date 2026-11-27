@@ -87,7 +87,7 @@ export default function LinkKapitanaPage() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Każdy link kapitana działa raz. Jeśli drużynę przejął ktoś inny albo link się zgubił, poproś organizatora turnieju o nowy.
         </p>
-        <Link href="/turnieje" className="mt-3 inline-block text-sm text-primary-600">Wróć do turniejów</Link>
+        <Link prefetch={false} href="/turnieje" className="mt-3 inline-block text-sm text-primary-600">Wróć do turniejów</Link>
       </div>,
     );
   }
@@ -113,7 +113,7 @@ export default function LinkKapitanaPage() {
       <>
         {naglowek}
         {objasnienie}
-        <Link href={`/logowanie?next=${encodeURIComponent(`/k/${kod}`)}`} className="mt-5 block">
+        <Link prefetch={false} href={`/logowanie?next=${encodeURIComponent(`/k/${kod}`)}`} className="mt-5 block">
           <Button className="w-full">Zaloguj się i przejmij drużynę</Button>
         </Link>
         <p className="mt-2 text-center text-xs text-slate-400">Konto zakładasz przy okazji: Google albo e-mail.</p>

@@ -28,7 +28,7 @@ export default function Galeria({ zdjecia, mozeZarzadzac, linkDoPanelu }: Galeri
           <Images className="h-4 w-4 text-slate-400" /> Galeria
         </h2>
         {mozeZarzadzac && (
-          <Link href={linkDoPanelu} className="text-sm font-medium text-primary-600">
+          <Link prefetch={false} href={linkDoPanelu} className="text-sm font-medium text-primary-600">
             {zdjecia.length === 0 ? '+ Ustaw wygląd strony' : 'Wygląd strony'}
           </Link>
         )}

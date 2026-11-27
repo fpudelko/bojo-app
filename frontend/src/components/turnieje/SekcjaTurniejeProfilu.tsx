@@ -75,7 +75,7 @@ export default function SekcjaTurniejeProfilu({ userId }: { userId: string }) {
         <ul className="mt-4 space-y-2 border-t border-slate-100 dark:border-slate-700 pt-4">
           {turnieje.map((t) => (
             <li key={t.turniejId}>
-              <Link
+              <Link prefetch={false}
                 href={`/turnieje/${t.turniejId}`}
                 className="flex items-center gap-2 rounded-xl px-1 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700/40"
               >

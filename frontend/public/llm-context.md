@@ -491,7 +491,8 @@ ROZWIĄZANIE BOJO: na ekranie drużyny zawodnik ze składu ma „Opuść drużyn
 potwierdzenia (kapitan też; drużyna zostaje wtedy bez kapitana). Przebieg meczu pokazuje
 gole i kartki po stronie drużyny, której dotyczą, z minutą na środku. W „Prowadź” nad
 godziną meczu stoi numer i grupa, a nazwy obu drużyn ucinają się po równo. Pasek układu
-ekranu turnieju jest na telefonie większy.
+ekranu turnieju jest na telefonie większy. Organizator może pokazać kapitanowi kod QR zamiast wysyłać
+link, a kapitan zawodnikom kod QR do dołączenia do składu.
 
 MECHANIKA: migracja `191` (`opusc_druzyne()`), `DruzynaClient.tsx`, `MeczClient.tsx`,
 `CentrumTurnieju.tsx` (`WierszMeczu`), `ekran/EkranClient.tsx`. Szczegóły →

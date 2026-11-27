@@ -6,12 +6,13 @@ import { useAdres, useAdresWPasku } from '@/lib/useAdres';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Download, Plus, Check, X as XIcon, Trash2, Ban, ChevronRight } from 'lucide-react';
+import { Download, Plus, Check, X as XIcon, Trash2, Ban, ChevronRight, QrCode } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import CoverUpload from '@/components/ui/CoverUpload';
 import PanelGaleria from '@/components/turnieje/PanelGaleria';
 import PanelSponsorzy from '@/components/turnieje/PanelSponsorzy';
+import OknoKoduQr from '@/components/turnieje/OknoKoduQr';
 import PanelProsbaOWyglad from '@/components/turnieje/PanelProsbaOWyglad';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
 import CentrumTurnieju from '@/components/turnieje/CentrumTurnieju';
@@ -145,6 +146,8 @@ export default function PanelClient() {
   const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
   // Linki kapitanów (181): `null` = jeszcze nie przygotowane w tej sesji.
   const [linkiKapitanow, setLinkiKapitanow] = useState<LinkKapitana[] | null>(null);
+  // Kod QR linku kapitana do zeskanowania na hali (2026-11-27).
+  const [kodQr, setKodQr] = useState<{ tytul: string; opis: string; link: string } | null>(null);
   const [blikWpis, setBlikWpis] = useState('');
   // Zasady gry w trakcie edycji; `null` = pokaż to, co jest w bazie.
   const [zasadyEdycja, setZasadyEdycja] = useState<WartosciZasad | null>(null);
@@ -294,7 +297,7 @@ export default function PanelClient() {
         <Header showMobileWordmark />
         <main className="mx-auto w-full max-w-lg flex-1 px-4 py-16 text-center">
           <p className="font-medium text-ink">Ten panel jest dla organizatora turnieju</p>
-          <Link href={`/turnieje/${id}`} className="mt-3 inline-block text-sm text-primary-600">Wróć do turnieju</Link>
+          <Link prefetch={false} href={`/turnieje/${id}`} className="mt-3 inline-block text-sm text-primary-600">Wróć do turnieju</Link>
         </main>
       </div>
     );
@@ -1092,7 +1095,7 @@ export default function PanelClient() {
               </div>
             </details>
             {trwa && (meczNaZywo ? (
-              <Link
+              <Link prefetch={false}
                 href={`/turnieje/${id}/mecz/${meczNaZywo.id}`}
                 className="inline-flex min-h-[36px] items-center rounded-xl bg-primary-600 px-3 text-sm font-semibold text-white hover:bg-primary-700"
               >
@@ -1210,7 +1213,7 @@ export default function PanelClient() {
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   Pomyłkę w wyniku poprawisz na stronie meczu.
                 </p>
-                <Link href={`/turnieje/${id}?tab=tabela`} className="inline-block text-sm font-medium text-primary-600">
+                <Link prefetch={false} href={`/turnieje/${id}?tab=tabela`} className="inline-block text-sm font-medium text-primary-600">
                   Zobacz podium i tabele
                 </Link>
               </div>
@@ -1226,7 +1229,7 @@ export default function PanelClient() {
                       Podium i tabele są już na stronie turnieju.
                       {!proba && ' Zakończ turniej, gdy skończycie dekorację.'}
                     </p>
-                    <Link href={`/turnieje/${id}?tab=tabela`} className="inline-block text-sm font-medium text-primary-600">
+                    <Link prefetch={false} href={`/turnieje/${id}?tab=tabela`} className="inline-block text-sm font-medium text-primary-600">
                       Zobacz podium i tabele
                     </Link>
                   </div>
@@ -1513,13 +1516,27 @@ export default function PanelClient() {
                         <li key={l.druzynaId} className="flex min-h-[44px] items-center gap-2 py-1.5 text-sm">
                           <span className="min-w-0 flex-1 break-words font-medium text-ink">{l.nazwa}</span>
                           {l.kod ? (
-                            <button
-                              type="button"
-                              onClick={() => kopiuj(tekstLinkuKapitana(turniej.nazwa, l, window.location.origin), `Link kapitana: ${l.nazwa}`)}
-                              className="shrink-0 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-ink dark:border-slate-600"
-                            >
-                              Kopiuj link
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => kopiuj(tekstLinkuKapitana(turniej.nazwa, l, window.location.origin), `Link kapitana: ${l.nazwa}`)}
+                                className="shrink-0 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-ink dark:border-slate-600"
+                              >
+                                Kopiuj link
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setKodQr({
+                                  tytul: `Kapitan drużyny ${l.nazwa}`,
+                                  opis: 'Kapitan skanuje kod aparatem telefonu, loguje się i przejmuje drużynę. Kod działa raz.',
+                                  link: `${kanonicznyOrigin(window.location.origin)}/k/${l.kod}`,
+                                })}
+                                aria-label={`Kod QR dla kapitana drużyny ${l.nazwa}`}
+                                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-ink dark:border-slate-600"
+                              >
+                                <QrCode className="h-3.5 w-3.5" aria-hidden /> QR
+                              </button>
+                            </>
                           ) : (
                             <span className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
                               kapitan: {l.kapitan ?? 'jest'}
@@ -1552,7 +1569,7 @@ export default function PanelClient() {
                   z ekranu drużyny (dotknięcie nazwy). */}
               {wTurnieju.map((d) => (
                 <div key={d.id} className="flex items-center gap-2 rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
-                  <Link href={`/turnieje/${id}/druzyna/${d.id}`} className="min-w-0 flex-1">
+                  <Link prefetch={false} href={`/turnieje/${id}/druzyna/${d.id}`} className="min-w-0 flex-1">
                     <span className="block line-clamp-2 break-words font-medium text-ink">{d.nazwa}</span>
                     <span className="block text-xs text-slate-500 dark:text-slate-400">
                       {odmienZawodnikow(d.liczbaZawodnikow ?? 0)} · {d.kapitanId ? 'ma kapitana' : 'bez kapitana'}
@@ -1702,7 +1719,7 @@ export default function PanelClient() {
               ) : zakladka === 'prowadz' ? (
                 mecze.length === 0 ? (
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Terminarza jeszcze nie ma.{!tylkoProwadzi && <> Ułożysz go w <Link href={`/turnieje/${id}/panel?tab=terminarz`} className="font-medium text-primary-600">Edytuj → Terminarz</Link>.</>}
+                    Terminarza jeszcze nie ma.{!tylkoProwadzi && <> Ułożysz go w <Link prefetch={false} href={`/turnieje/${id}/panel?tab=terminarz`} className="font-medium text-primary-600">Edytuj → Terminarz</Link>.</>}
                   </p>
                 ) : null
               ) : (
@@ -2350,6 +2367,7 @@ export default function PanelClient() {
         </div>
       )}
       {oknoPotwierdzenia}
+      {kodQr && <OknoKoduQr {...kodQr} onZamknij={() => setKodQr(null)} />}
       {arkuszGola && (() => {
         const { mecz: m, druzynaId, typ } = arkuszGola;
         const druzyna = druzyny.find((d) => d.id === druzynaId);

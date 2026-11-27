@@ -33,7 +33,7 @@ export default function MojeTurniejeSekcja({ userId, pokazWejscie }: { userId: s
           {moje.map((m) => <KartaTurnieju key={m.turniej.id} t={m.turniej} rola={m.rola} druzyna={m.druzyna} />)}
         </>
       )}
-      <Link
+      <Link prefetch={false}
         href="/turnieje"
         className="flex items-center justify-between rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 px-4 py-3.5 shadow-sm hover:border-primary-200 hover:shadow-md transition-all group"
       >

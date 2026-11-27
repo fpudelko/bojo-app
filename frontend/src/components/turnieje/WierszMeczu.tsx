@@ -53,7 +53,7 @@ export default function WierszMeczu({
   const karne = mecz.karneA !== undefined && mecz.karneB !== undefined ? `k. ${mecz.karneA}:${mecz.karneB}` : null;
 
   return (
-    <Link
+    <Link prefetch={false}
       href={href}
       className={[
         'flex min-h-[52px] items-center gap-2 rounded-xl px-2.5 py-1.5',

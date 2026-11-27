@@ -5279,6 +5279,21 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   w `EkranClient.tsx` ma pismo co najmniej 12 px i łamie się w kilka rzędów; wcześniej
   dziedziczyło skalę sceny 16:9 i na telefonie przyciski miały ok. 45×11 px, więc wybór
   „Pokaz na zmianę” trafiał obok.
+- **Kody QR zamiast linków (2026-11-27):** `components/turnieje/OknoKoduQr.tsx` pokazuje duży
+  kod QR tego samego adresu co wiadomość. Organizator: „Kod QR” przy „Wyślij link dla
+  kapitana” na ekranie drużyny bez kapitana i „QR” przy każdej drużynie w Edytuj → Drużyny →
+  Linki dla kapitanów (`/k/<kod>`, kapitan skanuje i przejmuje drużynę, działa raz). Kapitan
+  i organizator: „Kod QR” obok „Udostępnij” i „Kopiuj” na ekranie drużyny (`/t/<kod>`, zawodnik
+  skanuje i dołącza do składu).
+- **Ekran drużyny: lista zawodników nad zapraszaniem (2026-11-27):** w `DruzynaClient.tsx` karta
+  „Zawodnicy” stoi przed kartą „Skład: X z Y”; zapraszanie to trzy przyciski Udostępnij /
+  Kopiuj / Kod QR zamiast widocznego adresu, „Zaproś z ekipy” na razie schowane.
+- **Szybsze przejścia po turnieju (2026-11-27):** linki na listach turnieju (drużyny, mecze,
+  terminarz, panel) mają `prefetch={false}`. Wcześniej każde wejście w zakładkę pobierało
+  z wyprzedzeniem stronę każdej widocznej drużyny i meczu (np. 12 żądań do serwera przy
+  „Prowadź”), a kliknięcie czekało w kolejce za nimi. Zakładki w `RamkaTurnieju` pobierają
+  z wyprzedzeniem dalej. W `WierszMeczu` (Prowadź) dwukropek między drużynami stoi pośrodku
+  (pierwsza drużyna wyrównana do prawej), a „Start” ma też pierwszy mecz z listy.
 - **Podgląd linków drużyny, kapitana i zaproszenia (2026-11-27):** `/t/[kod]`, `/k/[kod]`
   i `/o/[kod]` mają serwerowe `page.tsx` z `generateMetadata` (`metadataLinkuTurnieju()`
   w `turnieje/[id]/turniejMeta.ts`): tytuł „Dołącz do drużyny X · turniej”, opis i obrazek

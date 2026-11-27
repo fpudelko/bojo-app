@@ -50,7 +50,7 @@ export default function KartaDruzyny({
       {/* DWA CELE: nazwa prowadzi na ekran drużyny, strzałka rozwija mecze.
           Oba mają pełną wysokość wiersza, żeby trafić kciukiem. */}
       <div className="flex items-stretch">
-        <Link
+        <Link prefetch={false}
           href={adresDruzyny}
           className="flex min-w-0 flex-1 items-center gap-3 p-3.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40"
         >
@@ -83,7 +83,7 @@ export default function KartaDruzyny({
           <div>
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Najbliższy mecz</p>
             {najblizszy ? (
-              <Link
+              <Link prefetch={false}
                 href={`/turnieje/${d.turniejId}/mecz/${najblizszy.id}`}
                 className="-mx-2 flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/60"
               >
@@ -109,7 +109,7 @@ export default function KartaDruzyny({
               <ul className="space-y-0.5">
                 {wyniki.map((w) => (
                   <li key={w.mecz.id}>
-                    <Link
+                    <Link prefetch={false}
                       href={`/turnieje/${d.turniejId}/mecz/${w.mecz.id}`}
                       className="-mx-2 flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/60"
                     >
@@ -133,7 +133,7 @@ export default function KartaDruzyny({
           {/* Wejście na ekran drużyny: skład z profilami, wszystkie mecze,
               a dla kapitana link dla kolegów i dopisywanie zawodników. */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <Link href={adresDruzyny} className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-primary-600">
+            <Link prefetch={false} href={adresDruzyny} className="inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-primary-600">
               {czyMoja ? 'Zarządzaj drużyną' : 'Zobacz mecze i skład'}
               <ChevronRight className="h-4 w-4" />
             </Link>

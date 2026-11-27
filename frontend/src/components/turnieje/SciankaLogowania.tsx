@@ -22,7 +22,7 @@ export default function SciankaLogowania({ tytul }: { tytul: string }) {
         Zaloguj się, żeby zobaczyć składy drużyn i swoje statystyki z turniejów.
       </p>
       <div className="mt-3 flex flex-col gap-2">
-        <Link href={`/logowanie?next=${encodeURIComponent(next)}`}>
+        <Link prefetch={false} href={`/logowanie?next=${encodeURIComponent(next)}`}>
           <Button size="sm" className="w-full">Zaloguj się</Button>
         </Link>
       </div>
