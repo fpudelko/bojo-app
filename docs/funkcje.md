@@ -5283,8 +5283,11 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   kod QR tego samego adresu co wiadomość. Organizator: „Kod QR” przy „Wyślij link dla
   kapitana” na ekranie drużyny bez kapitana i „QR” przy każdej drużynie w Edytuj → Drużyny →
   Linki dla kapitanów (`/k/<kod>`, kapitan skanuje i przejmuje drużynę, działa raz). Kapitan
-  i organizator: „Pokaż kod QR dla zawodników” na ekranie drużyny (`/t/<kod>`, zawodnik
+  i organizator: „Kod QR” obok „Udostępnij” i „Kopiuj” na ekranie drużyny (`/t/<kod>`, zawodnik
   skanuje i dołącza do składu).
+- **Ekran drużyny: lista zawodników nad zapraszaniem (2026-11-27):** w `DruzynaClient.tsx` karta
+  „Zawodnicy” stoi przed kartą „Skład: X z Y”; zapraszanie to trzy przyciski Udostępnij /
+  Kopiuj / Kod QR zamiast widocznego adresu, „Zaproś z ekipy” na razie schowane.
 - **Szybsze przejścia po turnieju (2026-11-27):** linki na listach turnieju (drużyny, mecze,
   terminarz, panel) mają `prefetch={false}`. Wcześniej każde wejście w zakładkę pobierało
   z wyprzedzeniem stronę każdej widocznej drużyny i meczu (np. 12 żądań do serwera przy
