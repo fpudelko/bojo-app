@@ -5286,8 +5286,9 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   i organizator: „Kod QR” obok „Udostępnij” i „Kopiuj” na ekranie drużyny (`/t/<kod>`, zawodnik
   skanuje i dołącza do składu).
 - **Ekran drużyny: lista zawodników nad zapraszaniem (2026-11-27):** w `DruzynaClient.tsx` karta
-  „Zawodnicy” stoi przed kartą „Skład: X z Y”; zapraszanie to trzy przyciski Udostępnij /
-  Kopiuj / Kod QR zamiast widocznego adresu, „Zaproś z ekipy” na razie schowane.
+  „Zawodnicy” ma na dole zapraszanie: trzy przyciski Udostępnij / Kopiuj / Kod QR zamiast
+  widocznego adresu, „Zaproś z ekipy” na razie schowane, a pod nimi link kapitana. Licznik
+  „Skład: X z Y” z paskiem usunięty: nie dążymy do wypełnienia składu, limit to tylko granica.
 - **Szybsze przejścia po turnieju (2026-11-27):** linki na listach turnieju (drużyny, mecze,
   terminarz, panel) mają `prefetch={false}`. Wcześniej każde wejście w zakładkę pobierało
   z wyprzedzeniem stronę każdej widocznej drużyny i meczu (np. 12 żądań do serwera przy
