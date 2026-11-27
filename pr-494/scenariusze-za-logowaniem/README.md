@@ -1,6 +1,6 @@
 # Zrzuty — PR #494 · scenariusze-za-logowaniem
 
-Przebieg [`46003658436`](https://github.com/fpudelko/bojo-app/actions/runs/46003658436)
+Przebieg [`46005751324`](https://github.com/fpudelko/bojo-app/actions/runs/46005751324)
  · [wróć do PR-a](https://github.com/fpudelko/bojo-app/pull/494)
 
 Zmienione widoki: **21** · nowe widoki: **0**
