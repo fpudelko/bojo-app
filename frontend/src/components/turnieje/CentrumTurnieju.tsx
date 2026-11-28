@@ -366,9 +366,13 @@ export default function CentrumTurnieju({
   return (
     <div className="mb-6 grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
       {pasekAlertow}
-      <div className="lg:col-span-2">{kartaTeraz}</div>
+      {/* Od `lg` mecz w toku po lewej, a KOLEJNE MECZE PO PRAWEJ (prośba
+          właściciela z 2026-11-28): przy stoliku widać naraz, co się gra
+          i co wychodzi po gwizdku. Wcześniej karta „Teraz” zajmowała całą
+          szerokość, a następne mecze były dopiero pod nią. */}
+      {kartaTeraz}
       {kartaNajblizsze}
-      <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
         {kartaFinal}
         {kartaWyniki}
       </div>

@@ -2469,6 +2469,28 @@ SELECT _oczekuj('wynik meczu został 1:0',
   (SELECT count(*) FROM turniej_mecze WHERE id = :ZS_M::uuid AND wynik_a = 1 AND wynik_b = 0), 1);
 SELECT _oczekuj('prowadzący dopisał zawodnika do składu',
   (SELECT count(*) FROM turniej_zawodnicy WHERE id = :'zs_nowy'::uuid AND druzyna_id = :ZS_A::uuid AND imie = 'Czarek dopisany'), 1);
+-- 195: gol Alfy zamieniony na samobój zawodnika Bety, wynik zostaje 1:0.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie zamieni gola na samobój',
+  'SELECT zamien_gol_samoboj(''ffffffff-0000-4000-8000-0000000001f7'', NULL)');
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('samobój musi strzelić zawodnik drużyny przeciwnej',
+  'SELECT zamien_gol_samoboj(''ffffffff-0000-4000-8000-0000000001f7'', ''ffffffff-0000-4000-8000-0000000001f5'')');
+SELECT zamien_gol_samoboj('ffffffff-0000-4000-8000-0000000001f7', 'ffffffff-0000-4000-8000-0000000001f6');
+RESET ROLE;
+SELECT _oczekuj('gol zamieniony na samobój zawodnika rywala',
+  (SELECT count(*) FROM turniej_zdarzenia WHERE id = 'ffffffff-0000-4000-8000-0000000001f7'
+     AND typ = 'samobojczy' AND druzyna_id = :ZS_B::uuid AND zawodnik_id = 'ffffffff-0000-4000-8000-0000000001f6'), 1);
+SELECT _oczekuj('po zamianie na samobój wynik dalej 1:0',
+  (SELECT count(*) FROM turniej_mecze WHERE id = :ZS_M::uuid AND wynik_a = 1 AND wynik_b = 0), 1);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT zamien_gol_samoboj('ffffffff-0000-4000-8000-0000000001f7', NULL);
+RESET ROLE;
+SELECT _oczekuj('„To nie samobój” wraca do gola drużyny, która dostała bramkę',
+  (SELECT count(*) FROM turniej_zdarzenia WHERE id = 'ffffffff-0000-4000-8000-0000000001f7'
+     AND typ = 'gol' AND druzyna_id = :ZS_A::uuid AND zawodnik_id IS NULL), 1);
 DELETE FROM turnieje WHERE id = :ZS_T::uuid;
 
 SELECT _sekcja('Każda tabela w public ma włączone RLS');
