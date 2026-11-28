@@ -61,7 +61,8 @@ export default function KartaDruzyny({
           )}
           <div className="min-w-0 flex-1">
             <span className={`block line-clamp-2 break-words leading-snug ${wMojejDruzynie ? 'font-bold text-primary-800 dark:text-primary-300' : 'font-medium text-ink'}`}>{d.nazwa}</span>
-            {zalogowany && d.liczbaZawodnikow !== undefined && (
+            {/* Bez „0 zawodników” (2026-11-28): pusty skład mówi rozwinięta karta. */}
+            {zalogowany && !!d.liczbaZawodnikow && (
               <span className="text-xs text-slate-400">{odmienZawodnikow(d.liczbaZawodnikow)}</span>
             )}
           </div>
@@ -130,6 +131,17 @@ export default function KartaDruzyny({
               </ul>
             )}
           </div>
+          {/* Skład dopiero po rozwinięciu (2026-11-28): „0 zawodników” na
+              zwiniętej karcie czytało się jak błąd przy drużynach wpisanych
+              przez organizatora bez składu. Liczbę widzi zalogowany (RLS 145). */}
+          {zalogowany && d.liczbaZawodnikow !== undefined && (
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Skład</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                {d.liczbaZawodnikow > 0 ? odmienZawodnikow(d.liczbaZawodnikow) : 'Nikt jeszcze nie został dodany.'}
+              </p>
+            </div>
+          )}
           {/* Wejście na ekran drużyny: skład z profilami, wszystkie mecze,
               a dla kapitana link dla kolegów i dopisywanie zawodników. */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
