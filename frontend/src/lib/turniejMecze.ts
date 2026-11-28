@@ -491,6 +491,15 @@ export async function cofnijWynikMeczu(meczId: string): Promise<void> {
   track('turniej_wynik_poprawiony', { meczId });
 }
 
+/** „Resetuj mecz” (193): mecz w trakcie albo po wraca do „zaplanowany”, 0:0,
+ *  bez goli i kartek, do odpalenia od nowa. */
+export async function resetujMecz(meczId: string): Promise<void> {
+  const { error } = await supabase.rpc('resetuj_mecz', { p_mecz: meczId });
+  if (error) {
+    throw new Error(error.code === 'PGRST202' ? 'Reset meczu jeszcze nie działa na tej bazie (brak migracji 193).' : error.message);
+  }
+}
+
 // ── Przerwy z nazwą (migracja 176) ──────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
