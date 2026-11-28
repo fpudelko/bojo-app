@@ -190,6 +190,12 @@ function MojeGryContent() {
             od filtrów, są całą nawigacją tego ekranu. Siatka mieści wszystkie
             cztery, bo napisy są krótsze o jedno słowo, a liczby zeszły
             z rzędu do rogu (`PlakietkaZakladki`). */}
+        {/* Bez zakładek, gdy poza „Najbliższe” wszystko jest puste (2026-11-28,
+            uwaga właściciela): nowy użytkownik widział cztery zakładki, z których
+            trzy prowadziły do pustych list. Pokazujemy je, gdy pojawi się
+            cokolwiek w historii, zaproszeniach albo obserwowanych, albo gdy
+            adres wprost wskazuje inną zakładkę. */}
+        {(loading || invitesLoading || tab !== 'upcoming' || history.length > 0 || visibleInviteCount > 0 || observing.length > 0) && (
         <div className="border-b border-slate-100 dark:border-slate-700">
           <div className="grid grid-cols-4">
             <button onClick={() => goToTab('upcoming')} className={tabButtonCls(tab === 'upcoming')}>
@@ -208,6 +214,7 @@ function MojeGryContent() {
             </button>
           </div>
         </div>
+        )}
 
         {/* Tab content */}
         {tab === 'invites' ? (

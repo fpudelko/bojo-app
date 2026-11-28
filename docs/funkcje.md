@@ -5347,7 +5347,11 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   „Twoje turnieje” (`MojeTurniejeSekcja.tsx`): karty turniejów, w których użytkownik gra,
   organizuje, współorganizuje albo obserwuje (`getMojeTurniejeZRola()`), z podpisem roli; bez
   prób, odwołanych i zakończonych ponad 3 dni temu (`turniejeNaMojeMecze()`), szkic tylko dla
-  organizatora. Pod nimi „🏆 Wszystkie turnieje”. Na zakładce Info turnieju „Obserwuj turniej”
+  organizatora. Od 2026-11-28 same karty, bez nagłówka „Twoje turnieje” (rola stoi na karcie),
+  a „🏆 Wszystkie turnieje” pod nimi tylko wtedy, gdy jest jakiś inny publiczny turniej
+  (`getTurniejePubliczne()`); bez moich turniejów zostaje wejście „🏆 Turnieje”. Zakładki
+  Najbliższe / Historia / Zaproszenia / Obserwuję znikają, gdy historia, zaproszenia i obserwowane
+  są puste (i adres nie wskazuje innej zakładki). Na zakładce Info turnieju „Obserwuj turniej”
   / „Obserwujesz turniej” (`obserwujTurniej()`) dla każdego, kto nie gra i nie prowadzi;
   niezalogowany idzie przez `/logowanie?next=`. Karta `/turnieje` „Biorę udział” nazywa się
   teraz „Moje” i obejmuje obserwowane. Wspólna karta: `components/turnieje/KartaTurnieju.tsx`.
