@@ -5306,6 +5306,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   przesunięty widok i dotknięcia trafiały obok przycisków („nie da się wyjść”). Esc zamyka okno.
   Prośba kapitana o wycofanie drużyny (`DruzynaClient.tsx`) też wymaga wpisania nazwy drużyny,
   jak wycofanie przez organizatora.
+- **Moja drużyna i grupa pierwsze (2026-11-28):** na stronie turnieju zalogowany, który gra
+  w drużynie, widzi w zakładce Drużyny swoją grupę jako pierwszą i swoją drużynę na górze tej
+  grupy; w tabelach jego grupa stoi pierwsza (wiersze tabeli zostają po miejscach).
+  `najpierwMoje()` w `lib/turniejTabela.ts`, użyte w `TurniejClient.tsx`.
 - **Resetuj mecz (2026-11-28, migracja `193`):** na stronie meczu dla prowadzącego, w trakcie
   i po meczu (także walkower), „Resetuj mecz (od nowa, 0:0)” pod „Popraw wynik”. Okno
   potwierdzenia, potem `resetujMecz()` (`lib/turniejMecze.ts`): gole, kartki, wynik i zegar

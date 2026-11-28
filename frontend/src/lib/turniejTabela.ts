@@ -224,3 +224,14 @@ export function tabeleTurnieju(
   );
   return [{ grupa: undefined, wiersze: posortujTabele(obliczTabele(meczeGrupowe, druzyny, opcje), pozycjeReczne) }];
 }
+
+/**
+ * CZYSTA. Stabilnie przesuwa na początek to, co dotyczy mnie (2026-11-28,
+ * prośba właściciela): moja drużyna pierwsza w swojej grupie na liście
+ * drużyn, moja grupa pierwsza wśród grup. Reszta zostaje w swojej kolejności.
+ * W tabelach przesuwamy wyłącznie GRUPY, nigdy wiersze: kolejność wierszy to
+ * miejsca w tabeli.
+ */
+export function najpierwMoje<T>(lista: readonly T[], czyMoje: (x: T) => boolean): T[] {
+  return [...lista.filter(czyMoje), ...lista.filter((x) => !czyMoje(x))];
+}

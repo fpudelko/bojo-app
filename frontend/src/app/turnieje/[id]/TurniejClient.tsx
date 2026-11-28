@@ -23,7 +23,7 @@ import { getMecze, getAreny, getGrupy, getZdarzeniaTurnieju, getPrzerwy } from '
 import WierszPrzerwy from '@/components/turnieje/WierszPrzerwy';
 import { chwilaWPolsce } from '@/lib/czasPolski';
 import { FAZA_LABEL, FORMAT_LABEL, opisFormatu, etykietaTerminu, stanTurnieju, stanZapisowTurnieju, liczDruzynyWTurnieju, liczCzekajaceZgloszenia, etykietaZdobyczy, etykietaTerminuMeczu, porownajTermin, terminarzZPrzerwami, meczPrzed, zawezDoMeczow } from '@/lib/turniejEtykiety';
-import { opisAwansu, tabeleTurnieju } from '@/lib/turniejTabela';
+import { najpierwMoje, opisAwansu, tabeleTurnieju } from '@/lib/turniejTabela';
 import { obliczKlasyfikacje, posortujKlasyfikacje } from '@/lib/turniejStatystyki';
 import { linkDoTurnieju, udostepnijTurniej } from '@/lib/turniejShare';
 import { getZdjecia, getSponsorzy } from '@/lib/turniejGaleria';
@@ -343,17 +343,23 @@ export default function TurniejClient() {
     .filter((m) => !rozegrany(m))
     .sort((a, b) => (a.status === 'trwa' ? -1 : b.status === 'trwa' ? 1 : porownajTermin(a, b)));
   const meczeRozegrane = meczeNaLiscie.filter(rozegrany).sort((a, b) => porownajTermin(b, a));
-  const tabeleGrup = tabeleTurnieju(turniej, grupy, mecze, druzyny);
+  // Moja grupa pierwsza (2026-11-28); wiersze w tabeli zostają po miejscach.
+  const tabeleGrup = najpierwMoje(tabeleTurnieju(turniej, grupy, mecze, druzyny),
+    (t) => !!mojaDruzyna && t.wiersze.some((w) => w.druzynaId === mojaDruzyna.id));
 
   // Drużyny pogrupowane tak, jak realnie grają. „Bez grupy" zbiera te, których
   // losowanie jeszcze nie dotknęło albo których turniej nie ma grup wcale.
-  const sekcjeDruzyn =
+  // Moja drużyna pierwsza w swojej grupie, a jej grupa pierwsza (2026-11-28).
+  const mojaPierwsza = (lista: TurniejDruzyna[]) => najpierwMoje(lista, (d) => d.id === mojaDruzyna?.id);
+  const sekcjeDruzyn = najpierwMoje(
     grupy.length > 0
       ? [
-          ...grupyZwykle.map((g) => ({ tytul: `Grupa ${g.nazwa}`, lista: druzyny.filter((d) => d.grupaId === g.id) })),
-          { tytul: 'Bez grupy', lista: druzyny.filter((d) => !d.grupaId) },
+          ...grupyZwykle.map((g) => ({ tytul: `Grupa ${g.nazwa}`, lista: mojaPierwsza(druzyny.filter((d) => d.grupaId === g.id)) })),
+          { tytul: 'Bez grupy', lista: mojaPierwsza(druzyny.filter((d) => !d.grupaId)) },
         ].filter((sekcja) => sekcja.lista.length > 0)
-      : [{ tytul: 'Wszystkie drużyny', lista: druzyny }];
+      : [{ tytul: 'Wszystkie drużyny', lista: mojaPierwsza(druzyny) }],
+    (sekcja) => sekcja.lista.some((d) => d.id === mojaDruzyna?.id),
+  );
 
   const tabelaMaTresc = tabeleGrup.length > 0 || meczeDrabinki.length > 0;
   const stan = stanTurnieju(turniej, mecze);
