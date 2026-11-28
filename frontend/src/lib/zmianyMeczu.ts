@@ -49,7 +49,7 @@ export interface DaneDoPorownania {
   maxPlayers: number;
   visibility: Visibility;
   requireApproval: boolean;
-  /** Opcjonalne: brak = wyłączone (mecze sprzed migracji `193`). */
+  /** Opcjonalne: brak = wyłączone (mecze sprzed migracji `197`). */
   requirePhone?: boolean;
   reserveEnabled: boolean;
   goalkeepersEnabled: boolean;
@@ -203,7 +203,7 @@ export function policzZmiany(przed: DaneDoPorownania, po: DaneDoPorownania): Zmi
   }
 
   // Bez powiadomienia, tak jak akceptacja: wymóg dotyczy WEJŚCIA, a kto już
-  // jest w składzie, zostaje w nim bez numeru (migracja `193`).
+  // jest w składzie, zostaje w nim bez numeru (migracja `197`).
   if ((przed.requirePhone ?? false) !== (po.requirePhone ?? false)) {
     zmiany.push({
       klucz: 'telefon',

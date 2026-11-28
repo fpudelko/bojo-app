@@ -16,7 +16,9 @@ import { getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
 import {
   getMecz, getMecze, getAreny, getZdarzenia, dodajZdarzenie, cofnijOstatnieZdarzenie,
   rozpocznijMecz, zakonczMecz, updateMecz, czyProwadziMecz, walkowerMeczu, wpiszWynikMeczu,
-  wpiszWynikZeStrzelcami, cofnijWynikMeczu, getGrupy,
+  wpiszWynikZeStrzelcami, cofnijWynikMeczu, resetujMecz, getGrupy,
+  ustawStrzelca, dopiszZawodnikaWMeczu,
+  zamienGolSamoboj,
 } from '@/lib/turniejMecze';
 import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
@@ -71,6 +73,11 @@ export default function MeczClient() {
     druzynaId: string;
     typ: ZdarzenieTyp;
     wartosc: number;
+    /** Zmiana strzelca w zdarzeniu już zapisanym (194), zamiast nowego. */
+    zdarzenieId?: string;
+    /** Zamiana gola na samobój albo odwrotnie (195): arkusz pokazuje skład
+     *  drużyny, która będzie strzelającą PO zamianie. */
+    zamiana?: boolean;
   } | null>(null);
   const [aktualnySet, setAktualnySet] = useState({ a: 0, b: 0 });
   const [menuOtwarte, setMenuOtwarte] = useState(false);
@@ -314,7 +321,52 @@ export default function MeczClient() {
     // Bez pytania o asystę: asysty wypadły z modułu (decyzja właściciela
     // z 2026-11-08). Jedno pytanie mniej to sekunda na boisku.
     setArkusz(null);
+    if (arkusz.zdarzenieId && arkusz.zamiana) {
+      void zamienGolSamobojAkcja(arkusz.zdarzenieId, zawodnikId ?? null);
+      return;
+    }
+    if (arkusz.zdarzenieId) {
+      void zmienStrzelcaAkcja(arkusz.zdarzenieId, zawodnikId ?? null);
+      return;
+    }
     void dodajZdarzenieAkcja(arkusz.druzynaId, arkusz.typ, zawodnikId, undefined, arkusz.wartosc);
+  };
+
+  /** STRZELEC PO FAKCIE (194, 2026-11-28): w trwającym i rozegranym meczu.
+   *  Zmienia tylko zawodnika, wynik zostaje. */
+  const zmienStrzelcaAkcja = async (zdarzenieId: string, zawodnikId: string | null) => {
+    const poprzednie = zdarzenia;
+    setZdarzenia((lista) => lista.map((z) => (z.id === zdarzenieId ? { ...z, zawodnikId: zawodnikId ?? undefined } : z)));
+    try {
+      await ustawStrzelca(zdarzenieId, zawodnikId);
+      toast(zawodnikId ? 'Strzelec zapisany' : 'Zapisano bez strzelca');
+    } catch (e) {
+      setZdarzenia(poprzednie);
+      toast(e instanceof Error ? e.message : 'Nie udało się zmienić strzelca', 'error');
+    }
+  };
+
+  /** Gol ↔ samobój w zdarzeniu już zapisanym (195). Wynik zostaje. */
+  const zamienGolSamobojAkcja = async (zdarzenieId: string, zawodnikId: string | null) => {
+    try {
+      await zamienGolSamoboj(zdarzenieId, zawodnikId);
+      await wczytaj();
+      toast('Zapisano');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zmienić gola', 'error');
+    }
+  };
+
+  /** Dopisanie zawodnika spoza składu prosto z arkusza (194). */
+  const dopiszZawodnikaAkcja = async (druzynaId: string, imie: string): Promise<string> => {
+    try {
+      const noweId = await dopiszZawodnikaWMeczu(meczId, druzynaId, imie);
+      await wczytaj();
+      return noweId;
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się dopisać zawodnika', 'error');
+      throw e;
+    }
   };
 
   const walkowerAkcja = async (zwyciezcaId: string, nazwaZwyciezcy: string) => {
@@ -466,6 +518,32 @@ export default function MeczClient() {
   // wynik od razu po kliknięciu zamiast poprawić”). Formularz startuje z
   // obecnym wynikiem i strzelcami; mecz zostaje nietknięty, dopóki prowadzący
   // nie zapisze nowego wyniku (`zapiszWynikAkcja` cofa stary tuż przed zapisem).
+  // RESET MECZU (193, dzień turnieju 2026-11-28): zły mecz wystartowany albo
+  // gole nabite nie tej drużynie. Mecz wraca do „zaplanowany”, 0:0, bez
+  // zdarzeń, i da się go odpalić od nowa. W trakcie i po meczu.
+  const resetujAkcja = async () => {
+    const wynik = await potwierdz({
+      tytul: `Zresetować M${mecz.numer}?`,
+      konsekwencje: [
+        'Gole, kartki, wynik i zegar znikną',
+        'Mecz wróci do listy „do rozegrania” i odpalisz go od nowa',
+        'Tego nie da się cofnąć',
+      ],
+      potwierdzLabel: 'Resetuj mecz',
+      wariant: 'destrukcyjny',
+    });
+    if (wynik !== 'tak') return;
+    try {
+      await resetujMecz(meczId);
+      setPoprawia(false);
+      setPokazZakoncz(false);
+      await wczytaj();
+      toast(`M${mecz.numer} zresetowany`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zresetować meczu', 'error');
+    }
+  };
+
   const poprawWynikAkcja = () => {
     if (!mecz) return;
     const strzelcy = (druzynaId?: string) => zdarzenia
@@ -964,9 +1042,22 @@ export default function MeczClient() {
           </Button>
         )}
 
+        {prowadzi && (trwajacy || mecz.status === 'zakonczony' || mecz.status === 'walkower') && !czyWolnyLos(mecz) && (
+          <button
+            type="button"
+            onClick={resetujAkcja}
+            className="w-full min-h-[44px] text-sm font-medium text-slate-500 hover:text-red-600"
+          >
+            Resetuj mecz (od nowa, 0:0)
+          </button>
+        )}
+
         {zdarzenia.length > 0 && !setowy && (
           <div className="space-y-1.5">
             <h2 className="text-sm font-semibold text-slate-500">Przebieg meczu</h2>
+            {prowadzi && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">Dotknij gola albo kartki, żeby dodać lub zmienić zawodnika.</p>
+            )}
             {/* PRZEBIEG PO STRONIE DRUŻYNY (2026-11-27, prośba właściciela):
                 zdarzenie stoi po stronie drużyny, której dotyczy, jak nazwy
                 w karcie wyniku. Gol (i samobój) po stronie drużyny, która
@@ -988,17 +1079,36 @@ export default function MeczClient() {
                   {!poLewej && <span className="shrink-0" aria-hidden>{ikona}</span>}
                 </span>
               );
-              return (
-                <div
-                  key={z.id}
-                  aria-label={`${nazwaTypu.join(' ')}, ${zDruzynyA ? druzynaA?.nazwa : druzynaB?.nazwa}${zawodnik ? `, ${zawodnik.imie}` : ''}`}
-                  className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
-                >
+              // Prowadzący dotyka wiersza i zmienia albo dopisuje strzelca
+              // (194, 2026-11-28), także po meczu. Wynik się nie zmienia.
+              const doEdycji = prowadzi && !z.id.startsWith('tymczasowe-');
+              const etykieta = `${nazwaTypu.join(' ')}, ${zDruzynyA ? druzynaA?.nazwa : druzynaB?.nazwa}${zawodnik ? `, ${zawodnik.imie}` : ''}`;
+              const wnetrze = (
+                <>
                   {poLewej ? opis : <span />}
                   <span className="w-8 text-center font-mono text-xs text-slate-400">
                     {z.minuta !== undefined ? `${z.minuta}'` : ''}
                   </span>
                   {poLewej ? <span /> : opis}
+                </>
+              );
+              return doEdycji ? (
+                <button
+                  key={z.id}
+                  type="button"
+                  onClick={() => setArkusz({ druzynaId: z.druzynaId, typ: z.typ, wartosc: z.wartosc, zdarzenieId: z.id })}
+                  aria-label={`${etykieta}. ${zawodnik ? 'Zmień' : 'Dodaj'} ${z.typ === 'zolta' || z.typ === 'czerwona' ? 'zawodnika' : 'strzelca'}`}
+                  className="-mx-2 grid min-h-[40px] w-[calc(100%+1rem)] grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg px-2 text-left text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  {wnetrze}
+                </button>
+              ) : (
+                <div
+                  key={z.id}
+                  aria-label={etykieta}
+                  className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
+                >
+                  {wnetrze}
                 </div>
               );
             })}
@@ -1038,17 +1148,36 @@ export default function MeczClient() {
           zawodnicy={skladDruzyny(arkusz.druzynaId)}
           // „Zapisz bez strzelca”, bez „Nie wiem kto” (decyzja właściciela
           // z 2026-11-21): brak nazwiska to normalny przypadek, nie niewiedza.
-          etykietaPominiecia={arkusz.typ === 'gol' || arkusz.typ === 'samobojczy' || arkusz.typ === 'punkty'
-            ? 'Zapisz bez strzelca' : 'Zapisz bez nazwiska'}
+          etykietaPominiecia={arkusz.zdarzenieId
+            ? (arkusz.typ === 'zolta' || arkusz.typ === 'czerwona' ? 'Bez nazwiska' : 'Bez strzelca')
+            : arkusz.typ === 'gol' || arkusz.typ === 'samobojczy' || arkusz.typ === 'punkty'
+              ? 'Zapisz bez strzelca' : 'Zapisz bez nazwiska'}
+          onDopisz={(imie) => dopiszZawodnikaAkcja(arkusz.druzynaId, imie)}
           // SAMOBÓJ POD GOLEM (2026-11-21): gol drużyny X padł z samobója
           // rywala. Osobny przycisk „Samobójczy” stał przy kartkach i nie było
           // jasne, czyj to gol. Teraz: „GOL” drużyny X → „Samobój” → skład
           // RYWALA. Zdarzenie dostaje drużynę strzelającego, a wyzwalacz z 147
           // liczy je drużynie przeciwnej.
-          akcjaDodatkowa={arkusz.typ === 'gol' && przeciwnik(arkusz.druzynaId) ? {
-            etykieta: 'Samobój',
-            onClick: () => setArkusz({ druzynaId: przeciwnik(arkusz.druzynaId)!, typ: 'samobojczy', wartosc: 1 }),
-          } : undefined}
+          // „Samobój” także przy zmianie już wpisanego gola (195), a przy
+          // samobóju droga powrotna „To nie samobój”. Arkusz pokazuje wtedy
+          // skład drużyny, która po zamianie jest strzelającą.
+          akcjaDodatkowa={arkusz.zamiana || !przeciwnik(arkusz.druzynaId) ? undefined
+            : arkusz.typ === 'gol' ? {
+                etykieta: 'Samobój',
+                czerwona: true,
+                onClick: () => setArkusz({
+                  druzynaId: przeciwnik(arkusz.druzynaId)!, typ: 'samobojczy', wartosc: 1,
+                  zdarzenieId: arkusz.zdarzenieId, zamiana: !!arkusz.zdarzenieId,
+                }),
+              }
+            : arkusz.typ === 'samobojczy' && arkusz.zdarzenieId ? {
+                etykieta: 'To nie samobój',
+                onClick: () => setArkusz({
+                  druzynaId: przeciwnik(arkusz.druzynaId)!, typ: 'gol', wartosc: 1,
+                  zdarzenieId: arkusz.zdarzenieId, zamiana: true,
+                }),
+              }
+            : undefined}
           onWybor={odpowiedzArkusza}
           onZamknij={() => {
             // Zamknięcie arkusza anuluje zdarzenie (prowadzący pomylił drużynę).

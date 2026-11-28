@@ -850,7 +850,12 @@ const PALETY: Record<MotywEkranu, Record<string, string>> = {
 // Teraz scena ma zawsze proporcje 16:9 i mieści się w oknie (pasy nad i pod
 // albo po bokach), a pismo liczy się z szerokości SCENY, nie okna: na
 // telefonie to ten sam widok w mniejszej skali, po obróceniu na cały ekran.
-const SZEROKOSC_SCENY = 'min(100vw, calc(100dvh * 16 / 9))';
+//
+// MARGINES (2026-11-28, zgłoszenie właściciela: „ucina”): scena zajmuje 94%
+// okna, nie 100%. Telewizory i rzutniki obcinają krawędzie obrazu (overscan),
+// a pasek przeglądarki potrafi zjeść kilka pikseli; treść przy samej
+// krawędzi znikała. Pismo liczy się z szerokości sceny, więc skaluje się razem.
+const SZEROKOSC_SCENY = 'min(94vw, calc(94dvh * 16 / 9))';
 
 function Tlo({ children, motyw }: { children: React.ReactNode; motyw: MotywEkranu }) {
   return (

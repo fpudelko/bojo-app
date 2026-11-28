@@ -199,7 +199,7 @@ export interface EventItem {
   allowGuestAdds: boolean;
   joinCode: string;
   requireApproval: boolean;
-  /** Zapis wymaga numeru telefonu (migracja `193`). Organizator widzi numery
+  /** Zapis wymaga numeru telefonu (migracja `197`). Organizator widzi numery
    *  składu przez `telefonySkladu()`; pilnuje tego wyzwalacz w bazie. */
   requirePhone: boolean;
   coverImageUrl?: string;

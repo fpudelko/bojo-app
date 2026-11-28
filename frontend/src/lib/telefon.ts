@@ -4,7 +4,7 @@ import { normalizePhone, validatePhone } from './validation';
 /**
  * Numer telefonu gracza: własny (profil) i numery składu dla organizatora.
  *
- * Od migracji `193` kolumna `profiles.phone` NIE jest czytelna przez API —
+ * Od migracji `197` kolumna `profiles.phone` NIE jest czytelna przez API —
  * wcześniej numer każdego użytkownika dało się pobrać bez logowania. Własny
  * numer czyta i zapisuje się wyłącznie przez funkcje bazy, a numery składu
  * oddaje `telefony_skladu()` organizatorowi meczu z włączonym
@@ -12,7 +12,7 @@ import { normalizePhone, validatePhone } from './validation';
  */
 
 /** Fragment komunikatu, którym baza odbija zapis bez numeru
- *  (`pilnuj_wymaganego_telefonu()`, migracja `193`). */
+ *  (`pilnuj_wymaganego_telefonu()`, migracja `197`). */
 export const BLAD_BRAK_TELEFONU = 'wymaga numeru telefonu';
 
 /** Czy błąd zapisu oznacza „najpierw podaj numer”. */

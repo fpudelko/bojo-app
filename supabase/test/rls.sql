@@ -1958,6 +1958,16 @@ RESET ROLE;
 SELECT _oczekuj('nikt nie przepisze adresu (0 wierszy)',
                 (SELECT count(*) FROM adresy_z_nazwa WHERE slug = 'przejety'), 0);
 DELETE FROM turnieje WHERE id IN (:AD_T1::uuid, :AD_T2::uuid);
+\set AD_T3 '''ffffffff-0000-4000-8000-0000000001b3'''
+\set AD_T4 '''ffffffff-0000-4000-8000-0000000001b4'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu, miasto)
+VALUES (:AD_T3::uuid, :T_ORGANIZATOR::uuid, 'Gramy dla Marysi!', 'piłka nożna', 'zapisy', DATE '2026-11-28', 'Luboń'),
+       (:AD_T4::uuid, :T_ORGANIZATOR::uuid, 'Turniej Luboń', 'piłka nożna', 'zapisy', DATE '2026-11-28', 'Luboń');
+SELECT _oczekuj('196: miasto w adresie nowego turnieju',
+                (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id = :AD_T3::uuid AND slug = 'gramy-dla-marysi-lubon-28-11-2026'), 1);
+SELECT _oczekuj('196: miasto już w nazwie nie powtarza się',
+                (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id = :AD_T4::uuid AND slug = 'turniej-lubon-28-11-2026'), 1);
+DELETE FROM turnieje WHERE id IN (:AD_T3::uuid, :AD_T4::uuid);
 SELECT _oczekuj('adres znika razem z turniejem',
                 (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id IN (:AD_T1::uuid, :AD_T2::uuid)), 0);
 
@@ -2041,6 +2051,32 @@ SELECT _oczekuj('prowadzący poprawia wynik (cofnij_wynik_meczu)',
 SELECT _oczekuj('ponowne dodanie zmienia rolę na współorganizatora',
                 (SELECT count(*) FROM turniej_osoby WHERE turniej_id = :PM_T::uuid AND user_id = :CZLONEK::uuid AND moze_edytowac), 1);
 DELETE FROM turnieje WHERE id = :PM_T::uuid;
+
+SELECT _sekcja('Reset meczu w trakcie i po (migracja 197)');
+\set RM_T '''ffffffff-0000-4000-8000-000000000801'''
+\set RM_M '''ffffffff-0000-4000-8000-000000000802'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:RM_T::uuid, :ORGANIZATOR::uuid, 'Reset meczu', 'piłka nożna', 'trwa', CURRENT_DATE);
+INSERT INTO turniej_mecze (id, turniej_id, numer, faza, status, wynik_a, wynik_b, rozpoczety_at, zegar_sekundy)
+VALUES (:RM_M::uuid, :RM_T::uuid, 1, 'grupa', 'trwa', 2, 1, now(), 120);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie zresetuje meczu', format('SELECT resetuj_mecz(%L)', :RM_M));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT resetuj_mecz(:RM_M::uuid);
+SELECT _oczekuj_wyjatek('meczu, który się nie zaczął, nie ma czego resetować', format('SELECT resetuj_mecz(%L)', :RM_M));
+RESET ROLE;
+SELECT _oczekuj('mecz w trakcie po resecie: zaplanowany, 0:0, zegar od zera',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :RM_M::uuid AND status = 'zaplanowany'
+                   AND wynik_a = 0 AND wynik_b = 0 AND rozpoczety_at IS NULL AND zegar_sekundy = 0), 1);
+UPDATE turniej_mecze SET status = 'zakonczony', wynik_a = 3, wynik_b = 0 WHERE id = :RM_M::uuid;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT resetuj_mecz(:RM_M::uuid);
+RESET ROLE;
+SELECT _oczekuj('mecz zakończony po resecie: zaplanowany, 0:0',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :RM_M::uuid AND status = 'zaplanowany' AND wynik_a = 0), 1);
+DELETE FROM turnieje WHERE id = :RM_T::uuid;
 
 SELECT _sekcja('Zawodnik sam opuszcza drużynę (migracja 191)');
 \set OD_T '''ffffffff-0000-4000-8000-000000000601'''
@@ -2405,9 +2441,70 @@ END $$;
 RESET ROLE;
 DELETE FROM turnieje WHERE id = :LK_T::uuid;
 
-SELECT _sekcja('Wymagany numer telefonu (migracja 193)');
+SELECT _sekcja('Strzelec po fakcie i zawodnik dopisany w meczu (migracja 194)');
+\set ZS_T '''ffffffff-0000-4000-8000-0000000001f1'''
+\set ZS_A '''ffffffff-0000-4000-8000-0000000001f2'''
+\set ZS_B '''ffffffff-0000-4000-8000-0000000001f3'''
+\set ZS_M '''ffffffff-0000-4000-8000-0000000001f4'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:ZS_T::uuid, :ORGANIZATOR::uuid, 'Strzelcy do testów', 'piłka nożna', 'trwa', CURRENT_DATE);
+INSERT INTO turniej_druzyny (id, turniej_id, nazwa, status, dodana_recznie) VALUES
+  (:ZS_A::uuid, :ZS_T::uuid, 'Alfa', 'przyjeta', true), (:ZS_B::uuid, :ZS_T::uuid, 'Beta', 'przyjeta', true);
+INSERT INTO turniej_zawodnicy (id, druzyna_id, turniej_id, imie) VALUES
+  ('ffffffff-0000-4000-8000-0000000001f5', :ZS_A::uuid, :ZS_T::uuid, 'Adam z Alfy'),
+  ('ffffffff-0000-4000-8000-0000000001f6', :ZS_B::uuid, :ZS_T::uuid, 'Bartek z Bety');
+INSERT INTO turniej_mecze (id, turniej_id, numer, faza, kolejka, druzyna_a_id, druzyna_b_id)
+VALUES (:ZS_M::uuid, :ZS_T::uuid, 1, 'liga', 1, :ZS_A::uuid, :ZS_B::uuid);
+INSERT INTO turniej_zdarzenia (id, mecz_id, turniej_id, druzyna_id, typ)
+VALUES ('ffffffff-0000-4000-8000-0000000001f7', :ZS_M::uuid, :ZS_T::uuid, :ZS_A::uuid, 'gol');
+UPDATE turniej_mecze SET status = 'zakonczony' WHERE id = :ZS_M::uuid;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie zmieni strzelca',
+  'SELECT ustaw_strzelca_zdarzenia(''ffffffff-0000-4000-8000-0000000001f7'', ''ffffffff-0000-4000-8000-0000000001f5'')');
+SELECT _oczekuj_wyjatek('obcy nie dopisze zawodnika do meczu',
+  format('SELECT dopisz_zawodnika_w_meczu(%L, %L, ''Ktoś'')', :ZS_M, :ZS_A));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('strzelec musi być z drużyny zdarzenia',
+  'SELECT ustaw_strzelca_zdarzenia(''ffffffff-0000-4000-8000-0000000001f7'', ''ffffffff-0000-4000-8000-0000000001f6'')');
+SELECT ustaw_strzelca_zdarzenia('ffffffff-0000-4000-8000-0000000001f7', 'ffffffff-0000-4000-8000-0000000001f5');
+SELECT dopisz_zawodnika_w_meczu(:ZS_M::uuid, :ZS_A::uuid, 'Czarek dopisany') AS zs_nowy \gset
+SELECT _oczekuj_wyjatek('dopisany tylko do drużyny z tego meczu',
+  format('SELECT dopisz_zawodnika_w_meczu(%L, %L, ''Obcy'')', :ZS_M, 'ffffffff-0000-4000-8000-0000000001e1'));
+RESET ROLE;
+SELECT _oczekuj('strzelec dopisany w meczu już rozegranym, wynik bez zmian',
+  (SELECT count(*) FROM turniej_zdarzenia WHERE id = 'ffffffff-0000-4000-8000-0000000001f7'
+     AND zawodnik_id = 'ffffffff-0000-4000-8000-0000000001f5'), 1);
+SELECT _oczekuj('wynik meczu został 1:0',
+  (SELECT count(*) FROM turniej_mecze WHERE id = :ZS_M::uuid AND wynik_a = 1 AND wynik_b = 0), 1);
+SELECT _oczekuj('prowadzący dopisał zawodnika do składu',
+  (SELECT count(*) FROM turniej_zawodnicy WHERE id = :'zs_nowy'::uuid AND druzyna_id = :ZS_A::uuid AND imie = 'Czarek dopisany'), 1);
+-- 195: gol Alfy zamieniony na samobój zawodnika Bety, wynik zostaje 1:0.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie zamieni gola na samobój',
+  'SELECT zamien_gol_samoboj(''ffffffff-0000-4000-8000-0000000001f7'', NULL)');
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('samobój musi strzelić zawodnik drużyny przeciwnej',
+  'SELECT zamien_gol_samoboj(''ffffffff-0000-4000-8000-0000000001f7'', ''ffffffff-0000-4000-8000-0000000001f5'')');
+SELECT zamien_gol_samoboj('ffffffff-0000-4000-8000-0000000001f7', 'ffffffff-0000-4000-8000-0000000001f6');
+RESET ROLE;
+SELECT _oczekuj('gol zamieniony na samobój zawodnika rywala',
+  (SELECT count(*) FROM turniej_zdarzenia WHERE id = 'ffffffff-0000-4000-8000-0000000001f7'
+     AND typ = 'samobojczy' AND druzyna_id = :ZS_B::uuid AND zawodnik_id = 'ffffffff-0000-4000-8000-0000000001f6'), 1);
+SELECT _oczekuj('po zamianie na samobój wynik dalej 1:0',
+  (SELECT count(*) FROM turniej_mecze WHERE id = :ZS_M::uuid AND wynik_a = 1 AND wynik_b = 0), 1);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT zamien_gol_samoboj('ffffffff-0000-4000-8000-0000000001f7', NULL);
+RESET ROLE;
+SELECT _oczekuj('„To nie samobój” wraca do gola drużyny, która dostała bramkę',
+  (SELECT count(*) FROM turniej_zdarzenia WHERE id = 'ffffffff-0000-4000-8000-0000000001f7'
+     AND typ = 'gol' AND druzyna_id = :ZS_A::uuid AND zawodnik_id IS NULL), 1);
+DELETE FROM turnieje WHERE id = :ZS_T::uuid;
+SELECT _sekcja('Wymagany numer telefonu (migracja 197)');
 
--- Numer z profilu był do `193` czytelny dla KAŻDEGO (polityka `USING (true)`
+-- Numer z profilu był do `197` czytelny dla KAŻDEGO (polityka `USING (true)`
 -- bez ograniczenia kolumn). Ta asercja pilnuje, żeby nie wrócił — także przez
 -- `select('*')`, który ma się wywalić głośno, nie oddać numer po cichu.
 UPDATE profiles SET phone = '+48500600700', phone_consent = true

@@ -68,7 +68,7 @@ Włączane per mecz przy tworzeniu lub edycji, obsługiwane przez `lib/eventFeat
 | Płatności | `track_payments`, `show_payment_status` | Podział kosztów (organizator), karta „Twoja płatność" (uczestnik) |
 | Bramkarze | `goalkeepers_enabled`, `max_goalkeepers` | Osobny limit; nadmiarowi na rezerwę |
 | Akceptacja zapisów | `require_approval` | Zapis nie zajmuje miejsca do akceptacji |
-| Wymagany numer telefonu | `require_phone` (migracja `193`) | Przełącznik „Wymagaj numeru telefonu” pod „Wymagaj akceptacji” (`EventVisibilityFields.tsx`, kreator i edycja; przenosi go też `repeatEvent`). Zapis bez numeru odbija baza (`pilnuj_wymaganego_telefonu()`), więc warunek w interfejsie jest tylko wygodą. Okno zapisu zalogowanego pokazuje pole numeru, gdy profil go nie ma, i zapisuje numer w profilu (`zapiszMojTelefon()`, `lib/telefon.ts`) PRZED zapisem na mecz; okno gościa bez konta ma pole obowiązkowe (`guest_phone`). „Gram” jednym kliknięciem (`OdpowiedzJednymKlikiem.tsx`) przy braku numeru przenosi na mecz z otwartym oknem zapisu (`?dolacz=1`). Organizator i delegat od składu widzą numer pod nazwiskiem w składzie, na rezerwie i przy prośbach o dołączenie (`TelefonUczestnika.tsx`, `telefony_skladu()`), dotknięcie dzwoni; „bez numeru” znaczy: gracz był w składzie przed włączeniem wymogu albo został dopisany ręcznie. Numer z profilu jest od `193` niewidoczny dla kogokolwiek poza właścicielem i tym organizatorem |
+| Wymagany numer telefonu | `require_phone` (migracja `197`) | Przełącznik „Wymagaj numeru telefonu” pod „Wymagaj akceptacji” (`EventVisibilityFields.tsx`, kreator i edycja; przenosi go też `repeatEvent`). Zapis bez numeru odbija baza (`pilnuj_wymaganego_telefonu()`), więc warunek w interfejsie jest tylko wygodą. Okno zapisu zalogowanego pokazuje pole numeru, gdy profil go nie ma, i zapisuje numer w profilu (`zapiszMojTelefon()`, `lib/telefon.ts`) PRZED zapisem na mecz; okno gościa bez konta ma pole obowiązkowe (`guest_phone`). „Gram” jednym kliknięciem (`OdpowiedzJednymKlikiem.tsx`) przy braku numeru przenosi na mecz z otwartym oknem zapisu (`?dolacz=1`). Organizator i delegat od składu widzą numer pod nazwiskiem w składzie, na rezerwie i przy prośbach o dołączenie (`TelefonUczestnika.tsx`, `telefony_skladu()`), dotknięcie dzwoni; „bez numeru” znaczy: gracz był w składzie przed włączeniem wymogu albo został dopisany ręcznie. Numer z profilu jest od `197` niewidoczny dla kogokolwiek poza właścicielem i tym organizatorem |
 | Goście bez konta | `allow_guest_adds` | Uczestnicy mogą dopisywać gości — formularz „Dopisz osobę bez konta" widoczny dla każdego potwierdzonego uczestnika (także rezerwowego) do startu meczu, nie tylko organizatora. **Ustawiane wyłącznie w edycji meczu** (`/wydarzenia/[id]/edytuj`, przełącznik w `EventDetailClient.tsx`) — kreator (`/wydarzenia/nowe`) nie ma tej kontrolki i `createEvent()` jej nie wysyła, więc każdy nowy mecz startuje z domyślnym `false`. **Do migracji `132` ten przełącznik nie działał** — polityka zapisu do składu dopuszczała `auth.uid() = user_id`, a wiersz gościa ma `user_id IS NULL`, więc warunek wychodził NULL i uczestnik po kliknięciu „Dodaj” dostawał komunikat o braku uprawnień. Dziś przepuszcza go osobna, wąska gałąź (`czy_moze_dopisac_goscia()`): wiersz musi być gościem bez konta z `added_by = auth.uid()`, mecz musi mieć włączony przełącznik, a dopisujący musi sam być w składzie i nie czekać na akceptację |
 | Kod dołączenia | `join_code` | Wejście przez `/d/[code]` |
 | Przejęcie wpisu gościa | `claim_token` (wydawany funkcją `token_wpisu_goscia()`, nie czytany z wiersza — migracja `127`) | Osoba dopisana ręcznie ma swój zapis pod `/gracz/przejmij/[token]` — sprawdza tam skład, koszt i numer BLIK, wypisuje się i (od Z-5, migracja `168`) sama zostawia e-mail pod przypomnienia, bez zakładania konta; wiązanie z kontem jest jedną z opcji na tej samej stronie, nie jej jedynym celem. Przed startem meczu przycisk przy imieniu w składzie mówi „Wyślij link do zapisu" (treść z `tekstZaproszeniaGoscia()`, wariant skład/rezerwa — Z-4); po starcie, na karcie „Po meczu", zostaje „Zaproś do Bojo" i prosi o konto (wariant `poMeczu`). Wysłać może też ten, kto gościa dopisał (`allowGuestAdds`), nie tylko organizator — `mozeZaprosic()` w `EventDetailClient.tsx`. Przycisk jest identyczny w składzie i na rezerwie — gość-rezerwowy też ma `claim_token`. Zaraz po dodaniu gościa (`handleAddGuest()`) otwiera się modal `GuestInviteNudge.tsx` z tą samą argumentacją, proaktywnie — raz na wydarzenie (`localStorage`, klucz `bojo:goscie-cta-widziano:<eventId>`), żeby organizator dopisujący kilkanaście osób pod rząd nie dostał tylu samo modali. Toast „Gość dodany"/„Komplet — gość dodany na rezerwę" pokazuje się tylko wtedy, gdy modal NIE wyskakuje (już widziany dla tego meczu) — inaczej dwa komunikaty niosące tę samą informację pokazywały się naraz. Gdy modal wyskakuje, informację o rezerwie przejmuje jego podtytuł (`naRezerwie`), a przycisk „Dodaj kolejnego" wraca do formularza bez dodatkowego resetowania (pole jest już czyszczone po udanym dodaniu). **E-mail gościa** (`ustaw_email_goscia()`, migracja `168`) ustawia się przez formularz na stronie zapisu TYLKO RAZ — token jest uprawnieniem do pierwszego adresu, nie hasłem, więc nie pozwala nadpisać już ustawionego; po sukcesie leci potwierdzenie istniejącym powodem `zapis` (`133`) |
@@ -5307,6 +5307,14 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   przesunięty widok i dotknięcia trafiały obok przycisków („nie da się wyjść”). Esc zamyka okno.
   Prośba kapitana o wycofanie drużyny (`DruzynaClient.tsx`) też wymaga wpisania nazwy drużyny,
   jak wycofanie przez organizatora.
+- **Moja drużyna i grupa pierwsze (2026-11-28):** na stronie turnieju zalogowany, który gra
+  w drużynie, widzi w zakładce Drużyny swoją grupę jako pierwszą i swoją drużynę na górze tej
+  grupy; w tabelach jego grupa stoi pierwsza (wiersze tabeli zostają po miejscach).
+  `najpierwMoje()` w `lib/turniejTabela.ts`, użyte w `TurniejClient.tsx`.
+- **Resetuj mecz (2026-11-28, migracja `197`):** na stronie meczu dla prowadzącego, w trakcie
+  i po meczu (także walkower), „Resetuj mecz (od nowa, 0:0)” pod „Popraw wynik”. Okno
+  potwierdzenia, potem `resetujMecz()` (`lib/turniejMecze.ts`): gole, kartki, wynik i zegar
+  znikają, mecz wraca do „do rozegrania” i odpala się od nowa.
 - **Zaproszenie mailem do prowadzenia turnieju (2026-11-27, migracja `192`):** w Ustawienia →
   „Ludzie przy turnieju” jedno pole e-mail i dwa przyciski: „Wyślij zaproszenie” (`zaprosOsobeMailem()`
   w `lib/turnieje.ts`, Bojo wysyła przez Resend maila z przyciskiem „Dołącz jako współorganizator /
@@ -5348,7 +5356,11 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   „Twoje turnieje” (`MojeTurniejeSekcja.tsx`): karty turniejów, w których użytkownik gra,
   organizuje, współorganizuje albo obserwuje (`getMojeTurniejeZRola()`), z podpisem roli; bez
   prób, odwołanych i zakończonych ponad 3 dni temu (`turniejeNaMojeMecze()`), szkic tylko dla
-  organizatora. Pod nimi „🏆 Wszystkie turnieje”. Na zakładce Info turnieju „Obserwuj turniej”
+  organizatora. Od 2026-11-28 same karty, bez nagłówka „Twoje turnieje” (rola stoi na karcie),
+  a „🏆 Wszystkie turnieje” pod nimi tylko wtedy, gdy jest jakiś inny publiczny turniej
+  (`getTurniejePubliczne()`); bez moich turniejów zostaje wejście „🏆 Turnieje”. Zakładki
+  Najbliższe / Historia / Zaproszenia / Obserwuję znikają, gdy historia, zaproszenia i obserwowane
+  są puste (i adres nie wskazuje innej zakładki). Na zakładce Info turnieju „Obserwuj turniej”
   / „Obserwujesz turniej” (`obserwujTurniej()`) dla każdego, kto nie gra i nie prowadzi;
   niezalogowany idzie przez `/logowanie?next=`. Karta `/turnieje` „Biorę udział” nazywa się
   teraz „Moje” i obejmuje obserwowane. Wspólna karta: `components/turnieje/KartaTurnieju.tsx`.
@@ -5362,6 +5374,9 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   strzelił samobója?”), zdarzenie `samobojczy` dostaje drużynę strzelającego, wynik liczy
   się drużynie X (wyzwalacz z `147`). Osobny przycisk „Samobójczy” przy kartkach zniknął.
   Pominięcie strzelca: „Zapisz bez strzelca” (kartki: „Zapisz bez nazwiska”), bez „Nie wiem kto”.
+  Przycisk „Samobój” jest delikatnie czerwony (`akcjaDodatkowa.czerwona`, 2026-11-28).
+  Ten sam „Samobój” jest przy zmianie już wpisanego gola (dotknięcie w „Przebiegu”, migracja `195`,
+  `zamienGolSamoboj()`), a przy samobóju „To nie samobój”; wynik się nie zmienia.
 - **Bez „bez goli” i „Jeszcze nikt nie strzelił” (2026-11-21):** rozwinięty wiersz wyniku
   pokazuje wyłącznie wpisanych strzelców (gol bez strzelca jest pomijany), a sekcja
   „Statystyki graczy” na zakładce Mecze pojawia się dopiero, gdy ktoś wpisał strzelca albo
@@ -5382,6 +5397,24 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
   spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,
   „Walkower”, „Odwołany” i „Wolny los” zastępują godzinę w prawym rogu.
+- **Klikalne drużyny w tabeli (2026-11-28):** na stronie turnieju nazwa drużyny w tabeli grupy
+  (`TabelaGrupy.tsx`, prop `hrefDruzyny`) prowadzi na ekran drużyny; ekran na halę zostaje bez
+  odnośników.
+- **„Prowadź”: kolejne mecze obok meczu w toku (2026-11-28):** od `lg` `CentrumTurnieju.tsx`
+  stawia kartę „Teraz” po lewej i „Następne do rozegrania” po prawej; rozegrane i faza końcowa
+  pod spodem na całą szerokość. Na telefonie kolejność bez zmian.
+- **Strzelec po fakcie i dopisanie zawodnika (2026-11-28, migracja `194`):** prowadzący dotyka
+  gola albo kartki w „Przebiegu meczu” (trwający i rozegrany mecz) i wybiera zawodnika albo „Bez
+  strzelca” (`ustawStrzelca()`); wynik się nie zmienia. W arkuszu składu (nowy gol i zmiana) jest
+  pole „Nie ma na liście? Wpisz imię” + „Dopisz”: zawodnik trafia do składu i od razu jest
+  wybrany (`dopiszZawodnikaWMeczu()`, `ArkuszSkladu` prop `onDopisz`).
+- **Ekran na halę z marginesem (2026-11-28):** scena 16:9 w `ekran/EkranClient.tsx` zajmuje
+  94% okna (`SZEROKOSC_SCENY`), nie 100%: telewizory i rzutniki obcinają krawędzie obrazu
+  (overscan), a treść przy samej krawędzi znikała. Pismo skaluje się razem ze sceną.
+- **Bez „0 zawodników” (2026-11-28):** karta drużyny na stronie turnieju (`KartaDruzyny.tsx`)
+  pokazuje liczbę zawodników pod nazwą tylko, gdy skład nie jest pusty; po rozwinięciu jest
+  wiersz „Skład” z liczbą albo „Nikt jeszcze nie został dodany.” W panelu (Drużyny) przy pustym
+  składzie zostaje samo „bez kapitana”.
 - **Każdy mecz jednym wierszem (2026-11-21):** na zakładkach Mecze i Tabele mecz przyszły,
   trwający i rozegrany ma ten sam wiersz `components/turnieje/WierszMeczu.tsx`: znacznik grupy
   albo fazy (`znacznikFazy()`), mała data („28.11”, „Dziś”) nad większą godziną, drużyny

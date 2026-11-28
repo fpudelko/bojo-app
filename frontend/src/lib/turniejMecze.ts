@@ -321,6 +321,36 @@ export interface NoweZdarzenie {
 /** Dopisuje zdarzenie (gol/samobójczy/kartka/punkty) — `przelicz_wynik_meczu()`
  *  (147) przelicza wynik meczu automatycznie wyzwalaczem. Baza odmawia, gdy
  *  mecz jest już rozstrzygnięty, patrz nagłówek migracji. */
+/** Strzelec dopisany albo zmieniony po golu (194). Zmienia tylko zawodnika,
+ *  nie drużynę ani wynik, więc działa też po meczu. `null` = bez strzelca. */
+export async function ustawStrzelca(zdarzenieId: string, zawodnikId: string | null): Promise<void> {
+  const { error } = await supabase.rpc('ustaw_strzelca_zdarzenia', { p_zdarzenie: zdarzenieId, p_zawodnik: zawodnikId });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Zmiana strzelca zadziała po migracji 194.');
+    throw new Error(error.message);
+  }
+}
+
+/** Gol ↔ samobój (195): zdarzenie przechodzi na drugą drużynę, wynik zostaje.
+ *  `zawodnikId` z nowej drużyny zdarzenia albo `null`. */
+export async function zamienGolSamoboj(zdarzenieId: string, zawodnikId: string | null): Promise<void> {
+  const { error } = await supabase.rpc('zamien_gol_samoboj', { p_zdarzenie: zdarzenieId, p_zawodnik: zawodnikId });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Zamiana na samobój zadziała po migracji 195.');
+    throw new Error(error.message);
+  }
+}
+
+/** Zawodnik dopisany do składu przez prowadzącego w trakcie wpisywania (194). */
+export async function dopiszZawodnikaWMeczu(meczId: string, druzynaId: string, imie: string): Promise<string> {
+  const { data, error } = await supabase.rpc('dopisz_zawodnika_w_meczu', { p_mecz: meczId, p_druzyna: druzynaId, p_imie: imie.trim() });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Dopisywanie zawodnika zadziała po migracji 194.');
+    throw new Error(error.message);
+  }
+  return data as string;
+}
+
 export async function dodajZdarzenie(meczId: string, zdarzenie: NoweZdarzenie): Promise<TurniejZdarzenie> {
   const { data, error } = await supabase
     .from('turniej_zdarzenia')
@@ -489,6 +519,15 @@ export async function cofnijWynikMeczu(meczId: string): Promise<void> {
   const { error } = await supabase.rpc('cofnij_wynik_meczu', { p_mecz: meczId });
   if (error) throw new Error(error.message);
   track('turniej_wynik_poprawiony', { meczId });
+}
+
+/** „Resetuj mecz” (193): mecz w trakcie albo po wraca do „zaplanowany”, 0:0,
+ *  bez goli i kartek, do odpalenia od nowa. */
+export async function resetujMecz(meczId: string): Promise<void> {
+  const { error } = await supabase.rpc('resetuj_mecz', { p_mecz: meczId });
+  if (error) {
+    throw new Error(error.code === 'PGRST202' ? 'Reset meczu jeszcze nie działa na tej bazie (brak migracji 193).' : error.message);
+  }
 }
 
 // ── Przerwy z nazwą (migracja 176) ──────────────────────────────────────────

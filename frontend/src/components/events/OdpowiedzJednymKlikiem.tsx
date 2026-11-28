@@ -112,7 +112,7 @@ export default function OdpowiedzJednymKlikiem({
       }
       onOdpowiedziano?.(odpowiedz);
     } catch (blad) {
-      // Mecz wymaga numeru, a profil go nie ma (migracja `193`): numer podaje
+      // Mecz wymaga numeru, a profil go nie ma (migracja `197`): numer podaje
       // się w oknie zapisu na stronie meczu, nie w jednym tapnięciu na liście.
       if (odpowiedz === 'gram' && czyBladBrakuTelefonu(blad)) {
         naPrzejscie?.();

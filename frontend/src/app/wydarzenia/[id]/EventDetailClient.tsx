@@ -565,7 +565,7 @@ export default function EventDetailClient() {
   const [joinHasSportsCard, setJoinHasSportsCard] = useState(false);
   const [joinSportsCardProvider, setJoinSportsCardProvider] = useState<SportsCardProvider | undefined>(undefined);
   const [joinPaymentMethod, setJoinPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
-  // „Wymagaj numeru telefonu” (migracja `193`). `undefined` = jeszcze nie
+  // „Wymagaj numeru telefonu” (migracja `197`). `undefined` = jeszcze nie
   // wiadomo (nie pytaliśmy bazy), `null` = profil nie ma numeru — wtedy okno
   // zapisu pokazuje pole, a numer zapisuje się w profilu przed samym zapisem.
   const [mojNumer, setMojNumer] = useState<string | null | undefined>(undefined);
@@ -3930,7 +3930,7 @@ export default function EventDetailClient() {
                           </span>
                         );
                       })()}
-                      {/* Numer do zadzwonienia (migracja `193`) — wyłącznie
+                      {/* Numer do zadzwonienia (migracja `197`) — wyłącznie
                           organizatorowi meczu z wymogiem numeru. Przy samym
                           organizatorze nie ma czego pokazywać. */}
                       {telefonySkladuMapa && p.userId !== event.organizerId && (
@@ -5312,7 +5312,7 @@ export default function EventDetailClient() {
               </p>
             )}
 
-            {/* „Wymagaj numeru telefonu” (migracja `193`). Mówi wprost, KTO
+            {/* „Wymagaj numeru telefonu” (migracja `197`). Mówi wprost, KTO
                 zobaczy numer i PO CO: to jest moment zgody, nie formalność. */}
             {wymagaTelefonuOdMnie && (
               <div className="mb-4">

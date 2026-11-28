@@ -906,7 +906,7 @@ export async function joinEventAsGuest(
   asGoalkeeper = false,
   payment?: JoinPaymentChoice,
   /** Numer gościa, już znormalizowany (`przygotujTelefon`). Wymagany przez
-   *  bazę, gdy mecz ma `requirePhone` (migracja `193`). */
+   *  bazę, gdy mecz ma `requirePhone` (migracja `197`). */
   phone?: string | null,
 ): Promise<{ claimToken: string | null; isReserve: boolean; alreadyJoined: boolean; hasAccount: boolean; pendingApproval: boolean }> {
   const { validateEmail } = await import('./validation');
@@ -929,7 +929,7 @@ export async function joinEventAsGuest(
     argumenty.p_dostawca_karty = payment.sportsCardProvider;
   }
   // Only when given, so a match without the phone requirement does not
-  // depend on migration `193` being applied.
+  // depend on migration `197` being applied.
   if (phone) argumenty.p_telefon = phone;
   let { data, error } = await supabase.rpc('dolacz_do_meczu_jako_goscie', argumenty);
   if (error?.code === 'PGRST202' && 'p_dostawca_karty' in argumenty) {

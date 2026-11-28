@@ -194,7 +194,7 @@ describe('repeatEvent', () => {
     expect(eventRow.require_approval).toBe(true);
     expect(eventRow.reserve_enabled).toBe(false);
     expect(eventRow.goalkeeper_slots_reserved).toBe(false);
-    // `193`: wymóg numeru telefonu to ta sama rodzina decyzji „kto wchodzi”.
+    // `197`: wymóg numeru telefonu to ta sama rodzina decyzji „kto wchodzi”.
     expect(eventRow.require_phone).toBe(true);
   });
 });

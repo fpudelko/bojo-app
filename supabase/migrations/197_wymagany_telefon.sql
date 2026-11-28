@@ -1,4 +1,4 @@
--- 193 — „Wymagaj numeru telefonu": na mecz zapisze się tylko ktoś, kto podał numer
+-- 197 — „Wymagaj numeru telefonu": na mecz zapisze się tylko ktoś, kto podał numer
 --
 -- DLACZEGO. Organizator chce móc ZADZWONIĆ do składu: upewnić się, że ktoś
 -- wpadnie, albo dać znać, że zmienia się boisko lub godzina. Powiadomienia
@@ -66,7 +66,7 @@ ALTER TABLE events
   ADD COLUMN IF NOT EXISTS require_phone BOOLEAN NOT NULL DEFAULT false;
 
 COMMENT ON COLUMN events.require_phone IS
-  'Zapis na mecz wymaga numeru telefonu (profil konta albo guest_phone gościa). Pilnuje wyzwalacz pilnuj_wymaganego_telefonu(); organizator widzi numery przez telefony_skladu() (migracja 193).';
+  'Zapis na mecz wymaga numeru telefonu (profil konta albo guest_phone gościa). Pilnuje wyzwalacz pilnuj_wymaganego_telefonu(); organizator widzi numery przez telefony_skladu() (migracja 197).';
 
 -- ---------------------------------------------------------------------------
 -- 2. Czy to wygląda na numer telefonu

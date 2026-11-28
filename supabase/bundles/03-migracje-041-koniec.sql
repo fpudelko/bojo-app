@@ -1,7 +1,7 @@
 -- ============================================================================
 -- BOJO — migracje, część 3 z 3
 -- ============================================================================
--- Zawiera 150 migracji: 041_join_code.sql → 193_wymagany_telefon.sql
+-- Zawiera 154 migracji: 041_join_code.sql → 197_wymagany_telefon.sql
 -- 
 -- Wklej CAŁOŚĆ do Supabase → SQL Editor → Run.
 -- Uruchamiaj części PO KOLEI — późniejsze migracje zakładają wcześniejsze.
@@ -19218,9 +19218,254 @@ GRANT EXECUTE ON FUNCTION zapros_osobe_mailem(uuid, text, text) TO authenticated
 
 
 -- ─────────────────────────────────────────────────────────────────────────
--- 193_wymagany_telefon.sql
+-- 193_turniej_resetuj_mecz.sql
 -- ─────────────────────────────────────────────────────────────────────────
--- 193 — „Wymagaj numeru telefonu": na mecz zapisze się tylko ktoś, kto podał numer
+-- ============================================================================
+-- 193_turniej_resetuj_mecz.sql — „Resetuj mecz”: mecz w trakcie albo po
+-- wraca do stanu sprzed pierwszego gwizdka i da się go odpalić od nowa.
+-- ----------------------------------------------------------------------------
+-- DLACZEGO. Dzień turnieju (2026-11-28): prowadzący wystartował zły mecz
+-- albo nabił gole nie tej drużynie. „Popraw wynik” (175/185) działa tylko
+-- na meczu ZAKOŃCZONYM, a meczu w trakcie nie dało się cofnąć wcale.
+-- `resetuj_mecz()` robi to samo co `cofnij_wynik_meczu()`, ale także dla
+-- meczu w trakcie: kasuje gole i kartki, zeruje wynik, zegar, karne,
+-- zwycięzcę i zawodnika meczu, status wraca na 'zaplanowany', a zwycięzca
+-- znika z kolejnej rundy. Ta sama blokada: mecz zależny, który już ruszył,
+-- trzeba zresetować najpierw.
+-- Same dokładające zmiany, automatem.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION resetuj_mecz(p_mecz uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_mecz     turniej_mecze%ROWTYPE;
+  v_zalezny  int;
+BEGIN
+  SELECT * INTO v_mecz FROM turniej_mecze m WHERE m.id = p_mecz;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Nie znaleziono meczu.';
+  END IF;
+  IF NOT czy_prowadzi_mecz(p_mecz) THEN
+    RAISE EXCEPTION 'Mecz resetuje organizator albo prowadzący mecze.';
+  END IF;
+  IF v_mecz.status = 'zaplanowany' THEN
+    RAISE EXCEPTION 'Ten mecz jeszcze się nie zaczął, nie ma czego resetować.';
+  END IF;
+  IF czy_wolny_los(v_mecz) THEN
+    RAISE EXCEPTION 'Wolnego losu nie da się zresetować: nikt w nim nie grał.';
+  END IF;
+
+  SELECT min(z.numer) INTO v_zalezny
+    FROM turniej_mecze z
+   WHERE z.status <> 'zaplanowany' AND z.id <> p_mecz
+     AND (z.zrodlo_a_mecz_id = p_mecz OR z.zrodlo_b_mecz_id = p_mecz
+          OR (v_mecz.grupa_id IS NOT NULL
+              AND (z.zrodlo_a_grupa_id = v_mecz.grupa_id OR z.zrodlo_b_grupa_id = v_mecz.grupa_id)));
+  IF v_zalezny IS NOT NULL THEN
+    RAISE EXCEPTION 'Mecz M% zależy od tego meczu i już się zaczął. Najpierw zresetuj tamten.', v_zalezny;
+  END IF;
+
+  DELETE FROM turniej_zdarzenia zd WHERE zd.mecz_id = p_mecz;
+
+  UPDATE turniej_mecze m SET
+    status = 'zaplanowany', wynik_a = 0, wynik_b = 0, wynik_recznie = false,
+    karne_a = NULL, karne_b = NULL, zwyciezca_id = NULL, walkower_dla = NULL,
+    mvp_zawodnik_id = NULL, zakonczony_at = NULL, rozpoczety_at = NULL, sety = NULL,
+    zegar_od = NULL, zegar_sekundy = 0, polowa = 1
+   WHERE m.id = p_mecz;
+
+  UPDATE turniej_mecze m SET druzyna_a_id = NULL
+   WHERE m.zrodlo_a_mecz_id = p_mecz AND m.status = 'zaplanowany';
+  UPDATE turniej_mecze m SET druzyna_b_id = NULL
+   WHERE m.zrodlo_b_mecz_id = p_mecz AND m.status = 'zaplanowany';
+END $$;
+
+REVOKE ALL ON FUNCTION resetuj_mecz(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION resetuj_mecz(uuid) TO authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 194_turniej_zmiana_strzelca.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 194_turniej_zmiana_strzelca.sql — strzelec dopisany albo zmieniony po golu
+-- i zawodnik dopisany do składu w trakcie meczu.
+-- ----------------------------------------------------------------------------
+-- DLACZEGO (prośba właściciela z 2026-11-28, dzień turnieju w Luboniu):
+-- prowadzący wpisuje gola w biegu, często „bez strzelca”, a kto strzelił,
+-- wychodzi minutę później albo po meczu. Do tej pory zdarzenie dało się tylko
+-- dopisać albo skasować, i tylko w trwającym meczu (147), więc strzelca
+-- nie było jak uzupełnić. Do tego strzelca często nie ma w składzie: drużyna
+-- dodana ręcznie przez organizatora przychodzi bez listy zawodników.
+--
+-- 1. `ustaw_strzelca_zdarzenia(p_zdarzenie, p_zawodnik)`: zmienia WYŁĄCZNIE
+--    zawodnika przy zdarzeniu (gol, samobój, kartka, punkty), nigdy drużynę
+--    ani wartość, więc nie rusza wyniku. Dlatego działa także w meczu już
+--    rozstrzygniętym. Zawodnik musi być z drużyny zdarzenia; NULL = bez
+--    strzelca. Wołać może prowadzący mecz (`czy_prowadzi_mecz()`, 146).
+-- 2. `dopisz_zawodnika_w_meczu(p_mecz, p_druzyna, p_imie)`: prowadzący
+--    dopisuje zawodnika (samo imię, bez konta) do jednej z drużyn tego meczu.
+--    Polityka składu (145) przepuszcza tylko kapitana i zarządzającego
+--    drużynami; prowadzący meczu nim nie jest. Limit składu (`max_zawodnikow`)
+--    świadomie nie obowiązuje: w dniu turnieju liczy się zapis gola.
+--
+-- Same dokładające zmiany (CREATE OR REPLACE), automatem.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION ustaw_strzelca_zdarzenia(p_zdarzenie uuid, p_zawodnik uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_z turniej_zdarzenia%ROWTYPE;
+BEGIN
+  SELECT * INTO v_z FROM turniej_zdarzenia z WHERE z.id = p_zdarzenie;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Nie ma takiego zdarzenia.';
+  END IF;
+  IF NOT czy_prowadzi_mecz(v_z.mecz_id) THEN
+    RAISE EXCEPTION 'Strzelca zmienia prowadzący mecz.';
+  END IF;
+  IF p_zawodnik IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM turniej_zawodnicy zw WHERE zw.id = p_zawodnik AND zw.druzyna_id = v_z.druzyna_id
+  ) THEN
+    RAISE EXCEPTION 'Ten zawodnik nie gra w drużynie, której dotyczy zdarzenie.';
+  END IF;
+  UPDATE turniej_zdarzenia z SET zawodnik_id = p_zawodnik WHERE z.id = p_zdarzenie;
+END $$;
+
+REVOKE ALL ON FUNCTION ustaw_strzelca_zdarzenia(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION ustaw_strzelca_zdarzenia(uuid, uuid) TO authenticated;
+
+CREATE OR REPLACE FUNCTION dopisz_zawodnika_w_meczu(p_mecz uuid, p_druzyna uuid, p_imie text)
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_imie text := btrim(coalesce(p_imie, ''));
+  v_turniej uuid;
+  v_id uuid;
+BEGIN
+  IF NOT czy_prowadzi_mecz(p_mecz) THEN
+    RAISE EXCEPTION 'Zawodnika w meczu dopisuje prowadzący mecz.';
+  END IF;
+  SELECT m.turniej_id INTO v_turniej FROM turniej_mecze m
+   WHERE m.id = p_mecz AND p_druzyna IN (m.druzyna_a_id, m.druzyna_b_id);
+  IF v_turniej IS NULL THEN
+    RAISE EXCEPTION 'Ta drużyna nie gra w tym meczu.';
+  END IF;
+  IF char_length(v_imie) NOT BETWEEN 1 AND 60 THEN
+    RAISE EXCEPTION 'Podaj imię zawodnika (do 60 znaków).';
+  END IF;
+  INSERT INTO turniej_zawodnicy (druzyna_id, turniej_id, imie)
+  VALUES (p_druzyna, v_turniej, v_imie)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+REVOKE ALL ON FUNCTION dopisz_zawodnika_w_meczu(uuid, uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION dopisz_zawodnika_w_meczu(uuid, uuid, text) TO authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 195_turniej_gol_na_samoboj.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 195_turniej_gol_na_samoboj.sql — wpisany gol zamieniony na samobój (i z
+-- powrotem) bez zmiany wyniku.
+-- ----------------------------------------------------------------------------
+-- DLACZEGO (dzień turnieju w Luboniu, 2026-11-28): prowadzący wpisuje „GOL”
+-- w biegu, a po chwili wychodzi, że to był samobój zawodnika rywala. `194`
+-- pozwala zmienić tylko strzelca w obrębie drużyny zdarzenia; samobój ma
+-- inną drużynę (strzelającego) i inny typ, więc trzeba go było kasować, a po
+-- meczu nie dało się wcale (polityki z 147).
+--
+-- `zamien_gol_samoboj(p_zdarzenie, p_zawodnik)`:
+--   • gol drużyny X → samobój zawodnika drużyny Y (druzyna_id := Y),
+--   • samobój zawodnika Y → gol drużyny X (druzyna_id := X).
+-- Wynik się nie zmienia: wyzwalacz z 147 liczy gol X i samobój Y tak samo,
+-- jako bramkę dla X. Zawodnik musi być z nowej drużyny zdarzenia; NULL = bez
+-- strzelca. Wołać może prowadzący mecz (`czy_prowadzi_mecz()`), także po
+-- meczu. Same dokładające zmiany, automatem.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION zamien_gol_samoboj(p_zdarzenie uuid, p_zawodnik uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_z turniej_zdarzenia%ROWTYPE;
+  v_m turniej_mecze%ROWTYPE;
+  v_nowa uuid;
+  v_typ text;
+BEGIN
+  SELECT * INTO v_z FROM turniej_zdarzenia z WHERE z.id = p_zdarzenie;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Nie ma takiego zdarzenia.';
+  END IF;
+  IF NOT czy_prowadzi_mecz(v_z.mecz_id) THEN
+    RAISE EXCEPTION 'Gol zmienia prowadzący mecz.';
+  END IF;
+  IF v_z.typ NOT IN ('gol', 'samobojczy') THEN
+    RAISE EXCEPTION 'Na samobój da się zamienić tylko gola.';
+  END IF;
+  SELECT * INTO v_m FROM turniej_mecze m WHERE m.id = v_z.mecz_id;
+  v_nowa := CASE WHEN v_z.druzyna_id = v_m.druzyna_a_id THEN v_m.druzyna_b_id ELSE v_m.druzyna_a_id END;
+  v_typ  := CASE WHEN v_z.typ = 'gol' THEN 'samobojczy' ELSE 'gol' END;
+  IF v_nowa IS NULL THEN
+    RAISE EXCEPTION 'Mecz nie ma jeszcze drugiej drużyny.';
+  END IF;
+  IF p_zawodnik IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM turniej_zawodnicy zw WHERE zw.id = p_zawodnik AND zw.druzyna_id = v_nowa
+  ) THEN
+    RAISE EXCEPTION 'Ten zawodnik nie gra w drużynie, która strzeliła.';
+  END IF;
+  UPDATE turniej_zdarzenia z
+     SET typ = v_typ, druzyna_id = v_nowa, zawodnik_id = p_zawodnik, asysta_zawodnik_id = NULL
+   WHERE z.id = p_zdarzenie;
+END $$;
+
+REVOKE ALL ON FUNCTION zamien_gol_samoboj(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION zamien_gol_samoboj(uuid, uuid) TO authenticated;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 196_adres_turnieju_z_miastem.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 196_adres_turnieju_z_miastem.sql — miasto w adresie turnieju.
+-- ----------------------------------------------------------------------------
+-- DLACZEGO. Prośba właściciela (2026-11-28): adres z nazwą (177) to dziś
+-- „gramy-dla-marysi-28-11-2026”. Od następnego turnieju ma nieść też miasto:
+-- „gramy-dla-marysi-lubon-28-11-2026”. Kto dostaje link, od razu widzi, gdzie
+-- się gra, a turnieje o tej samej nazwie w różnych miastach nie dostają
+-- dopisku „-2”.
+--
+-- Zmienia się WYŁĄCZNIE wzór dla NOWYCH turniejów (wyzwalacz AFTER INSERT
+-- z 177 woła tę funkcję). Istniejące adresy zostają: linki już poszły
+-- w świat. Miasta nie dokładamy, gdy już stoi w nazwie („Turniej Luboń”).
+-- Całość mieści się w 70 znakach z `nadaj_adres()`: przycina się nazwa,
+-- nie miasto ani data.
+-- Same dokładające zmiany (podmiana ciała funkcji), automatem.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION adres_dla_turnieju(t turnieje)
+RETURNS text LANGUAGE sql STABLE AS $$
+  WITH c AS (
+    SELECT slug_z_tekstu(t.nazwa) AS nazwa,
+           slug_z_tekstu(t.miasto) AS miasto,
+           to_char(t.data_startu, 'DD-MM-YYYY') AS data
+  ), m AS (
+    SELECT nazwa, data,
+           CASE WHEN miasto = '' OR ('-' || nazwa || '-') LIKE ('%-' || miasto || '-%') THEN ''
+                ELSE miasto END AS miasto
+      FROM c
+  )
+  SELECT btrim(left(nazwa, 70 - char_length(data) - 1 - CASE WHEN miasto = '' THEN 0 ELSE char_length(miasto) + 1 END), '-')
+         || CASE WHEN miasto = '' THEN '' ELSE '-' || miasto END
+         || '-' || data
+    FROM m
+$$;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 197_wymagany_telefon.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- 197 — „Wymagaj numeru telefonu": na mecz zapisze się tylko ktoś, kto podał numer
 --
 -- DLACZEGO. Organizator chce móc ZADZWONIĆ do składu: upewnić się, że ktoś
 -- wpadnie, albo dać znać, że zmienia się boisko lub godzina. Powiadomienia
@@ -19288,7 +19533,7 @@ ALTER TABLE events
   ADD COLUMN IF NOT EXISTS require_phone BOOLEAN NOT NULL DEFAULT false;
 
 COMMENT ON COLUMN events.require_phone IS
-  'Zapis na mecz wymaga numeru telefonu (profil konta albo guest_phone gościa). Pilnuje wyzwalacz pilnuj_wymaganego_telefonu(); organizator widzi numery przez telefony_skladu() (migracja 193).';
+  'Zapis na mecz wymaga numeru telefonu (profil konta albo guest_phone gościa). Pilnuje wyzwalacz pilnuj_wymaganego_telefonu(); organizator widzi numery przez telefony_skladu() (migracja 197).';
 
 -- ---------------------------------------------------------------------------
 -- 2. Czy to wygląda na numer telefonu

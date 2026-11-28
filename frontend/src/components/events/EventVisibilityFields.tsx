@@ -27,7 +27,7 @@ export default function EventVisibilityFields({
   setVisibility: (v: Visibility) => void;
   requireApproval: boolean;
   setRequireApproval: (v: boolean) => void;
-  /** „Wymagaj numeru telefonu” (migracja `193`). Stoi przy akceptacji, bo to
+  /** „Wymagaj numeru telefonu” (migracja `197`). Stoi przy akceptacji, bo to
    *  ta sama rodzina decyzji: kto i na jakich warunkach wchodzi do składu. */
   requirePhone: boolean;
   setRequirePhone: (v: boolean) => void;

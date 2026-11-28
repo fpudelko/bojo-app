@@ -3,7 +3,7 @@ import { linkTelefonu } from '@/lib/telefon';
 
 /**
  * Numer gracza w składzie, widoczny dla organizatora meczu z włączonym
- * „Wymagaj numeru telefonu” (migracja `193`). Dotknięcie dzwoni.
+ * „Wymagaj numeru telefonu” (migracja `197`). Dotknięcie dzwoni.
  *
  * „Bez numeru” zamiast pustki: przy włączonym wymogu brak numeru coś znaczy
  * (gracz był w składzie przed włączeniem, organizator dopisał gościa ręcznie

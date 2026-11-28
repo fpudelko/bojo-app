@@ -55,7 +55,7 @@ export default function ProfilePage() {
   const [deleting, setDeleting] = useState(false);
 
   // Load phone from profile. Through an RPC, not `from('profiles')`: since
-  // migration `193` the phone column is not readable via the API at all
+  // migration `197` the phone column is not readable via the API at all
   // (before that, anyone could fetch every user's number).
   useEffect(() => {
     if (!user) return;

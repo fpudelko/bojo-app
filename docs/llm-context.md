@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-28 · migracja `193` · 65 tabel
+**Stan na:** 2026-11-28 · migracja `197` · 65 tabel
 
 ---
 
@@ -508,7 +508,7 @@ gość bez konta podaje go obok e-maila). Organizator widzi numer pod nazwiskiem
 i dzwoni jednym dotknięciem. Numer z profilu widzi odtąd wyłącznie jego właściciel
 i organizator meczu z tym wymogiem.
 
-MECHANIKA: migracja `193` (`events.require_phone`, wyzwalacz `pilnuj_wymaganego_telefonu()`,
+MECHANIKA: migracja `197` (`events.require_phone`, wyzwalacz `pilnuj_wymaganego_telefonu()`,
 `telefony_skladu()`, `moj_telefon()`, `zapisz_moj_telefon()`, uprawnienia kolumnowe na
 `profiles`), `lib/telefon.ts`, `EventVisibilityFields.tsx`, `TelefonUczestnika.tsx`,
 okna zapisu w `EventDetailClient.tsx`. Szczegóły → [funkcje.md](./funkcje.md),
@@ -532,8 +532,12 @@ godziną meczu stoi numer i grupa, a nazwy obu drużyn ucinają się po równo. 
 ekranu turnieju jest na telefonie większy. Organizator może pokazać kapitanowi kod QR zamiast wysyłać
 link, a kapitan zawodnikom kod QR do dołączenia do składu. Współorganizatora i prowadzącego mecze można
 zaprosić mailem: Bojo wysyła wiadomość z przyciskiem „Dołącz”, także do kogoś bez konta
-(migracja `192`).
+(migracja `192`). Prowadzący może zresetować mecz w trakcie albo po („Resetuj mecz”):
+wynik, gole i zegar znikają, a mecz da się zacząć od nowa (migracja `197`).
 
+Prowadzący mecz turnieju w Bojo może dopisać albo zmienić strzelca gola już wpisanego (także
+po meczu, bez zmiany wyniku) i dopisać do składu zawodnika, którego nie było na liście (migracja `194`).
+Wpisanego gola można też zamienić na samobój zawodnika rywala i z powrotem (migracja `195`).
 MECHANIKA: migracja `191` (`opusc_druzyne()`), `DruzynaClient.tsx`, `MeczClient.tsx`,
 `CentrumTurnieju.tsx` (`WierszMeczu`), `ekran/EkranClient.tsx`. Szczegóły →
 [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).

@@ -11,12 +11,12 @@ import {
 } from '@/lib/telefon';
 
 const MIGRACJA = readFileSync(
-  join(__dirname, '../../../supabase/migrations/193_wymagany_telefon.sql'), 'utf8',
+  join(__dirname, '../../../supabase/migrations/197_wymagany_telefon.sql'), 'utf8',
 );
 
 beforeEach(() => mockRpc.mockReset());
 
-describe('wymagany numer telefonu (migracja 193)', () => {
+describe('wymagany numer telefonu (migracja 197)', () => {
   // Frontend rozpoznaje odmowę po fragmencie komunikatu z wyzwalacza. Zmiana
   // treści w SQL bez zmiany tutaj zamieniłaby przekierowanie do okna z polem
   // na numer w gołym czerwonym dymku — po cichu, bez błędu w żadnym teście.
