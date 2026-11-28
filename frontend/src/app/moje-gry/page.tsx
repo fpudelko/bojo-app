@@ -20,6 +20,7 @@ import { SHOW_TURNIEJE } from '@/lib/features';
 import { useMamTurnieje } from '@/lib/useMamTurnieje';
 import ZaproszeniaTurniejowe from '@/components/turnieje/ZaproszeniaTurniejowe';
 import MojeTurniejeSekcja from '@/components/turnieje/MojeTurniejeSekcja';
+import PasekTurnieju from '@/components/turnieje/PasekTurnieju';
 import { useSwipeZakladek } from '@/lib/useSwipeZakladek';
 import type { EventItem } from '@/types';
 
@@ -182,6 +183,9 @@ function MojeGryContent() {
 
         {/* Turnieje: karty „Twoje turnieje” (gram, organizuję, obserwuję) plus
             wejście „🏆 Turnieje”, które dalej widzi tylko ten, kto ma moduł. */}
+        {/* Trwa turniej (migracja `198`): zalogowany ląduje tu z `/`, więc
+            pasek z landingu musi stać też tutaj. */}
+        <PasekTurnieju wariant="jasny" />
         <MojeTurniejeSekcja userId={user?.id ?? null} pokazWejscie={SHOW_TURNIEJE || mamTurnieje} />
 
         {/* CZTERY RÓWNE KOLUMNY, ZERO PRZEWIJANIA W BOK.

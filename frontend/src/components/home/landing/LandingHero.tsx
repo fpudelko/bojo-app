@@ -6,10 +6,14 @@ import WczesnyEtapBadge from './WczesnyEtapBadge';
 import HeroTelefon from './hero/HeroTelefon';
 import HeroKolo from './hero/HeroKolo';
 import TrustRow from './TrustRow';
+import PasekTurnieju from '@/components/turnieje/PasekTurnieju';
 
 export default function LandingHero() {
   return (
     <section className="hero-surface-deep relative overflow-hidden pt-16 text-white">
+      {/* Trwa turniej (migracja `198`): pierwsza rzecz pod nagłówkiem, zanim
+          hero zacznie sprzedawać Bojo. Bez turnieju nie zajmuje miejsca. */}
+      <PasekTurnieju wariant="ciemny" className="relative z-10 mx-auto w-full max-w-6xl px-5 pt-3" />
       <div className="relative mx-auto w-full max-w-6xl px-5 pb-10 md:flex md:items-start md:gap-8 md:pb-16 md:pt-20">
         {/* .hero-first-screen (globals.css) makes this exactly one screen tall
             — na telefonie z treścią dosuniętą do dołu, na komputerze z górnym

@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-28 · migracja `197` · 65 tabel
+**Stan na:** 2026-11-28 · migracja `198` · 65 tabel
 
 ---
 
@@ -367,11 +367,23 @@ pobranych, przefiltrowanych przez RLS wierszy — zero widoków SQL, żeby nie o
 polityk dostępu. Stary moduł turniejowy „BOJO Cup" (`SHOW_CUP`, tabele `tournament_*`)
 został w całości zastąpiony i skasowany (migracja `151`).
 
+**Pasek „trwa turniej” i „Znajdź swoją drużynę”.** W dniu turnieju strona główna Bojo
+(także dla niezalogowanych) i ekran „Moje mecze” pokazują na górze pasek z nazwą
+turnieju, miastem i wynikiem meczu na żywo. Pasek pokazuje publiczne turnieje w toku
+i te, które startują dziś; przy kilku naraz jeden z dopiskiem „+N inne”; zamyka się
+krzyżykiem na ten dzień. Zawodnik przypięty do drużyny widzi na pasku swoją drużynę
+i godzinę najbliższego meczu. Pozostali widzą przycisk „Grasz w turnieju? Znajdź swoją
+drużynę”: wybór drużyny, logowanie, wybór siebie ze składu. „To ja” przy zawodniku
+dopisanym bez konta przypina wpis do konta od razu, bez zatwierdzenia; kapitan dostaje
+o tym informację i może konto odpiąć. Kapitanat i dopisanie się do składu, w którym
+kogoś nie ma, dalej wymagają zatwierdzenia przez kapitana albo organizatora.
+
 **Pytania, na które odpowiada ta sekcja:** Czy Bojo obsługuje turnieje? Jak założyć
 turniej w Bojo? Jak zgłosić drużynę do turnieju? Kto widzi skład drużyny w turnieju? Jak
 prowadzący wpisuje wynik meczu na żywo? Czy Bojo liczy tabelę i strzelców turnieju
 automatycznie? Co się dzieje z drużyną po zakończeniu turnieju? Jak zapłacić wpisowe
-za turniej w Bojo?
+za turniej w Bojo? Jak znaleźć swoją drużynę w turnieju, jeśli nie mam linku? Czy
+„To ja” w składzie drużyny turniejowej wymaga zgody kapitana?
 
 ---
 
@@ -495,6 +507,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 ## Ostatnie zmiany
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
+
+### 2026-11-28 (2) — Pasek „trwa turniej” na stronie głównej i „Znajdź swoją drużynę”
+
+PROBLEM: w dniu turnieju zawodnicy dopisani przez organizatora z kartki nie wiedzieli,
+że turniej jest w Bojo, a drużynę mógł znaleźć tylko ktoś z linkiem od kapitana. „To ja”
+przy swoim nazwisku czekało na zgodę kapitana, który w dniu turnieju nie ma na to czasu.
+
+ROZWIĄZANIE BOJO: pasek na górze strony głównej (także bez logowania) i „Moich meczów”:
+trwający turniej, wynik na żywo, a dla zawodnika jego drużyna i następny mecz. Przycisk
+„Grasz w turnieju? Znajdź swoją drużynę” prowadzi przez wybór drużyny, logowanie i wybór
+siebie ze składu. „To ja” działa od razu; kapitan dostaje informację i może konto
+odpiąć. Prowadzenie składu dalej wymaga zatwierdzenia.
+
+MECHANIKA: migracja `198` (`pasek_turniejow()`, `przejmij_wpis_zawodnika()`,
+`odlacz_konto_zawodnika()`, powiadomienie `turniej_to_ja`, usunięta polityka
+„Przypisz sie do wolnego wpisu”), `lib/pasekTurnieju.ts`, `PasekTurnieju.tsx`,
+`app/turnieje/[id]/jestem/`. Szczegóły → [funkcje.md](./funkcje.md),
+[baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Skąd wiem na stronie Bojo, że trwa turniej?
+- Jak znaleźć swoją drużynę w turnieju bez linku od kapitana?
+- Czy „To ja” w składzie turniejowym wymaga zgody kapitana?
 
 ### 2026-11-28 — Mecz może wymagać numeru telefonu przy zapisie
 
@@ -729,29 +764,4 @@ PYTANIA:
 - Czy link kapitana da się przesłać dalej?
 - Gdzie zobaczyć wyniki jednej drużyny turnieju?
 - Jak wygląda ekran turnieju na telefonie?
-
-### 2026-11-21 (4) — Ekran turnieju na halę: ogłoszenie, kod QR zbiórki, jasny motyw, terminarz
-
-PROBLEM: turniej charytatywny w Bojo chce pokazać na ścianie hali nie tylko wyniki, ale też
-cel zbiórki i gdzie wpłacić, a jasna sala i telewizor potrzebują innych kolorów niż rzutnik
-w ciemności. Kibice pytają organizatora „kiedy gramy?”.
-
-ROZWIĄZANIE BOJO: organizator turnieju w Bojo wpisuje w panelu (Ustawienia → Ekran na halę)
-ogłoszenie i link, np. do zrzutki, z podpisem. Ekran na halę pokazuje ogłoszenie zielonym
-paskiem na każdym układzie i drugi kod QR „Zeskanuj i wesprzyj” obok kodu Bojo; zmiana
-z telefonu dociera na ekran w ciągu 15 sekund. Nowe układy ekranu: „Terminarz” (wszystkie
-mecze do końca dnia), „Ogłoszenie” (tekst i duży kod QR zbiórki na cały ekran) i „Na
-zmianę” (ekran sam przełącza układy co 20 sekund). Motyw ciemny albo jasny. Gdy trwa
-przerwa z nazwą (np. licytacje), ekran pokazuje ją zamiast następnego meczu.
-
-MECHANIKA: migracja `180` (`turnieje.ekran_komunikat`, `ekran_link`, `ekran_link_opis`),
-`lib/ekranTurnieju.ts`, `components/turnieje/WyborEkranu.tsx`,
-`app/turnieje/[id]/ekran/EkranClient.tsx`, `normalizujLinkEkranu()` w `lib/turnieje.ts`.
-Szczegóły → [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
-
-PYTANIA:
-- Jak pokazać kod QR do zbiórki na ekranie turnieju w Bojo?
-- Czy ekran turnieju ma jasny motyw?
-- Jak wyświetlić cały terminarz na telewizorze na hali?
-- Czy ogłoszenie na ekranie da się zmienić z telefonu w trakcie turnieju?
 

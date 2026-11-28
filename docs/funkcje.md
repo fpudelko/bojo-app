@@ -5325,6 +5325,28 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   (SQL Editor: część A podgląd, B zapis, C kontrola) ustawia turniej „Gramy dla Marysi!” na
   2 grupy, 36 meczów grupowych, mecz o 3. miejsce, finał i dwie przerwy; podstawia tożsamość
   organizatora, bo `trg_pilnuj_wlasnej_druzyny` po cichu cofa zmiany grup i statusów.
+- **Pasek „trwa turniej” i „Znajdź swoją drużynę” (2026-11-28, migracja `198`):**
+  `PasekTurnieju.tsx` stoi w hero landingu (`LandingHero.tsx`, wariant `ciemny`) i na górze
+  `/moje-gry` (wariant `jasny`; zalogowany trafia tam z `/`). Pokazywany WSZYSTKIM, także
+  przy wyłączonym `SHOW_TURNIEJE` (decyzja właściciela). Dane z `pasek_turniejow()`:
+  publiczne turnieje `trwa` oraz `zapisy`/`zamkniete_zapisy` z `data_startu` = dziś
+  w Polsce, do tego turniej „na link”, w którym wołający gra; kolejność: mój, trwające,
+  dzisiejsze. Pasek pokazuje pierwszy i „+N inne” (`trescPaska()`, `lib/pasekTurnieju.ts`),
+  krzyżyk ukrywa turniej na dziś (`localStorage`). Zawodnik widzi swoją drużynę i najbliższy
+  mecz (godzina w czasie polskim, boisko, rywal) i link do ekranu drużyny; reszta widzi
+  wynik na żywo i „Grasz w turnieju? Znajdź swoją drużynę” → `/turnieje/[id]/jestem`
+  (`JestemClient.tsx`): lista drużyn (publiczna), logowanie z powrotem na `?druzyna=`,
+  wolne wpisy składu z „To ja”, „Nie ma mnie na liście” (prośba `dolaczenie`) i przy
+  drużynie bez kapitana „Jestem kapitanem” (prośba `kapitan`). Kto już gra, dostaje
+  „Przejdź do drużyny”.
+  **„To ja” bez zatwierdzenia:** `przejmij_wpis_zawodnika()` przypina wolny wpis od razu
+  (także na ekranie drużyny, `DruzynaClient.tsx`, z oknem potwierdzenia), zmienia WYŁĄCZNIE
+  `user_id`, nie daje kapitanatu (ten wynika tylko z `turniej_druzyny.kapitan_id`), zostawia
+  ślad w `turniej_prosby` (`to_ja`, od razu `przyjeta`) i wysyła kapitanowi (bez kapitana
+  organizatorowi) informację `turniej_to_ja`. Bezpiecznik: „Odepnij konto” przy zawodniku
+  z kontem dla kapitana i organizatora (`odlacz_konto_zawodnika()`; kapitana odpina tylko
+  organizator). Polityka „Przypisz sie do wolnego wpisu” (`145`) usunięta: pozwalała
+  zmienić dowolną kolumnę wolnego wpisu, także `druzyna_id`.
 - **Prośby gracza do drużyny (2026-11-25, migracja `186`):** ekran drużyny
   (`DruzynaClient.tsx`) dla zalogowanego, który nie gra w żadnej drużynie turnieju i nie
   prowadzi składu: „To ja” przy wpisie bez konta, „Poproś o dołączenie” (wyłączone przy

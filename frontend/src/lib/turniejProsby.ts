@@ -90,6 +90,23 @@ export async function zlozProsbe(
   if (error) throw blad(error);
 }
 
+/** „To ja” BEZ zatwierdzenia (migracja `198`): zawodnik dopisany bez konta
+ *  zostaje od razu przypięty do konta wołającego. Daje wyłącznie przypisanie
+ *  goli i kartek, nie kapitanat: edycja składu dalej wymaga zatwierdzenia.
+ *  Zwraca id drużyny, żeby od razu na nią przejść. */
+export async function przejmijWpis(zawodnikId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('przejmij_wpis_zawodnika', { p_zawodnik: zawodnikId });
+  if (error) throw blad(error);
+  return data as string;
+}
+
+/** Kapitan albo organizator cofa przypięcie konta do wpisu (migracja `198`).
+ *  Wpis (z golami) zostaje, znika tylko konto. */
+export async function odlaczKonto(zawodnikId: string): Promise<void> {
+  const { error } = await supabase.rpc('odlacz_konto_zawodnika', { p_zawodnik: zawodnikId });
+  if (error) throw blad(error);
+}
+
 /** Autor cofa własną, jeszcze czekającą prośbę (188). */
 export async function anulujProsbe(prosbaId: string): Promise<void> {
   const { error } = await supabase.rpc('anuluj_prosbe_do_druzyny', { p_prosba: prosbaId });

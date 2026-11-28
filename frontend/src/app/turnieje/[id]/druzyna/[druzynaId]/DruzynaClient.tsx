@@ -50,7 +50,7 @@ import { sportEmoji } from '@/lib/sports';
 import ZaprosZEkipyDialog from '@/components/turnieje/ZaprosZEkipyDialog';
 import SciankaLogowania from '@/components/turnieje/SciankaLogowania';
 import ProsbyDoRozpatrzenia from '@/components/turnieje/ProsbyDoRozpatrzenia';
-import { getMojeProsby, zlozProsbe, anulujProsbe, type ProsbaDoDruzyny, type TypProsby } from '@/lib/turniejProsby';
+import { getMojeProsby, zlozProsbe, anulujProsbe, przejmijWpis, odlaczKonto, type ProsbaDoDruzyny, type TypProsby } from '@/lib/turniejProsby';
 import { getMojaDruzyne } from '@/lib/turniejDruzyny';
 import { kanonicznyOrigin } from '@/lib/powrotPoLogowaniu';
 import KartaMeczu from '@/components/turnieje/KartaMeczu';
@@ -166,6 +166,51 @@ export default function DruzynaClient() {
       toast(e instanceof Error ? e.message : 'Nie udało się wysłać prośby', 'error');
     } finally {
       setWysylaProsbe(false);
+    }
+  };
+
+  // „To ja” od razu, bez prośby (migracja `198`, decyzja właściciela
+  // 2026-11-28). Potwierdzenie zostaje: kliknięcie przy cudzym nazwisku
+  // przypisałoby komuś obcemu Twoje gole.
+  const toJa = async (zawodnikId: string, imie: string) => {
+    if (!druzyna || !user) return;
+    const wynik = await potwierdz({
+      tytul: `To Ty: ${imie}?`,
+      konsekwencje: [
+        `Wpis „${imie}” w drużynie ${druzyna.nazwa} zostanie przypięty do Twojego konta`,
+        'Gole i kartki z tego turnieju trafią do Twojego profilu',
+        'Kapitan dostanie o tym informację i może to cofnąć',
+      ],
+      potwierdzLabel: 'Tak, to ja',
+    });
+    if (wynik !== 'tak') return;
+    setWysylaProsbe(true);
+    try {
+      await przejmijWpis(zawodnikId);
+      await wczytaj();
+      setMojeProsby(await getMojeProsby(id, user.id));
+      toast(`Jesteś w składzie drużyny ${druzyna.nazwa}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się przypisać', 'error');
+    } finally {
+      setWysylaProsbe(false);
+    }
+  };
+
+  const odepnijKonto = async (zawodnikId: string, imie: string) => {
+    const wynik = await potwierdz({
+      tytul: `Odpiąć konto od wpisu „${imie}”?`,
+      konsekwencje: ['Wpis zostaje w składzie razem z golami', 'Znika tylko powiązanie z kontem; ktoś inny może powiedzieć „to ja”'],
+      potwierdzLabel: 'Odepnij konto',
+      wariant: 'destrukcyjny',
+    });
+    if (wynik !== 'tak') return;
+    try {
+      await odlaczKonto(zawodnikId);
+      await wczytaj();
+      toast('Konto odpięte');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się odpiąć konta', 'error');
     }
   };
 
@@ -507,7 +552,10 @@ export default function DruzynaClient() {
           ) : (
             <ul className="divide-y divide-slate-100 dark:divide-slate-700">
               {zawodnicy.map((z) => (
-                <li key={z.id} className="flex items-center gap-2 py-1">
+                <li key={z.id} className="flex flex-wrap items-center gap-x-2 py-1">
+                  {/* `flex-wrap` + imię co najmniej 45% wiersza: przy kilku
+                      przyciskach (Odepnij konto, Ustaw kapitanem, Usuń)
+                      schodzą one pod imię, zamiast ściskać je do „J…”. */}
                   {z.numer !== undefined && (
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-slate-100 dark:bg-slate-700 text-[11px] font-mono">
                       {z.numer}
@@ -516,16 +564,18 @@ export default function DruzynaClient() {
                   {/* Zawodnik z kontem prowadzi do profilu, dopisany z ręki
                       zostaje tekstem — ta sama reguła co w `KartaDruzyny`. */}
                   {z.userId ? (
-                    <Link prefetch={false} href={`/gracz/${z.userId}`} className="flex min-h-[44px] min-w-0 flex-1 items-center gap-1 text-sm text-slate-700 dark:text-slate-200">
+                    <Link prefetch={false} href={`/gracz/${z.userId}`} className="flex min-h-[44px] min-w-[45%] flex-1 items-center gap-1 text-sm text-slate-700 dark:text-slate-200">
                       <span className="min-w-0 truncate">{z.imie}</span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
                     </Link>
                   ) : (
-                    <span className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                    <span className="flex min-h-[44px] min-w-[45%] flex-1 items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
                       <span className="min-w-0 truncate">{z.imie}</span>
                       <span className="shrink-0 text-xs text-slate-400">bez konta</span>
                     </span>
                   )}
+                  {/* „To ja” przypina od razu (198). Stara czekająca prośba
+                      `to_ja` sprzed migracji dalej da się cofnąć. */}
                   {mogeProsic && !z.userId && (
                     czekaProsba('to_ja', z.id) ? (
                       <button onClick={() => cofnijProsbe('to_ja', z.id)} className="shrink-0 px-2 text-xs text-blue-600" title="Cofnij prośbę">
@@ -533,13 +583,25 @@ export default function DruzynaClient() {
                       </button>
                     ) : (
                       <button
-                        onClick={() => wyslijProsbe('to_ja', z.id)}
+                        onClick={() => toJa(z.id, z.imie)}
                         disabled={wysylaProsbe}
                         className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-50"
                       >
                         To ja
                       </button>
                     )
+                  )}
+                  {/* Bezpiecznik do „To ja” bez zatwierdzenia: kapitan
+                      i organizator odpinają konto od wpisu. Kapitana odpina
+                      tylko organizator (baza pilnuje tego samego). */}
+                  {prowadziSklad && z.userId && z.userId !== user?.id
+                    && (jestOrganizatorem || z.userId !== druzyna.kapitanId) && (
+                    <button
+                      onClick={() => odepnijKonto(z.id, z.imie)}
+                      className="shrink-0 px-2 text-xs font-medium text-slate-400 hover:text-red-600"
+                    >
+                      Odepnij konto
+                    </button>
                   )}
                   {z.kapitan && <span className="shrink-0 text-xs text-slate-400">kapitan</span>}
                   {prowadziSklad && wolnoZmieniac && !z.kapitan && z.userId && (

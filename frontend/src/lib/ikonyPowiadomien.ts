@@ -126,6 +126,8 @@ export const IKONY: Record<string, IkonaPowiadomienia> = {
   // Odpowiedź dla gracza jest neutralna.
   turniej_prosba_do_druzyny:  { Ikona: UserPlus,      klasa: 'bg-blue-50 text-blue-600',       rodzaj: 'Prośba' },
   turniej_prosba_rozpatrzona: { Ikona: CheckCircle,   klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Decyzja' },
+  // Informacja, nie prośba (198): szary, nie niebieski — nic nie czeka na decyzję.
+  turniej_to_ja:              { Ikona: UserPlus,      klasa: 'bg-slate-100 text-slate-600',    rodzaj: 'Skład' },
 };
 
 export const IKONA_DOMYSLNA: IkonaPowiadomienia = { Ikona: Bell, klasa: 'bg-slate-100 text-slate-500', rodzaj: 'Powiadomienie' };

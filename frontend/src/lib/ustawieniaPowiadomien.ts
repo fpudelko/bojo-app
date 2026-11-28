@@ -263,6 +263,13 @@ export const RODZAJE_POWIADOMIEN: RodzajPowiadomienia[] = [
     nazwa: 'Decyzja o Twojej prośbie do drużyny',
     opis: 'Kapitan albo organizator przyjął lub odrzucił Twoją prośbę',
   },
+  // „To ja” bez zatwierdzenia (migracja 198): kapitan dowiaduje się, że ktoś
+  // przypiął się do wpisu w składzie, i może to cofnąć na ekranie drużyny.
+  {
+    typ: 'turniej_to_ja',
+    nazwa: 'Ktoś przypiął się do składu Twojej drużyny',
+    opis: 'Zawodnik dopisany bez konta powiedział „to ja”; pomyłkę odepniesz na ekranie drużyny',
+  },
   {
     typ: 'turniej_zaproszenie_do_druzyny',
     nazwa: 'Zaproszenie do drużyny turniejowej',

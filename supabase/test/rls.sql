@@ -821,33 +821,80 @@ SELECT _oczekuj_odmowe('prowadzący nie nada uprawnień komuś innemu', format(
   :TURNIEJ, :OBCY));
 RESET ROLE;
 
-SELECT _sekcja('Turniej: przypisanie się do wolnego wpisu składu (migracja 145)');
+SELECT _sekcja('Turniej: „To ja” przy wolnym wpisie składu (migracje 145, 198)');
 
 -- NA KOŃCU SEKCJI ŚWIADOMIE: mutuje skład i kończy wyjątkiem, tak samo jak
 -- „Gość zarządza swoim zapisem" niżej kończy plik.
 --
--- Uprawnieniem jest fakt, że wiersz jest WOLNY (`user_id IS NULL") — to jest
--- ścieżka „to ja" z `/t/[kod]`. Podwójne przypisanie tej samej osoby w tym
--- samym turnieju NIE jest już kwestią RLS: zamyka je indeks unikalny
--- `idx_zawodnik_raz_w_turnieju` (145), niezależnie od tego, którą z dwóch
--- dróg (ta polityka albo RPC `dolacz_do_druzyny_kodem`) ktoś spróbuje wejść.
+-- Do `198` przypięcie szło polityką „Przypisz sie do wolnego wpisu”, która
+-- przepuszczała zmianę DOWOLNYCH kolumn wolnego wiersza (także `druzyna_id`).
+-- Dziś jedyną drogą jest `przejmij_wpis_zawodnika()`: od razu, bez zatwierdzenia,
+-- ale WYŁĄCZNIE `user_id` i bez uprawnień kapitana.
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', :OBCY, false);
-UPDATE turniej_zawodnicy SET user_id = :OBCY::uuid WHERE id = :'wolny_wpis_1'::uuid AND user_id IS NULL;
+UPDATE turniej_zawodnicy SET user_id = :OBCY::uuid, druzyna_id = :T_DRUZYNA2::uuid
+ WHERE id = :'wolny_wpis_1'::uuid AND user_id IS NULL;
 RESET ROLE;
-SELECT _oczekuj('obcy przypisał się do wolnego wpisu składu',
+SELECT _oczekuj('bezpośredni UPDATE wolnego wpisu NIC nie zmienia (polityka zniknęła)',
                 (SELECT count(*) FROM turniej_zawodnicy
-                  WHERE id = :'wolny_wpis_1'::uuid AND user_id = :OBCY::uuid), 1);
+                  WHERE id = :'wolny_wpis_1'::uuid AND user_id IS NULL
+                    AND druzyna_id = :T_DRUZYNA1::uuid), 1);
+
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj_odmowe('niezalogowany nie przejmie wpisu',
+  format('SELECT przejmij_wpis_zawodnika(%L)', :'wolny_wpis_1'));
+RESET ROLE;
 
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', :OBCY, false);
-SELECT _oczekuj_wyjatek('ta sama osoba nie zajmie DRUGIEGO wolnego wpisu w tym samym turnieju', format(
-  'UPDATE turniej_zawodnicy SET user_id = %L WHERE id = %L AND user_id IS NULL',
-  :OBCY, :'wolny_wpis_2'));
+SELECT przejmij_wpis_zawodnika(:'wolny_wpis_1'::uuid);
 RESET ROLE;
+SELECT _oczekuj('obcy przypisał się do wolnego wpisu od razu, bez prośby',
+                (SELECT count(*) FROM turniej_zawodnicy
+                  WHERE id = :'wolny_wpis_1'::uuid AND user_id = :OBCY::uuid), 1);
+SELECT _oczekuj('przypięcie NIE daje kapitana (kapitan_id bez zmian)',
+                (SELECT count(*) FROM turniej_druzyny
+                  WHERE id = :T_DRUZYNA1::uuid AND kapitan_id = :T_KAPITAN1::uuid), 1);
+SELECT _oczekuj('kapitan dostaje informację, że ktoś się przypiął',
+                (SELECT count(*) FROM notifications
+                  WHERE user_id = :T_KAPITAN1::uuid AND type = 'turniej_to_ja'), 1);
+SELECT _oczekuj('ślad w prośbach: to_ja, od razu przyjęta',
+                (SELECT count(*) FROM turniej_prosby
+                  WHERE zawodnik_id = :'wolny_wpis_1'::uuid AND typ = 'to_ja' AND status = 'przyjeta'), 1);
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('ta sama osoba nie zajmie DRUGIEGO wolnego wpisu w tym samym turnieju',
+  format('SELECT przejmij_wpis_zawodnika(%L)', :'wolny_wpis_2'));
+-- Odpinanie: nie sam zainteresowany i nie obcy — kapitan albo organizator.
+SELECT _oczekuj_wyjatek('zawodnik bez kapitanatu nie odepnie konta',
+  format('SELECT odlacz_konto_zawodnika(%L)', :'wolny_wpis_2'));
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN2, false);
+SELECT _oczekuj_wyjatek('kapitan INNEJ drużyny nie odepnie konta',
+  format('SELECT odlacz_konto_zawodnika(%L)', :'wolny_wpis_1'));
+SELECT set_config('request.jwt.claim.sub', :T_KAPITAN1, false);
+SELECT odlacz_konto_zawodnika(:'wolny_wpis_1'::uuid);
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT przejmij_wpis_zawodnika(:'wolny_wpis_1'::uuid);
+RESET ROLE;
+SELECT _oczekuj('kapitan odpiął, a gracz przypiął się ponownie',
+                (SELECT count(*) FROM turniej_zawodnicy
+                  WHERE id = :'wolny_wpis_1'::uuid AND user_id = :OBCY::uuid), 1);
 SELECT _oczekuj('drugi wolny wpis zostaje faktycznie wolny',
                 (SELECT count(*) FROM turniej_zawodnicy
                   WHERE id = :'wolny_wpis_2'::uuid AND user_id IS NULL), 1);
+
+-- Pasek na stronie głównej: turniej „zapisy” startujący za 10 dni się nie
+-- pokazuje, „trwa” publiczny tak; zawodnik widzi swoją drużynę.
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj('pasek: niezalogowany widzi trwający publiczny turniej, nie przyszły',
+                (SELECT count(*) FROM pasek_turniejow()
+                  WHERE turniej_id IN (:TURNIEJ::uuid, :TURNIEJ_ZAMKNIETY::uuid)), 1);
+SELECT _oczekuj('pasek: niezalogowany nie dostaje żadnej „mojej drużyny”',
+                (SELECT count(*) FROM pasek_turniejow() WHERE moja_druzyna_id IS NOT NULL), 0);
+RESET ROLE;
 
 SELECT _sekcja('Turniej: imienne zaproszenia do drużyny (migracja 154)');
 
