@@ -5306,6 +5306,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   przesunięty widok i dotknięcia trafiały obok przycisków („nie da się wyjść”). Esc zamyka okno.
   Prośba kapitana o wycofanie drużyny (`DruzynaClient.tsx`) też wymaga wpisania nazwy drużyny,
   jak wycofanie przez organizatora.
+- **Resetuj mecz (2026-11-28, migracja `193`):** na stronie meczu dla prowadzącego, w trakcie
+  i po meczu (także walkower), „Resetuj mecz (od nowa, 0:0)” pod „Popraw wynik”. Okno
+  potwierdzenia, potem `resetujMecz()` (`lib/turniejMecze.ts`): gole, kartki, wynik i zegar
+  znikają, mecz wraca do „do rozegrania” i odpala się od nowa.
 - **Zaproszenie mailem do prowadzenia turnieju (2026-11-27, migracja `192`):** w Ustawienia →
   „Ludzie przy turnieju” jedno pole e-mail i dwa przyciski: „Wyślij zaproszenie” (`zaprosOsobeMailem()`
   w `lib/turnieje.ts`, Bojo wysyła przez Resend maila z przyciskiem „Dołącz jako współorganizator /

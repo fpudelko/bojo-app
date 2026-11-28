@@ -2042,6 +2042,32 @@ SELECT _oczekuj('ponowne dodanie zmienia rolę na współorganizatora',
                 (SELECT count(*) FROM turniej_osoby WHERE turniej_id = :PM_T::uuid AND user_id = :CZLONEK::uuid AND moze_edytowac), 1);
 DELETE FROM turnieje WHERE id = :PM_T::uuid;
 
+SELECT _sekcja('Reset meczu w trakcie i po (migracja 193)');
+\set RM_T '''ffffffff-0000-4000-8000-000000000801'''
+\set RM_M '''ffffffff-0000-4000-8000-000000000802'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:RM_T::uuid, :ORGANIZATOR::uuid, 'Reset meczu', 'piłka nożna', 'trwa', CURRENT_DATE);
+INSERT INTO turniej_mecze (id, turniej_id, numer, faza, status, wynik_a, wynik_b, rozpoczety_at, zegar_sekundy)
+VALUES (:RM_M::uuid, :RM_T::uuid, 1, 'grupa', 'trwa', 2, 1, now(), 120);
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie zresetuje meczu', format('SELECT resetuj_mecz(%L)', :RM_M));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT resetuj_mecz(:RM_M::uuid);
+SELECT _oczekuj_wyjatek('meczu, który się nie zaczął, nie ma czego resetować', format('SELECT resetuj_mecz(%L)', :RM_M));
+RESET ROLE;
+SELECT _oczekuj('mecz w trakcie po resecie: zaplanowany, 0:0, zegar od zera',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :RM_M::uuid AND status = 'zaplanowany'
+                   AND wynik_a = 0 AND wynik_b = 0 AND rozpoczety_at IS NULL AND zegar_sekundy = 0), 1);
+UPDATE turniej_mecze SET status = 'zakonczony', wynik_a = 3, wynik_b = 0 WHERE id = :RM_M::uuid;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT resetuj_mecz(:RM_M::uuid);
+RESET ROLE;
+SELECT _oczekuj('mecz zakończony po resecie: zaplanowany, 0:0',
+                (SELECT count(*) FROM turniej_mecze WHERE id = :RM_M::uuid AND status = 'zaplanowany' AND wynik_a = 0), 1);
+DELETE FROM turnieje WHERE id = :RM_T::uuid;
+
 SELECT _sekcja('Zawodnik sam opuszcza drużynę (migracja 191)');
 \set OD_T '''ffffffff-0000-4000-8000-000000000601'''
 \set OD_D '''ffffffff-0000-4000-8000-000000000602'''

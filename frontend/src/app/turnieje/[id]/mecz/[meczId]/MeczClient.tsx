@@ -16,7 +16,7 @@ import { getDruzynyZeSkladem } from '@/lib/turniejDruzyny';
 import {
   getMecz, getMecze, getAreny, getZdarzenia, dodajZdarzenie, cofnijOstatnieZdarzenie,
   rozpocznijMecz, zakonczMecz, updateMecz, czyProwadziMecz, walkowerMeczu, wpiszWynikMeczu,
-  wpiszWynikZeStrzelcami, cofnijWynikMeczu, getGrupy,
+  wpiszWynikZeStrzelcami, cofnijWynikMeczu, resetujMecz, getGrupy,
 } from '@/lib/turniejMecze';
 import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
@@ -466,6 +466,32 @@ export default function MeczClient() {
   // wynik od razu po kliknięciu zamiast poprawić”). Formularz startuje z
   // obecnym wynikiem i strzelcami; mecz zostaje nietknięty, dopóki prowadzący
   // nie zapisze nowego wyniku (`zapiszWynikAkcja` cofa stary tuż przed zapisem).
+  // RESET MECZU (193, dzień turnieju 2026-11-28): zły mecz wystartowany albo
+  // gole nabite nie tej drużynie. Mecz wraca do „zaplanowany”, 0:0, bez
+  // zdarzeń, i da się go odpalić od nowa. W trakcie i po meczu.
+  const resetujAkcja = async () => {
+    const wynik = await potwierdz({
+      tytul: `Zresetować M${mecz.numer}?`,
+      konsekwencje: [
+        'Gole, kartki, wynik i zegar znikną',
+        'Mecz wróci do listy „do rozegrania” i odpalisz go od nowa',
+        'Tego nie da się cofnąć',
+      ],
+      potwierdzLabel: 'Resetuj mecz',
+      wariant: 'destrukcyjny',
+    });
+    if (wynik !== 'tak') return;
+    try {
+      await resetujMecz(meczId);
+      setPoprawia(false);
+      setPokazZakoncz(false);
+      await wczytaj();
+      toast(`M${mecz.numer} zresetowany`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zresetować meczu', 'error');
+    }
+  };
+
   const poprawWynikAkcja = () => {
     if (!mecz) return;
     const strzelcy = (druzynaId?: string) => zdarzenia
@@ -962,6 +988,16 @@ export default function MeczClient() {
           <Button variant="outline" onClick={poprawWynikAkcja} className="w-full">
             Popraw wynik
           </Button>
+        )}
+
+        {prowadzi && (trwajacy || mecz.status === 'zakonczony' || mecz.status === 'walkower') && !czyWolnyLos(mecz) && (
+          <button
+            type="button"
+            onClick={resetujAkcja}
+            className="w-full min-h-[44px] text-sm font-medium text-slate-500 hover:text-red-600"
+          >
+            Resetuj mecz (od nowa, 0:0)
+          </button>
         )}
 
         {zdarzenia.length > 0 && !setowy && (

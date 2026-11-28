@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-27 · migracja `192` · 65 tabel
+**Stan na:** 2026-11-27 · migracja `193` · 65 tabel
 
 ---
 
@@ -494,7 +494,8 @@ godziną meczu stoi numer i grupa, a nazwy obu drużyn ucinają się po równo. 
 ekranu turnieju jest na telefonie większy. Organizator może pokazać kapitanowi kod QR zamiast wysyłać
 link, a kapitan zawodnikom kod QR do dołączenia do składu. Współorganizatora i prowadzącego mecze można
 zaprosić mailem: Bojo wysyła wiadomość z przyciskiem „Dołącz”, także do kogoś bez konta
-(migracja `192`).
+(migracja `192`). Prowadzący może zresetować mecz w trakcie albo po („Resetuj mecz”):
+wynik, gole i zegar znikają, a mecz da się zacząć od nowa (migracja `193`).
 
 MECHANIKA: migracja `191` (`opusc_druzyne()`), `DruzynaClient.tsx`, `MeczClient.tsx`,
 `CentrumTurnieju.tsx` (`WierszMeczu`), `ekran/EkranClient.tsx`. Szczegóły →
