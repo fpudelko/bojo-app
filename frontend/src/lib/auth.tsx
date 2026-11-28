@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { track } from './analytics';
-import { zapamietajPowrot, odbierzPowrot } from './powrotPoLogowaniu';
+import { zapamietajPowrot } from './powrotPoLogowaniu';
 import { setHintCookie, clearHintCookie } from './sessionHint';
 import { displayName, isPelneImie } from './profileName';
 import { dopnijSubskrypcjePush } from './push';
@@ -58,6 +58,8 @@ function syncSessionHint(hasSession: boolean) {
  *  kogoś, kto najpewniej NIE MA jeszcze konta, i podpowiada rejestrację
  *  na ten sam adres (W-7, docs/faza1-przejscie-e2e-plan.md). */
 export const BLAD_ZLE_DANE = 'Nieprawidłowy e-mail lub hasło.';
+/** Rejestracja na adres, który ma już konto: AuthForm podpowiada logowanie. */
+export const BLAD_KONTO_ISTNIEJE = 'Konto z tym adresem już istnieje. Zaloguj się hasłem lub przez Google.';
 
 /** Translate common Supabase auth errors into friendly Polish copy. */
 function mapAuthError(message: string): string {
@@ -152,18 +154,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Supabase odsyła na Site URL, gdy nasz `redirectTo` nie jest na liście
-      // dozwolonych adresów — wtedy `/auth/callback` w ogóle się nie wykonuje
-      // i cały `?next=` przepada. Rozpoznajemy to po tym, że po zalogowaniu
-      // stoimy na stronie głównej, i dokańczamy podróż z zapamiętanego celu.
-      // UWAGA: to musi być JEŻELI, NIE JEŚLI-ZARAZ-PO — tracking i RPC
-      // powyżej muszą się zawsze wykonać, niezależnie od tego, czy tu zrobimy
-      // redirect, bo PostSignupRoleModal efekt polega na nich.
-      if (event === 'SIGNED_IN' && session && typeof window !== 'undefined'
-          && window.location.pathname === '/') {
-        const cel = odbierzPowrot();
-        if (cel) { window.location.replace(cel); return; }
-      }
+      // Powrót po logowaniu, gdy Supabase odeśle na Site URL („/”) zamiast
+      // na `/auth/callback`, robi `HomeSwitch` (2026-11-28). Wcześniej robił
+      // to ten słuchacz, ale przegrywał wyścig z przekierowaniem zalogowanego
+      // na `/moje-gry` i cel ginął.
     });
 
     return () => sub.subscription.unsubscribe();
@@ -226,7 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // kod szedł ścieżką „sprawdź e-mail, żeby potwierdzić konto" zamiast
     // rozpoznać, że to konto już istnieje.
     if (data.user && data.user.identities && data.user.identities.length === 0) {
-      throw new Error('Konto z tym adresem już istnieje. Zaloguj się hasłem lub przez Google.');
+      throw new Error(BLAD_KONTO_ISTNIEJE);
     }
     // When e-mail confirmation is enabled, no session is returned yet.
     return { needsConfirmation: !data.session };

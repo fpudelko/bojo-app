@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { zapamietajPowrot, odbierzPowrot, bezpiecznyCel, kanonicznyOrigin } from '@/lib/powrotPoLogowaniu';
+import {
+  zapamietajPowrot, odbierzPowrot, bezpiecznyCel, kanonicznyOrigin, pilnujPowrotu, adresRejestracjiZLinku, ostatniZamierzonyCel,
+} from '@/lib/powrotPoLogowaniu';
 
 beforeEach(() => { localStorage.clear(); vi.useRealTimers(); });
 afterEach(() => { vi.useRealTimers(); });
@@ -66,5 +68,36 @@ describe('kanonicznyOrigin', () => {
   // „www" w środku nazwy to nie prefiks hosta.
   it('nie ucina www z wnętrza nazwy', () => {
     expect(kanonicznyOrigin('https://wwwbojo.pl')).toBe('https://wwwbojo.pl');
+  });
+});
+
+// Kapitan z kodu QR zalogował się Googlem inną drogą niż przycisk na stronie
+// linku i wylądował na Moich meczach (2026-11-28). Link pamiętamy od wejścia.
+describe('pilnujPowrotu', () => {
+  it('niezalogowany na linku: link staje się celem po logowaniu', () => {
+    pilnujPowrotu('/k/abc', false);
+    expect(odbierzPowrot()).toBe('/k/abc');
+  });
+
+  it('zalogowany, który doszedł do linku, zdejmuje wpis', () => {
+    pilnujPowrotu('/k/abc', false);
+    pilnujPowrotu('/k/abc', true);
+    expect(ostatniZamierzonyCel()).toBeNull();
+  });
+
+  it('zalogowany na innym linku nie rusza cudzego celu', () => {
+    zapamietajPowrot('/wydarzenia/1');
+    pilnujPowrotu('/t/xyz', true);
+    expect(odbierzPowrot()).toBe('/wydarzenia/1');
+  });
+});
+
+describe('adresRejestracjiZLinku', () => {
+  it('otwiera zakładanie konta z powrotem do linku', () => {
+    const u = new URL(adresRejestracjiZLinku('/k/abc', 'kapitan'), 'https://bojo.pl');
+    expect(u.pathname).toBe('/logowanie');
+    expect(u.searchParams.get('next')).toBe('/k/abc');
+    expect(u.searchParams.get('mode')).toBe('rejestracja');
+    expect(u.searchParams.get('powod')).toBe('kapitan');
   });
 });

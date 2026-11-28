@@ -5344,7 +5344,15 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   przycisk „Dołącz jako {imię}”, „Dołącz pod innym imieniem” i „Zaloguj się innym kontem”.
   Cel powrotu po logowaniu (`lib/powrotPoLogowaniu.ts`) leży w `localStorage`, nie
   `sessionStorage`: link z maila i Google z przeglądarki WhatsAppa otwierają nową kartę;
-  `/auth/callback` bez `?next=` bierze zapamiętany cel zamiast `/moje-gry`. Drużyna
+  `/auth/callback` bez `?next=` bierze zapamiętany cel zamiast `/moje-gry`.
+  **Od 2026-11-28** link `/k/…` i `/t/…` jest zapamiętany od wejścia na stronę
+  (`pilnujPowrotu()`), nie od kliknięcia „Zaloguj się”, a zalogowany, który do niego doszedł,
+  zdejmuje wpis. Zapamiętany cel odbierają: `/auth/callback`, `/logowanie` (gdy brak
+  `?next=`) i `HomeSwitch` na „/” przed skokiem na `/moje-gry`. Dawna siatka w `lib/auth.tsx`
+  (SIGNED_IN na „/”) przegrywała wyścig z `HomeSwitch` i kapitan z kodu QR lądował na Moich
+  meczach. Przycisk logowania na `/k/…` i `/t/…` (`adresRejestracjiZLinku()`) otwiera tryb
+  zakładania konta (`mode=rejestracja`, `powod=kapitan|druzyna`); rejestracja na zajęty
+  adres podpowiada „Masz już konto? Zaloguj się na ten adres” (`BLAD_KONTO_ISTNIEJE`). Drużyna
   zalogowanego jest wyróżniona bez napisu: wiersz meczu (`WierszMeczu`, `mojaDruzynaId`) tło
   i obwódka w kolorze marki, karta drużyny (`wMojejDruzynie`) obwódka i tło, wiersz tabeli
   (`TabelaGrupy`) obwódka; nazwa pogrubiona w kolorze marki. Karta w „Twoich turniejach”
@@ -5519,7 +5527,9 @@ Okładka stoi też na górze strony turnieju, nie tylko jako miniatura na `/turn
 gracz wybiera swoje imię z listy (przejmuje wpis dopisany ręcznie) albo dopisuje się sam.
 Kapitana wskazuje organizator przyciskiem „Ustaw kapitanem” przy zawodniku z kontem na
 ekranie drużyny (RPC `ustaw_kapitana_druzyny()`; obecny kapitan może tak samo przekazać
-funkcję). Organizator prowadzi skład każdej drużyny jak kapitan: dopisuje, usuwa, wysyła
+funkcję). Gdy drużyna ma kapitana (od 2026-11-28), „Ustaw kapitanem” przy pozostałych jest
+schowane za „zmień” przy obecnym kapitanie, a przekazanie pyta o potwierdzenie: zielony
+przycisk przy każdym z kontem wyglądał na zadanie do zrobienia. Organizator prowadzi skład każdej drużyny jak kapitan: dopisuje, usuwa, wysyła
 link („Wyślij link do drużyny”). W panelu → Drużyny nazwa prowadzi na ekran drużyny,
 pod nią „ma kapitana / bez kapitana”, a link kopiuje podpisany przycisk zamiast ikonki
 obok krzyżyka usuwania. Błędy techniczne z bazy nie trafiają na ekran

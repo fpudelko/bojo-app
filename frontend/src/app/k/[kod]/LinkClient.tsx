@@ -11,6 +11,7 @@ import { Loader2, ShieldCheck } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
+import { adresRejestracjiZLinku, pilnujPowrotu } from '@/lib/powrotPoLogowaniu';
 import { useAdmin } from '@/lib/admin';
 import { displayName } from '@/lib/profileName';
 import { getTurniej } from '@/lib/turnieje';
@@ -57,6 +58,11 @@ export default function LinkKapitanaPage() {
       .finally(() => { if (aktualne) setLadowanie(false); });
     return () => { aktualne = false; };
   }, [kod]);
+
+  // Link z kodu QR jest celem po KAŻDYM logowaniu, nie tylko po przycisku niżej.
+  useEffect(() => {
+    if (!loading && info) pilnujPowrotu(`/k/${kod}`, !!user);
+  }, [loading, info, user, kod]);
 
   const przejmij = async (opcje: { zawodnikId?: string; imie?: string }) => {
     setWTrakcie(true);
@@ -113,7 +119,7 @@ export default function LinkKapitanaPage() {
       <>
         {naglowek}
         {objasnienie}
-        <Link prefetch={false} href={`/logowanie?next=${encodeURIComponent(`/k/${kod}`)}`} className="mt-5 block">
+        <Link prefetch={false} href={adresRejestracjiZLinku(`/k/${kod}`, 'kapitan')} className="mt-5 block">
           <Button className="w-full">Zaloguj się i przejmij drużynę</Button>
         </Link>
         <p className="mt-2 text-center text-xs text-slate-400">Konto zakładasz przy okazji: Google albo e-mail.</p>

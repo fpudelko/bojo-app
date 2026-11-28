@@ -106,3 +106,23 @@ export function ostatniZamierzonyCel(): string | null {
 export function kanonicznyOrigin(origin: string): string {
   return origin.replace(/^(https?:\/\/)www\./i, '$1');
 }
+
+/**
+ * Link z zaproszeniem (kapitana `/k/…`, drużyny `/t/…`) pamiętany od WEJŚCIA,
+ * nie od kliknięcia „Zaloguj się” (2026-11-28, zgłoszenie właściciela:
+ * „kapitan z kodu QR zalogował się Googlem i zamiast przejęcia drużyny
+ * zobaczył Moje mecze”). Ktoś, kto otworzy link, a zaloguje się inną drogą
+ * (przycisk w nagłówku, Google bez `?next=`, nowa karta), dalej wraca do
+ * linku. Zalogowany, który do niego doszedł, zdejmuje wpis, żeby nie
+ * przerzucił go drugi raz przy wejściu na stronę główną.
+ */
+export function pilnujPowrotu(cel: string, zalogowany: boolean): void {
+  if (!zalogowany) { zapamietajPowrot(cel); return; }
+  if (ostatniZamierzonyCel() === cel) odbierzPowrot();
+}
+
+/** Adres logowania dla linku z zaproszeniem: od razu zakładanie konta, bo
+ *  zaproszony zwykle konta jeszcze nie ma, a pod formularzem jest „Zaloguj się”. */
+export function adresRejestracjiZLinku(cel: string, powod: 'kapitan' | 'druzyna'): string {
+  return `/logowanie?next=${encodeURIComponent(cel)}&mode=rejestracja&powod=${powod}`;
+}
