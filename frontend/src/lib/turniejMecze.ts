@@ -331,6 +331,16 @@ export async function ustawStrzelca(zdarzenieId: string, zawodnikId: string | nu
   }
 }
 
+/** Gol ↔ samobój (195): zdarzenie przechodzi na drugą drużynę, wynik zostaje.
+ *  `zawodnikId` z nowej drużyny zdarzenia albo `null`. */
+export async function zamienGolSamoboj(zdarzenieId: string, zawodnikId: string | null): Promise<void> {
+  const { error } = await supabase.rpc('zamien_gol_samoboj', { p_zdarzenie: zdarzenieId, p_zawodnik: zawodnikId });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Zamiana na samobój zadziała po migracji 195.');
+    throw new Error(error.message);
+  }
+}
+
 /** Zawodnik dopisany do składu przez prowadzącego w trakcie wpisywania (194). */
 export async function dopiszZawodnikaWMeczu(meczId: string, druzynaId: string, imie: string): Promise<string> {
   const { data, error } = await supabase.rpc('dopisz_zawodnika_w_meczu', { p_mecz: meczId, p_druzyna: druzynaId, p_imie: imie.trim() });

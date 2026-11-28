@@ -1,5 +1,5 @@
 -- ============================================================================
--- 195_adres_turnieju_z_miastem.sql — miasto w adresie turnieju.
+-- 196_adres_turnieju_z_miastem.sql — miasto w adresie turnieju.
 -- ----------------------------------------------------------------------------
 -- DLACZEGO. Prośba właściciela (2026-11-28): adres z nazwą (177) to dziś
 -- „gramy-dla-marysi-28-11-2026”. Od następnego turnieju ma nieść też miasto:
