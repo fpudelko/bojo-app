@@ -5396,6 +5396,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
   spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,
   „Walkower”, „Odwołany” i „Wolny los” zastępują godzinę w prawym rogu.
+- **Kolejne mecze obok meczu (2026-11-28):** na stronie meczu przed meczem i w trakcie od `lg`
+  stoi po prawej wąska lista „Kolejne mecze” (do 8: najpierw inne mecze na żywo, potem
+  zaplanowane po godzinie), odświeżana co 20 s. Na telefonie jej nie ma; główna kolumna meczu
+  ma tę samą szerokość co wcześniej (`MeczClient.tsx`).
 - **Szybsze wczytywanie strony turnieju (2026-11-28):** `TurniejClient` pobiera w dwóch etapach.
   Razem z turniejem (równolegle): drużyny bez składów, mecze, grupy, moje uprawnienia i moja
   drużyna; strona rysuje się od razu. W tle: składy (podmieniają lekką listę drużyn), zdarzenia

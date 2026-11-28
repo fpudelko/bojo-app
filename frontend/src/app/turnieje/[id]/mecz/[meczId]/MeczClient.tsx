@@ -25,6 +25,7 @@ import {
   czyWolnyLos,
 } from '@/lib/turniejWynik';
 import { STATUS_MECZU, etykietaTerminuMeczu, etykietaFazyMeczu, porownajTermin } from '@/lib/turniejEtykiety';
+import { chwilaWPolsce } from '@/lib/czasPolski';
 import { nazwaMiejscaWGrupie } from '@/lib/turniejFormat';
 import ArkuszSkladu from '@/components/turnieje/ArkuszSkladu';
 import {
@@ -82,6 +83,7 @@ export default function MeczClient() {
   const [aktualnySet, setAktualnySet] = useState({ a: 0, b: 0 });
   const [menuOtwarte, setMenuOtwarte] = useState(false);
   const [nastepnyNaArenie, setNastepnyNaArenie] = useState<TurniejMecz | null>(null);
+  const [kolejne, setKolejne] = useState<TurniejMecz[]>([]);
   // Gdy po tym meczu nic na arenie nie zostało, karta wskazuje zaległy mecz
   // sprzed niego i MÓWI to wprost (audyt 2026-11-18, F6).
   const [nastepnyZalegly, setNastepnyZalegly] = useState(false);
@@ -175,6 +177,27 @@ export default function MeczClient() {
       .catch(() => undefined);
     return () => { aktualne = false; };
   }, [rozstrzygniety, mecz?.arenaId, mecz?.id, prowadzi, id]);
+
+  // KOLEJNE MECZE OBOK (2026-11-28, prośba właściciela): na laptopie przy
+  // stoliku widać, co wychodzi po tym meczu, bez wychodzenia ze strony.
+  // Tylko od `lg`: na telefonie lista zepchnęłaby konsolę meczu w dół.
+  useEffect(() => {
+    if (!mecz || (mecz.status !== 'trwa' && mecz.status !== 'zaplanowany')) { setKolejne([]); return; }
+    let aktualne = true;
+    const wczytajKolejne = () => getMecze(id)
+      .then((lista) => {
+        if (!aktualne) return;
+        const naZywo = lista.filter((m) => m.status === 'trwa' && m.id !== mecz.id);
+        const planowane = lista
+          .filter((m) => m.status === 'zaplanowany' && m.id !== mecz.id && !czyWolnyLos(m))
+          .sort(porownajTermin);
+        setKolejne([...naZywo, ...planowane].slice(0, 8));
+      })
+      .catch(() => undefined);
+    void wczytajKolejne();
+    const t = window.setInterval(wczytajKolejne, 20_000);
+    return () => { aktualne = false; window.clearInterval(t); };
+  }, [id, mecz?.id, mecz?.status]);
 
   if (ladowanie) {
     return (
@@ -642,8 +665,8 @@ export default function MeczClient() {
       {/* ZBITY EKRAN PROWADZENIA (2026-11-27, uwaga właściciela: „żeby było
           na jednym ekranie”): numer i faza meczu w karcie wyniku zamiast
           osobnego nagłówka, zegar w dwóch liniach, mniejsze odstępy. */}
-      <main className={`mx-auto w-full ${SZEROKOSC_TURNIEJU} flex-1 px-4 py-3`}>
-        <div className="space-y-3 lg:mx-auto lg:max-w-2xl">
+      <main className={`mx-auto w-full ${SZEROKOSC_TURNIEJU} flex-1 px-4 py-3 lg:flex lg:justify-center lg:gap-6`}>
+        <div className="space-y-3 lg:w-full lg:max-w-2xl">
         <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 space-y-2 shadow-sm">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
@@ -1139,6 +1162,35 @@ export default function MeczClient() {
           </Link>
         )}
         </div>
+        {kolejne.length > 0 && (
+          <aside aria-label="Kolejne mecze" className="hidden w-64 shrink-0 self-start lg:sticky lg:top-24 lg:block">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Kolejne mecze</p>
+            <ul className="space-y-1">
+              {kolejne.map((m) => (
+                <li key={m.id}>
+                  <Link prefetch={false}
+                    href={`/turnieje/${id}/mecz/${m.id}`}
+                    className="block rounded-lg px-2.5 py-1.5 hover:bg-white dark:hover:bg-slate-800"
+                  >
+                    <span className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                      {m.status === 'trwa' ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-primary-700 dark:text-primary-300">
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary-600" /> na żywo
+                        </span>
+                      ) : m.zaplanowanyAt ? (
+                        <span className="font-semibold tabular-nums text-ink">{chwilaWPolsce(m.zaplanowanyAt).godzina.slice(0, 5)}</span>
+                      ) : null}
+                      <span>M{m.numer} · {etykietaFazyMeczu(m, grupyPoId)}</span>
+                    </span>
+                    <span className="block truncate text-sm text-ink">
+                      {nazwaDruzynyZListy(m.druzynaAId)} – {nazwaDruzynyZListy(m.druzynaBId)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        )}
       </main>
 
       {arkusz && (
