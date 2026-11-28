@@ -5392,6 +5392,9 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
   spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,
   „Walkower”, „Odwołany” i „Wolny los” zastępują godzinę w prawym rogu.
+- **„Prowadź”: kolejne mecze obok meczu w toku (2026-11-28):** od `lg` `CentrumTurnieju.tsx`
+  stawia kartę „Teraz” po lewej i „Następne do rozegrania” po prawej; rozegrane i faza końcowa
+  pod spodem na całą szerokość. Na telefonie kolejność bez zmian.
 - **Strzelec po fakcie i dopisanie zawodnika (2026-11-28, migracja `194`):** prowadzący dotyka
   gola albo kartki w „Przebiegu meczu” (trwający i rozegrany mecz) i wybiera zawodnika albo „Bez
   strzelca” (`ustawStrzelca()`); wynik się nie zmienia. W arkuszu składu (nowy gol i zmiana) jest
