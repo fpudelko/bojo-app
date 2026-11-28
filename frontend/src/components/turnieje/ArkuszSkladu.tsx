@@ -30,7 +30,7 @@ export default function ArkuszSkladu({
   /** Tekst na przycisku „nie wskazuję nikogo" — zawsze dostępnym. */
   etykietaPominiecia: string;
   /** Druga droga pod listą, np. „Samobój” przy golu (2026-11-21). */
-  akcjaDodatkowa?: { etykieta: string; onClick: () => void };
+  akcjaDodatkowa?: { etykieta: string; onClick: () => void; czerwona?: boolean };
   /** Dopisanie zawodnika spoza składu (194): zwraca jego id, które od razu
    *  idzie do `onWybor`. Bez tej funkcji pola nie ma. */
   onDopisz?: (imie: string) => Promise<string>;
@@ -134,7 +134,13 @@ export default function ArkuszSkladu({
           {akcjaDodatkowa && (
             <button
               onClick={akcjaDodatkowa.onClick}
-              className="min-h-[44px] shrink-0 rounded-xl bg-slate-100 dark:bg-slate-700 px-4 text-sm font-medium text-slate-700 dark:text-slate-200"
+              // „Samobój” delikatnie na czerwono (prośba właściciela z 2026-11-28):
+              // to gol do własnej bramki i ma się odróżniać od zwykłego wyboru.
+              className={`min-h-[44px] shrink-0 rounded-xl px-4 text-sm font-medium ${
+                akcjaDodatkowa.czerwona
+                  ? 'border border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300'
+                  : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+              }`}
             >
               {akcjaDodatkowa.etykieta}
             </button>

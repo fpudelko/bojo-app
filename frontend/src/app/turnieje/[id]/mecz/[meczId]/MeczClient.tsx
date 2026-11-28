@@ -1141,6 +1141,7 @@ export default function MeczClient() {
           // liczy je drużynie przeciwnej.
           akcjaDodatkowa={!arkusz.zdarzenieId && arkusz.typ === 'gol' && przeciwnik(arkusz.druzynaId) ? {
             etykieta: 'Samobój',
+            czerwona: true,
             onClick: () => setArkusz({ druzynaId: przeciwnik(arkusz.druzynaId)!, typ: 'samobojczy', wartosc: 1 }),
           } : undefined}
           onWybor={odpowiedzArkusza}
