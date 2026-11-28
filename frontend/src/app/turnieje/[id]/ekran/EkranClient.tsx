@@ -442,7 +442,7 @@ export default function EkranClient() {
               </div>
               {przerwyPozniej.length > 0 && (
                 <>
-                  <h2 className="mb-[0.3em] mt-[0.8em] text-[1.2em] font-semibold uppercase tracking-wide text-[color:var(--e-tekst3)]">Najbliższe przerwy</h2>
+                  <h2 className="mb-[0.3em] mt-[0.8em] text-[1.2em] font-semibold uppercase tracking-wide text-[color:var(--e-tekst3)]">Kolejne przerwy</h2>
                   {przerwyPozniej.map((w) => w.typ === 'przerwa' && (
                     <p key={w.przerwaId ?? `p-${w.od}`} className="flex items-center gap-[0.6em] py-[0.3em] text-[1.4em] text-[color:var(--e-tekst2)]">
                       <Coffee className="h-[1em] w-[1em] shrink-0 text-[color:var(--e-tekst4)]" aria-hidden />
