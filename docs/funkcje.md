@@ -5389,6 +5389,9 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
   spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,
   „Walkower”, „Odwołany” i „Wolny los” zastępują godzinę w prawym rogu.
+- **Ekran na halę z marginesem (2026-11-28):** scena 16:9 w `ekran/EkranClient.tsx` zajmuje
+  94% okna (`SZEROKOSC_SCENY`), nie 100%: telewizory i rzutniki obcinają krawędzie obrazu
+  (overscan), a treść przy samej krawędzi znikała. Pismo skaluje się razem ze sceną.
 - **Bez „0 zawodników” (2026-11-28):** karta drużyny na stronie turnieju (`KartaDruzyny.tsx`)
   pokazuje liczbę zawodników pod nazwą tylko, gdy skład nie jest pusty; po rozwinięciu jest
   wiersz „Skład” z liczbą albo „Nikt jeszcze nie został dodany.” W panelu (Drużyny) przy pustym
