@@ -210,62 +210,73 @@ export default function TurniejClient() {
   useEffect(() => {
     let aktualne = true;
     setLadowanie(true);
-    getTurniej(id)
-      .then(async (t) => {
+    // DWA ETAPY (2026-11-28, „czasami długo ładuje”). Strona czekała na
+    // jedenaście zapytań naraz, w tym składy wszystkich drużyn, gole, galerię
+    // i sponsorów, zanim pokazała cokolwiek. Teraz:
+    //  1. RAZEM Z TURNIEJEM (równolegle, nie po nim): drużyny bez składów,
+    //     mecze, grupy i to, co dotyczy MNIE (uprawnienia, moja drużyna).
+    //     Tyle wystarcza, żeby narysować każdą zakładkę.
+    //  2. W TLE, gdy strona już stoi: składy, zdarzenia (strzelcy), boiska,
+    //     przerwy, ogłoszenia, galeria, sponsorzy, BLIK, organizator.
+    //
+    // `allSettled`, NIE `all`, z tego samego powodu co wcześniej: baza bez
+    // migracji `150` nie miała `turniej_ogloszenia` i `Promise.all` zamieniał
+    // brak jednej sekcji w „Nie znaleziono turnieju”. Każda sekcja ma własny
+    // stan pusty; „nie znaleziono” znaczy wyłącznie brak samego turnieju.
+    const wynik = <T,>(r: PromiseSettledResult<T>, zapas: T): T => (r.status === 'fulfilled' ? r.value : zapas);
+    Promise.all([
+      getTurniej(id),
+      Promise.allSettled([
+        getDruzyny(id),
+        getMecze(id),
+        getGrupy(id),
+        user ? getMojaOsobe(id, user.id) : Promise.resolve(null),
+        user ? getMojaDruzyne(id, user.id) : Promise.resolve(null),
+      ]),
+    ])
+      .then(([t, [d, m, g, o, mj]]) => {
         if (!aktualne) return;
-        if (!t) { setNotFound(true); setLadowanie(false); return; }
+        if (!t) { setNotFound(true); return; }
         setTurniej(t);
-        // `allSettled`, NIE `all` — i to jest naprawa awarii, nie ostrożność.
-        //
-        // `Promise.all` odrzuca się w całości, gdy padnie JEDNO z ośmiu
-        // zapytań, a `.catch()` niżej zamieniał to na „Nie znaleziono
-        // turnieju". Skutek zobaczony na żywo: baza bez migracji `150` nie ma
-        // tabeli `turniej_ogloszenia`, PostgREST oddawał 404 i CAŁA STRONA
-        // TURNIEJU nie otwierała się nikomu — ani kapitanom z rozesłanego
-        // linku, ani samemu organizatorowi. Brak jednej sekcji nigdy nie może
-        // znaczyć „nie ma turnieju": turniej wczytał się linijkę wyżej.
-        //
-        // Każda sekcja dostaje więc własny wynik i własny stan pusty. Jedyne,
-        // co naprawdę przesądza o „nie znaleziono", to brak samego turnieju.
-        const [d, o, m, a, g, z, og, mj, zd, sp, pr] = await Promise.allSettled([
-          user ? getDruzynyZeSkladem(id) : getDruzyny(id),
-          user ? getMojaOsobe(id, user.id) : Promise.resolve(null),
-          getMecze(id),
+        setDruzyny(wynik(d, []));
+        setMecze(wynik(m, []));
+        setGrupy(wynik(g, []));
+        setOsoba(wynik(o, null));
+        setMojaDruzyna(wynik(mj, null));
+        setLadowanie(false);
+
+        // ── Etap 2: w tle ──────────────────────────────────────────────────
+        void Promise.allSettled([
+          user ? getDruzynyZeSkladem(id) : Promise.resolve(null),
           getAreny(id),
-          getGrupy(id),
           getZdarzeniaTurnieju(id),
           getOgloszenia(id),
-          user ? getMojaDruzyne(id, user.id) : Promise.resolve(null),
           getZdjecia(id),
           getSponsorzy(id),
           getPrzerwy(id),
-        ]);
-        if (!aktualne) return;
-        setDruzyny(d.status === 'fulfilled' ? d.value : []);
-        setOsoba(o.status === 'fulfilled' ? o.value : null);
-        setMecze(m.status === 'fulfilled' ? m.value : []);
-        setAreny(a.status === 'fulfilled' ? a.value : []);
-        setGrupy(g.status === 'fulfilled' ? g.value : []);
-        setZdarzenia(z.status === 'fulfilled' ? z.value : []);
-        setOgloszenia(og.status === 'fulfilled' ? og.value : []);
-        setOgloszeniaBlad(og.status === 'rejected');
-        setMojaDruzyna(mj.status === 'fulfilled' ? mj.value : null);
-        // Galeria i sponsorzy to dodatek do zakładki Info: gdy zapytanie padnie
-        // (np. baza bez migracji `159`), sekcje po prostu się nie pokazują.
-        setZdjecia(zd.status === 'fulfilled' ? zd.value : []);
-        setSponsorzy(sp.status === 'fulfilled' ? sp.value : []);
-        // Przerwy z nazwą (176): bez migracji lista jest pusta, a terminarz
-        // pokazuje same odstępy jak dotąd.
-        setPrzerwy(pr.status === 'fulfilled' ? pr.value : []);
-        // BLIK: tylko organizator/zarządzający i kapitanowie mają RLS-owe
-        // prawo do wiersza — reszta po prostu nie dostanie nic, więc wołanie
-        // „na wszelki wypadek" jest bezpieczne i nie wymaga sprawdzania roli
-        // z wyprzedzeniem.
+        ]).then(([sklady, a, z, og, zd, sp, pr]) => {
+          if (!aktualne) return;
+          // Składy podmieniają lekką listę drużyn tylko, gdy przyszły: bez nich
+          // (gość, błąd) zostaje lista z etapu 1.
+          const zeSkladem = wynik(sklady, null);
+          if (zeSkladem) setDruzyny(zeSkladem);
+          setAreny(wynik(a, []));
+          setZdarzenia(wynik(z, []));
+          setOgloszenia(wynik(og, []));
+          setOgloszeniaBlad(og.status === 'rejected');
+          // Galeria, sponsorzy (159) i przerwy (176): bez migracji sekcje
+          // po prostu się nie pokazują.
+          setZdjecia(wynik(zd, []));
+          setSponsorzy(wynik(sp, []));
+          setPrzerwy(wynik(pr, []));
+        });
         // Nazwa organizatora osobnym zapytaniem: `turnieje.organizator_id`
         // wskazuje na `auth.users`, nie na `profiles` — PostgREST nie zbuduje
         // joinu (patrz docs/baza-danych.md).
         supabase.from('profiles').select('display_name').eq('id', t.organizatorId).maybeSingle()
           .then(({ data: p }) => { if (aktualne) setOrganizator((p?.display_name as string | undefined) ?? null); });
+        // BLIK: tylko zarządzający i kapitanowie mają RLS-owe prawo do wiersza,
+        // reszta nie dostanie nic, więc wołanie jest bezpieczne bez roli.
         if (t.wpisoweGrosze > 0 && user) {
           getBlikTurnieju(id).then((tel) => { if (aktualne) setBlikTelefon(tel); }).catch(() => {});
         }
