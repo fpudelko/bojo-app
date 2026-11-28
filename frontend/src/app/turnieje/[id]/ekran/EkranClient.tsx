@@ -404,12 +404,25 @@ export default function EkranClient() {
             </section>
           )
   );
+  // PRZERWY PO OSTATNIM POKAZANYM MECZU osobno (2026-11-28, uwaga
+  // właściciela): lista ma kilka meczów, a przerwa z nazwą (konkurs,
+  // dekoracja) bywa godziny później. Doklejona pod meczami czytała się jak
+  // „zaraz po nich”. Przerwa MIĘDZY pokazanymi meczami zostaje na miejscu.
+  const wierszeKolejnych = terminarzZPrzerwami(kolejne, przerwy.filter((p) => new Date(p.doAt) > teraz), { ...turniej, poprzedni: meczPrzed(mecze, kolejne[0]) });
+  // Sekcja przerw zabiera miejsce meczom, inaczej ucina ją dół ekranu: tyle
+  // meczów mniej, ile przerw plus nagłówek (zostają co najmniej dwa).
+  const liczbaMeczow = wierszeKolejnych.filter((w) => w.typ === 'mecz').length;
+  const ilePrzerwNaKoncu = wierszeKolejnych.length - 1 - wierszeKolejnych.map((w) => w.typ).lastIndexOf('mecz');
+  const meczowDoPokazania = ilePrzerwNaKoncu > 0 ? Math.max(2, liczbaMeczow - ilePrzerwNaKoncu - 1) : liczbaMeczow;
+  let ileMeczow = 0;
+  const ostatniMecz = wierszeKolejnych.findIndex((w) => w.typ === 'mecz' && ++ileMeczow === meczowDoPokazania);
+  const przerwyPozniej = wierszeKolejnych.slice(ostatniMecz + 1).filter((w) => w.typ === 'przerwa');
   const blokKolejne = (
     kolejne.length > 0 && (
             <section className="min-h-0 overflow-hidden">
               <h2 className="mb-[0.4em] text-[1.2em] font-semibold uppercase tracking-wide text-[color:var(--e-tekst3)]">Kolejne mecze</h2>
               <div className="divide-y divide-[color:var(--e-linia)]">
-                {terminarzZPrzerwami(kolejne, przerwy.filter((p) => new Date(p.doAt) > teraz), { ...turniej, poprzedni: meczPrzed(mecze, kolejne[0]) }).map((w) => (
+                {wierszeKolejnych.slice(0, ostatniMecz + 1).map((w) => (
                   w.typ === 'przerwa' ? (
                     <p key={w.przerwaId ?? `p-${w.od}`} className="flex items-center gap-[0.6em] py-[0.45em] text-[1.4em] text-[color:var(--e-tekst2)]">
                       <Coffee className="h-[1em] w-[1em] shrink-0 text-[color:var(--e-tekst4)]" aria-hidden />
@@ -427,6 +440,18 @@ export default function EkranClient() {
                   )
                 ))}
               </div>
+              {przerwyPozniej.length > 0 && (
+                <>
+                  <h2 className="mb-[0.3em] mt-[0.8em] text-[1.2em] font-semibold uppercase tracking-wide text-[color:var(--e-tekst3)]">Kolejne przerwy</h2>
+                  {przerwyPozniej.map((w) => w.typ === 'przerwa' && (
+                    <p key={w.przerwaId ?? `p-${w.od}`} className="flex items-center gap-[0.6em] py-[0.3em] text-[1.4em] text-[color:var(--e-tekst2)]">
+                      <Coffee className="h-[1em] w-[1em] shrink-0 text-[color:var(--e-tekst4)]" aria-hidden />
+                      <span className="tabular-nums">{w.od}–{w.do}</span>
+                      <span className="truncate">{w.nazwa ?? 'Przerwa'}</span>
+                    </p>
+                  ))}
+                </>
+              )}
             </section>
           )
   );
