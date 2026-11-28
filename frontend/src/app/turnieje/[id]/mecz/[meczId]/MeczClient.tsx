@@ -17,6 +17,7 @@ import {
   getMecz, getMecze, getAreny, getZdarzenia, dodajZdarzenie, cofnijOstatnieZdarzenie,
   rozpocznijMecz, zakonczMecz, updateMecz, czyProwadziMecz, walkowerMeczu, wpiszWynikMeczu,
   wpiszWynikZeStrzelcami, cofnijWynikMeczu, resetujMecz, getGrupy,
+  ustawStrzelca, dopiszZawodnikaWMeczu,
 } from '@/lib/turniejMecze';
 import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
@@ -71,6 +72,8 @@ export default function MeczClient() {
     druzynaId: string;
     typ: ZdarzenieTyp;
     wartosc: number;
+    /** Zmiana strzelca w zdarzeniu już zapisanym (194), zamiast nowego. */
+    zdarzenieId?: string;
   } | null>(null);
   const [aktualnySet, setAktualnySet] = useState({ a: 0, b: 0 });
   const [menuOtwarte, setMenuOtwarte] = useState(false);
@@ -314,7 +317,37 @@ export default function MeczClient() {
     // Bez pytania o asystę: asysty wypadły z modułu (decyzja właściciela
     // z 2026-11-08). Jedno pytanie mniej to sekunda na boisku.
     setArkusz(null);
+    if (arkusz.zdarzenieId) {
+      void zmienStrzelcaAkcja(arkusz.zdarzenieId, zawodnikId ?? null);
+      return;
+    }
     void dodajZdarzenieAkcja(arkusz.druzynaId, arkusz.typ, zawodnikId, undefined, arkusz.wartosc);
+  };
+
+  /** STRZELEC PO FAKCIE (194, 2026-11-28): w trwającym i rozegranym meczu.
+   *  Zmienia tylko zawodnika, wynik zostaje. */
+  const zmienStrzelcaAkcja = async (zdarzenieId: string, zawodnikId: string | null) => {
+    const poprzednie = zdarzenia;
+    setZdarzenia((lista) => lista.map((z) => (z.id === zdarzenieId ? { ...z, zawodnikId: zawodnikId ?? undefined } : z)));
+    try {
+      await ustawStrzelca(zdarzenieId, zawodnikId);
+      toast(zawodnikId ? 'Strzelec zapisany' : 'Zapisano bez strzelca');
+    } catch (e) {
+      setZdarzenia(poprzednie);
+      toast(e instanceof Error ? e.message : 'Nie udało się zmienić strzelca', 'error');
+    }
+  };
+
+  /** Dopisanie zawodnika spoza składu prosto z arkusza (194). */
+  const dopiszZawodnikaAkcja = async (druzynaId: string, imie: string): Promise<string> => {
+    try {
+      const noweId = await dopiszZawodnikaWMeczu(meczId, druzynaId, imie);
+      await wczytaj();
+      return noweId;
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się dopisać zawodnika', 'error');
+      throw e;
+    }
   };
 
   const walkowerAkcja = async (zwyciezcaId: string, nazwaZwyciezcy: string) => {
@@ -1003,6 +1036,9 @@ export default function MeczClient() {
         {zdarzenia.length > 0 && !setowy && (
           <div className="space-y-1.5">
             <h2 className="text-sm font-semibold text-slate-500">Przebieg meczu</h2>
+            {prowadzi && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">Dotknij gola albo kartki, żeby dodać lub zmienić zawodnika.</p>
+            )}
             {/* PRZEBIEG PO STRONIE DRUŻYNY (2026-11-27, prośba właściciela):
                 zdarzenie stoi po stronie drużyny, której dotyczy, jak nazwy
                 w karcie wyniku. Gol (i samobój) po stronie drużyny, która
@@ -1024,17 +1060,36 @@ export default function MeczClient() {
                   {!poLewej && <span className="shrink-0" aria-hidden>{ikona}</span>}
                 </span>
               );
-              return (
-                <div
-                  key={z.id}
-                  aria-label={`${nazwaTypu.join(' ')}, ${zDruzynyA ? druzynaA?.nazwa : druzynaB?.nazwa}${zawodnik ? `, ${zawodnik.imie}` : ''}`}
-                  className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
-                >
+              // Prowadzący dotyka wiersza i zmienia albo dopisuje strzelca
+              // (194, 2026-11-28), także po meczu. Wynik się nie zmienia.
+              const doEdycji = prowadzi && !z.id.startsWith('tymczasowe-');
+              const etykieta = `${nazwaTypu.join(' ')}, ${zDruzynyA ? druzynaA?.nazwa : druzynaB?.nazwa}${zawodnik ? `, ${zawodnik.imie}` : ''}`;
+              const wnetrze = (
+                <>
                   {poLewej ? opis : <span />}
                   <span className="w-8 text-center font-mono text-xs text-slate-400">
                     {z.minuta !== undefined ? `${z.minuta}'` : ''}
                   </span>
                   {poLewej ? <span /> : opis}
+                </>
+              );
+              return doEdycji ? (
+                <button
+                  key={z.id}
+                  type="button"
+                  onClick={() => setArkusz({ druzynaId: z.druzynaId, typ: z.typ, wartosc: z.wartosc, zdarzenieId: z.id })}
+                  aria-label={`${etykieta}. ${zawodnik ? 'Zmień' : 'Dodaj'} ${z.typ === 'zolta' || z.typ === 'czerwona' ? 'zawodnika' : 'strzelca'}`}
+                  className="-mx-2 grid min-h-[40px] w-[calc(100%+1rem)] grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg px-2 text-left text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  {wnetrze}
+                </button>
+              ) : (
+                <div
+                  key={z.id}
+                  aria-label={etykieta}
+                  className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-sm text-slate-600 dark:text-slate-300"
+                >
+                  {wnetrze}
                 </div>
               );
             })}
@@ -1074,14 +1129,17 @@ export default function MeczClient() {
           zawodnicy={skladDruzyny(arkusz.druzynaId)}
           // „Zapisz bez strzelca”, bez „Nie wiem kto” (decyzja właściciela
           // z 2026-11-21): brak nazwiska to normalny przypadek, nie niewiedza.
-          etykietaPominiecia={arkusz.typ === 'gol' || arkusz.typ === 'samobojczy' || arkusz.typ === 'punkty'
-            ? 'Zapisz bez strzelca' : 'Zapisz bez nazwiska'}
+          etykietaPominiecia={arkusz.zdarzenieId
+            ? (arkusz.typ === 'zolta' || arkusz.typ === 'czerwona' ? 'Bez nazwiska' : 'Bez strzelca')
+            : arkusz.typ === 'gol' || arkusz.typ === 'samobojczy' || arkusz.typ === 'punkty'
+              ? 'Zapisz bez strzelca' : 'Zapisz bez nazwiska'}
+          onDopisz={(imie) => dopiszZawodnikaAkcja(arkusz.druzynaId, imie)}
           // SAMOBÓJ POD GOLEM (2026-11-21): gol drużyny X padł z samobója
           // rywala. Osobny przycisk „Samobójczy” stał przy kartkach i nie było
           // jasne, czyj to gol. Teraz: „GOL” drużyny X → „Samobój” → skład
           // RYWALA. Zdarzenie dostaje drużynę strzelającego, a wyzwalacz z 147
           // liczy je drużynie przeciwnej.
-          akcjaDodatkowa={arkusz.typ === 'gol' && przeciwnik(arkusz.druzynaId) ? {
+          akcjaDodatkowa={!arkusz.zdarzenieId && arkusz.typ === 'gol' && przeciwnik(arkusz.druzynaId) ? {
             etykieta: 'Samobój',
             onClick: () => setArkusz({ druzynaId: przeciwnik(arkusz.druzynaId)!, typ: 'samobojczy', wartosc: 1 }),
           } : undefined}

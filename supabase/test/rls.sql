@@ -2431,6 +2431,46 @@ END $$;
 RESET ROLE;
 DELETE FROM turnieje WHERE id = :LK_T::uuid;
 
+SELECT _sekcja('Strzelec po fakcie i zawodnik dopisany w meczu (migracja 194)');
+\set ZS_T '''ffffffff-0000-4000-8000-0000000001f1'''
+\set ZS_A '''ffffffff-0000-4000-8000-0000000001f2'''
+\set ZS_B '''ffffffff-0000-4000-8000-0000000001f3'''
+\set ZS_M '''ffffffff-0000-4000-8000-0000000001f4'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu)
+VALUES (:ZS_T::uuid, :ORGANIZATOR::uuid, 'Strzelcy do testów', 'piłka nożna', 'trwa', CURRENT_DATE);
+INSERT INTO turniej_druzyny (id, turniej_id, nazwa, status, dodana_recznie) VALUES
+  (:ZS_A::uuid, :ZS_T::uuid, 'Alfa', 'przyjeta', true), (:ZS_B::uuid, :ZS_T::uuid, 'Beta', 'przyjeta', true);
+INSERT INTO turniej_zawodnicy (id, druzyna_id, turniej_id, imie) VALUES
+  ('ffffffff-0000-4000-8000-0000000001f5', :ZS_A::uuid, :ZS_T::uuid, 'Adam z Alfy'),
+  ('ffffffff-0000-4000-8000-0000000001f6', :ZS_B::uuid, :ZS_T::uuid, 'Bartek z Bety');
+INSERT INTO turniej_mecze (id, turniej_id, numer, faza, kolejka, druzyna_a_id, druzyna_b_id)
+VALUES (:ZS_M::uuid, :ZS_T::uuid, 1, 'liga', 1, :ZS_A::uuid, :ZS_B::uuid);
+INSERT INTO turniej_zdarzenia (id, mecz_id, turniej_id, druzyna_id, typ)
+VALUES ('ffffffff-0000-4000-8000-0000000001f7', :ZS_M::uuid, :ZS_T::uuid, :ZS_A::uuid, 'gol');
+UPDATE turniej_mecze SET status = 'zakonczony' WHERE id = :ZS_M::uuid;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('obcy nie zmieni strzelca',
+  'SELECT ustaw_strzelca_zdarzenia(''ffffffff-0000-4000-8000-0000000001f7'', ''ffffffff-0000-4000-8000-0000000001f5'')');
+SELECT _oczekuj_wyjatek('obcy nie dopisze zawodnika do meczu',
+  format('SELECT dopisz_zawodnika_w_meczu(%L, %L, ''Ktoś'')', :ZS_M, :ZS_A));
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj_wyjatek('strzelec musi być z drużyny zdarzenia',
+  'SELECT ustaw_strzelca_zdarzenia(''ffffffff-0000-4000-8000-0000000001f7'', ''ffffffff-0000-4000-8000-0000000001f6'')');
+SELECT ustaw_strzelca_zdarzenia('ffffffff-0000-4000-8000-0000000001f7', 'ffffffff-0000-4000-8000-0000000001f5');
+SELECT dopisz_zawodnika_w_meczu(:ZS_M::uuid, :ZS_A::uuid, 'Czarek dopisany') AS zs_nowy \gset
+SELECT _oczekuj_wyjatek('dopisany tylko do drużyny z tego meczu',
+  format('SELECT dopisz_zawodnika_w_meczu(%L, %L, ''Obcy'')', :ZS_M, 'ffffffff-0000-4000-8000-0000000001e1'));
+RESET ROLE;
+SELECT _oczekuj('strzelec dopisany w meczu już rozegranym, wynik bez zmian',
+  (SELECT count(*) FROM turniej_zdarzenia WHERE id = 'ffffffff-0000-4000-8000-0000000001f7'
+     AND zawodnik_id = 'ffffffff-0000-4000-8000-0000000001f5'), 1);
+SELECT _oczekuj('wynik meczu został 1:0',
+  (SELECT count(*) FROM turniej_mecze WHERE id = :ZS_M::uuid AND wynik_a = 1 AND wynik_b = 0), 1);
+SELECT _oczekuj('prowadzący dopisał zawodnika do składu',
+  (SELECT count(*) FROM turniej_zawodnicy WHERE id = :'zs_nowy'::uuid AND druzyna_id = :ZS_A::uuid AND imie = 'Czarek dopisany'), 1);
+DELETE FROM turnieje WHERE id = :ZS_T::uuid;
+
 SELECT _sekcja('Każda tabela w public ma włączone RLS');
 DO $$
 DECLARE

@@ -5389,6 +5389,11 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
   spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,
   „Walkower”, „Odwołany” i „Wolny los” zastępują godzinę w prawym rogu.
+- **Strzelec po fakcie i dopisanie zawodnika (2026-11-28, migracja `194`):** prowadzący dotyka
+  gola albo kartki w „Przebiegu meczu” (trwający i rozegrany mecz) i wybiera zawodnika albo „Bez
+  strzelca” (`ustawStrzelca()`); wynik się nie zmienia. W arkuszu składu (nowy gol i zmiana) jest
+  pole „Nie ma na liście? Wpisz imię” + „Dopisz”: zawodnik trafia do składu i od razu jest
+  wybrany (`dopiszZawodnikaWMeczu()`, `ArkuszSkladu` prop `onDopisz`).
 - **Ekran na halę z marginesem (2026-11-28):** scena 16:9 w `ekran/EkranClient.tsx` zajmuje
   94% okna (`SZEROKOSC_SCENY`), nie 100%: telewizory i rzutniki obcinają krawędzie obrazu
   (overscan), a treść przy samej krawędzi znikała. Pismo skaluje się razem ze sceną.
