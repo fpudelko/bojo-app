@@ -5370,6 +5370,8 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   się drużynie X (wyzwalacz z `147`). Osobny przycisk „Samobójczy” przy kartkach zniknął.
   Pominięcie strzelca: „Zapisz bez strzelca” (kartki: „Zapisz bez nazwiska”), bez „Nie wiem kto”.
   Przycisk „Samobój” jest delikatnie czerwony (`akcjaDodatkowa.czerwona`, 2026-11-28).
+  Ten sam „Samobój” jest przy zmianie już wpisanego gola (dotknięcie w „Przebiegu”, migracja `195`,
+  `zamienGolSamoboj()`), a przy samobóju „To nie samobój”; wynik się nie zmienia.
 - **Bez „bez goli” i „Jeszcze nikt nie strzelił” (2026-11-21):** rozwinięty wiersz wyniku
   pokazuje wyłącznie wpisanych strzelców (gol bez strzelca jest pomijany), a sekcja
   „Statystyki graczy” na zakładce Mecze pojawia się dopiero, gdy ktoś wpisał strzelca albo

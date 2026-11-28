@@ -18,6 +18,7 @@ import {
   rozpocznijMecz, zakonczMecz, updateMecz, czyProwadziMecz, walkowerMeczu, wpiszWynikMeczu,
   wpiszWynikZeStrzelcami, cofnijWynikMeczu, resetujMecz, getGrupy,
   ustawStrzelca, dopiszZawodnikaWMeczu,
+  zamienGolSamoboj,
 } from '@/lib/turniejMecze';
 import {
   wynikZeZdarzen, wymaganeKarne, jestSportemSetowym, jestKoszykowka, wygranSetow,
@@ -74,6 +75,9 @@ export default function MeczClient() {
     wartosc: number;
     /** Zmiana strzelca w zdarzeniu już zapisanym (194), zamiast nowego. */
     zdarzenieId?: string;
+    /** Zamiana gola na samobój albo odwrotnie (195): arkusz pokazuje skład
+     *  drużyny, która będzie strzelającą PO zamianie. */
+    zamiana?: boolean;
   } | null>(null);
   const [aktualnySet, setAktualnySet] = useState({ a: 0, b: 0 });
   const [menuOtwarte, setMenuOtwarte] = useState(false);
@@ -317,6 +321,10 @@ export default function MeczClient() {
     // Bez pytania o asystę: asysty wypadły z modułu (decyzja właściciela
     // z 2026-11-08). Jedno pytanie mniej to sekunda na boisku.
     setArkusz(null);
+    if (arkusz.zdarzenieId && arkusz.zamiana) {
+      void zamienGolSamobojAkcja(arkusz.zdarzenieId, zawodnikId ?? null);
+      return;
+    }
     if (arkusz.zdarzenieId) {
       void zmienStrzelcaAkcja(arkusz.zdarzenieId, zawodnikId ?? null);
       return;
@@ -335,6 +343,17 @@ export default function MeczClient() {
     } catch (e) {
       setZdarzenia(poprzednie);
       toast(e instanceof Error ? e.message : 'Nie udało się zmienić strzelca', 'error');
+    }
+  };
+
+  /** Gol ↔ samobój w zdarzeniu już zapisanym (195). Wynik zostaje. */
+  const zamienGolSamobojAkcja = async (zdarzenieId: string, zawodnikId: string | null) => {
+    try {
+      await zamienGolSamoboj(zdarzenieId, zawodnikId);
+      await wczytaj();
+      toast('Zapisano');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Nie udało się zmienić gola', 'error');
     }
   };
 
@@ -1139,11 +1158,26 @@ export default function MeczClient() {
           // jasne, czyj to gol. Teraz: „GOL” drużyny X → „Samobój” → skład
           // RYWALA. Zdarzenie dostaje drużynę strzelającego, a wyzwalacz z 147
           // liczy je drużynie przeciwnej.
-          akcjaDodatkowa={!arkusz.zdarzenieId && arkusz.typ === 'gol' && przeciwnik(arkusz.druzynaId) ? {
-            etykieta: 'Samobój',
-            czerwona: true,
-            onClick: () => setArkusz({ druzynaId: przeciwnik(arkusz.druzynaId)!, typ: 'samobojczy', wartosc: 1 }),
-          } : undefined}
+          // „Samobój” także przy zmianie już wpisanego gola (195), a przy
+          // samobóju droga powrotna „To nie samobój”. Arkusz pokazuje wtedy
+          // skład drużyny, która po zamianie jest strzelającą.
+          akcjaDodatkowa={arkusz.zamiana || !przeciwnik(arkusz.druzynaId) ? undefined
+            : arkusz.typ === 'gol' ? {
+                etykieta: 'Samobój',
+                czerwona: true,
+                onClick: () => setArkusz({
+                  druzynaId: przeciwnik(arkusz.druzynaId)!, typ: 'samobojczy', wartosc: 1,
+                  zdarzenieId: arkusz.zdarzenieId, zamiana: !!arkusz.zdarzenieId,
+                }),
+              }
+            : arkusz.typ === 'samobojczy' && arkusz.zdarzenieId ? {
+                etykieta: 'To nie samobój',
+                onClick: () => setArkusz({
+                  druzynaId: przeciwnik(arkusz.druzynaId)!, typ: 'gol', wartosc: 1,
+                  zdarzenieId: arkusz.zdarzenieId, zamiana: true,
+                }),
+              }
+            : undefined}
           onWybor={odpowiedzArkusza}
           onZamknij={() => {
             // Zamknięcie arkusza anuluje zdarzenie (prowadzący pomylił drużynę).

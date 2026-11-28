@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-28 · migracja `194` · 65 tabel
+**Stan na:** 2026-11-28 · migracja `195` · 65 tabel
 
 ---
 
@@ -499,6 +499,7 @@ wynik, gole i zegar znikają, a mecz da się zacząć od nowa (migracja `193`).
 
 Prowadzący mecz turnieju w Bojo może dopisać albo zmienić strzelca gola już wpisanego (także
 po meczu, bez zmiany wyniku) i dopisać do składu zawodnika, którego nie było na liście (migracja `194`).
+Wpisanego gola można też zamienić na samobój zawodnika rywala i z powrotem (migracja `195`).
 MECHANIKA: migracja `191` (`opusc_druzyne()`), `DruzynaClient.tsx`, `MeczClient.tsx`,
 `CentrumTurnieju.tsx` (`WierszMeczu`), `ekran/EkranClient.tsx`. Szczegóły →
 [funkcje.md](./funkcje.md), [baza-danych.md](./baza-danych.md).
