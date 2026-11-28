@@ -100,6 +100,7 @@ export function toEvent(row: any): EventItem {
     allowGuestAdds: row.allow_guest_adds ?? false,
     joinCode: row.join_code ?? '',
     requireApproval: row.require_approval ?? false,
+    requirePhone: row.require_phone ?? false,
     maxGoalkeepers: row.max_goalkeepers ?? 2,
     goalkeeperSlotsReserved: row.goalkeeper_slots_reserved ?? true,
     goalkeepersEnabled: row.goalkeepers_enabled ?? false,
@@ -266,6 +267,7 @@ export async function createEvent(
       confirmation_deadline_h: data.confirmationDeadlineH ?? 24,
       cost_grosz: data.costGrosze ?? 0,
       require_approval: data.requireApproval ?? false,
+      require_phone: data.requirePhone ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
@@ -386,6 +388,7 @@ export async function updateEvent(
       confirmation_deadline_h: data.confirmationDeadlineH ?? 24,
       cost_grosz: data.costGrosze ?? 0,
       require_approval: data.requireApproval ?? false,
+      require_phone: data.requirePhone ?? false,
       max_goalkeepers: data.maxGoalkeepers ?? 2,
       goalkeeper_slots_reserved: data.goalkeeperSlotsReserved ?? true,
       goalkeepers_enabled: data.goalkeepersEnabled ?? false,
@@ -902,6 +905,9 @@ export async function joinEventAsGuest(
   email: string,
   asGoalkeeper = false,
   payment?: JoinPaymentChoice,
+  /** Numer gościa, już znormalizowany (`przygotujTelefon`). Wymagany przez
+   *  bazę, gdy mecz ma `requirePhone` (migracja `193`). */
+  phone?: string | null,
 ): Promise<{ claimToken: string | null; isReserve: boolean; alreadyJoined: boolean; hasAccount: boolean; pendingApproval: boolean }> {
   const { validateEmail } = await import('./validation');
   const safeName = validateName(name, 'Imię i nazwisko', 80);
@@ -922,6 +928,9 @@ export async function joinEventAsGuest(
   if (payment?.hasSportsCard && payment.sportsCardProvider) {
     argumenty.p_dostawca_karty = payment.sportsCardProvider;
   }
+  // Only when given, so a match without the phone requirement does not
+  // depend on migration `193` being applied.
+  if (phone) argumenty.p_telefon = phone;
   let { data, error } = await supabase.rpc('dolacz_do_meczu_jako_goscie', argumenty);
   if (error?.code === 'PGRST202' && 'p_dostawca_karty' in argumenty) {
     const bezDostawcy = { ...argumenty };
@@ -1458,6 +1467,7 @@ export async function repeatEvent(
     // cichu, więc mecz z akceptacją zapisów albo z wyłączoną rezerwą wracał
     // po powtórce jako zwykły, otwarty mecz (`S-2`).
     requireApproval: source.requireApproval,
+    requirePhone: source.requirePhone,
     reserveEnabled: source.reserveEnabled,
     goalkeeperSlotsReserved: source.goalkeeperSlotsReserved,
     maxGoalkeepers: source.maxGoalkeepers,

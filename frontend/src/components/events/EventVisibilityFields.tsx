@@ -20,12 +20,17 @@ import type { Visibility } from '@/types';
  * (`opisWidocznosciWGrupie()`), więc tu jej nie wymieniamy drugi raz.
  */
 export default function EventVisibilityFields({
-  visibility, setVisibility, requireApproval, setRequireApproval, grupaNazwa, liczbaCzlonkowGrupy,
+  visibility, setVisibility, requireApproval, setRequireApproval, requirePhone, setRequirePhone,
+  grupaNazwa, liczbaCzlonkowGrupy,
 }: {
   visibility: Visibility;
   setVisibility: (v: Visibility) => void;
   requireApproval: boolean;
   setRequireApproval: (v: boolean) => void;
+  /** „Wymagaj numeru telefonu” (migracja `193`). Stoi przy akceptacji, bo to
+   *  ta sama rodzina decyzji: kto i na jakich warunkach wchodzi do składu. */
+  requirePhone: boolean;
+  setRequirePhone: (v: boolean) => void;
   /** Gdy mecz jest przypięty do grupy — dokłada zdanie o tym, kto naprawdę go
    *  zobaczy. Bez tego „Prywatne" wygląda jak obietnica, której RLS nie
    *  dotrzymuje: cała ekipa i tak widzi mecz na liście grupy. */
@@ -63,13 +68,19 @@ export default function EventVisibilityFields({
         <p className="mt-2 text-xs text-slate-500">{opisGrupy}</p>
       )}
 
-      {/* Approval toggle — applies to both public and private events */}
-      <div className="mt-3 rounded-lg border border-slate-200 px-4">
+      {/* Approval + phone toggles — apply to both public and private events */}
+      <div className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200 px-4">
         <ToggleRow
           label="Wymagaj akceptacji"
           desc="Każdą prośbę o dołączenie zatwierdzasz ręcznie, zanim gracz wejdzie do składu"
           checked={requireApproval}
           onChange={setRequireApproval}
+        />
+        <ToggleRow
+          label="Wymagaj numeru telefonu"
+          desc="Zapisze się tylko ktoś, kto poda numer. Zobaczysz go przy nazwisku w składzie, żeby zadzwonić w sprawie meczu"
+          checked={requirePhone}
+          onChange={setRequirePhone}
         />
       </div>
     </div>

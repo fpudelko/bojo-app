@@ -44,6 +44,8 @@ export interface EventDraftValues {
   description: string;
   visibility: Visibility;
   requireApproval: boolean;
+  /** Opcjonalne: szkice zapisane przed migracją `193` go nie mają. */
+  requirePhone?: boolean;
   organizerParticipates: boolean;
   organizerRole: 'field' | 'gk';
   costPln: string;

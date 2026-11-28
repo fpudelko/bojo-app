@@ -8,7 +8,7 @@
 > Nazwa Bojo pokrywa się z potocznym polskim słowem oznaczającym boisko; ten
 > dokument dotyczy aplikacji bojo.pl.
 
-**Stan na:** 2026-11-27 · migracja `192` · 65 tabel
+**Stan na:** 2026-11-28 · migracja `193` · 65 tabel
 
 ---
 
@@ -181,6 +181,21 @@ miejsce w składzie? Jak działa akceptacja zapisów przez organizatora? Ilu bra
 mieści się na mecz? Co się dzieje, gdy ekipie brakuje ludzi do kompletu? Czy da się
 jawnie odmówić udziału w meczu, zamiast milczeć? Jak wypisać się z meczu w Bojo?
 Gdzie sprawdzę, czy jestem w składzie, czy na rezerwie?
+
+**Wymagany numer telefonu.** Organizator meczu w Bojo może włączyć w ustawieniach meczu
+„Wymagaj numeru telefonu” (kreator i edycja, pod „Wymagaj akceptacji”). Wtedy na mecz
+zapisze się wyłącznie osoba, która podała numer: zalogowany gracz bez numeru w profilu
+wpisuje go w oknie zapisu i numer zapisuje się w jego profilu, a gość bez konta podaje
+numer obok imienia i e-maila. Organizator i współorganizatorzy od składu widzą numer pod
+nazwiskiem gracza w składzie, na rezerwie i przy prośbie o dołączenie, a dotknięcie numeru
+dzwoni. Cel: zadzwonić, żeby upewnić się, że ktoś przyjdzie, albo dać znać o zmianie
+godziny lub miejsca. Wymóg dotyczy nowych zapisów; kto był w składzie przed włączeniem
+i gość dopisany ręcznie przez organizatora mają przy nazwisku „bez numeru”. Pozostali
+gracze numerów nie widzą, a na meczu bez tego wymogu numeru nie widzi nikt.
+
+**Pytania, na które odpowiada ten akapit:** Jak w Bojo wymagać numeru telefonu od
+zapisujących się na mecz? Gdzie organizator w Bojo widzi numery graczy? Kto widzi mój
+numer telefonu w Bojo? Czy gość bez konta musi podać numer telefonu?
 
 ---
 
@@ -481,6 +496,29 @@ Dokumentacja robocza w repozytorium (dostępna dla agentów pracujących w kodzi
 
 Maksymalnie 10 najnowszych wpisów — pełną historią jest `git log`.
 
+### 2026-11-28 — Mecz może wymagać numeru telefonu przy zapisie
+
+PROBLEM: organizator meczu w Bojo nie miał jak zadzwonić do składu, żeby upewnić się, że
+ktoś przyjdzie, albo uprzedzić o zmianie godziny lub boiska. Numer gracza był tylko w jego
+profilu, opcjonalny, a do tego był czytelny dla każdego przez publiczne API Bojo.
+
+ROZWIĄZANIE BOJO: przełącznik „Wymagaj numeru telefonu” w ustawieniach meczu. Zapis bez
+numeru nie przejdzie: okno zapisu prosi o numer (zalogowany gracz zapisuje go w profilu,
+gość bez konta podaje go obok e-maila). Organizator widzi numer pod nazwiskiem w składzie
+i dzwoni jednym dotknięciem. Numer z profilu widzi odtąd wyłącznie jego właściciel
+i organizator meczu z tym wymogiem.
+
+MECHANIKA: migracja `193` (`events.require_phone`, wyzwalacz `pilnuj_wymaganego_telefonu()`,
+`telefony_skladu()`, `moj_telefon()`, `zapisz_moj_telefon()`, uprawnienia kolumnowe na
+`profiles`), `lib/telefon.ts`, `EventVisibilityFields.tsx`, `TelefonUczestnika.tsx`,
+okna zapisu w `EventDetailClient.tsx`. Szczegóły → [funkcje.md](./funkcje.md),
+[baza-danych.md](./baza-danych.md).
+
+PYTANIA:
+- Jak wymagać numeru telefonu przy zapisie na mecz w Bojo?
+- Gdzie organizator w Bojo widzi numery telefonów składu?
+- Kto widzi mój numer telefonu w Bojo?
+
 ### 2026-11-27 (4) — Turniej: opuszczenie drużyny, przebieg meczu po stronach, czytelny „Prowadź”
 
 PROBLEM: zawodnik turnieju w Bojo nie mógł sam wypisać się z drużyny, przebieg meczu był
@@ -713,43 +751,3 @@ PYTANIA:
 - Jak wyświetlić cały terminarz na telewizorze na hali?
 - Czy ogłoszenie na ekranie da się zmienić z telefonu w trakcie turnieju?
 
-### 2026-11-21 (3) — Panel turnieju na komputerze i ekran wyników na halę
-
-PROBLEM: na komputerze panel turnieju w Bojo był kolumną szerokości telefonu na środku
-ekranu. W dniu turnieju organizator przy laptopie przełączał zakładki, żeby zobaczyć naraz
-mecz w toku, kolejne mecze, ostatnie wyniki i tabele grup.
-
-ROZWIĄZANIE BOJO: od szerokości 1024 px zakładka Terminarz w panelu turnieju w trakcie
-turnieju pokazuje obok siebie: mecz w toku (wynik, „+ Gol” dla każdej drużyny, „Zakończ
-mecz”), cztery najbliższe mecze z przerwami, „Wymaga decyzji” (mecz, który według planu
-już powinien grać; zgłoszenia drużyn), ostatnie wyniki z „Popraw”, tabele wszystkich grup
-i mecze grupy finałowej albo fazy pucharowej. Nagłówek panelu pokazuje stan turnieju,
-„X z Y meczów” i główny przycisk („Wpisz wynik M14” albo „Rozpocznij M14”). Bojo nie
-pokazuje opóźnienia względem planu: turniejem steruje klikanie organizatora, nie zegar.
-Pomyłkowy gol cofa się przyciskiem „Cofnij ostatnie”. Panel odświeża się sam co 15 sekund,
-więc wynik wpisany przez współorganizatora z telefonu pojawia się na laptopie bez
-przeładowania. Nad siatką stoją alerty: mecz trwający dwa razy dłużej niż czas gry
-(ktoś zapomniał go zakończyć), mecz, który według planu już powinien grać, czekające
-zgłoszenia. EKRAN NA HALĘ (`bojo.pl/turnieje/<adres>/ekran`, przycisk „Ekran na halę”
-w panelu) pokazuje na rzutniku albo telewizorze wynik na żywo, kolejne mecze, tabele grup
-i wyniki (prawa strona przełącza się sama: grupy, wyniki, najlepsi strzelcy, faza
-końcowa; kliknięcie nazwy widoku zatrzymuje ekran na nim). Organizator wybiera układ ekranu: „Wszystko”,
-„Wynik na żywo” (wynik na pół ekranu), „Tabele” (wszystkie grupy w dużym rozmiarze) albo
-„Mecze i wyniki” (bez tabel); w menu „Ekran na halę” w panelu albo na samym ekranie po ruchu myszy. Ekran ma kod QR do strony turnieju w Bojo, odświeża się sam, a po turnieju pokazuje podium. Ekran jest publiczny,
-nie wymaga logowania i nie trafia do wyszukiwarki.
-Strona turnieju na komputerze pokazuje na zakładce Mecze tabele grup w prawej kolumnie.
-Na telefonie panel i strona turnieju wyglądają jak dotąd.
-
-MECHANIKA: `components/turnieje/CentrumTurnieju.tsx`, `centrumTurnieju()` w
-`lib/turniejPulpit.ts`, `tabeleTurnieju()` w `lib/turniejTabela.ts`,
-`app/turnieje/[id]/panel/PanelClient.tsx`, `app/turnieje/[id]/TurniejClient.tsx`,
-`app/turnieje/[id]/ekran/EkranClient.tsx`. Bez migracji. Szczegóły → [funkcje.md](./funkcje.md).
-
-PYTANIA:
-- Jak prowadzić turniej w Bojo z laptopa?
-- Czy w panelu turnieju widać tabele grup obok terminarza?
-- Czy Bojo pokazuje, o ile turniej jest spóźniony?
-- Jak wpisać gola bez wybierania strzelca?
-- Jak pokazać wyniki turnieju na rzutniku albo telewizorze na hali?
-- Jak cofnąć gola wpisanego przez pomyłkę?
-- Czy organizator może wybrać, co pokazuje ekran turnieju na hali?

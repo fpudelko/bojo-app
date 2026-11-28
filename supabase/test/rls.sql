@@ -2405,6 +2405,98 @@ END $$;
 RESET ROLE;
 DELETE FROM turnieje WHERE id = :LK_T::uuid;
 
+SELECT _sekcja('Wymagany numer telefonu (migracja 193)');
+
+-- Numer z profilu był do `193` czytelny dla KAŻDEGO (polityka `USING (true)`
+-- bez ograniczenia kolumn). Ta asercja pilnuje, żeby nie wrócił — także przez
+-- `select('*')`, który ma się wywalić głośno, nie oddać numer po cichu.
+UPDATE profiles SET phone = '+48500600700', phone_consent = true
+ WHERE id = :UCZESTNIK::uuid;
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj_odmowe('anon NIE czyta numeru z profilu',
+  format('SELECT phone FROM profiles WHERE id = %L', :UCZESTNIK));
+SELECT _oczekuj_odmowe('anon NIE pobierze profilu przez select(*)',
+  format('SELECT * FROM profiles WHERE id = %L', :UCZESTNIK));
+SELECT _oczekuj('anon NADAL czyta imię i awatar z profilu',
+                (SELECT count(*) FROM (SELECT display_name, avatar_url FROM profiles
+                                        WHERE id = :UCZESTNIK::uuid) s), 1);
+RESET ROLE;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_odmowe('zalogowany NIE czyta cudzego numeru z profilu',
+  format('SELECT phone FROM profiles WHERE id = %L', :UCZESTNIK));
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT _oczekuj('własny numer czyta się przez moj_telefon()',
+                (SELECT count(*) FROM moj_telefon() WHERE phone = '+48500600700'), 1);
+RESET ROLE;
+
+\set MECZ_TEL '''bbbbbbbb-0000-4000-8000-000000000193'''
+INSERT INTO events (id, organizer_id, organizer_name, sport, field_name, event_date,
+                    event_time, max_players, visibility, require_phone)
+VALUES (:MECZ_TEL::uuid, :ORGANIZATOR::uuid, 'Ola Organizatorka', 'piłka nożna', 'Boisko RLS tel.',
+        CURRENT_DATE + 5, '20:00', 10, 'public', true);
+UPDATE profiles SET phone = NULL, phone_consent = false WHERE id = :OBCY::uuid;
+
+SET ROLE authenticated;
+-- Bez numeru — odbity, i to przez KAŻDĄ drogę do składu, nie tylko „Dołącz".
+SELECT set_config('request.jwt.claim.sub', :OBCY, false);
+SELECT _oczekuj_wyjatek('gracz BEZ numeru nie zapisze się (dolacz_do_meczu)',
+  format('SELECT * FROM dolacz_do_meczu(%L, %L)', :MECZ_TEL, 'Obcy'));
+SELECT _oczekuj_wyjatek('gracz BEZ numeru nie wstawi wiersza z pominięciem funkcji',
+  format('INSERT INTO event_participants (event_id, user_id, name) VALUES (%L, %L, %L)',
+         :MECZ_TEL, :OBCY, 'Obcy'));
+-- „Obserwuję" to nie udział — przechodzi. Przejście na „gram" już nie.
+INSERT INTO event_participants (event_id, user_id, name, is_reserve, rsvp)
+VALUES (:MECZ_TEL::uuid, :OBCY::uuid, 'Obcy', true, 'maybe');
+SELECT _oczekuj_wyjatek('obserwujący BEZ numeru nie przejdzie na „gram"',
+  format('UPDATE event_participants SET rsvp = %L WHERE event_id = %L AND user_id = %L',
+         'yes', :MECZ_TEL, :OBCY));
+-- Z numerem — wchodzi.
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT * FROM dolacz_do_meczu(:MECZ_TEL::uuid, 'Ula Uczestniczka');
+-- Organizator dopisuje gościa bez numeru — wolno, to nie jest zapis.
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+INSERT INTO event_participants (event_id, user_id, name, is_guest, added_by)
+VALUES (:MECZ_TEL::uuid, NULL, 'Kolega z WhatsAppa', true, :ORGANIZATOR::uuid);
+RESET ROLE;
+SELECT _oczekuj('w składzie: gracz z numerem + gość dopisany przez organizatora',
+                (SELECT count(*) FROM event_participants
+                  WHERE event_id = :MECZ_TEL::uuid AND rsvp = 'yes'), 2);
+
+-- Gość bez konta: bez numeru odbity, z numerem wchodzi.
+SET ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT _oczekuj_wyjatek('gość BEZ numeru nie zapisze się',
+  format('SELECT * FROM dolacz_do_meczu_jako_goscie(%L, %L, %L)',
+         :MECZ_TEL, 'Gosia Gość', 'gosia-tel@example.com'));
+SELECT _oczekuj_wyjatek('gość ze śmieciem zamiast numeru nie zapisze się',
+  format('SELECT * FROM dolacz_do_meczu_jako_goscie(%L, %L, %L, p_telefon => %L)',
+         :MECZ_TEL, 'Gosia Gość', 'gosia-tel@example.com', 'abc'));
+SELECT * FROM dolacz_do_meczu_jako_goscie(:MECZ_TEL::uuid, 'Gosia Gość',
+                                          'gosia-tel@example.com', p_telefon => '600 700 800');
+RESET ROLE;
+
+-- Numery widzi organizator, i tylko on.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj('organizator widzi numery: gracza z profilu i gościa',
+                (SELECT count(*) FROM telefony_skladu(:MECZ_TEL::uuid)), 2);
+SELECT set_config('request.jwt.claim.sub', :UCZESTNIK, false);
+SELECT _oczekuj('uczestnik NIE widzi numerów reszty składu',
+                (SELECT count(*) FROM telefony_skladu(:MECZ_TEL::uuid)), 0);
+-- Zwykły mecz nie ujawnia nikomu niczego, nawet organizatorowi.
+SELECT set_config('request.jwt.claim.sub', :ORGANIZATOR, false);
+SELECT _oczekuj('na meczu BEZ wymogu organizator nie dostaje numerów',
+                (SELECT count(*) FROM telefony_skladu(:MECZ::uuid)), 0);
+RESET ROLE;
+SET ROLE anon;
+SELECT _oczekuj_odmowe('anon nie woła telefony_skladu()',
+  format('SELECT * FROM telefony_skladu(%L)', :MECZ_TEL));
+RESET ROLE;
+DELETE FROM events WHERE id = :MECZ_TEL::uuid;
+UPDATE profiles SET phone = NULL, phone_consent = false WHERE id = :UCZESTNIK::uuid;
+
 SELECT _sekcja('Każda tabela w public ma włączone RLS');
 DO $$
 DECLARE

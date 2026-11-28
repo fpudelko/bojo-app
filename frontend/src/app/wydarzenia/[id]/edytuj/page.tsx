@@ -101,6 +101,7 @@ export default function EditEventPage() {
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('private');
   const [requireApproval, setRequireApproval] = useState(false);
+  const [requirePhone, setRequirePhone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -161,6 +162,7 @@ export default function EditEventPage() {
         setDescription(ev.description ?? '');
         setVisibility(ev.visibility);
         setRequireApproval(ev.requireApproval);
+        setRequirePhone(ev.requirePhone);
         setRequireSmsConfirmation(ev.requireSmsConfirmation);
         setTeamMode(ev.teamMode);
         setShowPaymentStatus(ev.showPaymentStatus);
@@ -249,6 +251,7 @@ export default function EditEventPage() {
       reserveEnabled,
       visibility,
       requireApproval,
+      requirePhone,
       requireSmsConfirmation,
       teamMode,
       trackPayments: hasCost,
@@ -278,6 +281,7 @@ export default function EditEventPage() {
     maxPlayers: ev.maxPlayers,
     visibility: ev.visibility,
     requireApproval: ev.requireApproval,
+    requirePhone: ev.requirePhone,
     reserveEnabled: ev.reserveEnabled ?? true,
     goalkeepersEnabled: ev.goalkeepersEnabled ?? false,
     title: ev.title ?? '',
@@ -298,6 +302,7 @@ export default function EditEventPage() {
     maxPlayers: p.maxPlayers,
     visibility: p.visibility,
     requireApproval: p.requireApproval ?? false,
+    requirePhone: p.requirePhone ?? false,
     reserveEnabled: p.reserveEnabled ?? true,
     goalkeepersEnabled: p.goalkeepersEnabled ?? false,
     title: p.title ?? '',
@@ -684,6 +689,8 @@ export default function EditEventPage() {
             setVisibility={setVisibility}
             requireApproval={requireApproval}
             setRequireApproval={setRequireApproval}
+            requirePhone={requirePhone}
+            setRequirePhone={setRequirePhone}
           />
 
           {/* Advanced settings accordion — ustawienia bez odpowiednika w kreatorze */}

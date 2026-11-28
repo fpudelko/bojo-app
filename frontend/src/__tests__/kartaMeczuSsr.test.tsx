@@ -28,7 +28,7 @@ const mecz: EventItem = {
   createdAt: '2026-09-20T00:00:00Z', status: 'active', zapisyZamkniete: false,
   requireSmsConfirmation: false, teamMode: 'brak', trackPayments: false,
   showPaymentStatus: false, trackResults: false, confirmationDeadlineH: 24, costGrosze: 0,
-  teamsPublished: false, allowGuestAdds: false, joinCode: 'ABCDEF', requireApproval: false,
+  teamsPublished: false, allowGuestAdds: false, joinCode: 'ABCDEF', requireApproval: false, requirePhone: false,
   maxGoalkeepers: 2, goalkeeperSlotsReserved: true, goalkeepersEnabled: false,
   reserveClaimMinutes: 60, reserveEnabled: true, acceptedPaymentMethods: [], acceptedSportsCards: [],
   sportsCardDiscountGrosze: null,

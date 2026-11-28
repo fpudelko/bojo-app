@@ -53,6 +53,8 @@ import {
   syncReserveClaim, acceptReserveClaim, declineReserveClaim, wolneMiejscaWgRol, ofertyWToku,
   awansujZRezerwy, cofnijNaRezerwe, getWypisania, momentZapisu, czasRezerwyTekst,
 } from '@/lib/events';
+import { mojTelefon, zapiszMojTelefon, telefonySkladu, przygotujTelefon, czyBladBrakuTelefonu } from '@/lib/telefon';
+import TelefonUczestnika from '@/components/events/TelefonUczestnika';
 import { invitePlayers, odbiorcyPowtorki } from '@/lib/playerInvites';
 import {
   updateParticipantTeam, updateParticipantPayment, ustawPlatnoscWszystkim,
@@ -563,6 +565,15 @@ export default function EventDetailClient() {
   const [joinHasSportsCard, setJoinHasSportsCard] = useState(false);
   const [joinSportsCardProvider, setJoinSportsCardProvider] = useState<SportsCardProvider | undefined>(undefined);
   const [joinPaymentMethod, setJoinPaymentMethod] = useState<PaymentMethod | undefined>(undefined);
+  // „Wymagaj numeru telefonu” (migracja `193`). `undefined` = jeszcze nie
+  // wiadomo (nie pytaliśmy bazy), `null` = profil nie ma numeru — wtedy okno
+  // zapisu pokazuje pole, a numer zapisuje się w profilu przed samym zapisem.
+  const [mojNumer, setMojNumer] = useState<string | null | undefined>(undefined);
+  const [joinPhone, setJoinPhone] = useState('');
+  const [joinPhoneError, setJoinPhoneError] = useState<string | null>(null);
+  const [guestPhone, setGuestPhone] = useState('');
+  // Numery składu dla organizatora: id wpisu → numer (`telefony_skladu()`).
+  const [telefonySkladuMapa, setTelefonySkladuMapa] = useState<Record<string, string> | null>(null);
   // Guest self-signup
   const [guestName, setGuestName] = useState('');
   // OSOBNY stan od `guestName`, który jest współdzielony z oknem zapisu gościa
@@ -942,6 +953,33 @@ export default function EventDetailClient() {
       return true;
     });
   }, [event, user, myDelegate, participants]);
+
+  // Własny numer — tylko przy meczu, który go wymaga, i nie dla organizatora
+  // (strażnik w bazie go nie pyta). Na innych meczach nie ma po co pytać.
+  const wymagaTelefonuOdMnie = !!event?.requirePhone && !!user && user.id !== event?.organizerId;
+  useEffect(() => {
+    if (!wymagaTelefonuOdMnie) return;
+    let anulowane = false;
+    mojTelefon()
+      .then((t) => { if (!anulowane) setMojNumer(t.phone); })
+      .catch(() => { if (!anulowane) setMojNumer(null); });
+    return () => { anulowane = true; };
+  }, [wymagaTelefonuOdMnie]);
+
+  // Numery składu: organizator i delegat od składu, wyłącznie przy wymogu.
+  // Baza i tak odda pustą listę komuś innemu; warunek tutaj oszczędza tylko
+  // zapytanie. Zależy od `participants`, żeby nowy zapis od razu miał numer.
+  const widzeTelefonySkladu = !!event?.requirePhone && !!user
+    && (user.id === event?.organizerId || !!myDelegate?.canEdit || !!myDelegate?.canManageSquad);
+  useEffect(() => {
+    if (!widzeTelefonySkladu || !event) { setTelefonySkladuMapa(null); return; }
+    let anulowane = false;
+    telefonySkladu(event.id)
+      .then((m) => { if (!anulowane) setTelefonySkladuMapa(m); })
+      .catch((e) => console.warn('[telefony_skladu]', e));
+    return () => { anulowane = true; };
+  }, [widzeTelefonySkladu, event, participants]);
+
   const gestSwipe = useSwipeZakladek(widoczneZakladkiObiekty.map(([t]) => t), tab, goToTab);
 
   if (loading) {
@@ -1294,6 +1332,35 @@ export default function EventDetailClient() {
     finally { setBusy(false); }
   };
 
+  /** Okno zapisu przy meczu z wymogiem numeru, gdy profil numeru nie ma:
+   *  sprawdza numer z pola i zapisuje go w profilu, ZANIM okno się zamknie.
+   *  Zwraca `false`, gdy trzeba zostać w oknie (zły numer, błąd zapisu). */
+  const upewnijSieNumeru = async (): Promise<boolean> => {
+    if (!wymagaTelefonuOdMnie || mojNumer) return true;
+    setJoinPhoneError(null);
+    let numer: string | null;
+    try {
+      numer = przygotujTelefon(joinPhone);
+    } catch (e) {
+      setJoinPhoneError(e instanceof Error ? e.message : 'Nieprawidłowy numer');
+      return false;
+    }
+    if (!numer) {
+      setJoinPhoneError('Podaj numer telefonu, organizator tego meczu go wymaga.');
+      return false;
+    }
+    try {
+      // Zgoda = świadome podanie numeru w oknie, które mówi wprost, kto go
+      // zobaczy i po co. Ta sama zgoda, którą `/profil` zbiera checkboxem.
+      await zapiszMojTelefon(numer, true);
+      setMojNumer(numer);
+      return true;
+    } catch (e) {
+      setJoinPhoneError(e instanceof Error ? e.message : 'Nie udało się zapisać numeru');
+      return false;
+    }
+  };
+
   const handleJoin = async (asGoalkeeper = false) => {
     if (!user) return;
     setBusy(true);
@@ -1336,6 +1403,14 @@ export default function EventDetailClient() {
       // wołamy oba i pozwalamy im zdecydować.
       zaproponujPowiadomienia();
     } catch (e) {
+      // Baza odbiła zapis bez numeru (np. numer skasowany w innej karcie):
+      // wracamy do okna z polem zamiast zostawiać sam czerwony dymek.
+      if (czyBladBrakuTelefonu(e)) {
+        setMojNumer(null);
+        setJoinPhoneError('Podaj numer telefonu, organizator tego meczu go wymaga.');
+        setJoinDialogOpen(true);
+        return;
+      }
       toast(e instanceof Error ? e.message : 'Błąd', 'error');
     } finally { setBusy(false); }
   };
@@ -1350,12 +1425,19 @@ export default function EventDetailClient() {
         hasSportsCard: guestHasSportsCard,
         sportsCardProvider: guestSportsCardProvider,
       };
+      // Numer tylko przy meczu z wymogiem: gdzie indziej pole się nie
+      // pokazuje, więc nie ma czego wysyłać.
+      const numerGoscia = event.requirePhone ? przygotujTelefon(guestPhone) : null;
+      if (event.requirePhone && !numerGoscia) {
+        throw new Error('Podaj numer telefonu, organizator tego meczu go wymaga.');
+      }
       const result = await joinEventAsGuest(
         event.id,
         guestName,
         guestEmail,
         guestRole === 'goalkeeper',
         payment,
+        numerGoscia,
       );
       // Odśwież listę uczestników PRZED pokazaniem ekranu zachęty — bez tego
       // wpis w bazie się udawał, ale lokalny stan komponentu go nie widział,
@@ -3162,6 +3244,9 @@ export default function EventDetailClient() {
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-medium text-ink truncate">{p.name}</span>
                       {p.isGoalkeeper && <span className="text-[11px] text-slate-500">Bramkarz 🧤</span>}
+                      {/* Przy prośbie numer przydaje się najbardziej: można
+                          zadzwonić, ZANIM się kogoś przyjmie. */}
+                      {telefonySkladuMapa && <TelefonUczestnika telefon={telefonySkladuMapa[p.id]} />}
                     </span>
                     <div className="flex gap-1.5 shrink-0">
                       <button
@@ -3845,6 +3930,12 @@ export default function EventDetailClient() {
                           </span>
                         );
                       })()}
+                      {/* Numer do zadzwonienia (migracja `193`) — wyłącznie
+                          organizatorowi meczu z wymogiem numeru. Przy samym
+                          organizatorze nie ma czego pokazywać. */}
+                      {telefonySkladuMapa && p.userId !== event.organizerId && (
+                        <TelefonUczestnika telefon={telefonySkladuMapa[p.id]} />
+                      )}
                       {/* Gość może przejąć swój wpis po założeniu konta —
                           link jest jednorazowy i wędruje kanałem, który wybierze
                           wysyłający. Dopasowanie po imieniu byłoby fałszywą
@@ -3997,6 +4088,9 @@ export default function EventDetailClient() {
                               </span>
                             );
                           })()}
+                          {telefonySkladuMapa && p.userId !== event.organizerId && (
+                            <TelefonUczestnika telefon={telefonySkladuMapa[p.id]} className="ml-9" />
+                          )}
                           {/* KOGO KOLEJKA POMINIE. Oferta zwolnionego miejsca
                               idzie powiadomieniem (konto) albo mailem (gość
                               z adresem, od migracji `137`). Gość BEZ adresu
@@ -5218,6 +5312,36 @@ export default function EventDetailClient() {
               </p>
             )}
 
+            {/* „Wymagaj numeru telefonu” (migracja `193`). Mówi wprost, KTO
+                zobaczy numer i PO CO: to jest moment zgody, nie formalność. */}
+            {wymagaTelefonuOdMnie && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Numer telefonu</p>
+                {mojNumer ? (
+                  <p className="text-sm text-slate-600">
+                    Organizator zobaczy Twój numer <span className="font-semibold text-ink">{mojNumer}</span>, żeby zadzwonić w sprawie meczu.
+                  </p>
+                ) : (
+                  <>
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={joinPhone}
+                      onChange={(e) => { setJoinPhone(e.target.value); setJoinPhoneError(null); }}
+                      placeholder="np. 501234567"
+                      maxLength={16}
+                      className="w-full px-4 py-2.5 border border-slate-300 rounded-xl bg-white text-ink focus:ring-2 focus:ring-primary-500 outline-none"
+                    />
+                    {joinPhoneError && <p className="mt-1 text-xs text-red-600">{joinPhoneError}</p>}
+                    <p className="mt-1.5 text-[11px] text-slate-400">
+                      Organizator wymaga numeru, żeby móc zadzwonić w sprawie meczu (zmiana godziny, miejsca, czy wpadasz). Zobaczy go tylko organizator. Numer zapisze się w Twoim profilu, usuniesz go tam w każdej chwili.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Komplet w WYBRANEJ roli — zanim ktoś kliknie „Zapisz mnie".
                 Bez tego jedyną informacją o rezerwie był komunikat po zapisie,
                 a przy meczu z bramkarzami licznik „zostały 2 miejsca" mógł
@@ -5402,9 +5526,18 @@ export default function EventDetailClient() {
                 Anuluj
               </Button>
               <Button
-                onClick={() => { setJoinDialogOpen(false); handleJoin(joinRole === 'goalkeeper'); }}
+                onClick={async () => {
+                  // Numer sprawdzamy i zapisujemy PRZED zamknięciem okna:
+                  // błąd pod polem jest czytelny tylko wtedy, gdy pole widać.
+                  setBusy(true);
+                  const mamNumer = await upewnijSieNumeru();
+                  setBusy(false);
+                  if (!mamNumer) return;
+                  setJoinDialogOpen(false);
+                  handleJoin(joinRole === 'goalkeeper');
+                }}
                 isLoading={busy}
-                disabled={brakWyboruPlatnosci}
+                disabled={brakWyboruPlatnosci || (wymagaTelefonuOdMnie && mojNumer === undefined)}
                 className="flex-1 bg-primary-700 hover:bg-primary-800"
               >
                 Zapisz mnie
@@ -5479,6 +5612,27 @@ export default function EventDetailClient() {
                   })()}
                 </p>
               </div>
+              {event.requirePhone && (
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">
+                    Numer telefonu
+                  </label>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    placeholder="np. 501234567"
+                    maxLength={16}
+                    className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-ink focus:ring-2 focus:ring-primary-500 outline-none"
+                    disabled={guestBusy}
+                  />
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    Organizator wymaga numeru, żeby móc zadzwonić w sprawie meczu. Zobaczy go tylko organizator.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Komplet w wybranej roli — ta sama zapowiedź co w dialogu dla
@@ -5665,6 +5819,7 @@ export default function EventDetailClient() {
               const braki: string[] = [];
               if (!guestName.trim()) braki.push('imię');
               if (!guestEmail.trim()) braki.push('e-mail');
+              if (event.requirePhone && !guestPhone.trim()) braki.push('numer telefonu');
               if (event.costGrosze > 0 && !guestPaymentMethod) braki.push('sposób płatności');
               if (braki.length === 0) return null;
               const lista = braki.length === 1
@@ -5689,6 +5844,7 @@ export default function EventDetailClient() {
                 onClick={handleJoinAsGuest}
                 isLoading={guestBusy}
                 disabled={!guestName.trim() || !guestEmail.trim() || (event.costGrosze > 0 && !guestPaymentMethod)
+                  || (event.requirePhone && !guestPhone.trim())
                   || (guestRolaPelna && !event.reserveEnabled)}
                 className="flex-1 bg-primary-700 hover:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-700"
               >

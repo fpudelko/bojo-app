@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 import { hasManagedVenue } from '@/lib/api';
 import { ADMIN_LINKS } from '@/lib/adminLinks';
 import { validatePhone, normalizePhone } from '@/lib/validation';
+import { mojTelefon, zapiszMojTelefon } from '@/lib/telefon';
 import PowiadomieniaPush from '@/components/PowiadomieniaPush';
 import UstawieniaMaili from '@/components/UstawieniaMaili';
 import MojeAlerty from '@/components/profil/MojeAlerty';
@@ -53,20 +54,17 @@ export default function ProfilePage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Load phone from profile
+  // Load phone from profile. Through an RPC, not `from('profiles')`: since
+  // migration `193` the phone column is not readable via the API at all
+  // (before that, anyone could fetch every user's number).
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from('profiles')
-      .select('phone, phone_consent')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setPhone(data.phone ?? '');
-          setPhoneConsent(data.phone_consent ?? false);
-        }
-      });
+    mojTelefon()
+      .then((t) => {
+        setPhone(t.phone ?? '');
+        setPhoneConsent(t.phoneConsent);
+      })
+      .catch((e) => console.warn('[profil] moj_telefon', e));
   }, [user]);
 
   // "Moje obiekty" — przeniesione tu z nagłówka (patrz Header.tsx), bo
@@ -160,13 +158,8 @@ export default function ProfilePage() {
     setPhoneSaving(true);
     try {
       const normalized = trimmed ? normalizePhone(trimmed) : null;
-      await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          phone: normalized,
-          phone_consent: trimmed ? phoneConsent : false,
-        });
+      await zapiszMojTelefon(normalized, trimmed ? phoneConsent : false);
+      if (normalized) setPhone(normalized);
       setPhoneEditMode(false);
       setPhoneSaved(true);
       setTimeout(() => setPhoneSaved(false), 3000);

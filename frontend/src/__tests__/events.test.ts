@@ -114,6 +114,7 @@ describe('repeatEvent', () => {
     // po prostu POMIJAŁO te trzy pola: `createEvent` podstawiał wtedy domyślną,
     // a test tego nie widział, bo domyślna akurat pasowała.
     requireApproval: true,
+    requirePhone: true,
     maxGoalkeepers: 2, goalkeeperSlotsReserved: false, goalkeepersEnabled: false,
     reserveClaimMinutes: 120, reserveEnabled: false, acceptedPaymentMethods: [], acceptedSportsCards: [],
     sportsCardDiscountGrosze: null,
@@ -193,6 +194,8 @@ describe('repeatEvent', () => {
     expect(eventRow.require_approval).toBe(true);
     expect(eventRow.reserve_enabled).toBe(false);
     expect(eventRow.goalkeeper_slots_reserved).toBe(false);
+    // `193`: wymóg numeru telefonu to ta sama rodzina decyzji „kto wchodzi”.
+    expect(eventRow.require_phone).toBe(true);
   });
 });
 

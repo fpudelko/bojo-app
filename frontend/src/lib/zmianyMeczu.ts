@@ -49,6 +49,8 @@ export interface DaneDoPorownania {
   maxPlayers: number;
   visibility: Visibility;
   requireApproval: boolean;
+  /** Opcjonalne: brak = wyłączone (mecze sprzed migracji `193`). */
+  requirePhone?: boolean;
   reserveEnabled: boolean;
   goalkeepersEnabled: boolean;
   title: string;
@@ -59,7 +61,7 @@ export interface DaneDoPorownania {
 
 export type KluczZmiany =
   | 'termin' | 'miejsce' | 'koszt' | 'miejsca' | 'widocznosc'
-  | 'akceptacja' | 'rezerwa' | 'bramkarze' | 'tytul' | 'opis' | 'platnosci';
+  | 'akceptacja' | 'telefon' | 'rezerwa' | 'bramkarze' | 'tytul' | 'opis' | 'platnosci';
 
 export interface ZmianaPola {
   klucz: KluczZmiany;
@@ -196,6 +198,18 @@ export function policzZmiany(przed: DaneDoPorownania, po: DaneDoPorownania): Zmi
       etykieta: 'Akceptacja zapisów',
       przed: wlaczone(przed.requireApproval),
       po: wlaczone(po.requireApproval),
+      powiadamia: false,
+    });
+  }
+
+  // Bez powiadomienia, tak jak akceptacja: wymóg dotyczy WEJŚCIA, a kto już
+  // jest w składzie, zostaje w nim bez numeru (migracja `193`).
+  if ((przed.requirePhone ?? false) !== (po.requirePhone ?? false)) {
+    zmiany.push({
+      klucz: 'telefon',
+      etykieta: 'Numer telefonu przy zapisie',
+      przed: wlaczone(przed.requirePhone ?? false),
+      po: wlaczone(po.requirePhone ?? false),
       powiadamia: false,
     });
   }

@@ -146,6 +146,7 @@ function NewEventForm() {
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [requireApproval, setRequireApproval] = useState(false);
+  const [requirePhone, setRequirePhone] = useState(false);
   const [organizerParticipates, setOrganizerParticipates] = useState(true);
   const [organizerRole, setOrganizerRole] = useState<'field' | 'gk'>('field');
   const [submitting, setSubmitting] = useState(false);
@@ -343,6 +344,7 @@ function NewEventForm() {
         setDescription(v.description);
         setVisibility(v.visibility);
         setRequireApproval(v.requireApproval);
+        setRequirePhone(v.requirePhone ?? false);
         setOrganizerParticipates(v.organizerParticipates);
         setOrganizerRole(v.organizerRole);
         setCostPln(v.costPln);
@@ -382,7 +384,7 @@ function NewEventForm() {
       sport, location, nazwaWlasnaMiejsca,
       date, time, durationMin, czasWlasny, maxPlayers, maxPlayersTouched, minPlayers,
       goalkeepersEnabled, slotyZarezerwowane, reserveClaimMinutes, reserveEnabled, title, description, visibility,
-      requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt, kosztObiektuPln,
+      requireApproval, requirePhone, organizerParticipates, organizerRole, costPln, kosztZaObiekt, kosztObiektuPln,
       acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln, acceptedSportsCards,
       sportsCardOtherName, grupaId,
     });
@@ -390,7 +392,7 @@ function NewEventForm() {
     hydrated, submitting, step, sport, location, nazwaWlasnaMiejsca,
     date, time, durationMin, czasWlasny, maxPlayers,
     maxPlayersTouched, minPlayers, goalkeepersEnabled, slotyZarezerwowane, reserveClaimMinutes, reserveEnabled, title, description,
-    visibility, requireApproval, organizerParticipates, organizerRole, costPln, kosztZaObiekt,
+    visibility, requireApproval, requirePhone, organizerParticipates, organizerRole, costPln, kosztZaObiekt,
     kosztObiektuPln, acceptedPaymentMethods, blikPhone, cardDiscountEnabled, cardDiscountPln,
     acceptedSportsCards, sportsCardOtherName, grupaId,
   ]);
@@ -680,6 +682,7 @@ function NewEventForm() {
             ? sportsCardOtherName
             : undefined,
           requireApproval,
+          requirePhone,
           groupId: grupaId,
         },
         user.id,
@@ -1246,6 +1249,8 @@ function NewEventForm() {
                 setVisibility={setVisibility}
                 requireApproval={requireApproval}
                 setRequireApproval={setRequireApproval}
+                requirePhone={requirePhone}
+                setRequirePhone={setRequirePhone}
                 grupaNazwa={groupName ?? undefined}
                 liczbaCzlonkowGrupy={groupMemberCount}
               />
@@ -1428,6 +1433,7 @@ function NewEventForm() {
                       acceptedSportsCards,
                       visibility,
                       requireApproval,
+                      requirePhone,
                     })}
                     naKrok={(krok) => { setPodgladOtwarty(false); attemptGoToStep(krok); }}
                     nazwaOrganizatora={displayName(user)}

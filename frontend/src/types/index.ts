@@ -199,6 +199,9 @@ export interface EventItem {
   allowGuestAdds: boolean;
   joinCode: string;
   requireApproval: boolean;
+  /** Zapis wymaga numeru telefonu (migracja `193`). Organizator widzi numery
+   *  składu przez `telefonySkladu()`; pilnuje tego wyzwalacz w bazie. */
+  requirePhone: boolean;
   coverImageUrl?: string;
   /** Max goalkeepers before extras overflow to reserve (football). Default 2. */
   maxGoalkeepers: number;
@@ -323,6 +326,7 @@ export interface EventCreate {
   confirmationDeadlineH?: number;
   costGrosze?: number;
   requireApproval?: boolean;
+  requirePhone?: boolean;
   groupId?: string;
   maxGoalkeepers?: number;
   goalkeeperSlotsReserved?: boolean;

@@ -58,6 +58,8 @@ export interface DanePodsumowania {
   acceptedSportsCards: SportsCardProvider[];
   visibility: Visibility;
   requireApproval: boolean;
+  /** Opcjonalne, bo podgląd w edycji i starsze wywołania go nie podają. */
+  requirePhone?: boolean;
 }
 
 /** „18:00" + 90 → „19:30"; null, gdy przekroczyłoby północ (tak samo jak
@@ -186,7 +188,11 @@ export function zbudujPodsumowanie(v: DanePodsumowania): WierszPodsumowania[] {
   wiersze.push({
     klucz: 'widocznosc',
     etykieta: 'Kto widzi',
-    wartosc: v.requireApproval ? `${widocznosc} · zatwierdzasz każdy zapis` : widocznosc,
+    wartosc: [
+      widocznosc,
+      v.requireApproval ? 'zatwierdzasz każdy zapis' : null,
+      v.requirePhone ? 'zapis wymaga numeru telefonu' : null,
+    ].filter(Boolean).join(' · '),
     krok: KROK_KREATORA.widocznosc,
   });
 
