@@ -1123,7 +1123,7 @@ export default function TurniejClient() {
                       Grupa {grupa.nazwa}{grupa.finalowa ? ' (finałowa)' : ''}
                     </h2>
                   )}
-                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa && !grupa.finalowa ? turniej.awansujeZGrupy : undefined} mojaDruzynaId={mojaDruzyna?.id} />
+                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa && !grupa.finalowa ? turniej.awansujeZGrupy : undefined} mojaDruzynaId={mojaDruzyna?.id} hrefDruzyny={(dId) => `/turnieje/${adresTurnieju ?? id}/druzyna/${dId}`} />
                 </div>
               ))}
               <button
@@ -1158,7 +1158,7 @@ export default function TurniejClient() {
                 {grupa?.finalowa ? (
                   <>
                     {wiersze.length > 0 ? (
-                      <TabelaGrupy wiersze={wiersze} komentarz={grupa?.komentarz} mojaDruzynaId={mojaDruzyna?.id} />
+                      <TabelaGrupy wiersze={wiersze} komentarz={grupa?.komentarz} mojaDruzynaId={mojaDruzyna?.id} hrefDruzyny={(dId) => `/turnieje/${adresTurnieju ?? id}/druzyna/${dId}`} />
                     ) : (
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         Drużyny wejdą tu po rozstrzygnięciu swoich grup.
@@ -1174,7 +1174,7 @@ export default function TurniejClient() {
                     </div>
                   </>
                 ) : (
-                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} komentarz={grupa?.komentarz} mojaDruzynaId={mojaDruzyna?.id} />
+                  <TabelaGrupy wiersze={wiersze} awansujeZGrupy={grupa ? turniej.awansujeZGrupy : undefined} komentarz={grupa?.komentarz} mojaDruzynaId={mojaDruzyna?.id} hrefDruzyny={(dId) => `/turnieje/${adresTurnieju ?? id}/druzyna/${dId}`} />
                 )}
                 {grupa && !grupa.finalowa && (
                   <MeczeGrupy

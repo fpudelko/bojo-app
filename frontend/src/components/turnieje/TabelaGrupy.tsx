@@ -2,10 +2,14 @@
 // przez `posortujTabele()` (lib/turniejTabela.ts). Kolumny skrócone (M/Z/R/P/B/Pkt)
 // z pełnym opisem w `title`, żeby zmieściła się na najmniejszym telefonie bez
 // przewijania w bok.
+import Link from 'next/link';
 import type { WierszTabeli } from '@/types';
 import { miejscaWTabeli } from '@/lib/turniejTabela';
 
 export interface TabelaGrupyProps {
+  /** Adres ekranu drużyny: nazwa w tabeli staje się odnośnikiem (2026-11-28).
+   *  Bez tej funkcji nazwa jest zwykłym tekstem (np. na ekranie na halę). */
+  hrefDruzyny?: (druzynaId: string) => string;
   wiersze: readonly WierszTabeli[];
   /** Drużyna zalogowanego: obwódka wiersza i nazwa w kolorze marki, bez napisu (2026-11-25). */
   mojaDruzynaId?: string;
@@ -29,7 +33,7 @@ export interface TabelaGrupyProps {
   komentarz?: string;
 }
 
-export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt, komentarz, mojaDruzynaId }: TabelaGrupyProps) {
+export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt, komentarz, mojaDruzynaId, hrefDruzyny }: TabelaGrupyProps) {
   if (wiersze.length === 0) {
     return <p className="py-6 text-center text-sm text-slate-400">Jeszcze żaden mecz nie został rozegrany.</p>;
   }
@@ -80,7 +84,11 @@ export default function TabelaGrupy({ wiersze, awansujeZGrupy, kompakt, komentar
                 {miejsca[i]}
               </td>
               <td className={`min-w-0 ${kompakt ? '' : 'max-w-[9rem]'} break-words px-2 py-2.5 leading-5 ${w.druzynaId === mojaDruzynaId ? 'font-bold text-primary-800 dark:text-primary-300' : 'font-medium text-ink'}`}>
-                {w.nazwa}
+                {hrefDruzyny ? (
+                  <Link prefetch={false} href={hrefDruzyny(w.druzynaId)} className="underline decoration-slate-300 decoration-dotted underline-offset-4 hover:text-primary-700 dark:decoration-slate-600">
+                    {w.nazwa}
+                  </Link>
+                ) : w.nazwa}
                 {w.rozstrzygnietyRecznie && <span className="ml-1 text-xs text-slate-400" title="Pozycja ustawiona ręcznie">*</span>}
               </td>
               <td className="px-1.5 py-2 text-center text-slate-600 dark:text-slate-300">{w.mecze}</td>

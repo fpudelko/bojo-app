@@ -5392,6 +5392,9 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
   spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,
   „Walkower”, „Odwołany” i „Wolny los” zastępują godzinę w prawym rogu.
+- **Klikalne drużyny w tabeli (2026-11-28):** na stronie turnieju nazwa drużyny w tabeli grupy
+  (`TabelaGrupy.tsx`, prop `hrefDruzyny`) prowadzi na ekran drużyny; ekran na halę zostaje bez
+  odnośników.
 - **„Prowadź”: kolejne mecze obok meczu w toku (2026-11-28):** od `lg` `CentrumTurnieju.tsx`
   stawia kartę „Teraz” po lewej i „Następne do rozegrania” po prawej; rozegrane i faza końcowa
   pod spodem na całą szerokość. Na telefonie kolejność bez zmian.
