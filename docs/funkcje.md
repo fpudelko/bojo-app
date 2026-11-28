@@ -5306,6 +5306,11 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   przesunięty widok i dotknięcia trafiały obok przycisków („nie da się wyjść”). Esc zamyka okno.
   Prośba kapitana o wycofanie drużyny (`DruzynaClient.tsx`) też wymaga wpisania nazwy drużyny,
   jak wycofanie przez organizatora.
+- **Ekran turnieju: „Najbliższe przerwy” osobno (2026-11-28):** w `EkranClient.tsx` przerwy, które
+  wypadają po ostatnim pokazanym meczu w „Kolejne mecze”, stoją pod osobnym nagłówkiem „Najbliższe
+  przerwy” (wcześniej doklejone pod meczami czytały się jak „zaraz po nich”); lista meczów skraca
+  się o tyle, żeby sekcja się zmieściła (co najmniej dwa mecze). Przerwa między pokazanymi meczami
+  zostaje na swoim miejscu.
 - **Moja drużyna i grupa pierwsze (2026-11-28):** na stronie turnieju zalogowany, który gra
   w drużynie, widzi w zakładce Drużyny swoją grupę jako pierwszą i swoją drużynę na górze tej
   grupy; w tabelach jego grupa stoi pierwsza (wiersze tabeli zostają po miejscach).
