@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
@@ -8,6 +8,7 @@ import Header from '@/components/layout/Header';
 import AuthForm from '@/components/auth/AuthForm';
 import LoginBackdrop from '@/components/auth/LoginBackdrop';
 import { useAuth } from '@/lib/auth';
+import { bezpiecznyCel, odbierzPowrot, ostatniZamierzonyCel } from '@/lib/powrotPoLogowaniu';
 
 /**
  * Header, ale bierny — dokładnie ten sam wzorzec co `LoginBackdrop.tsx`.
@@ -41,7 +42,17 @@ function HeaderBierny() {
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get('next') || undefined;
+  // CEL Z ADRESU, A BEZ NIEGO ZAPAMIĘTANY (2026-11-28, zgłoszenie właściciela:
+  // „kapitan z kodu QR zalogował się i zamiast przejęcia drużyny zobaczył Moje
+  // mecze”). Ktoś, kto otworzył link kapitana albo drużyny, a potem wszedł
+  // w logowanie inną drogą (przycisk w nagłówku, nowa karta), trafiał tu bez
+  // `?next=` i lądował na `/moje-gry`. Link zapamiętany przy wejściu na
+  // `/k/…` i `/t/…` jest celem także wtedy. Odczyt raz, po montażu, żeby
+  // formularz i przekierowanie zalogowanego szły w TO SAMO miejsce.
+  const nextZAdresu = params.get('next');
+  const [zapamietany, setZapamietany] = useState<string | null>(null);
+  useEffect(() => { setZapamietany(ostatniZamierzonyCel()); }, []);
+  const next = (bezpiecznyCel(nextZAdresu) ? nextZAdresu : null) ?? zapamietany ?? undefined;
   // ?mode=rejestracja przychodzi z przycisku „Dołącz" w nagłówku — otwiera
   // od razu zakładanie konta zamiast logowania.
   const initialMode = params.get('mode') === 'rejestracja' ? 'signup' : 'signin';
@@ -50,7 +61,9 @@ function LoginInner() {
   const { user, loading } = useAuth();
 
   useEffect(() => {
-    if (!loading && user) router.replace(next || '/moje-gry');
+    // Już zalogowany: cel odbieramy (i kasujemy) tu, w efekcie, bo stan
+    // `zapamietany` mógł się jeszcze nie wczytać.
+    if (!loading && user) router.replace(next || odbierzPowrot() || '/moje-gry');
   }, [user, loading, next, router]);
 
   if (loading || user) {

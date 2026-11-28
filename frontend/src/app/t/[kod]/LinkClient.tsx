@@ -7,6 +7,7 @@ import { CalendarDays, Loader2, MapPin, Users } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
+import { adresRejestracjiZLinku, pilnujPowrotu } from '@/lib/powrotPoLogowaniu';
 import { useToast } from '@/lib/toast';
 import { validateName } from '@/lib/validation';
 import { displayName } from '@/lib/profileName';
@@ -48,6 +49,11 @@ export default function DolaczDoDruzynyPage() {
       .finally(() => { if (aktualne) setLadowanie(false); });
     return () => { aktualne = false; };
   }, [kod]);
+
+  // Link drużyny jest celem po KAŻDYM logowaniu, nie tylko po przycisku niżej.
+  useEffect(() => {
+    if (!loading && druzyna) pilnujPowrotu(`/t/${kod}`, !!user);
+  }, [loading, druzyna, user, kod]);
 
   const wykonaj = async (opcje: Parameters<typeof dolaczDoDruzyny>[1]) => {
     setWTrakcie(true);
@@ -146,7 +152,7 @@ export default function DolaczDoDruzynyPage() {
           <h1 className="mb-5 font-display text-2xl font-bold text-ink">{druzyna.nazwa}</h1>
           {wizytowka}
           <div className="mt-5">
-            <Link prefetch={false} href={`/logowanie?next=${encodeURIComponent(`/t/${kod}`)}`}>
+            <Link prefetch={false} href={adresRejestracjiZLinku(`/t/${kod}`, 'druzyna')}>
               <Button className="w-full">Dołącz do drużyny</Button>
             </Link>
             <p className="mt-2 text-xs text-slate-400">

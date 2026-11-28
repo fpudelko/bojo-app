@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
+import { odbierzPowrot } from '@/lib/powrotPoLogowaniu';
 
 /**
  * There is still no server-side session (Supabase keeps it in localStorage,
@@ -46,7 +47,13 @@ export default function HomeSwitch({ hint, landing, skeleton }: {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && user) router.replace('/moje-gry');
+    // ZAPAMIĘTANY CEL WYGRYWA Z „MOIMI MECZAMI” (2026-11-28). Gdy Supabase nie
+    // przyjmie naszego `redirectTo`, po logowaniu Google ląduje się tutaj,
+    // na „/”. Siatka w `lib/auth.tsx` (SIGNED_IN na „/”) przegrywała wyścig
+    // z tym efektem: zalogowany był już przerzucony na `/moje-gry`, zanim
+    // zdarzenie doszło, więc kapitan z kodu QR zamiast przejęcia drużyny
+    // widział Moje mecze. Teraz cel odbiera ten sam efekt, który przekierowuje.
+    if (!loading && user) router.replace(odbierzPowrot() || '/moje-gry');
   }, [loading, user, router]);
 
   if (loading) return <>{hint ? skeleton : landing}</>;

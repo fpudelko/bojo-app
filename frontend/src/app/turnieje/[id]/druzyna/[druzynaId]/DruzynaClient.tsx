@@ -75,6 +75,13 @@ export default function DruzynaClient() {
   const [druzyna, setDruzyna] = useState<TurniejDruzyna | null>(null);
   const [mecze, setMecze] = useState<TurniejMecz[]>([]);
   const [areny, setAreny] = useState<TurniejArena[]>([]);
+  // ZMIANA KAPITANA ZA PRZEŁĄCZNIKIEM (2026-11-28, zgłoszenie właściciela).
+  // Zielone „Ustaw kapitanem” przy każdym zawodniku z kontem wyglądało jak
+  // zadanie do zrobienia: kapitan, który właśnie przejął drużynę z linku,
+  // widział je przy koledze, który dołączył chwilę wcześniej, i nie wiedział,
+  // czy ma to kliknąć. Gdy drużyna ma kapitana, przycisk pojawia się dopiero
+  // po „zmień” przy obecnym kapitanie.
+  const [zmianaKapitana, setZmianaKapitana] = useState(false);
   const [nazwyDruzyn, setNazwyDruzyn] = useState<Map<string, string>>(new Map());
   const [zaproszonych, setZaproszonych] = useState<string[]>([]);
   const [blikTelefon, setBlikTelefon] = useState<string | null>(null);
@@ -189,6 +196,10 @@ export default function DruzynaClient() {
   // (`czy_kapitan_druzyny()` obejmuje zarządzających), brakowało interfejsu.
   const jestOrganizatorem = !!user && (turniej?.organizatorId === user.id || jestAdmin);
   const prowadziSklad = jestKapitanem || jestOrganizatorem;
+  const maKapitana = !!druzyna?.zawodnicy?.some((z) => z.kapitan);
+  // „zmień” ma sens tylko, gdy jest komu przekazać: kapitanem zostaje
+  // wyłącznie zawodnik z kontem.
+  const moznaZmienicKapitana = !!druzyna?.zawodnicy?.some((z) => !z.kapitan && z.userId);
   const link = typeof window !== 'undefined' && druzyna
     ? `${kanonicznyOrigin(window.location.origin)}/t/${druzyna.kodDolaczenia}`
     : '';
@@ -236,8 +247,24 @@ export default function DruzynaClient() {
 
   const mianujKapitanem = async (zawodnikId: string, imie: string) => {
     if (!druzyna) return;
+    // Przekazanie opaski zabiera ją obecnemu kapitanowi, więc pytamy.
+    // Pierwszego kapitana (drużyna wpisana ręcznie) ustawia się bez pytania.
+    const obecny = druzyna.zawodnicy?.find((z) => z.kapitan);
+    if (obecny) {
+      const wynik = await potwierdz({
+        tytul: `Przekazać kapitana: ${imie}?`,
+        konsekwencje: [
+          jestKapitanem
+            ? 'Przestaniesz prowadzić skład, zrobi to nowy kapitan'
+            : `${obecny.imie} przestanie być kapitanem`,
+        ],
+        potwierdzLabel: 'Przekaż',
+      });
+      if (wynik !== 'tak') return;
+    }
     try {
       await ustawKapitana(druzyna.id, zawodnikId);
+      setZmianaKapitana(false);
       await wczytaj();
       toast(`${imie} jest kapitanem`);
     } catch (e) {
@@ -542,7 +569,15 @@ export default function DruzynaClient() {
                     )
                   )}
                   {z.kapitan && <span className="shrink-0 text-xs text-slate-400">kapitan</span>}
-                  {prowadziSklad && wolnoZmieniac && !z.kapitan && z.userId && (
+                  {z.kapitan && prowadziSklad && wolnoZmieniac && moznaZmienicKapitana && (
+                    <button
+                      onClick={() => setZmianaKapitana((v) => !v)}
+                      className="shrink-0 px-2 text-xs font-medium text-slate-500 hover:text-primary-700"
+                    >
+                      {zmianaKapitana ? 'anuluj' : 'zmień'}
+                    </button>
+                  )}
+                  {prowadziSklad && wolnoZmieniac && !z.kapitan && z.userId && (!maKapitana || zmianaKapitana) && (
                     <button
                       onClick={() => mianujKapitanem(z.id, z.imie)}
                       className="shrink-0 px-2 text-xs font-medium text-primary-600"
