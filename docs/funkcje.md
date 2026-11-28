@@ -5385,6 +5385,10 @@ wyliczona jako szary pas z ikoną; legenda awansu nad tabelami; nagłówek stron
   grupa albo faza i boisko z pinezką, po prawej dzień i godzina na zielonej plakietce; pod
   spodem tylko drużyny. Osobny wiersz z terminem i boiskiem pod drużynami zniknął. „Na żywo”,
   „Walkower”, „Odwołany” i „Wolny los” zastępują godzinę w prawym rogu.
+- **Bez „0 zawodników” (2026-11-28):** karta drużyny na stronie turnieju (`KartaDruzyny.tsx`)
+  pokazuje liczbę zawodników pod nazwą tylko, gdy skład nie jest pusty; po rozwinięciu jest
+  wiersz „Skład” z liczbą albo „Nikt jeszcze nie został dodany.” W panelu (Drużyny) przy pustym
+  składzie zostaje samo „bez kapitana”.
 - **Każdy mecz jednym wierszem (2026-11-21):** na zakładkach Mecze i Tabele mecz przyszły,
   trwający i rozegrany ma ten sam wiersz `components/turnieje/WierszMeczu.tsx`: znacznik grupy
   albo fazy (`znacznikFazy()`), mała data („28.11”, „Dziś”) nad większą godziną, drużyny

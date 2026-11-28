@@ -1588,7 +1588,7 @@ export default function PanelClient() {
                   <Link prefetch={false} href={`/turnieje/${id}/druzyna/${d.id}`} className="min-w-0 flex-1">
                     <span className="block line-clamp-2 break-words font-medium text-ink">{d.nazwa}</span>
                     <span className="block text-xs text-slate-500 dark:text-slate-400">
-                      {odmienZawodnikow(d.liczbaZawodnikow ?? 0)} · {d.kapitanId ? 'ma kapitana' : 'bez kapitana'}
+                      {d.liczbaZawodnikow ? `${odmienZawodnikow(d.liczbaZawodnikow)} · ` : ''}{d.kapitanId ? 'ma kapitana' : 'bez kapitana'}
                     </span>
                   </Link>
                   {turniej.wpisoweGrosze > 0 && (
