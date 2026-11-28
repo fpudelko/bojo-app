@@ -16,12 +16,13 @@
  * połowa drużyn gra bez numerów.
  */
 
+import { useState } from 'react';
 import { X } from 'lucide-react';
 import { WARSTWA } from '@/lib/warstwy';
 import type { TurniejZawodnik } from '@/types';
 
 export default function ArkuszSkladu({
-  tytul, podtytul, zawodnicy, etykietaPominiecia, akcjaDodatkowa, onWybor, onZamknij,
+  tytul, podtytul, zawodnicy, etykietaPominiecia, akcjaDodatkowa, onDopisz, onWybor, onZamknij,
 }: {
   tytul: string;
   podtytul?: string;
@@ -30,10 +31,28 @@ export default function ArkuszSkladu({
   etykietaPominiecia: string;
   /** Druga droga pod listą, np. „Samobój” przy golu (2026-11-21). */
   akcjaDodatkowa?: { etykieta: string; onClick: () => void };
+  /** Dopisanie zawodnika spoza składu (194): zwraca jego id, które od razu
+   *  idzie do `onWybor`. Bez tej funkcji pola nie ma. */
+  onDopisz?: (imie: string) => Promise<string>;
   /** `undefined` = pominięto. */
   onWybor: (zawodnikId: string | undefined) => void;
   onZamknij: () => void;
 }) {
+  const [noweImie, setNoweImie] = useState('');
+  const [dopisuje, setDopisuje] = useState(false);
+  const dopisz = async () => {
+    if (!onDopisz || !noweImie.trim() || dopisuje) return;
+    setDopisuje(true);
+    try {
+      const id = await onDopisz(noweImie.trim());
+      setNoweImie('');
+      onWybor(id);
+    } catch {
+      // Komunikat błędu pokazuje wywołujący (toast); pole zostaje z wpisanym imieniem.
+    } finally {
+      setDopisuje(false);
+    }
+  };
   return (
     <div
       className={`fixed inset-0 ${WARSTWA.modal} flex items-end justify-center bg-black/40 pb-[env(safe-area-inset-bottom)] sm:items-center sm:p-4`}
@@ -73,6 +92,31 @@ export default function ArkuszSkladu({
                 </button>
               ))}
             </div>
+          )}
+          {/* DOPISZ ZAWODNIKA (2026-11-28): strzelca często nie ma w składzie,
+              bo drużynę dodał organizator bez listy. Imię, „Dopisz” i od razu
+              jest strzelcem tego zdarzenia. */}
+          {onDopisz && (
+            <form
+              className="mt-3 flex gap-2"
+              onSubmit={(e) => { e.preventDefault(); void dopisz(); }}
+            >
+              <input
+                value={noweImie}
+                onChange={(e) => setNoweImie(e.target.value)}
+                maxLength={60}
+                placeholder="Nie ma na liście? Wpisz imię"
+                aria-label="Imię nowego zawodnika"
+                className="min-w-0 flex-1 rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2.5 text-sm dark:bg-slate-700 dark:text-slate-100"
+              />
+              <button
+                type="submit"
+                disabled={!noweImie.trim() || dopisuje}
+                className="min-h-[44px] shrink-0 rounded-xl bg-primary-600 px-4 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {dopisuje ? 'Dopisuję…' : 'Dopisz'}
+              </button>
+            </form>
           )}
         </div>
 
