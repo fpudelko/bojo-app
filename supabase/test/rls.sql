@@ -1958,6 +1958,16 @@ RESET ROLE;
 SELECT _oczekuj('nikt nie przepisze adresu (0 wierszy)',
                 (SELECT count(*) FROM adresy_z_nazwa WHERE slug = 'przejety'), 0);
 DELETE FROM turnieje WHERE id IN (:AD_T1::uuid, :AD_T2::uuid);
+\set AD_T3 '''ffffffff-0000-4000-8000-0000000001b3'''
+\set AD_T4 '''ffffffff-0000-4000-8000-0000000001b4'''
+INSERT INTO turnieje (id, organizator_id, nazwa, sport, status, data_startu, miasto)
+VALUES (:AD_T3::uuid, :T_ORGANIZATOR::uuid, 'Gramy dla Marysi!', 'piłka nożna', 'zapisy', DATE '2026-11-28', 'Luboń'),
+       (:AD_T4::uuid, :T_ORGANIZATOR::uuid, 'Turniej Luboń', 'piłka nożna', 'zapisy', DATE '2026-11-28', 'Luboń');
+SELECT _oczekuj('196: miasto w adresie nowego turnieju',
+                (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id = :AD_T3::uuid AND slug = 'gramy-dla-marysi-lubon-28-11-2026'), 1);
+SELECT _oczekuj('196: miasto już w nazwie nie powtarza się',
+                (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id = :AD_T4::uuid AND slug = 'turniej-lubon-28-11-2026'), 1);
+DELETE FROM turnieje WHERE id IN (:AD_T3::uuid, :AD_T4::uuid);
 SELECT _oczekuj('adres znika razem z turniejem',
                 (SELECT count(*) FROM adresy_z_nazwa WHERE turniej_id IN (:AD_T1::uuid, :AD_T2::uuid)), 0);
 
